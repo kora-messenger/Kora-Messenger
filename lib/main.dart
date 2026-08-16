@@ -4,6 +4,22 @@ void main() {
   runApp(const KoraMessengerApp());
 }
 
+/// Kora's own visual identity — a purple-to-blue gradient
+/// inspired by the app icon, paired with a deep navy dark surface.
+class KoraColors {
+  static const Color purple = Color(0xFF8B5CF6);
+  static const Color blue = Color(0xFF3B82F6);
+  static const Color deepNavy = Color(0xFF0A0A14);
+  static const Color darkSurface = Color(0xFF13131F);
+  static const Color lightBackground = Color(0xFFFAFAFC);
+
+  static const LinearGradient brandGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [purple, blue],
+  );
+}
+
 class KoraMessengerApp extends StatelessWidget {
   const KoraMessengerApp({super.key});
 
@@ -12,16 +28,34 @@ class KoraMessengerApp extends StatelessWidget {
     return MaterialApp(
       title: 'Kora Messenger',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF5B4FE5),
-          primary: const Color(0xFF5B4FE5),
-        ),
-        scaffoldBackgroundColor: Colors.white,
-        fontFamily: 'Roboto',
-      ),
+      themeMode: ThemeMode.system,
+      theme: _buildLightTheme(),
+      darkTheme: _buildDarkTheme(),
       home: const WelcomeScreen(),
+    );
+  }
+
+  ThemeData _buildLightTheme() {
+    return ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.light,
+      scaffoldBackgroundColor: KoraColors.lightBackground,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: KoraColors.purple,
+        brightness: Brightness.light,
+      ),
+    );
+  }
+
+  ThemeData _buildDarkTheme() {
+    return ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.dark,
+      scaffoldBackgroundColor: KoraColors.deepNavy,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: KoraColors.purple,
+        brightness: Brightness.dark,
+      ),
     );
   }
 }
@@ -31,69 +65,59 @@ class WelcomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final screenHeight = MediaQuery.of(context).size.height;
     final screenWidth = MediaQuery.of(context).size.width;
 
+    final Color headlineColor = isDark ? Colors.white : const Color(0xFF14141F);
+    final Color subtitleColor = isDark ? const Color(0xFFA0A0B8) : const Color(0xFF6B6B80);
+    final Color footerColor = isDark ? const Color(0xFF6B6B80) : const Color(0xFFA0A0B0);
+    final Color surfaceColor = isDark ? KoraColors.darkSurface : Colors.white;
+
     return Scaffold(
       body: SafeArea(
-        child: Container(
+        child: SizedBox(
           width: double.infinity,
           height: double.infinity,
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Color(0xFFF8F7FF),
-                Color(0xFFFFFFFF),
-              ],
-            ),
-          ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              SizedBox(height: screenHeight * 0.08),
+              SizedBox(height: screenHeight * 0.06),
 
-              // Logo and branding section
+              // Branding section
               Column(
                 children: [
-                  // App logo
+                  // App icon (Kora's own K + chat-bubble mark)
                   Container(
-                    width: 100,
-                    height: 100,
+                    width: 112,
+                    height: 112,
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          Color(0xFF6C63FF),
-                          Color(0xFF5B4FE5),
-                        ],
-                      ),
                       borderRadius: BorderRadius.circular(28),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF5B4FE5).withOpacity(0.3),
-                          blurRadius: 24,
-                          offset: const Offset(0, 8),
+                          color: KoraColors.purple.withOpacity(isDark ? 0.35 : 0.25),
+                          blurRadius: 28,
+                          offset: const Offset(0, 10),
                         ),
                       ],
                     ),
-                    child: const Icon(
-                      Icons.chat_rounded,
-                      size: 48,
-                      color: Colors.white,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(28),
+                      child: Image.asset(
+                        'assets/icon/kora_icon.png',
+                        fit: BoxFit.cover,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 36),
 
-                  // App title
-                  const Text(
-                    'Kora Messenger',
+                  // Headline
+                  Text(
+                    'Welcome to Kora',
                     style: TextStyle(
-                      fontSize: 32,
+                      fontSize: 30,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF1A1A2E),
+                      color: headlineColor,
                       letterSpacing: -0.5,
                     ),
                   ),
@@ -101,17 +125,15 @@ class WelcomeScreen extends StatelessWidget {
 
                   // Subtitle
                   Container(
-                    constraints: BoxConstraints(
-                      maxWidth: screenWidth * 0.75,
-                    ),
-                    child: const Text(
-                      'Connect instantly. Chat seamlessly. '
-                      'Your conversations, elevated.',
+                    constraints: BoxConstraints(maxWidth: screenWidth * 0.78),
+                    child: Text(
+                      'Real conversations, reimagined. Connect with the '
+                      'people who matter — instantly, and securely.',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 15.5,
                         fontWeight: FontWeight.w400,
-                        color: Color(0xFF8E8EA0),
+                        color: subtitleColor,
                         height: 1.5,
                       ),
                     ),
@@ -121,50 +143,63 @@ class WelcomeScreen extends StatelessWidget {
 
               // Buttons section
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32),
+                padding: const EdgeInsets.symmetric(horizontal: 28),
                 child: Column(
                   children: [
-                    // Sign Up button
+                    // Primary — Create Account / Sign Up
                     SizedBox(
                       width: double.infinity,
                       height: 56,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          // Navigate to Sign Up screen
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF5B4FE5),
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: KoraColors.brandGradient,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: KoraColors.purple.withOpacity(0.3),
+                              blurRadius: 16,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
                         ),
-                        child: const Text(
-                          'Sign Up',
-                          style: TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w600,
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(16),
+                            onTap: () {
+                              // Navigate to Create Account screen (next stage)
+                            },
+                            child: const Center(
+                              child: Text(
+                                'Create Account',
+                                style: TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 14),
 
-                    // Log In button
+                    // Secondary — Log In
                     SizedBox(
                       width: double.infinity,
                       height: 56,
                       child: OutlinedButton(
                         onPressed: () {
-                          // Navigate to Log In screen
+                          // Navigate to Log In screen (next stage)
                         },
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFF5B4FE5),
-                          side: const BorderSide(
-                            color: Color(0xFF5B4FE5),
+                          foregroundColor: headlineColor,
+                          side: BorderSide(
+                            color: isDark ? const Color(0xFF2E2E42) : const Color(0xFFE0E0EA),
                             width: 1.5,
                           ),
+                          backgroundColor: surfaceColor,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),
                           ),
@@ -182,30 +217,32 @@ class WelcomeScreen extends StatelessWidget {
                 ),
               ),
 
-              // Footer
+              // Footer — legal text
               Padding(
-                padding: const EdgeInsets.only(bottom: 24),
-                child: Column(
-                  children: [
-                    const Text(
-                      'By continuing, you agree to our Terms of Service\n'
-                      'and Privacy Policy',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Color(0xFFB0B0C0),
-                        height: 1.5,
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+                child: RichText(
+                  textAlign: TextAlign.center,
+                  text: TextSpan(
+                    style: TextStyle(fontSize: 12.5, color: footerColor, height: 1.5),
+                    children: [
+                      const TextSpan(text: 'By continuing, you agree to Kora\'s\n'),
+                      TextSpan(
+                        text: 'Terms of Service',
+                        style: TextStyle(
+                          color: isDark ? KoraColors.blue.withOpacity(0.9) : KoraColors.purple,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'v1.0.0',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: const Color(0xFFB0B0C0).withOpacity(0.7),
+                      const TextSpan(text: ' and '),
+                      TextSpan(
+                        text: 'Privacy Policy',
+                        style: TextStyle(
+                          color: isDark ? KoraColors.blue.withOpacity(0.9) : KoraColors.purple,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ],

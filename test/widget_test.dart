@@ -4,22 +4,29 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kora_messenger/main.dart';
 
 void main() {
-  testWidgets('Welcome screen displays correct elements', (WidgetTester tester) async {
+  testWidgets('Welcome screen displays Kora branding and CTAs', (WidgetTester tester) async {
     await tester.pumpWidget(const KoraMessengerApp());
 
-    // Verify app title
-    expect(find.text('Kora Messenger'), findsOneWidget);
+    // Headline
+    expect(find.text('Welcome to Kora'), findsOneWidget);
 
-    // Verify subtitle
+    // Subtitle
     expect(
-      find.text('Connect instantly. Chat seamlessly. Your conversations, elevated.'),
+      find.text(
+        'Real conversations, reimagined. Connect with the '
+        'people who matter — instantly, and securely.',
+      ),
       findsOneWidget,
     );
 
-    // Verify Sign Up button
-    expect(find.text('Sign Up'), findsOneWidget);
+    // Primary CTA
+    expect(find.text('Create Account'), findsOneWidget);
 
-    // Verify Log In button
+    // Secondary CTA
     expect(find.text('Log In'), findsOneWidget);
+
+    // Legal text
+    expect(find.text('Terms of Service'), findsOneWidget);
+    expect(find.text('Privacy Policy'), findsOneWidget);
   });
 }
