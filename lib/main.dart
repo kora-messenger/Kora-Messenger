@@ -95,7 +95,7 @@ class WelcomeScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(28),
                       boxShadow: [
                         BoxShadow(
-                          color: KoraColors.purple.withOpacity(isDark ? 0.35 : 0.25),
+                          color: KoraColors.purple.withValues(alpha: isDark ? 0.35 : 0.25),
                           blurRadius: 28,
                           offset: const Offset(0, 10),
                         ),
@@ -156,7 +156,7 @@ class WelcomeScreen extends StatelessWidget {
                           borderRadius: BorderRadius.circular(16),
                           boxShadow: [
                             BoxShadow(
-                              color: KoraColors.purple.withOpacity(0.3),
+                              color: KoraColors.purple.withValues(alpha: 0.3),
                               blurRadius: 16,
                               offset: const Offset(0, 6),
                             ),
@@ -229,7 +229,7 @@ class WelcomeScreen extends StatelessWidget {
                       TextSpan(
                         text: 'Terms of Service',
                         style: TextStyle(
-                          color: isDark ? KoraColors.blue.withOpacity(0.9) : KoraColors.purple,
+                          color: isDark ? KoraColors.blue.withValues(alpha: 0.9) : KoraColors.purple,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -237,7 +237,7 @@ class WelcomeScreen extends StatelessWidget {
                       TextSpan(
                         text: 'Privacy Policy',
                         style: TextStyle(
-                          color: isDark ? KoraColors.blue.withOpacity(0.9) : KoraColors.purple,
+                          color: isDark ? KoraColors.blue.withValues(alpha: 0.9) : KoraColors.purple,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
