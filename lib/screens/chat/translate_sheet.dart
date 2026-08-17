@@ -96,7 +96,7 @@ class _TranslateSheetState extends State<TranslateSheet> {
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
                 child: Row(
                   children: [
-                    Icon(Icons.translate, color: KoraColors.purple, size: 22),
+                    const Icon(Icons.translate, color: KoraColors.purple, size: 22),
                     const SizedBox(width: 8),
                     Text(
                       'Translate',
