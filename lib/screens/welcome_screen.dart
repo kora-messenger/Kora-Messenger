@@ -184,7 +184,7 @@ class WelcomeScreen extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 22),
                 child: Column(
                   children: [
-                    Text(
+                    const Text(
                       'By continuing, you agree to our',
                       textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 12.5, color: footerColor, height: 1.5),
