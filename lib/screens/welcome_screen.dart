@@ -182,15 +182,15 @@ class WelcomeScreen extends StatelessWidget {
               // Footer — legal text
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 32, vertical: 22),
-                child: const Column(
+                child: Column(
                   children: [
-                    const Text(
+                    Text(
                       'By continuing, you agree to our',
                       textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 12.5, color: footerColor, height: 1.5),
                     ),
-                    const SizedBox(height: 2),
-                    const Text(
+                    SizedBox(height: 2),
+                    Text(
                       'Terms & Privacy Policy',
                       textAlign: TextAlign.center,
                       style: TextStyle(
