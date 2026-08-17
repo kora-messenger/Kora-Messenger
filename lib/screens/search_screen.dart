@@ -4,6 +4,7 @@ import '../services/chat_service.dart';
 import '../theme/kora_colors.dart';
 import '../widgets/kora_avatar.dart';
 import '../widgets/kora_badge.dart';
+import 'chat/kora_chat_screen.dart';
 
 /// Kora's search screen — finds conversations, users, usernames, Kora IDs,
 /// channels, and (eventually) messages. Opened from the Home header.
@@ -39,6 +40,22 @@ class _SearchScreenState extends State<SearchScreen> {
     final all = ChatService.instance.getChats();
     final q = _query.toLowerCase();
     return all.where((c) => c.name.toLowerCase().contains(q)).toList();
+  }
+
+  void _openChat(ChatPreview chat) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => KoraChatScreen(
+          chatId: chat.id,
+          name: chat.name,
+          avatarAsset: chat.avatarAsset,
+          avatarUrl: chat.avatarUrl,
+          badge: chat.badge,
+          isOnline: chat.isOnline,
+          lastSeen: chat.isOnline ? null : 'last seen recently',
+        ),
+      ),
+    );
   }
 
   @override
@@ -171,7 +188,7 @@ class _SearchScreenState extends State<SearchScreen> {
             overflow: TextOverflow.ellipsis,
             style: TextStyle(color: textSecondary, fontSize: 13),
           ),
-          onTap: () => Navigator.pop(context),
+          onTap: () => _openChat(chat),
         );
       },
     );

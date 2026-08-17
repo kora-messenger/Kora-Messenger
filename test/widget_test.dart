@@ -4,10 +4,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kora_messenger/main.dart';
 import 'package:kora_messenger/screens/profile_setup_screen.dart';
 import 'package:kora_messenger/screens/kora_home_screen.dart';
+import 'package:kora_messenger/models/chat_models.dart';
 import 'package:kora_messenger/services/chat_service.dart';
 
 void main() {
   homeScreenTests();
+  chatScreenTests();
   // ── Welcome Screen ──────────────────────────────────────────
   testWidgets('Welcome screen displays Kora branding and CTAs', (tester) async {
     await tester.pumpWidget(const KoraMessengerApp());
@@ -278,6 +280,129 @@ void homeScreenTests() {
       await tester.pumpAndSettle();
 
       expect(find.text('Search Kora'), findsOneWidget);
+    });
+  });
+}
+
+// ── Chat Screen ───────────────────────────────────────────────
+import 'package:kora_messenger/screens/chat/kora_chat_screen.dart';
+
+void chatScreenTests() {
+  group('Kora Chat Screen', () {
+    testWidgets('Shows header with contact name and badge for Kora Support', (tester) async {
+      await tester.pumpWidget(const MaterialApp(
+        home: KoraChatScreen(
+          chatId: 'kora_support',
+          name: 'Kora Support',
+          avatarAsset: 'assets/images/kora_support_avatar.png',
+          badge: KoraBadgeType.officialPurple,
+          isOnline: true,
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Kora Support'), findsOneWidget);
+      expect(find.text('online'), findsOneWidget);
+    });
+
+    testWidgets('Shows header with Kora AI Assistant name', (tester) async {
+      await tester.pumpWidget(const MaterialApp(
+        home: KoraChatScreen(
+          chatId: 'kora_ai',
+          name: 'Kora AI Assistant',
+          avatarAsset: 'assets/images/kora_ai_avatar.png',
+          badge: KoraBadgeType.officialPurple,
+          isOnline: true,
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Kora AI Assistant'), findsOneWidget);
+    });
+
+    testWidgets('Shows seeded messages for Kora Support', (tester) async {
+      await tester.pumpWidget(const MaterialApp(
+        home: KoraChatScreen(
+          chatId: 'kora_support',
+          name: 'Kora Support',
+          avatarAsset: 'assets/images/kora_support_avatar.png',
+          badge: KoraBadgeType.officialPurple,
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Welcome to Kora Messenger! 👋'), findsOneWidget);
+      expect(find.textContaining('I\'m here to help'), findsOneWidget);
+    });
+
+    testWidgets('Shows header action icons (call, video, menu)', (tester) async {
+      await tester.pumpWidget(const MaterialApp(
+        home: KoraChatScreen(
+          chatId: 'kora_ai',
+          name: 'Kora AI Assistant',
+          badge: KoraBadgeType.officialPurple,
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.call_outlined), findsOneWidget);
+      expect(find.byIcon(Icons.videocam_outlined), findsOneWidget);
+      expect(find.byIcon(Icons.more_vert), findsOneWidget);
+    });
+
+    testWidgets('Shows empty state for a conversation with no messages', (tester) async {
+      await tester.pumpWidget(const MaterialApp(
+        home: KoraChatScreen(
+          chatId: 'new_empty_chat',
+          name: 'Test User',
+          badge: KoraBadgeType.none,
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Say hi to Test User'), findsOneWidget);
+    });
+
+    testWidgets('Composer shows mic icon when empty and send icon when typing', (tester) async {
+      await tester.pumpWidget(const MaterialApp(
+        home: KoraChatScreen(
+          chatId: 'kora_support',
+          name: 'Kora Support',
+          badge: KoraBadgeType.officialPurple,
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      // Initially shows mic
+      expect(find.byIcon(Icons.mic), findsOneWidget);
+      expect(find.byIcon(Icons.send), findsNothing);
+
+      // Type text
+      await tester.enterText(find.byType(TextField), 'Hello there');
+      await tester.pumpAndSettle();
+
+      // Now shows send
+      expect(find.byIcon(Icons.send), findsOneWidget);
+      expect(find.byIcon(Icons.mic), findsNothing);
+    });
+
+    testWidgets('Tapping send adds a new message to the list', (tester) async {
+      await tester.pumpWidget(const MaterialApp(
+        home: KoraChatScreen(
+          chatId: 'kora_support',
+          name: 'Kora Support',
+          badge: KoraBadgeType.officialPurple,
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), 'Test message 123');
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.send));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Test message 123'), findsOneWidget);
     });
   });
 }

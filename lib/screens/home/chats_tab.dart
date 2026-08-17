@@ -7,10 +7,10 @@ import '../../widgets/kora_empty_state.dart';
 import '../../widgets/kora_menu_sheet.dart';
 import '../../widgets/new_chat_sheet.dart';
 import '../search_screen.dart';
+import '../chat/kora_chat_screen.dart';
 
 /// The "Chats" tab — Kora's central conversation list.
-/// Owns the Home header (branding, avatar, search, three-dot menu) since
-/// the header's actions are specific to this tab.
+/// Owns the Home header (branding, avatar, search, three-dot menu).
 class ChatsTab extends StatefulWidget {
   final VoidCallback? onProfileTap;
 
@@ -29,6 +29,22 @@ class _ChatsTabState extends State<ChatsTab> {
     _chats = ChatService.instance.getChats();
   }
 
+  void _openChat(ChatPreview chat) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => KoraChatScreen(
+          chatId: chat.id,
+          name: chat.name,
+          avatarAsset: chat.avatarAsset,
+          avatarUrl: chat.avatarUrl,
+          badge: chat.badge,
+          isOnline: chat.isOnline,
+          lastSeen: chat.isOnline ? null : 'last seen recently',
+        ),
+      ),
+    );
+  }
+
   void _openSearch() {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const SearchScreen()),
@@ -37,36 +53,12 @@ class _ChatsTabState extends State<ChatsTab> {
 
   void _openMenu() {
     KoraMenuSheet.show(context, [
-      KoraMenuOption(
-        icon: Icons.group_add_outlined,
-        label: 'New Group',
-        onTap: () {},
-      ),
-      KoraMenuOption(
-        icon: Icons.campaign_outlined,
-        label: 'New Channel',
-        onTap: () {},
-      ),
-      KoraMenuOption(
-        icon: Icons.archive_outlined,
-        label: 'Archived Chats',
-        onTap: () {},
-      ),
-      KoraMenuOption(
-        icon: Icons.star_outline,
-        label: 'Starred Messages',
-        onTap: () {},
-      ),
-      KoraMenuOption(
-        icon: Icons.privacy_tip_outlined,
-        label: 'Privacy',
-        onTap: () {},
-      ),
-      KoraMenuOption(
-        icon: Icons.settings_outlined,
-        label: 'Settings',
-        onTap: () {},
-      ),
+      KoraMenuOption(icon: Icons.group_add_outlined, label: 'New Group', onTap: () {}),
+      KoraMenuOption(icon: Icons.campaign_outlined, label: 'New Channel', onTap: () {}),
+      KoraMenuOption(icon: Icons.archive_outlined, label: 'Archived Chats', onTap: () {}),
+      KoraMenuOption(icon: Icons.star_outline, label: 'Starred Messages', onTap: () {}),
+      KoraMenuOption(icon: Icons.privacy_tip_outlined, label: 'Privacy', onTap: () {}),
+      KoraMenuOption(icon: Icons.settings_outlined, label: 'Settings', onTap: () {}),
     ]);
   }
 
@@ -89,8 +81,7 @@ class _ChatsTabState extends State<ChatsTab> {
                   ? KoraEmptyState(
                       icon: Icons.chat_bubble_outline,
                       title: 'No conversations yet',
-                      message:
-                          'Start a chat with friends, family, or Kora Support to see it here.',
+                      message: 'Start a chat with friends, family, or Kora Support to see it here.',
                       actionLabel: 'Start a Chat',
                       onAction: () => NewChatSheet.show(context),
                     )
@@ -113,7 +104,7 @@ class _ChatsTabState extends State<ChatsTab> {
                           final chat = _chats[index];
                           return ChatListItem(
                             chat: chat,
-                            onTap: () {},
+                            onTap: () => _openChat(chat),
                             onLongPress: () {},
                           );
                         },
