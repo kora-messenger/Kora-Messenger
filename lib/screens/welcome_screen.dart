@@ -69,7 +69,7 @@ class WelcomeScreen extends StatelessWidget {
               const SizedBox(height: 10),
 
               // Subtitle
-              Text(
+              const Text(
                 'Connect with anyone, anywhere, anytime.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
@@ -180,9 +180,9 @@ class WelcomeScreen extends StatelessWidget {
               ),
 
               // Footer — legal text
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 22),
-                child: Column(
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 32, vertical: 22),
+                child: const Column(
                   children: [
                     const Text(
                       'By continuing, you agree to our',
