@@ -22,3 +22,5 @@ flutter:
     - assets/icon/kora_icon.png
     - assets/images/kora_logo_lockup.png
     - assets/images/world_map_glow.png
+    - assets/images/kora_support_avatar.png
+    - assets/images/kora_ai_avatar.png

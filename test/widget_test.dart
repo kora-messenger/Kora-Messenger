@@ -3,8 +3,11 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:kora_messenger/main.dart';
 import 'package:kora_messenger/screens/profile_setup_screen.dart';
+import 'package:kora_messenger/screens/kora_home_screen.dart';
+import 'package:kora_messenger/services/chat_service.dart';
 
 void main() {
+  homeScreenTests();
   // ── Welcome Screen ──────────────────────────────────────────
   testWidgets('Welcome screen displays Kora branding and CTAs', (tester) async {
     await tester.pumpWidget(const KoraMessengerApp());
@@ -206,5 +209,75 @@ void main() {
       find.text('Others can find and connect with you using this ID.'),
       findsOneWidget,
     );
+  });
+}
+
+// ── Home Screen ────────────────────────────────────────────────
+void homeScreenTests() {
+  group('Kora Home Screen', () {
+    setUp(() {
+      ChatService.instance.showEmptyState = false;
+    });
+
+    testWidgets('Chats tab shows Kora branding and header icons', (tester) async {
+      await tester.pumpWidget(const MaterialApp(home: KoraHomeScreen()));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Kora'), findsOneWidget);
+      expect(find.byIcon(Icons.search), findsOneWidget);
+      expect(find.byIcon(Icons.more_vert), findsOneWidget);
+    });
+
+    testWidgets('Chats tab shows Kora Support and Kora AI Assistant with badges', (tester) async {
+      await tester.pumpWidget(const MaterialApp(home: KoraHomeScreen()));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Kora Support'), findsOneWidget);
+      expect(find.text('Kora AI Assistant'), findsOneWidget);
+      // Both are official accounts -> purple check badge icons present
+      expect(find.byIcon(Icons.check), findsWidgets);
+    });
+
+    testWidgets('Bottom navigation has all five sections', (tester) async {
+      await tester.pumpWidget(const MaterialApp(home: KoraHomeScreen()));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Chats'), findsOneWidget);
+      expect(find.text('Calls'), findsOneWidget);
+      expect(find.text('Status'), findsOneWidget);
+      expect(find.text('Channels'), findsOneWidget);
+      expect(find.text('Profile'), findsOneWidget);
+    });
+
+    testWidgets('Tapping Profile in bottom nav switches to Profile tab', (tester) async {
+      await tester.pumpWidget(const MaterialApp(home: KoraHomeScreen()));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Profile'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Ijezie Goodluck'), findsOneWidget);
+    });
+
+    testWidgets('Empty state shows when there are no chats', (tester) async {
+      ChatService.instance.showEmptyState = true;
+      await tester.pumpWidget(const MaterialApp(home: KoraHomeScreen()));
+      await tester.pumpAndSettle();
+
+      expect(find.text('No conversations yet'), findsOneWidget);
+      expect(find.text('Start a Chat'), findsOneWidget);
+
+      ChatService.instance.showEmptyState = false;
+    });
+
+    testWidgets('Tapping search icon opens the search screen', (tester) async {
+      await tester.pumpWidget(const MaterialApp(home: KoraHomeScreen()));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.search));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Search Kora'), findsOneWidget);
+    });
   });
 }
