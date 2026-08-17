@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../theme/kora_colors.dart';
-import 'signup_screen.dart';
+import '../widgets/kora_input.dart';
+import '../widgets/kora_button.dart';
+import 'verification_screen.dart';
+import 'forgot_password_screen.dart';
 
 class LogInScreen extends StatefulWidget {
   const LogInScreen({super.key});
@@ -10,9 +13,10 @@ class LogInScreen extends StatefulWidget {
 }
 
 class _LogInScreenState extends State<LogInScreen> {
+  final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  bool _obscurePassword = true;
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -21,282 +25,158 @@ class _LogInScreenState extends State<LogInScreen> {
     super.dispose();
   }
 
+  String? _validateEmail(String? value) {
+    if (value == null || value.trim().isEmpty) return 'Please enter your email';
+    if (!RegExp(r'^[\w.+-]+@[\w-]+\.[\w.-]+$').hasMatch(value.trim())) {
+      return 'Please enter a valid email address';
+    }
+    return null;
+  }
+
+  String? _validatePassword(String? value) {
+    if (value == null || value.isEmpty) return 'Please enter your password';
+    return null;
+  }
+
+  void _submit() {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+
+    // Simulate network delay for credential check
+    Future.delayed(const Duration(milliseconds: 800), () {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+
+      // In production: verify credentials against backend
+      // For now: proceed to verification screen
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => VerificationScreen(
+            type: VerificationType.login,
+            email: _emailController.text.trim(),
+          ),
+        ),
+      );
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : const Color(0xFF14141F);
-    final subtitleColor = isDark ? const Color(0xFFA0A0B8) : const Color(0xFF6B6B80);
-    final cardColor = isDark ? KoraColors.darkCard : KoraColors.lightCard;
-    final borderColor = isDark ? const Color(0xFF2E2E42) : const Color(0xFFE0E0EA);
-
     return Scaffold(
+      backgroundColor: KoraColors.trueBlack,
+      appBar: AppBar(
+        backgroundColor: KoraColors.trueBlack,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 28),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Back button
-                IconButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  icon: Icon(Icons.arrow_back, color: textColor),
-                  padding: EdgeInsets.zero,
+        child: Form(
+          key: _formKey,
+          child: ListView(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            children: [
+              const SizedBox(height: 8),
+              const Text(
+                'Welcome back',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 26,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.5,
                 ),
-                const SizedBox(height: 8),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Log in to continue to Kora.',
+                style: TextStyle(color: Color(0xFFA0A0B8), fontSize: 15),
+              ),
+              const SizedBox(height: 32),
 
-                // Small Kora logo
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(14),
-                    boxShadow: [
-                      BoxShadow(
-                        color: KoraColors.purple.withValues(alpha: isDark ? 0.3 : 0.2),
-                        blurRadius: 16,
-                        offset: const Offset(0, 6),
+              KoraInput(
+                label: 'Email',
+                controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
+                validator: _validateEmail,
+                prefixIcon: const Padding(
+                  padding: EdgeInsets.only(left: 14, right: 10),
+                  child: Icon(Icons.email_outlined, color: Color(0xFF6B6B80), size: 22),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              KoraInput(
+                label: 'Password',
+                controller: _passwordController,
+                obscureText: true,
+                validator: _validatePassword,
+                prefixIcon: const Padding(
+                  padding: EdgeInsets.only(left: 14, right: 10),
+                  child: Icon(Icons.lock_outline, color: Color(0xFF6B6B80), size: 22),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // Forgot password
+              Align(
+                alignment: Alignment.centerRight,
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const ForgotPasswordScreen(),
                       ),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(14),
-                    child: Image.asset('assets/icon/kora_icon.png', fit: BoxFit.cover),
-                  ),
-                ),
-                const SizedBox(height: 28),
-
-                // Headline
-                Text(
-                  'Welcome back',
-                  style: TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w700,
-                    color: textColor,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Log in to continue to Kora.',
-                  style: TextStyle(
-                    fontSize: 15,
-                    color: subtitleColor,
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
-                const SizedBox(height: 36),
-
-                // Email field
-                _KoraTextField(
-                  controller: _emailController,
-                  label: 'Email',
-                  hint: 'you@example.com',
-                  icon: Icons.mail_outline,
-                  keyboardType: TextInputType.emailAddress,
-                  cardColor: cardColor,
-                  borderColor: borderColor,
-                  textColor: textColor,
-                  subtitleColor: subtitleColor,
-                ),
-                const SizedBox(height: 18),
-
-                // Password field
-                _KoraTextField(
-                  controller: _passwordController,
-                  label: 'Password',
-                  hint: 'Enter your password',
-                  icon: Icons.lock_outline,
-                  obscureText: _obscurePassword,
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                      color: subtitleColor,
-                      size: 22,
+                    );
+                  },
+                  child: const Text(
+                    'Forgot password?',
+                    style: TextStyle(
+                      color: KoraColors.purple,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
                     ),
-                    onPressed: () {
-                      setState(() {
-                        _obscurePassword = !_obscurePassword;
-                      });
-                    },
                   ),
-                  cardColor: cardColor,
-                  borderColor: borderColor,
-                  textColor: textColor,
-                  subtitleColor: subtitleColor,
                 ),
-                const SizedBox(height: 12),
+              ),
+              const SizedBox(height: 28),
 
-                // Forgot password link
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: GestureDetector(
-                    onTap: () {
-                      // Password recovery will be added in a later step
-                    },
-                    child: Text(
-                      'Forgot password?',
+              KoraButton(
+                label: 'Log In',
+                onPressed: _submit,
+                isLoading: _isLoading,
+              ),
+              const SizedBox(height: 16),
+
+              // Create account
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text(
+                    "Don't have an account? ",
+                    style: TextStyle(color: Color(0xFFA0A0B8), fontSize: 14),
+                  ),
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).pop(),
+                    child: const Text(
+                      'Create Account',
                       style: TextStyle(
+                        color: KoraColors.purple,
                         fontSize: 14,
-                        color: isDark ? KoraColors.blue : KoraColors.purple,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 28),
-
-                // Log In button
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: KoraColors.brandGradient,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: KoraColors.purple.withValues(alpha: 0.3),
-                          blurRadius: 16,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
-                    ),
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(16),
-                        onTap: () {
-                          // Backend auth will be wired up in a later step
-                        },
-                        child: const Center(
-                          child: Text(
-                            'Log In',
-                            style: TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // "Don't have an account?" link
-                Center(
-                  child: GestureDetector(
-                    onTap: () {
-                      Navigator.of(context).pushReplacement(
-                        MaterialPageRoute(builder: (_) => const SignUpScreen()),
-                      );
-                    },
-                    child: RichText(
-                      text: TextSpan(
-                        style: TextStyle(
-                          fontSize: 14.5,
-                          color: subtitleColor,
-                        ),
-                        children: [
-                          const TextSpan(text: "Don't have an account? "),
-                          TextSpan(
-                            text: 'Sign Up',
-                            style: TextStyle(
-                              color: isDark ? KoraColors.blue : KoraColors.purple,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 32),
-              ],
-            ),
+                ],
+              ),
+              const SizedBox(height: 32),
+            ],
           ),
         ),
       ),
-    );
-  }
-}
-
-/// Reusable Kora-styled text field widget.
-class _KoraTextField extends StatelessWidget {
-  final TextEditingController controller;
-  final String label;
-  final String hint;
-  final IconData icon;
-  final TextInputType? keyboardType;
-  final bool obscureText;
-  final Widget? suffixIcon;
-  final Color cardColor;
-  final Color borderColor;
-  final Color textColor;
-  final Color subtitleColor;
-
-  const _KoraTextField({
-    required this.controller,
-    required this.label,
-    required this.hint,
-    required this.icon,
-    required this.cardColor,
-    required this.borderColor,
-    required this.textColor,
-    required this.subtitleColor,
-    this.keyboardType,
-    this.obscureText = false,
-    this.suffixIcon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 8),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: subtitleColor,
-            ),
-          ),
-        ),
-        Container(
-          decoration: BoxDecoration(
-            color: cardColor,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: borderColor, width: 1.2),
-          ),
-          child: TextField(
-            controller: controller,
-            obscureText: obscureText,
-            keyboardType: keyboardType,
-            style: TextStyle(
-              fontSize: 16,
-              color: textColor,
-              fontWeight: FontWeight.w400,
-            ),
-            decoration: InputDecoration(
-              hintText: hint,
-              hintStyle: TextStyle(
-                color: subtitleColor.withValues(alpha: 0.6),
-                fontSize: 15,
-                fontWeight: FontWeight.w400,
-              ),
-              prefixIcon: Icon(icon, color: subtitleColor, size: 22),
-              suffixIcon: suffixIcon,
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-            ),
-          ),
-        ),
-      ],
     );
   }
 }
