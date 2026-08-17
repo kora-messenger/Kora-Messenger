@@ -34,7 +34,6 @@ class _VerificationScreenState extends State<VerificationScreen> {
       List.generate(6, (_) => TextEditingController());
   final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
 
-  late DateTime _lastSentAt;
   Timer? _countdownTimer;
   int _countdown = 60;
   String? _errorMessage;
@@ -44,7 +43,6 @@ class _VerificationScreenState extends State<VerificationScreen> {
   @override
   void initState() {
     super.initState();
-    _lastSentAt = DateTime.now();
     _auth.sendVerificationCode(widget.email);
     _startCountdown();
   }
@@ -155,7 +153,6 @@ class _VerificationScreenState extends State<VerificationScreen> {
     Future.delayed(const Duration(milliseconds: 500), () {
       if (!mounted) return;
       _auth.sendVerificationCode(widget.email);
-      _lastSentAt = DateTime.now();
       _clearInputs();
       setState(() => _isResending = false);
       _startCountdown();

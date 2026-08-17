@@ -63,7 +63,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               Container(
                 width: 80,
                 height: 80,
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   shape: BoxShape.circle,
                   color: KoraColors.purple.withValues(alpha: 0.15),
                   border: Border.all(color: KoraColors.purple, width: 2),
@@ -90,7 +90,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   color: KoraColors.darkCard,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(color: const Color(0xFF2E2E42), width: 1),
@@ -101,7 +101,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                     Container(
                       width: 72,
                       height: 72,
-                      decoration: BoxDecoration(
+                      decoration: const BoxDecoration(
                         shape: BoxShape.circle,
                         gradient: KoraColors.brandGradient,
                       ),
