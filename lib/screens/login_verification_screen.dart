@@ -216,7 +216,7 @@ class _LoginVerificationScreenState extends State<LoginVerificationScreen> {
               const SizedBox(height: 20),
 
               const Center(
-                Text(
+                child: Text(
                   'New Device Detected',
                   style: TextStyle(
                     color: Colors.white,
@@ -228,11 +228,11 @@ class _LoginVerificationScreenState extends State<LoginVerificationScreen> {
               ),
               const SizedBox(height: 8),
 
-              Center(
+              const Center(
                 child: Text(
                   'For your security, we sent a verification code\nto your email to confirm it\'s you.',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: Color(0xFFA0A0B8), fontSize: 14, height: 1.5),
+                  style: TextStyle(color: Color(0xFFA0A0B8), fontSize: 14, height: 1.5),
                 ),
               ),
               const SizedBox(height: 6),
