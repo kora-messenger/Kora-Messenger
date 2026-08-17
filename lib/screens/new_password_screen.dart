@@ -2,11 +2,17 @@ import 'package:flutter/material.dart';
 import '../theme/kora_colors.dart';
 import '../widgets/kora_input.dart';
 import '../widgets/kora_button.dart';
+import '../services/auth_service.dart';
 
 class NewPasswordScreen extends StatefulWidget {
   final String email;
+  final String verificationCode;
 
-  const NewPasswordScreen({super.key, required this.email});
+  const NewPasswordScreen({
+    super.key,
+    required this.email,
+    required this.verificationCode,
+  });
 
   @override
   State<NewPasswordScreen> createState() => _NewPasswordScreenState();
@@ -16,8 +22,10 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
+  final AuthService _auth = AuthService.instance;
   bool _isLoading = false;
   bool _passwordUpdated = false;
+  String? _errorMessage;
 
   @override
   void dispose() {
@@ -40,25 +48,38 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
     return null;
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
 
-    Future.delayed(const Duration(milliseconds: 800), () {
-      if (!mounted) return;
+    final result = await _auth.verifyAndResetPassword(
+      email: widget.email,
+      code: widget.verificationCode,
+      newPassword: _passwordController.text,
+    );
+
+    if (!mounted) return;
+
+    if (result.success) {
       setState(() {
         _isLoading = false;
         _passwordUpdated = true;
       });
 
-      // Show success, then return to login after 2 seconds
       Future.delayed(const Duration(seconds: 2), () {
         if (!mounted) return;
-        // Pop back to the login screen (remove all intermediate screens)
         Navigator.of(context).popUntil((route) => route.isFirst);
       });
-    });
+    } else {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = result.error ?? 'Failed to reset password';
+      });
+    }
   }
 
   @override
@@ -101,6 +122,29 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
                   'Choose a strong password for your account.',
                   style: TextStyle(color: Color(0xFFA0A0B8), fontSize: 15),
                 ),
+                if (_errorMessage != null) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF2D1517),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFEF4444), width: 1),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.error_outline, color: Color(0xFFEF4444), size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _errorMessage!,
+                            style: const TextStyle(color: Color(0xFFFCA5A5), fontSize: 13),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 32),
 
                 KoraInput(

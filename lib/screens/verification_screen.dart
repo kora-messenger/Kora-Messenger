@@ -9,7 +9,7 @@ import 'new_password_screen.dart';
 
 /// Kora's unified verification-code screen.
 ///
-/// Used for registration, login, and password-reset flows.
+/// Used for registration and password-reset flows.
 /// Shows where the code was sent, provides 6-box code entry,
 /// resend with countdown, and handles all verification states.
 class VerificationScreen extends StatefulWidget {
@@ -43,7 +43,6 @@ class _VerificationScreenState extends State<VerificationScreen> {
   @override
   void initState() {
     super.initState();
-    _auth.sendVerificationCode(widget.email);
     _startCountdown();
   }
 
@@ -103,7 +102,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
 
   String get _enteredCode => _controllers.map((c) => c.text).join();
 
-  void _verify() {
+  Future<void> _verify() async {
     if (_enteredCode.length < 6) {
       setState(() => _errorMessage = 'Please enter the full 6-digit code.');
       return;
@@ -114,35 +113,52 @@ class _VerificationScreenState extends State<VerificationScreen> {
       _errorMessage = null;
     });
 
-    // Simulate network delay
-    Future.delayed(const Duration(milliseconds: 600), () {
-      if (!mounted) return;
-      final result = _auth.verifyCode(_enteredCode);
+    if (widget.type == VerificationType.registration) {
+      // Verify code + create account
+      final result = await _auth.verifyAndSignUp(
+        email: widget.email,
+        code: _enteredCode,
+        userData: Map<String, String>.from(widget.userData ?? {}),
+      );
 
+      if (!mounted) return;
       setState(() => _isVerifying = false);
 
-      switch (result) {
-        case VerificationResult.success:
-          _onSuccess();
-        case VerificationResult.incorrect:
-          setState(() => _errorMessage = 'Incorrect code. Please try again.');
-          _clearInputs();
-        case VerificationResult.expired:
-          setState(() => _errorMessage =
-              'This code has expired. Please request a new one.');
-          _clearInputs();
-        case VerificationResult.tooManyAttempts:
-          setState(() => _errorMessage =
-              'Too many incorrect attempts. Please request a new code.');
-          _clearInputs();
-        case VerificationResult.networkError:
-          setState(() => _errorMessage =
-              'Network error. Please check your connection and try again.');
+      if (result.success) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => ProfileSetupScreen(
+              email: (result.user?['email'] ?? widget.email) as String,
+              userData: result.user ?? widget.userData ?? {},
+            ),
+          ),
+        );
+      } else {
+        setState(() => _errorMessage = result.error ?? 'Verification failed');
+        _clearInputs();
       }
-    });
+    } else if (widget.type == VerificationType.passwordReset) {
+      // Go to NewPasswordScreen with the code
+      setState(() => _isVerifying = false);
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => NewPasswordScreen(
+            email: widget.email,
+            verificationCode: _enteredCode,
+          ),
+        ),
+      );
+    } else if (widget.type == VerificationType.login) {
+      // Login flow (shouldn't normally reach here with new flow, but handle it)
+      setState(() => _isVerifying = false);
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const KoraHomeScreen()),
+        (route) => false,
+      );
+    }
   }
 
-  void _resend() {
+  Future<void> _resend() async {
     if (_countdown > 0) return;
 
     setState(() {
@@ -150,13 +166,16 @@ class _VerificationScreenState extends State<VerificationScreen> {
       _errorMessage = null;
     });
 
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (!mounted) return;
-      _auth.sendVerificationCode(widget.email);
-      _clearInputs();
-      setState(() => _isResending = false);
-      _startCountdown();
+    final typeStr = widget.type == VerificationType.passwordReset
+        ? 'passwordReset'
+        : 'registration';
+    final result = await _auth.sendVerificationCode(widget.email, type: typeStr);
 
+    if (!mounted) return;
+
+    if (result.success) {
+      _clearInputs();
+      _startCountdown();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('A new code has been sent to your email.'),
@@ -164,7 +183,11 @@ class _VerificationScreenState extends State<VerificationScreen> {
           behavior: SnackBarBehavior.floating,
         ),
       );
-    });
+    } else {
+      setState(() => _errorMessage = result.error ?? 'Failed to resend code');
+    }
+
+    setState(() => _isResending = false);
   }
 
   void _clearInputs() {
@@ -172,37 +195,6 @@ class _VerificationScreenState extends State<VerificationScreen> {
       c.clear();
     }
     _focusNodes[0].requestFocus();
-  }
-
-  void _onSuccess() {
-    // Clear any error
-    setState(() => _errorMessage = null);
-
-    switch (widget.type) {
-      case VerificationType.registration:
-        // Registration → Profile Setup
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (_) => ProfileSetupScreen(
-              email: widget.email,
-              userData: widget.userData,
-            ),
-          ),
-        );
-      case VerificationType.login:
-        // Login → Kora Home
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const KoraHomeScreen()),
-          (route) => false,
-        );
-      case VerificationType.passwordReset:
-        // Password Reset → New Password
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (_) => NewPasswordScreen(email: widget.email),
-          ),
-        );
-    }
   }
 
   void _changeEmail() {
@@ -230,7 +222,6 @@ class _VerificationScreenState extends State<VerificationScreen> {
             children: [
               const SizedBox(height: 8),
 
-              // Title
               Text(
                 _title,
                 style: const TextStyle(
@@ -242,14 +233,12 @@ class _VerificationScreenState extends State<VerificationScreen> {
               ),
               const SizedBox(height: 8),
 
-              // Subtitle
               Text(
                 _subtitle,
                 style: const TextStyle(color: Color(0xFFA0A0B8), fontSize: 15),
               ),
               const SizedBox(height: 6),
 
-              // Email display + change option
               Row(
                 children: [
                   Flexible(
@@ -277,11 +266,9 @@ class _VerificationScreenState extends State<VerificationScreen> {
               ),
               const SizedBox(height: 36),
 
-              // Code boxes
               _buildCodeBoxes(),
               const SizedBox(height: 16),
 
-              // Error message
               if (_errorMessage != null)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8),
@@ -299,7 +286,6 @@ class _VerificationScreenState extends State<VerificationScreen> {
                   ),
                 ),
 
-              // Verify button
               KoraButton(
                 label: 'Verify',
                 onPressed: _verify,
@@ -307,11 +293,9 @@ class _VerificationScreenState extends State<VerificationScreen> {
               ),
               const SizedBox(height: 24),
 
-              // Resend + countdown
               _buildResendSection(),
               const Spacer(),
 
-              // Footer note
               Padding(
                 padding: const EdgeInsets.only(bottom: 24),
                 child: Center(
@@ -343,40 +327,35 @@ class _VerificationScreenState extends State<VerificationScreen> {
             maxLength: 1,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
             ),
             decoration: InputDecoration(
               counterText: '',
-              filled: true,
-              fillColor: KoraColors.darkCard,
-              contentPadding: EdgeInsets.zero,
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFF2E2E42), width: 1.5),
+                borderSide: BorderSide(
+                  color: _controllers[index].text.isNotEmpty
+                      ? KoraColors.purple
+                      : const Color(0xFF2E2E42),
+                  width: 2,
+                ),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: const BorderSide(color: KoraColors.purple, width: 2),
               ),
+              filled: true,
+              fillColor: KoraColors.darkCard,
             ),
             onChanged: (value) {
-              if (value.isNotEmpty) {
-                if (index < 5) {
-                  _focusNodes[index + 1].requestFocus();
-                } else {
-                  _focusNodes[index].unfocus();
-                }
-              } else if (value.isEmpty && index > 0) {
+              if (value.isNotEmpty && index < 5) {
+                _focusNodes[index + 1].requestFocus();
+              }
+              if (value.isEmpty && index > 0) {
                 _focusNodes[index - 1].requestFocus();
               }
-              // Auto-verify when all 6 digits entered
-              if (index == 5 && value.isNotEmpty) {
-                final code = _controllers.map((c) => c.text).join();
-                if (code.length == 6) {
-                  _verify();
-                }
-              }
+              setState(() {});
             },
           ),
         );
@@ -385,32 +364,39 @@ class _VerificationScreenState extends State<VerificationScreen> {
   }
 
   Widget _buildResendSection() {
-    final canResend = _countdown == 0 && !_isResending;
-
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         const Text(
-          "Didn't get a code? ",
-          style: TextStyle(color: Color(0xFF6B6B80), fontSize: 14),
+          "Didn't get the code? ",
+          style: TextStyle(color: Color(0xFFA0A0B8), fontSize: 14),
         ),
-        if (canResend)
-          GestureDetector(
-            onTap: _resend,
-            child: const Text(
-              'Resend Code',
-              style: TextStyle(
-                color: KoraColors.purple,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+        if (_countdown > 0)
+          Text(
+            'Resend in ${_countdown}s',
+            style: const TextStyle(color: Color(0xFF6B6B80), fontSize: 14),
           )
         else
-          Text(
-            _isResending ? 'Sending...' : 'Resend in ${_countdown}s',
-            style: const TextStyle(color: Color(0xFF6B6B80), fontSize: 14),
-          ),
+          _isResending
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: KoraColors.purple,
+                  ),
+                )
+              : GestureDetector(
+                  onTap: _resend,
+                  child: const Text(
+                    'Resend code',
+                    style: TextStyle(
+                      color: KoraColors.purple,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
       ],
     );
   }

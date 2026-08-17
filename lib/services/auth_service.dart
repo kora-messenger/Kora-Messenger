@@ -1,27 +1,20 @@
-import 'dart:math';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import '../config/kora_api.dart';
 
-/// Mock authentication service for Kora Messenger.
+/// Real authentication service for Kora Messenger.
+/// Calls the backend API for all auth operations.
 ///
-/// Simulates email verification codes sent from koramessengerofficial@gmail.com.
-/// When a real backend is ready, replace the methods here with API calls.
+/// Config is centralized in lib/config/kora_api.dart.
+/// When you get your domain, just change the baseUrl there.
 class AuthService {
-  static const String senderEmail = 'koramessengerofficial@gmail.com';
-
-  // ── Singleton ──────────────────────────────────────────────
   static final AuthService instance = AuthService._();
   AuthService._();
 
-  // ── In-memory state (mock) ──────────────────────────────────
-  String? _currentCode;
-  DateTime? _codeGeneratedAt;
-  int _attempts = 0;
-  static const int _maxAttempts = 5;
-  static const Duration _codeExpiry = Duration(minutes: 10);
-  static const Duration _resendCooldown = Duration(seconds: 60);
+  static const String _endpoint = KoraApi.authEndpoint;
 
-  // ── Username system ────────────────────────────────────────
+  // ── Username validation (client-side) ──────────────────────
 
-  /// Usernames reserved by Kora — cannot be claimed by users.
   static const List<String> reservedUsernames = [
     'admin', 'administrator', 'kora', 'koramessenger', 'koraofficial',
     'support', 'help', 'system', 'root', 'official', 'team', 'staff',
@@ -34,17 +27,6 @@ class AuthService {
     'channel', 'broadcast', 'notification', 'verify', 'auth',
   ];
 
-  /// Mock list of usernames already taken by other users.
-  /// In production this would be a database query.
-  static const List<String> _takenUsernames = [
-    'john', 'jane', 'mike', 'sarah', 'david', 'emma', 'chris',
-    'alex', 'sam', 'jordan', 'taylor', 'morgan', 'casey', 'riley',
-    'jamie', 'goodluck', 'ijezie', 'kora_user', 'admin1', 'testuser',
-    'user123', 'hello_world', 'flutter_dev', 'john_doe',
-  ];
-
-  /// Validates username format rules.
-  /// Returns null if valid, error message if invalid.
   static String? validateUsernameFormat(String username) {
     if (username.isEmpty) return 'Username is required';
     if (username.length < 3) return 'Must be at least 3 characters';
@@ -60,9 +42,9 @@ class AuthService {
     return null;
   }
 
-  /// Checks username availability (format + reserved + taken).
-  UsernameCheckResult checkUsername(String username) {
-    // Format validation first
+  /// Checks username availability against the backend.
+  /// Returns a UsernameCheckResult.
+  Future<UsernameCheckResult> checkUsername(String username) async {
     final formatError = validateUsernameFormat(username);
     if (formatError != null) {
       if (username.length < 3) {
@@ -71,86 +53,171 @@ class AuthService {
       return UsernameCheckResult(UsernameStatus.invalid, formatError);
     }
 
-    final lower = username.toLowerCase();
+    try {
+      final response = await http.post(
+        Uri.parse(_endpoint),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'action': 'checkUsername', 'username': username}),
+      );
+      final data = jsonDecode(response.body);
 
-    // Reserved check
-    if (reservedUsernames.contains(lower)) {
-      return const UsernameCheckResult(UsernameStatus.reserved, 'This username is reserved');
+      if (data['success'] == true && data['available'] == true) {
+        return const UsernameCheckResult(UsernameStatus.available, 'Available');
+      } else if (data['available'] == false) {
+        final reason = data['reason'] as String? ?? 'Username unavailable';
+        if (reason.toLowerCase().contains('reserved')) {
+          return UsernameCheckResult(UsernameStatus.reserved, reason);
+        }
+        return UsernameCheckResult(UsernameStatus.taken, reason);
+      }
+      return UsernameCheckResult(UsernameStatus.invalid, data['error'] ?? 'Check failed');
+    } catch (e) {
+      return const UsernameCheckResult(UsernameStatus.invalid, 'Network error');
     }
-
-    // Taken check (mock)
-    if (_takenUsernames.contains(lower)) {
-      return const UsernameCheckResult(UsernameStatus.taken, 'This username is already taken');
-    }
-
-    return const UsernameCheckResult(UsernameStatus.available, 'Available');
   }
 
-  // ── Verification codes ─────────────────────────────────────
+  // ── Send verification code ──────────────────────────────────
 
-  /// Generates a 6-digit verification code, stores it, and "sends" it.
-  String sendVerificationCode(String userEmail) {
-    final rng = Random();
-    _currentCode = (rng.nextInt(900000) + 100000).toString();
-    _codeGeneratedAt = DateTime.now();
-    _attempts = 0;
+  /// Sends a verification code to the given email.
+  /// Returns (success, errorMessage).
+  Future<({bool success, String? error})> sendVerificationCode(
+    String email, {
+    String type = 'registration',
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse(_endpoint),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'action': 'sendCode',
+          'email': email,
+          'type': type,
+        }),
+      );
+      final data = jsonDecode(response.body);
 
-    // In production: call backend to send email from koramessengerofficial@gmail.com
-    // ignore: avoid_print
-    print('=== Kora Verification Code ===');
-    print('  To: $userEmail');
-    print('  From: $senderEmail');
-    print('  Code: $_currentCode');
-    print('  Expires: ${_codeExpiry.inMinutes} minutes');
-    print('==============================');
-
-    return _currentCode!;
+      if (data['success'] == true) {
+        return (success: true, error: null);
+      }
+      return (success: false, error: data['error'] as String?);
+    } catch (e) {
+      return (success: false, error: 'Network error. Check your connection.');
+    }
   }
 
-  /// Validates the code entered by the user.
-  VerificationResult verifyCode(String enteredCode) {
-    if (_currentCode == null || _codeGeneratedAt == null) {
-      return VerificationResult.expired;
+  // ── Verify code and sign up ──────────────────────────────────
+
+  /// Verifies the code and creates the account.
+  /// Returns (success, errorMessage, userData).
+  Future<({bool success, String? error, Map<String, dynamic>? user})>
+      verifyAndSignUp({
+    required String email,
+    required String code,
+    required Map<String, String> userData,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse(_endpoint),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'action': 'verifyAndSignUp',
+          'email': email,
+          'code': code,
+          'userData': userData,
+        }),
+      );
+      final data = jsonDecode(response.body);
+
+      if (data['success'] == true) {
+        return (
+          success: true,
+          error: null,
+          user: data['user'] as Map<String, dynamic>?,
+        );
+      }
+      return (success: false, error: data['error'] as String?, user: null);
+    } catch (e) {
+      return (
+        success: false,
+        error: 'Network error. Check your connection.',
+        user: null,
+      );
     }
-
-    if (DateTime.now().difference(_codeGeneratedAt!) > _codeExpiry) {
-      _currentCode = null;
-      _codeGeneratedAt = null;
-      return VerificationResult.expired;
-    }
-
-    if (_attempts >= _maxAttempts) {
-      return VerificationResult.tooManyAttempts;
-    }
-
-    _attempts++;
-
-    if (enteredCode == _currentCode) {
-      _currentCode = null;
-      _codeGeneratedAt = null;
-      _attempts = 0;
-      return VerificationResult.success;
-    }
-
-    return VerificationResult.incorrect;
   }
 
-  /// Whether the resend cooldown has passed.
-  bool canResend(DateTime lastSentAt) {
-    return DateTime.now().difference(lastSentAt) >= _resendCooldown;
+  // ── Login ────────────────────────────────────────────────────
+
+  /// Logs in with email and password.
+  /// Returns (success, errorMessage, userData).
+  Future<({bool success, String? error, Map<String, dynamic>? user})> login({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse(_endpoint),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'action': 'login',
+          'email': email,
+          'password': password,
+        }),
+      );
+      final data = jsonDecode(response.body);
+
+      if (data['success'] == true) {
+        return (
+          success: true,
+          error: null,
+          user: data['user'] as Map<String, dynamic>?,
+        );
+      }
+      return (success: false, error: data['error'] as String?, user: null);
+    } catch (e) {
+      return (
+        success: false,
+        error: 'Network error. Check your connection.',
+        user: null,
+      );
+    }
   }
 
-  /// Seconds remaining until the user can request a new code.
-  int secondsUntilResend(DateTime lastSentAt) {
-    final elapsed = DateTime.now().difference(lastSentAt);
-    final remaining = _resendCooldown - elapsed;
-    return remaining.inSeconds < 0 ? 0 : remaining.inSeconds;
+  // ── Verify code and reset password ──────────────────────────
+
+  /// Verifies the code and resets the password.
+  Future<({bool success, String? error})> verifyAndResetPassword({
+    required String email,
+    required String code,
+    required String newPassword,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse(_endpoint),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'action': 'verifyAndResetPassword',
+          'email': email,
+          'code': code,
+          'newPassword': newPassword,
+        }),
+      );
+      final data = jsonDecode(response.body);
+
+      if (data['success'] == true) {
+        return (success: true, error: null);
+      }
+      return (success: false, error: data['error'] as String?);
+    } catch (e) {
+      return (success: false, error: 'Network error. Check your connection.');
+    }
   }
 
-  /// Generates a unique Kora ID: KM-XXXXXXXXX (9 digits). e.g. KM-383196342
+  // ── Utility ──────────────────────────────────────────────────
+
+  /// Generates a unique Kora ID: KM-XXXXXXXXX (9 digits).
   String generateKoraId() {
-    final rng = Random();
-    final id = rng.nextInt(900000000) + 100000000;
+    final rng = DateTime.now().millisecondsSinceEpoch;
+    final id = (rng % 900000000) + 100000000;
     return 'KM-$id';
   }
 
@@ -160,18 +227,10 @@ class AuthService {
     if (atIndex <= 1) return email;
     final localPart = email.substring(0, atIndex);
     final domain = email.substring(atIndex);
-    final visible = localPart.length >= 2 ? localPart.substring(0, 2) : localPart[0];
+    final visible =
+        localPart.length >= 2 ? localPart.substring(0, 2) : localPart[0];
     return '$visible***$domain';
   }
-}
-
-/// Result of a verification attempt.
-enum VerificationResult {
-  success,
-  incorrect,
-  expired,
-  tooManyAttempts,
-  networkError,
 }
 
 /// Which flow triggered the verification screen.
@@ -198,4 +257,40 @@ class UsernameCheckResult {
   final String message;
 
   const UsernameCheckResult(this.status, this.message);
+}
+
+/// Logged-in user session data.
+class KoraUserSession {
+  final String id;
+  final String email;
+  final String username;
+  final String koraId;
+  final String fullName;
+  final String bio;
+  final String avatarUrl;
+  final bool profileCompleted;
+
+  KoraUserSession({
+    required this.id,
+    required this.email,
+    required this.username,
+    required this.koraId,
+    required this.fullName,
+    this.bio = '',
+    this.avatarUrl = '',
+    this.profileCompleted = false,
+  });
+
+  factory KoraUserSession.fromMap(Map<String, dynamic> map) {
+    return KoraUserSession(
+      id: map['id']?.toString() ?? '',
+      email: map['email']?.toString() ?? '',
+      username: map['username']?.toString() ?? '',
+      koraId: map['koraId']?.toString() ?? '',
+      fullName: map['fullName']?.toString() ?? '',
+      bio: map['bio']?.toString() ?? '',
+      avatarUrl: map['avatarUrl']?.toString() ?? '',
+      profileCompleted: map['profileCompleted'] == true,
+    );
+  }
 }

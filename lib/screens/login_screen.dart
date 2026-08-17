@@ -3,8 +3,9 @@ import '../theme/kora_colors.dart';
 import '../services/auth_service.dart';
 import '../widgets/kora_input.dart';
 import '../widgets/kora_button.dart';
-import 'verification_screen.dart';
 import 'forgot_password_screen.dart';
+import 'profile_setup_screen.dart';
+import 'kora_home_screen.dart';
 
 class LogInScreen extends StatefulWidget {
   const LogInScreen({super.key});
@@ -17,7 +18,9 @@ class _LogInScreenState extends State<LogInScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final AuthService _auth = AuthService.instance;
   bool _isLoading = false;
+  String? _errorMessage;
 
   @override
   void dispose() {
@@ -39,27 +42,47 @@ class _LogInScreenState extends State<LogInScreen> {
     return null;
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _isLoading = true);
-
-    // Simulate network delay for credential check
-    Future.delayed(const Duration(milliseconds: 800), () {
-      if (!mounted) return;
-      setState(() => _isLoading = false);
-
-      // In production: verify credentials against backend
-      // For now: proceed to verification screen
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => VerificationScreen(
-            type: VerificationType.login,
-            email: _emailController.text.trim(),
-          ),
-        ),
-      );
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
     });
+
+    final result = await _auth.login(
+      email: _emailController.text.trim(),
+      password: _passwordController.text,
+    );
+
+    if (!mounted) return;
+
+    if (result.success && result.user != null) {
+      final user = KoraUserSession.fromMap(result.user!);
+
+      if (user.profileCompleted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const KoraHomeScreen()),
+          (route) => false,
+        );
+      } else {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (_) => ProfileSetupScreen(
+              email: result.user!['email'] as String,
+              userData: result.user!,
+            ),
+          ),
+          (route) => false,
+        );
+      }
+    } else {
+      setState(() {
+        _errorMessage = result.error ?? 'Login failed';
+      });
+    }
+
+    setState(() => _isLoading = false);
   }
 
   @override
@@ -96,6 +119,29 @@ class _LogInScreenState extends State<LogInScreen> {
                 'Log in to continue to Kora.',
                 style: TextStyle(color: Color(0xFFA0A0B8), fontSize: 15),
               ),
+              if (_errorMessage != null) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2D1517),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFEF4444), width: 1),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.error_outline, color: Color(0xFFEF4444), size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _errorMessage!,
+                          style: const TextStyle(color: Color(0xFFFCA5A5), fontSize: 13),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 32),
 
               KoraInput(
@@ -122,7 +168,6 @@ class _LogInScreenState extends State<LogInScreen> {
               ),
               const SizedBox(height: 12),
 
-              // Forgot password
               Align(
                 alignment: Alignment.centerRight,
                 child: GestureDetector(
@@ -152,7 +197,6 @@ class _LogInScreenState extends State<LogInScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Create account
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
