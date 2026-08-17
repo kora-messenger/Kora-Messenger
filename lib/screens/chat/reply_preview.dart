@@ -47,7 +47,7 @@ class ReplyPreview extends StatelessWidget {
               children: [
                 Text(
                   'Replying to $name',
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: KoraColors.purple,
                     fontSize: 12.5,
                     fontWeight: FontWeight.w700,

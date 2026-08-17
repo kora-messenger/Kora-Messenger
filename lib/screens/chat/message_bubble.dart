@@ -61,7 +61,7 @@ class MessageBubble extends StatelessWidget {
     // Received bubble: card surface
     
     final receivedBg = KoraColors.cardFor(brightness);
-    final sentText = Colors.white;
+    const sentText = Colors.white;
     final receivedText = textPrimary;
 
     return Container(
@@ -286,8 +286,8 @@ class _WaveformPainter extends CustomPainter {
       ..color = color
       ..style = PaintingStyle.fill;
 
-    final barWidth = 2.5;
-    final gap = 3.0;
+    const barWidth = 2.5;
+    const gap = 3.0;
     final bars = (size.width / (barWidth + gap)).floor();
     final center = size.height / 2;
 

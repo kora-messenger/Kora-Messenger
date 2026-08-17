@@ -112,9 +112,9 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
     Clipboard.setData(ClipboardData(text: text));
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Copied to clipboard'),
-          duration: const Duration(seconds: 1),
+        const SnackBar(
+          content: Text('Copied to clipboard'),
+          duration: Duration(seconds: 1),
           backgroundColor: KoraColors.purple,
           behavior: SnackBarBehavior.floating,
         ),
