@@ -7,18 +7,10 @@ void main() {
   testWidgets('Welcome screen displays Kora branding and CTAs', (WidgetTester tester) async {
     await tester.pumpWidget(const KoraMessengerApp());
 
-    expect(find.text('Welcome to Kora'), findsOneWidget);
-    expect(
-      find.text(
-        'Real conversations, reimagined. Connect with the '
-        'people who matter — instantly, and securely.',
-      ),
-      findsOneWidget,
-    );
-    expect(find.text('Create Account'), findsOneWidget);
+    expect(find.text('Connect with anyone, anywhere, anytime.'), findsOneWidget);
     expect(find.text('Log In'), findsOneWidget);
-    expect(find.text('Terms of Service'), findsOneWidget);
-    expect(find.text('Privacy Policy'), findsOneWidget);
+    expect(find.text('Create Account'), findsOneWidget);
+    expect(find.text('Terms & Privacy Policy'), findsOneWidget);
   });
 
   testWidgets('Tapping Create Account navigates to Sign Up screen', (WidgetTester tester) async {
@@ -66,6 +58,6 @@ void main() {
     await tester.tap(find.byIcon(Icons.arrow_back));
     await tester.pumpAndSettle();
 
-    expect(find.text('Welcome to Kora'), findsOneWidget);
+    expect(find.text('Connect with anyone, anywhere, anytime.'), findsOneWidget);
   });
 }

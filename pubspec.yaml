@@ -19,3 +19,5 @@ flutter:
   uses-material-design: true
   assets:
     - assets/icon/kora_icon.png
+    - assets/images/kora_logo_lockup.png
+    - assets/images/world_map_glow.png
