@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/kora_colors.dart';
 import '../services/auth_service.dart';
+import '../services/session_manager.dart';
 import '../widgets/kora_input.dart';
 import '../widgets/kora_button.dart';
 import 'forgot_password_screen.dart';
@@ -59,6 +60,9 @@ class _LogInScreenState extends State<LogInScreen> {
 
     if (result.success && result.user != null) {
       final user = KoraUserSession.fromMap(result.user!);
+
+      // Save session locally so the app remembers login on restart
+      await SessionManager.instance.saveSession(result.user!);
 
       if (user.profileCompleted) {
         Navigator.of(context).pushAndRemoveUntil(

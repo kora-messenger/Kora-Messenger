@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme/kora_colors.dart';
 import '../widgets/kora_button.dart';
 import '../services/auth_service.dart';
+import '../services/session_manager.dart';
 import 'profile_setup_screen.dart';
 import 'kora_home_screen.dart';
 import 'new_password_screen.dart';
@@ -125,6 +126,10 @@ class _VerificationScreenState extends State<VerificationScreen> {
       setState(() => _isVerifying = false);
 
       if (result.success) {
+        // Save session so app remembers login on restart
+        final sessionData = result.user ?? widget.userData ?? {};
+        await SessionManager.instance.saveSession(sessionData);
+        if (!mounted) return;
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (_) => ProfileSetupScreen(

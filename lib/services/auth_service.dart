@@ -212,6 +212,50 @@ class AuthService {
     }
   }
 
+  // ── Save profile ───────────────────────────────────────────
+
+  /// Saves the user's profile data (name, username, bio, avatar).
+  /// Returns (success, errorMessage, userData).
+  Future<({bool success, String? error, Map<String, dynamic>? user})>
+      saveProfile({
+    required String userId,
+    required String fullName,
+    required String username,
+    String bio = '',
+    String avatarUrl = '',
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse(_endpoint),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'action': 'saveProfile',
+          'userId': userId,
+          'fullName': fullName,
+          'username': username,
+          'bio': bio,
+          'avatarUrl': avatarUrl,
+        }),
+      );
+      final data = jsonDecode(response.body);
+
+      if (data['success'] == true) {
+        return (
+          success: true,
+          error: null,
+          user: data['user'] as Map<String, dynamic>?,
+        );
+      }
+      return (success: false, error: data['error'] as String?, user: null);
+    } catch (e) {
+      return (
+        success: false,
+        error: 'Network error. Check your connection.',
+        user: null,
+      );
+    }
+  }
+
   // ── Utility ──────────────────────────────────────────────────
 
   /// Generates a unique Kora ID: KM-XXXXXXXXX (9 digits).

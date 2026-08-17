@@ -6,6 +6,7 @@ import '../theme/kora_colors.dart';
 import '../widgets/kora_button.dart';
 import '../widgets/kora_input.dart';
 import '../services/auth_service.dart';
+import '../services/session_manager.dart';
 import 'kora_home_screen.dart';
 
 /// Profile Setup — shown after successful registration verification.
@@ -249,19 +250,57 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
   // ── Continue ───────────────────────────────────────────────
 
-  void _continue() {
+  Future<void> _continue() async {
     if (!_canContinue) return;
 
     setState(() => _isContinuing = true);
 
-    // Simulate brief processing
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (!mounted) return;
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const KoraHomeScreen()),
-        (route) => false,
-      );
-    });
+    final userId = widget.userData?['id']?.toString() ?? '';
+    if (userId.isEmpty) {
+      // No user ID from signup — go straight to home
+      _navigateHome();
+      return;
+    }
+
+    final result = await _auth.saveProfile(
+      userId: userId,
+      fullName: _nameController.text.trim(),
+      username: _usernameController.text.trim(),
+      bio: _bioController.text.trim(),
+      avatarUrl: '', // TODO: upload photo to storage, then pass URL
+    );
+
+    if (!mounted) return;
+
+    if (result.success) {
+      // Save the updated session so the app remembers login on restart
+      if (result.user != null) {
+        await SessionManager.instance.saveSession(result.user!);
+      }
+      _navigateHome();
+    } else {
+      setState(() => _isContinuing = false);
+      _showError(result.error ?? 'Failed to save profile. Please try again.');
+    }
+  }
+
+  void _navigateHome() {
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const KoraHomeScreen()),
+      (route) => false,
+    );
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.redAccent,
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
   }
 
   // ── Build ──────────────────────────────────────────────────
