@@ -50,7 +50,13 @@ class KoraEmptyState extends StatelessWidget {
                   height: 72,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    gradient: KoraColors.brandGradient.scale(0.14),
+                    gradient: LinearGradient(
+                      begin: KoraColors.brandGradient.begin,
+                      end: KoraColors.brandGradient.end,
+                      colors: KoraColors.brandGradient.colors
+                          .map((c) => c.withValues(alpha: 0.14))
+                          .toList(),
+                    ),
                     border: Border.all(
                       color: KoraColors.purple.withValues(alpha: 0.3),
                       width: 1.5,
@@ -111,16 +117,6 @@ class KoraEmptyState extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-extension on LinearGradient {
-  LinearGradient scale(double alpha) {
-    return LinearGradient(
-      begin: begin,
-      end: end,
-      colors: colors.map((c) => c.withValues(alpha: alpha)).toList(),
     );
   }
 }
