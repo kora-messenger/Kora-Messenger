@@ -94,7 +94,7 @@ class _MessageActionOverlay extends StatelessWidget {
     final brightness = Theme.of(context).brightness;
     final card = KoraColors.cardFor(brightness);
     final textPrimary = KoraColors.textPrimaryFor(brightness);
-    final textSecondary = KoraColors.textSecondaryFor(brightness);
+    
 
     // Find the message position
     final renderBox = messageKey.currentContext?.findRenderObject() as RenderBox?;

@@ -6,6 +6,7 @@ import 'package:kora_messenger/screens/profile_setup_screen.dart';
 import 'package:kora_messenger/screens/kora_home_screen.dart';
 import 'package:kora_messenger/models/chat_models.dart';
 import 'package:kora_messenger/services/chat_service.dart';
+import 'package:kora_messenger/screens/chat/kora_chat_screen.dart';
 
 void main() {
   homeScreenTests();
@@ -285,7 +286,6 @@ void homeScreenTests() {
 }
 
 // ── Chat Screen ───────────────────────────────────────────────
-import 'package:kora_messenger/screens/chat/kora_chat_screen.dart';
 
 void chatScreenTests() {
   group('Kora Chat Screen', () {

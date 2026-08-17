@@ -59,7 +59,7 @@ class MessageBubble extends StatelessWidget {
 
     // Sent bubble: gradient surface
     // Received bubble: card surface
-    final sentBg = KoraColors.purple;
+    
     final receivedBg = KoraColors.cardFor(brightness);
     final sentText = Colors.white;
     final receivedText = textPrimary;
