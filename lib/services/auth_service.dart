@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'device_manager.dart';
 import '../config/kora_api.dart';
 
 /// Real authentication service for Kora Messenger.
@@ -147,13 +148,26 @@ class AuthService {
 
   // ── Login ────────────────────────────────────────────────────
 
-  /// Logs in with email and password.
-  /// Returns (success, errorMessage, userData).
-  Future<({bool success, String? error, Map<String, dynamic>? user})> login({
+  /// Logs in with email and password (with device recognition).
+  ///
+  /// Returns:
+  /// - success=true, user=... → device recognized, auto-login
+  /// - needsDeviceVerification=true → new device, code sent to email
+  /// - success=false, error=... → wrong credentials or error
+  Future<({
+    bool success,
+    bool needsDeviceVerification,
+    String? error,
+    Map<String, dynamic>? user,
+  })> login({
     required String email,
     required String password,
   }) async {
     try {
+      final deviceId = await DeviceManager.getDeviceId();
+      final deviceName = await DeviceManager.getDeviceName();
+      final platform = DeviceManager.getPlatform();
+
       final response = await http.post(
         Uri.parse(_endpoint),
         headers: {'Content-Type': 'application/json'},
@@ -161,6 +175,76 @@ class AuthService {
           'action': 'login',
           'email': email,
           'password': password,
+          'deviceId': deviceId,
+          'deviceName': deviceName,
+          'platform': platform,
+        }),
+      );
+      final data = jsonDecode(response.body);
+
+      if (data['success'] == true) {
+        return (
+          success: true,
+          needsDeviceVerification: false,
+          error: null,
+          user: data['user'] as Map<String, dynamic>?,
+        );
+      }
+
+      if (data['needsDeviceVerification'] == true) {
+        return (
+          success: false,
+          needsDeviceVerification: true,
+          error: null,
+          user: null,
+        );
+      }
+
+      return (
+        success: false,
+        needsDeviceVerification: false,
+        error: data['error'] as String?,
+        user: null,
+      );
+    } catch (e) {
+      return (
+        success: false,
+        needsDeviceVerification: false,
+        error: 'Network error. Check your connection.',
+        user: null,
+      );
+    }
+  }
+
+  /// Verifies a login code from a new device.
+  /// If [recognizeDevice] is true, the device is saved as trusted.
+  ///
+  /// Returns (success, errorMessage, userData).
+  Future<({
+    bool success,
+    String? error,
+    Map<String, dynamic>? user,
+  })> verifyLogin({
+    required String email,
+    required String code,
+    bool recognizeDevice = true,
+  }) async {
+    try {
+      final deviceId = await DeviceManager.getDeviceId();
+      final deviceName = await DeviceManager.getDeviceName();
+      final platform = DeviceManager.getPlatform();
+
+      final response = await http.post(
+        Uri.parse(_endpoint),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'action': 'verifyLogin',
+          'email': email,
+          'code': code,
+          'deviceId': deviceId,
+          'deviceName': deviceName,
+          'platform': platform,
+          'recognizeDevice': recognizeDevice,
         }),
       );
       final data = jsonDecode(response.body);

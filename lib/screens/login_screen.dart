@@ -7,6 +7,7 @@ import '../widgets/kora_button.dart';
 import 'forgot_password_screen.dart';
 import 'profile_setup_screen.dart';
 import 'kora_home_screen.dart';
+import 'login_verification_screen.dart';
 
 class LogInScreen extends StatefulWidget {
   const LogInScreen({super.key});
@@ -51,12 +52,24 @@ class _LogInScreenState extends State<LogInScreen> {
       _errorMessage = null;
     });
 
+    final email = _emailController.text.trim();
     final result = await _auth.login(
-      email: _emailController.text.trim(),
+      email: email,
       password: _passwordController.text,
     );
 
     if (!mounted) return;
+
+    if (result.needsDeviceVerification) {
+      // New device — go to verification screen
+      setState(() => _isLoading = false);
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => LoginVerificationScreen(email: email),
+        ),
+      );
+      return;
+    }
 
     if (result.success && result.user != null) {
       final user = KoraUserSession.fromMap(result.user!);
@@ -85,10 +98,9 @@ class _LogInScreenState extends State<LogInScreen> {
     } else {
       setState(() {
         _errorMessage = result.error ?? 'Login failed';
+        _isLoading = false;
       });
     }
-
-    setState(() => _isLoading = false);
   }
 
   @override
