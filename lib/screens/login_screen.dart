@@ -64,6 +64,8 @@ class _LogInScreenState extends State<LogInScreen> {
       // Save session locally so the app remembers login on restart
       await SessionManager.instance.saveSession(result.user!);
 
+      if (!mounted) return;
+
       if (user.profileCompleted) {
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const KoraHomeScreen()),
