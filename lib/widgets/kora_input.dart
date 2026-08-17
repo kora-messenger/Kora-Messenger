@@ -18,6 +18,7 @@ class KoraInput extends StatefulWidget {
   final bool adaptive;
   final VoidCallback? onTap;
   final String? hintText;
+  final ValueChanged<String>? onChanged;
 
   const KoraInput({
     super.key,
@@ -34,6 +35,7 @@ class KoraInput extends StatefulWidget {
     this.adaptive = false,
     this.onTap,
     this.hintText,
+    this.onChanged,
   });
 
   @override
@@ -64,7 +66,7 @@ class _KoraInputState extends State<KoraInput> {
     final labelColor = isDark
         ? const Color(0xFF6B6B80)
         : const Color(0xFF9A9AB0);
-    final labelFocused = KoraColors.purple;
+    const labelFocused = KoraColors.purple;
     final hintColor = isDark
         ? const Color(0xFF4A4A5E)
         : const Color(0xFFB0B0C0);
@@ -82,6 +84,7 @@ class _KoraInputState extends State<KoraInput> {
         maxLines: widget.obscureText ? 1 : widget.maxLines,
         maxLength: widget.maxLength,
         readOnly: widget.readOnly,
+        onChanged: widget.onChanged,
         onTap: widget.onTap,
         style: TextStyle(
           color: textColor,

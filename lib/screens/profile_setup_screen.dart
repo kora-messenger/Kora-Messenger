@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../theme/kora_colors.dart';
 import '../widgets/kora_button.dart';
+import '../widgets/kora_input.dart';
 import '../services/auth_service.dart';
 import 'kora_home_screen.dart';
 
@@ -279,7 +280,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               const SizedBox(height: 8),
 
               // Heading
-              Text(
+                        Text(
                 'Set Up Your Profile',
                 style: TextStyle(
                   color: _textPrimary,
@@ -289,7 +290,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              Text(
+                        Text(
                 'Tell people a little about you. You can change these details later in Settings.',
                 style: TextStyle(color: _textSecondary, fontSize: 15, height: 1.4),
               ),
@@ -374,7 +375,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         ),
         if (required) ...[
           const SizedBox(width: 4),
-          Text(
+          const Text(
             '*',
             style: TextStyle(color: KoraColors.purple, fontSize: 15, fontWeight: FontWeight.w700),
           ),
@@ -430,7 +431,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                   size: 16,
                 ),
                 const SizedBox(width: 6),
-                Text(
+                          Text(
                   _photo != null ? 'Change Photo' : 'Add Photo',
                   style: const TextStyle(
                     color: KoraColors.purple,
@@ -480,6 +481,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           ),
           suffixIcon: _buildUsernameSuffix(),
           hintText: 'e.g. john_doe',
+          onChanged: _onUsernameChanged,
         ),
         if (_usernameStatus != UsernameStatus.idle &&
             _usernameStatus != UsernameStatus.checking)
@@ -490,7 +492,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     );
   }
 
-  Widget _buildUsernameSuffix() {
+  Widget? _buildUsernameSuffix() {
     switch (_usernameStatus) {
       case UsernameStatus.checking:
         return const Padding(
@@ -533,7 +535,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
             size: 16,
           ),
           const SizedBox(width: 6),
-          Text(
+                    Text(
             _usernameMessage,
             style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w500),
           ),
@@ -553,7 +555,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
             child: CircularProgressIndicator(strokeWidth: 1.5, color: KoraColors.purple),
           ),
           const SizedBox(width: 6),
-          Text(
+                    Text(
             _usernameMessage,
             style: TextStyle(color: _textMuted, fontSize: 13),
           ),
@@ -592,7 +594,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                              Text(
                       _koraId,
                       style: const TextStyle(
                         color: KoraColors.purple,
@@ -602,7 +604,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                       ),
                     ),
                     const SizedBox(height: 2),
-                    Text(
+                              Text(
                       'Your unique identity on Kora',
                       style: TextStyle(color: _textMuted, fontSize: 12),
                     ),
@@ -612,7 +614,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
             ],
           ),
           const SizedBox(height: 10),
-          Text(
+                    Text(
             'Others can find and connect with you using this ID.',
             style: TextStyle(color: _textSecondary, fontSize: 12, height: 1.3),
           ),
