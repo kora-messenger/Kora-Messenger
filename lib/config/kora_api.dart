@@ -1,3 +1,6 @@
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+
 /// Central API configuration for Kora Messenger.
 ///
 /// When you get your own domain, change [baseUrl] here — everything else
@@ -21,7 +24,3 @@ class KoraApi {
     return jsonDecode(response.body) as Map<String, dynamic>;
   }
 }
-
-// Re-exports so callers don't need separate imports
-export 'package:http/http.dart' show http;
-export 'dart:convert' show jsonEncode, jsonDecode;

@@ -108,8 +108,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     });
   }
 
-  void _checkUsernameAvailability(String username) {
-    final result = _auth.checkUsername(username);
+  Future<void> _checkUsernameAvailability(String username) async {
+    final result = await _auth.checkUsername(username);
     if (mounted) {
       setState(() {
         _usernameStatus = result.status;
