@@ -93,7 +93,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                 decoration: BoxDecoration(
                   color: KoraColors.darkCard,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Color(0xFF2E2E42), width: 1),
+                  border: Border.all(color: const Color(0xFF2E2E42), width: 1),
                 ),
                 child: Column(
                   children: [
