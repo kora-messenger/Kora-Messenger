@@ -18,10 +18,41 @@ class KoraColors {
 
   static const Color lightBackground = Color(0xFFFAFAFC);
   static const Color lightCard = Color(0xFFFFFFFF);
+  static const Color lightSurface = Color(0xFFF5F5FA);
+  static const Color lightBorder = Color(0xFFE2E2EC);
 
   static const LinearGradient brandGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
     colors: [purple, blue],
   );
+
+  // ── Adaptive helpers (pick based on Brightness) ────────────
+
+  static Color backgroundFor(Brightness b) =>
+      b == Brightness.dark ? trueBlack : lightBackground;
+
+  static Color cardFor(Brightness b) =>
+      b == Brightness.dark ? darkCard : lightCard;
+
+  static Color surfaceFor(Brightness b) =>
+      b == Brightness.dark ? darkSurface : lightSurface;
+
+  static Color textPrimaryFor(Brightness b) =>
+      b == Brightness.dark ? Colors.white : const Color(0xFF1A1A2E);
+
+  static Color textSecondaryFor(Brightness b) =>
+      b == Brightness.dark ? const Color(0xFFA0A0B8) : const Color(0xFF6B6B80);
+
+  static Color textMutedFor(Brightness b) =>
+      b == Brightness.dark ? const Color(0xFF6B6B80) : const Color(0xFF9A9AB0);
+
+  static Color borderFor(Brightness b) =>
+      b == Brightness.dark ? const Color(0xFF2E2E42) : lightBorder;
+
+  static Color hintFor(Brightness b) =>
+      b == Brightness.dark ? const Color(0xFF4A4A5E) : const Color(0xFFB0B0C0);
+
+  static Color inputFillFor(Brightness b) =>
+      b == Brightness.dark ? darkCard : lightCard;
 }

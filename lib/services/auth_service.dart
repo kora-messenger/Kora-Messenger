@@ -19,6 +19,75 @@ class AuthService {
   static const Duration _codeExpiry = Duration(minutes: 10);
   static const Duration _resendCooldown = Duration(seconds: 60);
 
+  // ── Username system ────────────────────────────────────────
+
+  /// Usernames reserved by Kora — cannot be claimed by users.
+  static const List<String> reservedUsernames = [
+    'admin', 'administrator', 'kora', 'koramessenger', 'koraofficial',
+    'support', 'help', 'system', 'root', 'official', 'team', 'staff',
+    'moderator', 'mod', 'settings', 'about', 'security', 'login',
+    'register', 'signup', 'api', 'bot', 'null', 'undefined', 'test',
+    'demo', 'info', 'contact', 'welcome', 'home', 'messenger',
+    'founder', 'ceo', 'dev', 'developer', 'operator', 'service',
+    'page', 'profile', 'account', 'user', 'me', 'my', 'all', 'new',
+    'edit', 'delete', 'create', 'post', 'message', 'chat', 'group',
+    'channel', 'broadcast', 'notification', 'verify', 'auth',
+  ];
+
+  /// Mock list of usernames already taken by other users.
+  /// In production this would be a database query.
+  static const List<String> _takenUsernames = [
+    'john', 'jane', 'mike', 'sarah', 'david', 'emma', 'chris',
+    'alex', 'sam', 'jordan', 'taylor', 'morgan', 'casey', 'riley',
+    'jamie', 'goodluck', 'ijezie', 'kora_user', 'admin1', 'testuser',
+    'user123', 'hello_world', 'flutter_dev', 'john_doe',
+  ];
+
+  /// Validates username format rules.
+  /// Returns null if valid, error message if invalid.
+  static String? validateUsernameFormat(String username) {
+    if (username.isEmpty) return 'Username is required';
+    if (username.length < 3) return 'Must be at least 3 characters';
+    if (username.length > 20) return 'Must be at most 20 characters';
+    if (!RegExp(r'^[a-zA-Z]').hasMatch(username)) {
+      return 'Must start with a letter';
+    }
+    if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(username)) {
+      return 'Only letters, numbers, and underscores';
+    }
+    if (username.endsWith('_')) return 'Cannot end with an underscore';
+    if (username.contains('__')) return 'No consecutive underscores';
+    return null;
+  }
+
+  /// Checks username availability (format + reserved + taken).
+  UsernameCheckResult checkUsername(String username) {
+    // Format validation first
+    final formatError = validateUsernameFormat(username);
+    if (formatError != null) {
+      if (username.length < 3) {
+        return UsernameCheckResult(UsernameStatus.tooShort, formatError);
+      }
+      return UsernameCheckResult(UsernameStatus.invalid, formatError);
+    }
+
+    final lower = username.toLowerCase();
+
+    // Reserved check
+    if (reservedUsernames.contains(lower)) {
+      return const UsernameCheckResult(UsernameStatus.reserved, 'This username is reserved');
+    }
+
+    // Taken check (mock)
+    if (_takenUsernames.contains(lower)) {
+      return const UsernameCheckResult(UsernameStatus.taken, 'This username is already taken');
+    }
+
+    return const UsernameCheckResult(UsernameStatus.available, 'Available');
+  }
+
+  // ── Verification codes ─────────────────────────────────────
+
   /// Generates a 6-digit verification code, stores it, and "sends" it.
   String sendVerificationCode(String userEmail) {
     final rng = Random();
@@ -110,4 +179,23 @@ enum VerificationType {
   registration,
   login,
   passwordReset,
+}
+
+/// Status of a username availability check.
+enum UsernameStatus {
+  idle,
+  checking,
+  available,
+  taken,
+  reserved,
+  invalid,
+  tooShort,
+}
+
+/// Result of checking a username.
+class UsernameCheckResult {
+  final UsernameStatus status;
+  final String message;
+
+  const UsernameCheckResult(this.status, this.message);
 }
