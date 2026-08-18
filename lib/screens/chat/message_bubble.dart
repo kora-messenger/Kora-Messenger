@@ -64,7 +64,6 @@ class MessageBubble extends StatelessWidget {
 
   Widget _buildBubble(BuildContext context, Brightness brightness) {
     final isMe = message.isMe;
-    final textPrimary = KoraColors.textPrimaryFor(brightness);
     final textSecondary = KoraColors.textSecondaryFor(brightness);
     final theme = ChatThemeProvider.instance.activeTheme;
 

@@ -40,7 +40,6 @@ class _ChatBubbleColorScreenState extends State<ChatBubbleColorScreen> {
     final brightness = Theme.of(context).brightness;
     final bg = KoraColors.backgroundFor(brightness);
     final textPrimary = KoraColors.textPrimaryFor(brightness);
-    final textSecondary = KoraColors.textSecondaryFor(brightness);
     final card = KoraColors.cardFor(brightness);
     final border = KoraColors.borderFor(brightness);
 

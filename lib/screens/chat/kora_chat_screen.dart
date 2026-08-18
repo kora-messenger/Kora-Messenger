@@ -164,7 +164,6 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final brightness = Theme.of(context).brightness;
     final theme = _themeProvider.activeTheme;
     final hasWallpaperImage = _themeProvider.wallpaperImagePath != null;
 

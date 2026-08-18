@@ -50,7 +50,7 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
       appBar: AppBar(
         backgroundColor: bg,
         elevation: 0,
-        scrolledUnderlineBackgroundColor: bg,
+        
         title: Text(
           'Appearance',
           style: TextStyle(
