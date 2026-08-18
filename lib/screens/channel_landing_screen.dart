@@ -18,7 +18,6 @@ class _ChannelLandingScreenState extends State<ChannelLandingScreen> {
     final bg = KoraColors.backgroundFor(brightness);
     final textPrimary = KoraColors.textPrimaryFor(brightness);
     final textSecondary = KoraColors.textSecondaryFor(brightness);
-    final textMuted = KoraColors.textMutedFor(brightness);
 
     return Scaffold(
       backgroundColor: bg,

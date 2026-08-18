@@ -43,7 +43,6 @@ class _NewCommunityScreenState extends State<NewCommunityScreen> {
     final bg = KoraColors.backgroundFor(brightness);
     final surface = KoraColors.surfaceFor(brightness);
     final textPrimary = KoraColors.textPrimaryFor(brightness);
-    final textSecondary = KoraColors.textSecondaryFor(brightness);
     final textMuted = KoraColors.textMutedFor(brightness);
     final border = KoraColors.borderFor(brightness);
 

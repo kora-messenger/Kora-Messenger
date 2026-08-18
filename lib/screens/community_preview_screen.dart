@@ -20,7 +20,7 @@ class CommunityPreviewScreen extends StatefulWidget {
 class _CommunityPreviewScreenState extends State<CommunityPreviewScreen> {
   final String _createdAt = DateTime.now().toString().substring(0, 16);
 
-  List<Map<String, dynamic>> _groups = [
+  final List<Map<String, dynamic>> _groups = [
     {
       'name': 'General',
       'description': '👤+ Add message to start chatting',
