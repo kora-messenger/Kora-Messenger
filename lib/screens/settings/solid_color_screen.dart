@@ -63,7 +63,7 @@ class _SolidColorScreenState extends State<SolidColorScreen> {
           itemCount: kSolidWallpaperColors.length,
           itemBuilder: (context, index) {
             final color = kSolidWallpaperColors[index];
-            final isSelected = current.value == color.value;
+            final isSelected = current.toARGB32() == color.toARGB32();
             return GestureDetector(
               onTap: () => _provider.setWallpaperColor(color),
               child: Container(

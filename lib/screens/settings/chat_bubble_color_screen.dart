@@ -130,7 +130,7 @@ class _ChatBubbleColorScreenState extends State<ChatBubbleColorScreen> {
                 itemCount: kChatBubbleColors.length,
                 itemBuilder: (context, index) {
                   final color = kChatBubbleColors[index];
-                  final isSelected = _selected.value == color.value;
+                  final isSelected = _selected.toARGB32() == color.toARGB32();
                   return GestureDetector(
                     onTap: () => _provider.setCustomSentBubble(color),
                     child: Container(

@@ -192,7 +192,7 @@ class _AppThemeScreenState extends State<AppThemeScreen> {
                 itemCount: kAppThemeColors.length,
                 itemBuilder: (context, index) {
                   final color = kAppThemeColors[index];
-                  final isSelected = _provider.appThemeColor.value == color.value;
+                  final isSelected = _provider.appThemeColor.toARGB32() == color.toARGB32();
                   return GestureDetector(
                     onTap: () {
                       if (!isPremium) {

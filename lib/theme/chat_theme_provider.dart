@@ -242,14 +242,14 @@ class ChatThemeProvider extends ChangeNotifier {
   Future<void> setCustomSentBubble(Color color) async {
     _customSentBubble = color;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_kCustomSentBubble, color.value);
+    await prefs.setInt(_kCustomSentBubble, color.toARGB32());
     notifyListeners();
   }
 
   Future<void> setCustomReceivedBubble(Color color) async {
     _customReceivedBubble = color;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_kCustomReceivedBubble, color.value);
+    await prefs.setInt(_kCustomReceivedBubble, color.toARGB32());
     notifyListeners();
   }
 
@@ -257,7 +257,7 @@ class ChatThemeProvider extends ChangeNotifier {
     _wallpaperColor = color;
     _wallpaperImagePath = null;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_kWallpaperColor, color.value);
+    await prefs.setInt(_kWallpaperColor, color.toARGB32());
     await prefs.remove(_kWallpaperImagePath);
     notifyListeners();
   }
@@ -275,7 +275,7 @@ class ChatThemeProvider extends ChangeNotifier {
     if (!_isPremium) return;
     _appThemeColor = color;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_kAppThemeColor, color.value);
+    await prefs.setInt(_kAppThemeColor, color.toARGB32());
     notifyListeners();
   }
 
