@@ -182,8 +182,8 @@ class WelcomeScreen extends StatelessWidget {
               ),
 
               // Footer — legal text
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 32, vertical: 22),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 22),
                 child: Column(
                   children: [
                     Text(
