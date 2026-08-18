@@ -8,6 +8,7 @@ import 'verification_screen.dart';
 import 'login_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../config/kora_api.dart';
+import '../services/crash_logger.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -257,7 +258,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
           setState(() => _errorMessage = errorMsg);
         }
       }
-    } catch (e) {
+    } catch (e, stack) {
+      // Log the crash so we can see it in GitHub Issues
+      await CrashLogger.log(e, stackTrace: stack, context: 'SignUpScreen._submit');
       // Catch any unexpected errors so the spinner never gets stuck
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

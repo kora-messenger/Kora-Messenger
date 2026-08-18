@@ -32,6 +32,8 @@ class CrashLogger {
   static void init() {
     // 1. Flutter framework errors (build failures, layout errors, etc.)
     FlutterError.onError = (FlutterErrorDetails details) {
+      // Upload synchronously (awaited) so the report gets out before
+      // the app potentially dies.
       _record(
         type: 'FlutterError',
         message: details.exceptionAsString(),
@@ -99,17 +101,8 @@ class CrashLogger {
     }
 
     // 2. Upload to backend (creates GitHub Issue)
-    // Skip in debug mode to avoid spamming issues during development.
-    if (!kDebugMode) {
-      _uploadToBackend(entry);
-    } else {
-      debugPrint('[CrashLogger] Skipping upload in debug mode: $type — $message');
-    }
-  }
-
-  /// Sends crash data to the backend, which creates a GitHub Issue.
-  /// Fire-and-forget — failures are logged to console but don't block.
-  static Future<void> _uploadToBackend(Map<String, dynamic> entry) async {
+    // Always attempt upload — even in debug mode — so we never lose a crash.
+    // The backend deduplicates by message, so debug spam isn't an issue.
     try {
       final response = await http.post(
         Uri.parse(KoraApi.crashReportEndpoint),
@@ -125,9 +118,22 @@ class CrashLogger {
       ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
-        debugPrint('[CrashLogger] Crash report uploaded → GitHub Issue created');
+        debugPrint('[CrashLogger] Crash report uploaded -> GitHub Issue created');
+        // Mark as uploaded locally
+        entry['uploaded'] = 'true';
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          final raw = prefs.getString(_storageKey);
+          if (raw != null) {
+            final List<dynamic> logs = jsonDecode(raw) as List<dynamic>;
+            if (logs.isNotEmpty) {
+              logs[0]['uploaded'] = 'true';
+              await prefs.setString(_storageKey, jsonEncode(logs));
+            }
+          }
+        } catch (_) {}
       } else {
-        debugPrint('[CrashLogger] Upload failed: ${response.statusCode} — ${response.body}');
+        debugPrint('[CrashLogger] Upload failed: ${response.statusCode}');
       }
     } catch (e) {
       debugPrint('[CrashLogger] Upload error: $e');

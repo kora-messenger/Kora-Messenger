@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/kora_colors.dart';
 import '../services/auth_service.dart';
 import '../services/session_manager.dart';
+import '../services/crash_logger.dart';
 import '../widgets/kora_input.dart';
 import '../widgets/kora_button.dart';
 import 'forgot_password_screen.dart';
@@ -46,6 +47,8 @@ class _LogInScreenState extends State<LogInScreen> {
   }
 
   Future<void> _submit() async {
+    // Prevent double-tap
+    if (_isLoading) return;
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
@@ -53,54 +56,66 @@ class _LogInScreenState extends State<LogInScreen> {
       _errorMessage = null;
     });
 
-    final email = _emailController.text.trim();
-    final result = await _auth.login(
-      email: email,
-      password: _passwordController.text,
-    );
-
-    if (!mounted) return;
-
-    if (result.needsDeviceVerification) {
-      // New device — go to verification screen
-      setState(() => _isLoading = false);
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => LoginVerificationScreen(email: email),
-        ),
+    try {
+      final email = _emailController.text.trim();
+      final result = await _auth.login(
+        email: email,
+        password: _passwordController.text,
       );
-      return;
-    }
-
-    if (result.success && result.user != null) {
-      final user = KoraUserSession.fromMap(result.user!);
-
-      // Save session locally so the app remembers login on restart
-      await SessionManager.instance.saveSession(result.user!);
 
       if (!mounted) return;
 
-      if (user.profileCompleted) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const KoraHomeScreen()),
-          (route) => false,
-        );
-      } else {
-        Navigator.of(context).pushAndRemoveUntil(
+      if (result.needsDeviceVerification) {
+        // New device — go to verification screen
+        setState(() => _isLoading = false);
+        Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (_) => ProfileSetupScreen(
-              email: result.user!['email'] as String,
-              userData: result.user!,
-            ),
+            builder: (_) => LoginVerificationScreen(email: email),
           ),
-          (route) => false,
         );
+        return;
       }
-    } else {
-      setState(() {
-        _errorMessage = result.error ?? 'Login failed';
-        _isLoading = false;
-      });
+
+      if (result.success && result.user != null) {
+        final user = KoraUserSession.fromMap(result.user!);
+
+        // Save session locally so the app remembers login on restart
+        await SessionManager.instance.saveSession(result.user!);
+
+        if (!mounted) return;
+
+        if (user.profileCompleted) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const KoraHomeScreen()),
+            (route) => false,
+          );
+        } else {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(
+              builder: (_) => ProfileSetupScreen(
+                email: result.user!['email'] as String,
+                userData: result.user!,
+              ),
+            ),
+            (route) => false,
+          );
+        }
+      } else {
+        setState(() {
+          _errorMessage = result.error ?? 'Login failed';
+          _isLoading = false;
+        });
+      }
+    } catch (e, stack) {
+      // Log the crash so we can see it in GitHub Issues
+      await CrashLogger.log(e, stackTrace: stack, context: 'LoginScreen._submit');
+
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Something went wrong. Please try again.';
+          _isLoading = false;
+        });
+      }
     }
   }
 

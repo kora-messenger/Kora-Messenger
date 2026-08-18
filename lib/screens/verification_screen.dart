@@ -7,6 +7,7 @@ import '../services/session_manager.dart';
 import 'profile_setup_screen.dart';
 import 'kora_home_screen.dart';
 import 'new_password_screen.dart';
+import '../services/crash_logger.dart';
 
 /// Kora's unified verification-code screen.
 ///
@@ -186,6 +187,7 @@ class _VerificationScreenState extends State<VerificationScreen>
   String get _enteredCode => _controllers.map((c) => c.text).join();
 
   Future<void> _verify() async {
+    try {
     if (_enteredCode.length < 6) {
       setState(() => _errorMessage = 'Please enter the full 6-digit code.');
       _autoVerifying = false;
@@ -274,6 +276,17 @@ class _VerificationScreenState extends State<VerificationScreen>
         MaterialPageRoute(builder: (_) => const KoraHomeScreen()),
         (route) => false,
       );
+    }
+    } catch (e, stack) {
+      await CrashLogger.log(e, stackTrace: stack, context: 'VerificationScreen._verify');
+      if (mounted) {
+        setState(() {
+          _isVerifying = false;
+          _autoVerifying = false;
+          _errorMessage = 'Something went wrong. Please try again.';
+        });
+        _clearInputs();
+      }
     }
   }
 

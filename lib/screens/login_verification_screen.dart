@@ -6,6 +6,7 @@ import '../services/auth_service.dart';
 import '../services/session_manager.dart';
 import 'profile_setup_screen.dart';
 import 'kora_home_screen.dart';
+import '../services/crash_logger.dart';
 
 /// Login verification screen for new devices.
 ///
@@ -151,6 +152,7 @@ class _LoginVerificationScreenState extends State<LoginVerificationScreen>
       _errorMessage = null;
     });
 
+    try {
     final result = await _auth.verifyLogin(
       email: widget.email,
       code: _enteredCode,
@@ -187,6 +189,16 @@ class _LoginVerificationScreenState extends State<LoginVerificationScreen>
         _errorMessage = result.error ?? 'Verification failed';
       });
       _clearInputs();
+    }
+    } catch (e, stack) {
+      await CrashLogger.log(e, stackTrace: stack, context: 'LoginVerificationScreen._verify');
+      if (mounted) {
+        setState(() {
+          _isVerifying = false;
+          _errorMessage = 'Something went wrong. Please try again.';
+        });
+        _clearInputs();
+      }
     }
   }
 
