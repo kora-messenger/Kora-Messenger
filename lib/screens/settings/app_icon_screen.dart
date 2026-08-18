@@ -3,6 +3,7 @@ import '../../theme/kora_colors.dart';
 import '../../theme/chat_theme_provider.dart';
 import 'premium_subscribe_sheet.dart';
 import 'billing_screen.dart';
+import '../../services/app_icon_switcher.dart';
 
 /// App Icon picker — 10 Kora app icons. Premium only.
 ///
