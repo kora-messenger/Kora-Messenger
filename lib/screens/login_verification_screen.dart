@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../theme/kora_colors.dart';
 import '../services/auth_service.dart';
 import '../services/session_manager.dart';
@@ -26,7 +27,8 @@ class LoginVerificationScreen extends StatefulWidget {
   State<LoginVerificationScreen> createState() => _LoginVerificationScreenState();
 }
 
-class _LoginVerificationScreenState extends State<LoginVerificationScreen> {
+class _LoginVerificationScreenState extends State<LoginVerificationScreen>
+    with WidgetsBindingObserver {
   final AuthService _auth = AuthService.instance;
   final List<TextEditingController> _controllers =
       List.generate(6, (_) => TextEditingController());
@@ -38,20 +40,70 @@ class _LoginVerificationScreenState extends State<LoginVerificationScreen> {
   bool _isVerifying = false;
   bool _isResending = false;
   bool _recognizeDevice = true;
+  String? _initialClipboard;
+  Timer? _clipboardTimer;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _startCountdown();
+    _snapshotClipboard();
     // Auto-focus the first box
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _focusNodes[0].requestFocus();
     });
+    // Poll clipboard for codes copied from notifications
+    _clipboardTimer = Timer.periodic(const Duration(milliseconds: 1500), (_) {
+      _checkClipboard();
+    });
+  }
+
+  Future<void> _snapshotClipboard() async {
+    try {
+      final data = await Clipboard.getData('text/plain');
+      _initialClipboard = data?.text?.trim() ?? '';
+    } catch (_) {
+      _initialClipboard = '';
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkClipboard();
+    }
+  }
+
+  Future<void> _checkClipboard() async {
+    if (_enteredCode.length >= 6 || _isVerifying) return;
+    try {
+      final data = await Clipboard.getData('text/plain');
+      final text = data?.text?.trim() ?? '';
+      if (text == _initialClipboard) return;
+      final match = RegExp(r'(\d{6})').firstMatch(text);
+      if (match != null) {
+        _fillCode(match.group(1)!);
+      }
+    } catch (_) {}
+  }
+
+  void _fillCode(String code) {
+    final sixDigits = code.replaceAll(RegExp(r'[^\d]'), '');
+    if (sixDigits.length < 6) return;
+    for (int i = 0; i < 6; i++) {
+      _controllers[i].text = sixDigits[i];
+    }
+    _focusNodes[5].unfocus();
+    setState(() {});
+    _onCodeChanged();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _countdownTimer?.cancel();
+    _clipboardTimer?.cancel();
     for (final c in _controllers) {
       c.dispose();
     }
@@ -91,6 +143,8 @@ class _LoginVerificationScreenState extends State<LoginVerificationScreen> {
 
   Future<void> _verify() async {
     if (_isVerifying) return;
+
+    _clipboardTimer?.cancel();
 
     setState(() {
       _isVerifying = true;

@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme/kora_colors.dart';
-import '../widgets/kora_button.dart';
 import '../services/auth_service.dart';
 import '../services/session_manager.dart';
 import 'profile_setup_screen.dart';
@@ -50,6 +49,8 @@ class _VerificationScreenState extends State<VerificationScreen>
   /// user copied a new code from their email app).
   String? _initialClipboard;
 
+  Timer? _clipboardTimer;
+
   @override
   void initState() {
     super.initState();
@@ -58,6 +59,11 @@ class _VerificationScreenState extends State<VerificationScreen>
     // Record the clipboard state on screen open so we can detect
     // NEW clipboard content later (when user returns from email app).
     _snapshotClipboard();
+    // Also poll clipboard every 1.5s for cases where the user
+    // copies the code from a notification without leaving the app.
+    _clipboardTimer = Timer.periodic(const Duration(milliseconds: 1500), (_) {
+      _checkClipboard();
+    });
   }
 
   Future<void> _snapshotClipboard() async {
@@ -73,6 +79,7 @@ class _VerificationScreenState extends State<VerificationScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _countdownTimer?.cancel();
+    _clipboardTimer?.cancel();
     for (final c in _controllers) {
       c.dispose();
     }
@@ -184,6 +191,9 @@ class _VerificationScreenState extends State<VerificationScreen>
       _autoVerifying = false;
       return;
     }
+
+    // Stop polling clipboard once we're verifying
+    _clipboardTimer?.cancel();
 
     setState(() {
       _isVerifying = true;
@@ -398,13 +408,23 @@ class _VerificationScreenState extends State<VerificationScreen>
                   ),
                 ),
 
-              // Verify button (fallback — auto-verify fires first when code is complete)
-              KoraButton(
-                label: 'Verify',
-                onPressed: _verify,
-                isLoading: _isVerifying,
-              ),
-              const SizedBox(height: 24),
+              // Auto-verify is active — no manual button needed.
+              // Show a subtle loading indicator while verifying.
+              if (_isVerifying) ...[
+                const Center(
+                  child: SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      color: KoraColors.purple,
+                      strokeWidth: 2.5,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ] else ...[
+                const SizedBox(height: 8),
+              ],
 
               _buildResendSection(),
               const Spacer(),
