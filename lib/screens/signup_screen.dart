@@ -172,9 +172,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   Future<void> _launchLegalUrl(String url) async {
     final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   Future<void> _submit() async {

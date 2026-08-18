@@ -195,9 +195,7 @@ class WelcomeScreen extends StatelessWidget {
                     GestureDetector(
                       onTap: () async {
                         final uri = Uri.parse(KoraApi.privacyPolicyUrl);
-                        if (await canLaunchUrl(uri)) {
-                          await launchUrl(uri, mode: LaunchMode.externalApplication);
-                        }
+                        await launchUrl(uri, mode: LaunchMode.externalApplication);
                       },
                       child: Text(
                         'Terms & Privacy Policy',
