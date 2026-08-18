@@ -278,7 +278,7 @@ class _VerificationScreenState extends State<VerificationScreen>
       appBar: AppBar(
         backgroundColor: KoraColors.trueBlack,
         elevation: 0,
-        scrolledUnderlineElevation: 0,
+        scrolledUnderElevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.of(context).pop(),
