@@ -4,8 +4,11 @@ import 'screens/welcome_screen.dart';
 import 'screens/kora_home_screen.dart';
 import 'screens/profile_setup_screen.dart';
 import 'services/session_manager.dart';
+import 'theme/chat_theme_provider.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  ChatThemeProvider.instance.load();
   runApp(const KoraMessengerApp());
 }
 

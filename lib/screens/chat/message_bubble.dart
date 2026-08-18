@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../models/message_model.dart';
 import '../../models/chat_models.dart';
 import '../../theme/kora_colors.dart';
+import '../../theme/chat_theme_provider.dart';
 
 /// Kora's message bubble — distinct for sent vs received.
 /// Sent: gradient-tinted purple/blue with white text.
@@ -52,22 +53,31 @@ class MessageBubble extends StatelessWidget {
     );
   }
 
+  /// Whether to use the theme's received bubble color.
+  /// In dark mode with a dark wallpaper, the theme color looks better.
+  bool _useThemeReceivedBubble(Brightness brightness) {
+    final theme = ChatThemeProvider.instance.activeTheme;
+    // Only use theme received bubble if it's not the default white
+    // and the wallpaper is light enough to contrast.
+    return theme.receivedBubble != Colors.white;
+  }
+
   Widget _buildBubble(BuildContext context, Brightness brightness) {
     final isMe = message.isMe;
     final textPrimary = KoraColors.textPrimaryFor(brightness);
     final textSecondary = KoraColors.textSecondaryFor(brightness);
+    final theme = ChatThemeProvider.instance.activeTheme;
 
-    // Sent bubble: gradient surface
-    // Received bubble: card surface
-    
-    final receivedBg = KoraColors.cardFor(brightness);
-    const sentText = Colors.white;
-    final receivedText = textPrimary;
+    final receivedBg = _useThemeReceivedBubble(brightness)
+        ? theme.receivedBubble
+        : KoraColors.cardFor(brightness);
+    final sentBg = theme.sentBubble;
+    final sentText = theme.sentTextColor;
+    final receivedText = theme.receivedTextColor;
 
     return Container(
       decoration: BoxDecoration(
-        gradient: isMe ? KoraColors.brandGradient : null,
-        color: isMe ? null : receivedBg,
+        color: isMe ? sentBg : receivedBg,
         borderRadius: BorderRadius.only(
           topLeft: const Radius.circular(18),
           topRight: const Radius.circular(18),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../theme/kora_colors.dart';
 import '../../widgets/kora_avatar.dart';
+import '../settings/appearance_screen.dart';
 
 /// "Profile" tab — the user's own profile summary plus settings shortcuts.
 class ProfileTab extends StatelessWidget {
@@ -74,6 +75,7 @@ class ProfileTab extends StatelessWidget {
             _sectionLabel('ACCOUNT', textMuted),
             _tile(context, Icons.person_outline, 'Account', 'Privacy, security, change number'),
             _tile(context, Icons.chat_bubble_outline, 'Chats', 'Theme, wallpapers, chat history'),
+            _appearanceTile(context),
             _tile(context, Icons.notifications_outlined, 'Notifications', 'Message, group & call tones'),
             const SizedBox(height: 20),
             _sectionLabel('KORA', textMuted),
@@ -96,6 +98,62 @@ class ProfileTab extends StatelessWidget {
           fontSize: 12,
           fontWeight: FontWeight.w700,
           letterSpacing: 0.5,
+        ),
+      ),
+    );
+  }
+
+  Widget _appearanceTile(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
+    final textPrimary = KoraColors.textPrimaryFor(brightness);
+    final textSecondary = KoraColors.textSecondaryFor(brightness);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const AppearanceScreen()),
+          );
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: KoraColors.purple.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.palette_outlined, color: KoraColors.purple, size: 20),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Appearance',
+                      style: TextStyle(
+                        color: textPrimary,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Chat theme, wallpaper, app theme',
+                      style: TextStyle(color: textSecondary, fontSize: 12.5),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

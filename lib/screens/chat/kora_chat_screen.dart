@@ -1,9 +1,11 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../models/chat_models.dart';
 import '../../models/message_model.dart';
 import '../../services/message_service.dart';
 import '../../theme/kora_colors.dart';
+import '../../theme/chat_theme_provider.dart';
 import '../../widgets/kora_menu_sheet.dart';
 import 'chat_header.dart';
 import 'message_bubble.dart';
@@ -12,6 +14,8 @@ import 'message_action_menu.dart';
 import 'reply_preview.dart';
 import 'chat_empty_state.dart';
 import 'translate_sheet.dart';
+import '../settings/default_chat_theme_screen.dart';
+import '../settings/wallpaper_screen.dart';
 
 /// Kora's main conversation screen.
 /// Opens when a user taps any conversation from the Home/Chats list.
@@ -45,6 +49,7 @@ class KoraChatScreen extends StatefulWidget {
 class _KoraChatScreenState extends State<KoraChatScreen> {
   final _scrollController = ScrollController();
   final _messageService = MessageService.instance;
+  final _themeProvider = ChatThemeProvider.instance;
 
   List<KoraMessage> _messages = [];
   final Map<String, GlobalKey> _rowKeys = {};
@@ -53,7 +58,19 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
   @override
   void initState() {
     super.initState();
+    _themeProvider.addListener(_onThemeChanged);
     _loadMessages();
+  }
+
+  @override
+  void dispose() {
+    _themeProvider.removeListener(_onThemeChanged);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onThemeChanged() {
+    if (mounted) setState(() {});
   }
 
   void _loadMessages() {
@@ -148,10 +165,11 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
   @override
   Widget build(BuildContext context) {
     final brightness = Theme.of(context).brightness;
-    final bg = KoraColors.backgroundFor(brightness);
+    final theme = _themeProvider.activeTheme;
+    final hasWallpaperImage = _themeProvider.wallpaperImagePath != null;
 
     return Scaffold(
-      backgroundColor: bg,
+      backgroundColor: theme.wallpaper,
       body: SafeArea(
         child: Column(
           children: [
@@ -171,8 +189,12 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
                 KoraMenuOption(icon: Icons.search, label: 'Search', onTap: () {}),
                 KoraMenuOption(icon: Icons.photo_library_outlined, label: 'Media & files', onTap: () {}),
                 KoraMenuOption(icon: Icons.notifications_outlined, label: 'Mute notifications', onTap: () {}),
-                KoraMenuOption(icon: Icons.palette_outlined, label: 'Chat theme', onTap: () {}),
-                KoraMenuOption(icon: Icons.image_outlined, label: 'Wallpaper', onTap: () {}),
+                KoraMenuOption(icon: Icons.palette_outlined, label: 'Chat theme', onTap: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const DefaultChatThemeScreen()));
+                }),
+                KoraMenuOption(icon: Icons.image_outlined, label: 'Wallpaper', onTap: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const WallpaperScreen()));
+                }),
                 KoraMenuOption(icon: Icons.cleaning_services_outlined, label: 'Clear chat', onTap: () {}),
                 KoraMenuOption(icon: Icons.block, label: 'Block', onTap: () {}, color: Colors.red),
                 KoraMenuOption(icon: Icons.report_outlined, label: 'Report', onTap: () {}, color: Colors.red),
@@ -180,12 +202,22 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
             ),
             // Message area
             Expanded(
-              child: _isEmpty
-                  ? ChatEmptyState(
-                      name: widget.name,
-                      isOfficial: _isOfficial,
-                    )
-                  : ListView.builder(
+              child: Container(
+                decoration: hasWallpaperImage
+                    ? BoxDecoration(
+                        image: DecorationImage(
+                          image: FileImage(File(_themeProvider.wallpaperImagePath!)),
+                          fit: BoxFit.cover,
+                          onError: (_, __) {},
+                        ),
+                      )
+                    : null,
+                child: _isEmpty
+                    ? ChatEmptyState(
+                        name: widget.name,
+                        isOfficial: _isOfficial,
+                      )
+                    : ListView.builder(
                       controller: _scrollController,
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       itemCount: _messages.length,
@@ -211,6 +243,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
                         );
                       },
                     ),
+              ),
             ),
             // Reply preview
             if (_replyTarget != null)
