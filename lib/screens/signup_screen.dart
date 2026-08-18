@@ -201,18 +201,32 @@ class _SignUpScreenState extends State<SignUpScreen> {
       return;
     }
 
-    // Block submission if username is taken/reserved/invalid
-    if (_usernameStatus == UsernameStatus.taken ||
-        _usernameStatus == UsernameStatus.reserved ||
-        _usernameStatus == UsernameStatus.invalid) {
-      setState(() => _errorMessage = 'Please choose an available username');
-      return;
-    }
-    // If username is still checking, wait for it
+    // If username is still checking, wait for it to finish (max 5s)
     if (_usernameStatus == UsernameStatus.checking) {
-      setState(() => _errorMessage = 'Checking username availability...');
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+      int waited = 0;
+      while (_usernameStatus == UsernameStatus.checking && waited < 5000) {
+        await Future.delayed(const Duration(milliseconds: 100));
+        waited += 100;
+      }
+    }
+
+    // Block only on definitive "not available" statuses
+    if (_usernameStatus == UsernameStatus.taken ||
+        _usernameStatus == UsernameStatus.reserved) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Please choose an available username';
+        });
+      }
       return;
     }
+    // If username check failed (invalid/network), don't block —
+    // the backend will reject if truly taken. Let the user proceed.
 
     setState(() {
       _isLoading = true;
