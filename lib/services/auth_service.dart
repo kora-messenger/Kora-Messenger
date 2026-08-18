@@ -269,6 +269,35 @@ class AuthService {
   // ── Verify code and reset password ──────────────────────────
 
   /// Verifies the code and resets the password.
+  /// Verifies a code without performing any other action.
+  /// Used to validate the code before showing the next screen.
+  Future<({bool success, String? error})> verifyCode({
+    required String email,
+    required String code,
+    required String type,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse(_endpoint),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'action': 'verifyCode',
+          'email': email,
+          'code': code,
+          'type': type,
+        }),
+      );
+      final data = jsonDecode(response.body);
+
+      if (data['success'] == true) {
+        return (success: true, error: null);
+      }
+      return (success: false, error: data['error'] as String?);
+    } catch (e) {
+      return (success: false, error: 'Network error. Check your connection.');
+    }
+  }
+
   Future<({bool success, String? error})> verifyAndResetPassword({
     required String email,
     required String code,

@@ -91,6 +91,7 @@ function getUserFromRecord(record: any) {
     avatarUrl: record.data?.avatarUrl ?? record.avatarUrl ?? '',
     isVerified: record.data?.isVerified ?? record.isVerified ?? true,
     profileCompleted: record.data?.profileCompleted ?? record.profileCompleted ?? false,
+    phoneNumber: record.data?.phoneNumber ?? record.phoneNumber ?? '',
   };
 }
 
@@ -192,7 +193,7 @@ Deno.serve(async (req: Request) => {
 
       const newUser = await db.entities.KoraUser.create({
         email, passwordHash, username: userData.username, koraId,
-        fullName: '', bio: '', avatarUrl: '', isVerified: true, profileCompleted: false,
+        fullName: userData.fullName || '', phoneNumber: userData.phoneNumber || '', bio: '', avatarUrl: '', isVerified: true, profileCompleted: false,
       });
 
       return jsonResponse({ success: true, user: getUserFromRecord(newUser) });
@@ -313,6 +314,39 @@ Deno.serve(async (req: Request) => {
       }
 
       return jsonResponse({ success: true, user });
+    }
+
+    // ── VERIFY CODE (standalone) ────────────────────────────
+    if (action === 'verifyCode') {
+      const { email, code, type } = body;
+      if (!email || !code) return jsonResponse({ success: false, error: 'Email and code are required' });
+
+      const codes = await db.entities.VerificationCode.filter({ email, type: type || 'passwordReset', used: false });
+      if (!codes || codes.length === 0) {
+        return jsonResponse({ success: false, error: 'No active verification code. Request a new one.' });
+      }
+
+      const matchingCode = codes.find((c: any) => (c.data?.code || c.code) === code);
+      if (!matchingCode) {
+        const recent = codes[0];
+        const attempts = ((recent.data?.attempts || recent.attempts || 0) + 1);
+        await db.entities.VerificationCode.update(recent.id, { attempts });
+        if (attempts >= 5) {
+          await db.entities.VerificationCode.update(recent.id, { used: true });
+          return jsonResponse({ success: false, error: 'Too many attempts. Request a new code.' });
+        }
+        return jsonResponse({ success: false, error: 'Invalid verification code' });
+      }
+
+      const expiresAt = new Date(matchingCode.data?.expiresAt || matchingCode.expiresAt);
+      if (expiresAt < new Date()) {
+        await db.entities.VerificationCode.update(matchingCode.id, { used: true });
+        return jsonResponse({ success: false, error: 'Code has expired. Request a new code.' });
+      }
+
+      // Mark code as used
+      await db.entities.VerificationCode.update(matchingCode.id, { used: true });
+      return jsonResponse({ success: true, message: 'Code verified' });
     }
 
     // ── VERIFY AND RESET PASSWORD ──────────────────────────

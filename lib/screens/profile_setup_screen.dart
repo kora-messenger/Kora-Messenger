@@ -364,7 +364,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               const SizedBox(height: 20),
 
               // Kora ID
-              _buildSectionLabel('Kora ID', required: false),
+              _buildAutoLabel('Kora ID'),
               const SizedBox(height: 8),
               _buildKoraIdSection(),
               const SizedBox(height: 20),
@@ -403,7 +403,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
   // ── Section label ───────────────────────────────────────────
 
-  Widget _buildSectionLabel(String label, {required bool required}) {
+  Widget _buildSectionLabel(String label, {required bool required = false}) {
     return Row(
       children: [
         Text(
@@ -428,6 +428,18 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           ),
         ],
       ],
+    );
+  }
+
+  /// A label for auto-generated, non-editable fields (no optional text, no asterisk).
+  Widget _buildAutoLabel(String label) {
+    return Text(
+      label,
+      style: TextStyle(
+        color: _textPrimary,
+        fontSize: 15,
+        fontWeight: FontWeight.w700,
+      ),
     );
   }
 

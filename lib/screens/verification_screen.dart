@@ -220,20 +220,32 @@ class _VerificationScreenState extends State<VerificationScreen>
         _clearInputs();
       }
     } else if (widget.type == VerificationType.passwordReset) {
-      // Pass code to NewPasswordScreen — actual backend verification
-      // happens when user submits the new password
+      // Verify the code against the backend before proceeding.
+      final verifyResult = await _auth.verifyCode(
+        email: widget.email,
+        code: _enteredCode,
+        type: 'passwordReset',
+      );
+
+      if (!mounted) return;
       setState(() {
         _isVerifying = false;
         _autoVerifying = false;
       });
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => NewPasswordScreen(
-            email: widget.email,
-            verificationCode: _enteredCode,
+
+      if (verifyResult.success) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => NewPasswordScreen(
+              email: widget.email,
+              verificationCode: _enteredCode,
+            ),
           ),
-        ),
-      );
+        );
+      } else {
+        setState(() => _errorMessage = verifyResult.error ?? 'Invalid verification code');
+        _clearInputs();
+      }
     } else if (widget.type == VerificationType.login) {
       setState(() {
         _isVerifying = false;

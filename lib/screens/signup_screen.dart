@@ -19,11 +19,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _nameController = TextEditingController();
   final _usernameController = TextEditingController();
   final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final AuthService _auth = AuthService.instance;
   bool _isLoading = false;
   String? _errorMessage;
+  bool _agreedToTerms = false;
 
   // Username live-check state
   UsernameStatus _usernameStatus = UsernameStatus.idle;
@@ -36,6 +38,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     _nameController.dispose();
     _usernameController.dispose();
     _emailController.dispose();
+    _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
@@ -60,6 +63,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
     if (value == null || value.trim().isEmpty) return 'Please enter your email';
     if (!RegExp(r'^[\w.+-]+@[\w-]+\.[\w.-]+$').hasMatch(value.trim())) {
       return 'Please enter a valid email address';
+    }
+    return null;
+  }
+
+  String? _validatePhone(String? value) {
+    // Phone is optional — only validate if user entered something
+    if (value == null || value.trim().isEmpty) return null;
+    final cleaned = value.trim().replaceAll(RegExp(r'[\s\-\(\)]'), '');
+    if (!RegExp(r'^\+?\d{7,15}$').hasMatch(cleaned)) {
+      return 'Enter a valid phone number';
     }
     return null;
   }
@@ -155,23 +168,49 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
   }
 
+  void _showComingSoon(String title) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: KoraColors.darkCard,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          title,
+          style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
+        ),
+        content: Text(
+          '$title is coming soon. Stay tuned!',
+          style: const TextStyle(color: Color(0xFFA0A0B8), fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK', style: TextStyle(color: KoraColors.purple, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+
+    // Block if user hasn't agreed to terms
+    if (!_agreedToTerms) {
+      setState(() => _errorMessage = 'Please agree to the Terms of Service and Privacy Policy');
+      return;
+    }
 
     // Block submission if username is taken/reserved/invalid
     if (_usernameStatus == UsernameStatus.taken ||
         _usernameStatus == UsernameStatus.reserved ||
         _usernameStatus == UsernameStatus.invalid) {
-      setState(() {
-        _errorMessage = 'Please choose an available username';
-      });
+      setState(() => _errorMessage = 'Please choose an available username');
       return;
     }
     // If username is still checking, wait for it
     if (_usernameStatus == UsernameStatus.checking) {
-      setState(() {
-        _errorMessage = 'Checking username availability...';
-      });
+      setState(() => _errorMessage = 'Checking username availability...');
       return;
     }
 
@@ -198,6 +237,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
               'fullName': _nameController.text.trim(),
               'username': _usernameController.text.trim(),
               'email': _emailController.text.trim(),
+              'phoneNumber': _phoneController.text.trim(),
               'password': _passwordController.text,
             },
           ),
@@ -263,9 +303,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
               ],
               const SizedBox(height: 24),
 
-              _buildPhotoPicker(),
-              const SizedBox(height: 24),
-
+              // Full name
               KoraInput(
                 label: 'Full name',
                 controller: _nameController,
@@ -315,6 +353,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 ),
               const SizedBox(height: 16),
 
+              // Email (required)
               KoraInput(
                 label: 'Email',
                 controller: _emailController,
@@ -327,6 +366,20 @@ class _SignUpScreenState extends State<SignUpScreen> {
               ),
               const SizedBox(height: 16),
 
+              // Phone number (optional)
+              KoraInput(
+                label: 'Phone number (optional)',
+                controller: _phoneController,
+                keyboardType: TextInputType.phone,
+                validator: _validatePhone,
+                prefixIcon: const Padding(
+                  padding: EdgeInsets.only(left: 14, right: 10),
+                  child: Icon(Icons.phone_outlined, color: Color(0xFF6B6B80), size: 22),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Password
               KoraInput(
                 label: 'Password',
                 controller: _passwordController,
@@ -339,6 +392,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
               ),
               const SizedBox(height: 16),
 
+              // Confirm password
               KoraInput(
                 label: 'Confirm password',
                 controller: _confirmPasswordController,
@@ -349,7 +403,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   child: Icon(Icons.lock_outline, color: Color(0xFF6B6B80), size: 22),
                 ),
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 20),
+
+              // Terms of Service checkbox
+              _buildTermsCheckbox(),
+              const SizedBox(height: 24),
 
               KoraButton(
                 label: 'Create Account',
@@ -392,6 +450,65 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
   }
 
+  Widget _buildTermsCheckbox() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Checkbox(
+          value: _agreedToTerms,
+          onChanged: (value) => setState(() => _agreedToTerms = value ?? false),
+          activeColor: KoraColors.purple,
+          checkColor: Colors.white,
+          side: const BorderSide(color: Color(0xFF6B6B80), width: 2),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+        ),
+        const SizedBox(width: 4),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                const Text(
+                  'I agree to the ',
+                  style: TextStyle(color: Color(0xFFA0A0B8), fontSize: 14),
+                ),
+                GestureDetector(
+                  onTap: () => _showComingSoon('Terms of Service'),
+                  child: const Text(
+                    'Terms of Service',
+                    style: TextStyle(
+                      color: KoraColors.purple,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ),
+                const Text(
+                  ' and ',
+                  style: TextStyle(color: Color(0xFFA0A0B8), fontSize: 14),
+                ),
+                GestureDetector(
+                  onTap: () => _showComingSoon('Privacy Policy'),
+                  child: const Text(
+                    'Privacy Policy',
+                    style: TextStyle(
+                      color: KoraColors.purple,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
       backgroundColor: KoraColors.trueBlack,
@@ -400,42 +517,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
       leading: IconButton(
         icon: const Icon(Icons.arrow_back, color: Colors.white),
         onPressed: () => Navigator.of(context).pop(),
-      ),
-    );
-  }
-
-  Widget _buildPhotoPicker() {
-    return Center(
-      child: GestureDetector(
-        onTap: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Photo upload coming soon'),
-              backgroundColor: KoraColors.darkCard,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        },
-        child: Container(
-          width: 90,
-          height: 90,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-            ),
-            border: Border.all(color: const Color(0xFF3A3A4E), width: 2),
-          ),
-          child: const Center(
-            child: Icon(
-              Icons.add_a_photo_outlined,
-              color: Colors.white,
-              size: 30,
-            ),
-          ),
-        ),
       ),
     );
   }
