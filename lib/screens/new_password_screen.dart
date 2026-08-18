@@ -3,6 +3,7 @@ import '../theme/kora_colors.dart';
 import '../widgets/kora_input.dart';
 import '../widgets/kora_button.dart';
 import '../services/auth_service.dart';
+import 'login_screen.dart';
 
 class NewPasswordScreen extends StatefulWidget {
   final String email;
@@ -72,7 +73,10 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
 
       Future.delayed(const Duration(seconds: 2), () {
         if (!mounted) return;
-        Navigator.of(context).popUntil((route) => route.isFirst);
+        Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LogInScreen()),
+        (route) => false,
+      );
       });
     } else {
       setState(() {

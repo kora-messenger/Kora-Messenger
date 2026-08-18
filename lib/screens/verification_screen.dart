@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../theme/kora_colors.dart';
 import '../widgets/kora_button.dart';
 import '../services/auth_service.dart';
@@ -11,8 +12,7 @@ import 'new_password_screen.dart';
 /// Kora's unified verification-code screen.
 ///
 /// Used for registration and password-reset flows.
-/// Shows where the code was sent, provides 6-box code entry,
-/// resend with countdown, and handles all verification states.
+/// Auto-fills code from clipboard and auto-verifies when complete.
 class VerificationScreen extends StatefulWidget {
   final VerificationType type;
   final String email;
@@ -29,7 +29,8 @@ class VerificationScreen extends StatefulWidget {
   State<VerificationScreen> createState() => _VerificationScreenState();
 }
 
-class _VerificationScreenState extends State<VerificationScreen> {
+class _VerificationScreenState extends State<VerificationScreen>
+    with WidgetsBindingObserver {
   final AuthService _auth = AuthService.instance;
   final List<TextEditingController> _controllers =
       List.generate(6, (_) => TextEditingController());
@@ -40,15 +41,22 @@ class _VerificationScreenState extends State<VerificationScreen> {
   String? _errorMessage;
   bool _isVerifying = false;
   bool _isResending = false;
+  bool _autoVerifying = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _startCountdown();
+    // Check clipboard on screen load (user may have already copied the code)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkClipboard();
+    });
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _countdownTimer?.cancel();
     for (final c in _controllers) {
       c.dispose();
@@ -57,6 +65,52 @@ class _VerificationScreenState extends State<VerificationScreen> {
       f.dispose();
     }
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkClipboard();
+    }
+  }
+
+  // ── Clipboard auto-fill ──────────────────────────────────
+  Future<void> _checkClipboard() async {
+    // Don't overwrite if user already typed something
+    if (_enteredCode.length >= 6 || _autoVerifying) return;
+    try {
+      final data = await Clipboard.getData('text/plain');
+      final text = data?.text?.trim() ?? '';
+      // Look for a 6-digit code in the clipboard text
+      final match = RegExp(r'(\d{6})').firstMatch(text);
+      if (match != null) {
+        final code = match.group(1)!;
+        _fillCode(code);
+      }
+    } catch (_) {
+      // Silently ignore clipboard errors
+    }
+  }
+
+  void _fillCode(String code) {
+    final sixDigits = code.replaceAll(RegExp(r'[^\d]'), '');
+    if (sixDigits.length < 6) return;
+
+    for (int i = 0; i < 6; i++) {
+      _controllers[i].text = sixDigits[i];
+    }
+    _focusNodes[5].unfocus();
+    setState(() {});
+
+    // Auto-verify after filling
+    _triggerAutoVerify();
+  }
+
+  void _triggerAutoVerify() {
+    if (_enteredCode.length == 6 && !_autoVerifying && !_isVerifying) {
+      _autoVerifying = true;
+      _verify();
+    }
   }
 
   void _startCountdown() {
@@ -106,6 +160,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
   Future<void> _verify() async {
     if (_enteredCode.length < 6) {
       setState(() => _errorMessage = 'Please enter the full 6-digit code.');
+      _autoVerifying = false;
       return;
     }
 
@@ -115,7 +170,6 @@ class _VerificationScreenState extends State<VerificationScreen> {
     });
 
     if (widget.type == VerificationType.registration) {
-      // Verify code + create account
       final result = await _auth.verifyAndSignUp(
         email: widget.email,
         code: _enteredCode,
@@ -123,10 +177,12 @@ class _VerificationScreenState extends State<VerificationScreen> {
       );
 
       if (!mounted) return;
-      setState(() => _isVerifying = false);
+      setState(() {
+        _isVerifying = false;
+        _autoVerifying = false;
+      });
 
       if (result.success) {
-        // Save session so app remembers login on restart
         final sessionData = result.user ?? widget.userData ?? {};
         await SessionManager.instance.saveSession(sessionData);
         if (!mounted) return;
@@ -143,8 +199,12 @@ class _VerificationScreenState extends State<VerificationScreen> {
         _clearInputs();
       }
     } else if (widget.type == VerificationType.passwordReset) {
-      // Go to NewPasswordScreen with the code
-      setState(() => _isVerifying = false);
+      // Pass code to NewPasswordScreen — actual backend verification
+      // happens when user submits the new password
+      setState(() {
+        _isVerifying = false;
+        _autoVerifying = false;
+      });
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (_) => NewPasswordScreen(
@@ -154,8 +214,10 @@ class _VerificationScreenState extends State<VerificationScreen> {
         ),
       );
     } else if (widget.type == VerificationType.login) {
-      // Login flow (shouldn't normally reach here with new flow, but handle it)
-      setState(() => _isVerifying = false);
+      setState(() {
+        _isVerifying = false;
+        _autoVerifying = false;
+      });
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const KoraHomeScreen()),
         (route) => false,
@@ -173,7 +235,9 @@ class _VerificationScreenState extends State<VerificationScreen> {
 
     final typeStr = widget.type == VerificationType.passwordReset
         ? 'passwordReset'
-        : 'registration';
+        : widget.type == VerificationType.login
+            ? 'login'
+            : 'registration';
     final result = await _auth.sendVerificationCode(widget.email, type: typeStr);
 
     if (!mounted) return;
@@ -199,6 +263,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
     for (final c in _controllers) {
       c.clear();
     }
+    _autoVerifying = false;
     _focusNodes[0].requestFocus();
   }
 
@@ -213,7 +278,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
       appBar: AppBar(
         backgroundColor: KoraColors.trueBlack,
         elevation: 0,
-        scrolledUnderElevation: 0,
+        scrolledUnderlineElevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.of(context).pop(),
@@ -291,6 +356,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
                   ),
                 ),
 
+              // Verify button (fallback — auto-verify fires first when code is complete)
               KoraButton(
                 label: 'Verify',
                 onPressed: _verify,
@@ -306,7 +372,9 @@ class _VerificationScreenState extends State<VerificationScreen> {
                 child: Center(
                   child: Text(
                     'Codes expire in 10 minutes.',
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.25), fontSize: 12),
+                    style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.25),
+                        fontSize: 12),
                   ),
                 ),
               ),
@@ -354,6 +422,28 @@ class _VerificationScreenState extends State<VerificationScreen> {
               fillColor: KoraColors.darkCard,
             ),
             onChanged: (value) {
+              // Handle paste of multi-character text
+              if (value.length > 1) {
+                final digits = value.replaceAll(RegExp(r'[^\d]'), '');
+                if (digits.length >= 6) {
+                  _fillCode(digits.substring(0, 6));
+                  return;
+                }
+                // Partial paste — fill what we can
+                for (int i = 0; i < digits.length && (index + i) < 6; i++) {
+                  _controllers[index + i].text = digits[i];
+                }
+                if (index + digits.length < 6) {
+                  _focusNodes[index + digits.length].requestFocus();
+                }
+                setState(() {});
+                if (_enteredCode.length == 6) {
+                  _triggerAutoVerify();
+                }
+                return;
+              }
+
+              // Normal single-character input
               if (value.isNotEmpty && index < 5) {
                 _focusNodes[index + 1].requestFocus();
               }
@@ -361,6 +451,11 @@ class _VerificationScreenState extends State<VerificationScreen> {
                 _focusNodes[index - 1].requestFocus();
               }
               setState(() {});
+
+              // Auto-verify when all 6 digits filled
+              if (_enteredCode.length == 6) {
+                _triggerAutoVerify();
+              }
             },
           ),
         );
