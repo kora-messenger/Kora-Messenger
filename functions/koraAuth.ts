@@ -96,6 +96,7 @@ function getUserFromRecord(record: any) {
 
 Deno.serve(async (req: Request) => {
   const base44 = createClientFromRequest(req);
+  const db = base44.asServiceRole;
   const body = await req.json();
   const { action } = body;
 
@@ -106,14 +107,14 @@ Deno.serve(async (req: Request) => {
       if (!email) return jsonResponse({ success: false, error: 'Email is required' });
 
       if (type === 'registration') {
-        const existing = await base44.entities.KoraUser.filter({ email });
+        const existing = await db.entities.KoraUser.filter({ email });
         if (existing && existing.length > 0) {
           return jsonResponse({ success: false, error: 'An account with this email already exists' });
         }
       }
 
       if (type === 'login' || type === 'passwordReset') {
-        const existing = await base44.entities.KoraUser.filter({ email });
+        const existing = await db.entities.KoraUser.filter({ email });
         if (!existing || existing.length === 0) {
           return jsonResponse({ success: false, error: 'No account found with this email' });
         }
@@ -122,14 +123,14 @@ Deno.serve(async (req: Request) => {
       const code = generateCode();
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
-      const oldCodes = await base44.entities.VerificationCode.filter({ email, type, used: false });
+      const oldCodes = await db.entities.VerificationCode.filter({ email, type, used: false });
       if (oldCodes && oldCodes.length > 0) {
         for (const oc of oldCodes) {
-          await base44.entities.VerificationCode.update(oc.id, { used: true });
+          await db.entities.VerificationCode.update(oc.id, { used: true });
         }
       }
 
-      await base44.entities.VerificationCode.create({
+      await db.entities.VerificationCode.create({
         email, code, type, expiresAt, used: false, attempts: 0,
       });
 
@@ -149,7 +150,7 @@ Deno.serve(async (req: Request) => {
         return jsonResponse({ success: true, available: false, reason: 'This username is reserved' });
       }
 
-      const existing = await base44.entities.KoraUser.filter({ username: lower });
+      const existing = await db.entities.KoraUser.filter({ username: lower });
       if (existing && existing.length > 0) {
         return jsonResponse({ success: true, available: false, reason: 'Username is taken' });
       }
@@ -161,7 +162,7 @@ Deno.serve(async (req: Request) => {
       const { email, code, userData } = body;
       if (!email || !code) return jsonResponse({ success: false, error: 'Email and code are required' });
 
-      const codes = await base44.entities.VerificationCode.filter({ email, type: 'registration', used: false });
+      const codes = await db.entities.VerificationCode.filter({ email, type: 'registration', used: false });
       if (!codes || codes.length === 0) {
         return jsonResponse({ success: false, error: 'No active verification code. Request a new one.' });
       }
@@ -170,9 +171,9 @@ Deno.serve(async (req: Request) => {
       if (!matchingCode) {
         const recent = codes[0];
         const attempts = ((recent.data?.attempts || recent.attempts || 0) + 1);
-        await base44.entities.VerificationCode.update(recent.id, { attempts });
+        await db.entities.VerificationCode.update(recent.id, { attempts });
         if (attempts >= 5) {
-          await base44.entities.VerificationCode.update(recent.id, { used: true });
+          await db.entities.VerificationCode.update(recent.id, { used: true });
           return jsonResponse({ success: false, error: 'Too many attempts. Request a new code.' });
         }
         return jsonResponse({ success: false, error: 'Invalid verification code' });
@@ -180,16 +181,16 @@ Deno.serve(async (req: Request) => {
 
       const expiresAt = new Date(matchingCode.data?.expiresAt || matchingCode.expiresAt);
       if (expiresAt < new Date()) {
-        await base44.entities.VerificationCode.update(matchingCode.id, { used: true });
+        await db.entities.VerificationCode.update(matchingCode.id, { used: true });
         return jsonResponse({ success: false, error: 'Code has expired. Request a new one.' });
       }
 
-      await base44.entities.VerificationCode.update(matchingCode.id, { used: true });
+      await db.entities.VerificationCode.update(matchingCode.id, { used: true });
 
       const passwordHash = crypto.createHash('sha256').update(userData.password || '').digest('hex');
       const koraId = `KM-${String(Math.floor(100000000 + Math.random() * 900000000))}`;
 
-      const newUser = await base44.entities.KoraUser.create({
+      const newUser = await db.entities.KoraUser.create({
         email, passwordHash, username: userData.username, koraId,
         fullName: '', bio: '', avatarUrl: '', isVerified: true, profileCompleted: false,
       });
@@ -203,7 +204,7 @@ Deno.serve(async (req: Request) => {
       if (!email || !password) return jsonResponse({ success: false, error: 'Email and password are required' });
 
       const passwordHash = crypto.createHash('sha256').update(password).digest('hex');
-      const users = await base44.entities.KoraUser.filter({ email, passwordHash });
+      const users = await db.entities.KoraUser.filter({ email, passwordHash });
       if (!users || users.length === 0) {
         return jsonResponse({ success: false, error: 'Invalid email or password' });
       }
@@ -212,14 +213,14 @@ Deno.serve(async (req: Request) => {
 
       // ── Device recognition ──
       if (deviceId) {
-        const trustedDevices = await base44.entities.TrustedDevice.filter({ userEmail: email, deviceId });
+        const trustedDevices = await db.entities.TrustedDevice.filter({ userEmail: email, deviceId });
         if (trustedDevices && trustedDevices.length > 0) {
           const device = trustedDevices[0];
           const now = new Date().toISOString();
           const firstLogin = new Date(device.data?.firstLoginDate || device.firstLoginDate);
           const monthsSinceFirstLogin = (Date.now() - firstLogin.getTime()) / (1000 * 60 * 60 * 24 * 30);
 
-          await base44.entities.TrustedDevice.update(device.id, {
+          await db.entities.TrustedDevice.update(device.id, {
             lastLoginDate: now,
             isActive: true,
             isTrusted: monthsSinceFirstLogin >= 1 ? true : (device.data?.isTrusted || device.isTrusted || false),
@@ -233,14 +234,14 @@ Deno.serve(async (req: Request) => {
       const code = generateCode();
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
-      const oldCodes = await base44.entities.VerificationCode.filter({ email, type: 'login', used: false });
+      const oldCodes = await db.entities.VerificationCode.filter({ email, type: 'login', used: false });
       if (oldCodes && oldCodes.length > 0) {
         for (const oc of oldCodes) {
-          await base44.entities.VerificationCode.update(oc.id, { used: true });
+          await db.entities.VerificationCode.update(oc.id, { used: true });
         }
       }
 
-      await base44.entities.VerificationCode.create({
+      await db.entities.VerificationCode.create({
         email, code, type: 'login', expiresAt, used: false, attempts: 0,
       });
 
@@ -259,7 +260,7 @@ Deno.serve(async (req: Request) => {
       if (!email || !code) return jsonResponse({ success: false, error: 'Email and code are required' });
       if (!deviceId) return jsonResponse({ success: false, error: 'Device ID is required' });
 
-      const codes = await base44.entities.VerificationCode.filter({ email, type: 'login', used: false });
+      const codes = await db.entities.VerificationCode.filter({ email, type: 'login', used: false });
       if (!codes || codes.length === 0) {
         return jsonResponse({ success: false, error: 'No active verification code. Request a new one.' });
       }
@@ -268,9 +269,9 @@ Deno.serve(async (req: Request) => {
       if (!matchingCode) {
         const recent = codes[0];
         const attempts = ((recent.data?.attempts || recent.attempts || 0) + 1);
-        await base44.entities.VerificationCode.update(recent.id, { attempts });
+        await db.entities.VerificationCode.update(recent.id, { attempts });
         if (attempts >= 5) {
-          await base44.entities.VerificationCode.update(recent.id, { used: true });
+          await db.entities.VerificationCode.update(recent.id, { used: true });
           return jsonResponse({ success: false, error: 'Too many attempts. Request a new code.' });
         }
         return jsonResponse({ success: false, error: 'Invalid verification code' });
@@ -278,13 +279,13 @@ Deno.serve(async (req: Request) => {
 
       const expiresAt = new Date(matchingCode.data?.expiresAt || matchingCode.expiresAt);
       if (expiresAt < new Date()) {
-        await base44.entities.VerificationCode.update(matchingCode.id, { used: true });
+        await db.entities.VerificationCode.update(matchingCode.id, { used: true });
         return jsonResponse({ success: false, error: 'Code has expired. Request a new one.' });
       }
 
-      await base44.entities.VerificationCode.update(matchingCode.id, { used: true });
+      await db.entities.VerificationCode.update(matchingCode.id, { used: true });
 
-      const users = await base44.entities.KoraUser.filter({ email });
+      const users = await db.entities.KoraUser.filter({ email });
       if (!users || users.length === 0) {
         return jsonResponse({ success: false, error: 'Account not found' });
       }
@@ -294,14 +295,14 @@ Deno.serve(async (req: Request) => {
       // Save device as trusted if user chose to recognize it
       const now = new Date().toISOString();
       if (recognizeDevice) {
-        const existingDevices = await base44.entities.TrustedDevice.filter({ userEmail: email, deviceId });
+        const existingDevices = await db.entities.TrustedDevice.filter({ userEmail: email, deviceId });
         if (existingDevices && existingDevices.length > 0) {
-          await base44.entities.TrustedDevice.update(existingDevices[0].id, {
+          await db.entities.TrustedDevice.update(existingDevices[0].id, {
             lastLoginDate: now, isActive: true,
             isTrusted: existingDevices[0].data?.isTrusted || existingDevices[0].isTrusted || false,
           });
         } else {
-          await base44.entities.TrustedDevice.create({
+          await db.entities.TrustedDevice.create({
             userEmail: email, deviceId,
             deviceName: deviceName || 'Unknown Device',
             platform: platform || 'unknown',
@@ -319,7 +320,7 @@ Deno.serve(async (req: Request) => {
       const { email, code, newPassword } = body;
       if (!email || !code || !newPassword) return jsonResponse({ success: false, error: 'All fields are required' });
 
-      const codes = await base44.entities.VerificationCode.filter({ email, type: 'passwordReset', used: false });
+      const codes = await db.entities.VerificationCode.filter({ email, type: 'passwordReset', used: false });
       if (!codes || codes.length === 0) {
         return jsonResponse({ success: false, error: 'No active verification code. Request a new one.' });
       }
@@ -328,9 +329,9 @@ Deno.serve(async (req: Request) => {
       if (!matchingCode) {
         const recent = codes[0];
         const attempts = ((recent.data?.attempts || recent.attempts || 0) + 1);
-        await base44.entities.VerificationCode.update(recent.id, { attempts });
+        await db.entities.VerificationCode.update(recent.id, { attempts });
         if (attempts >= 5) {
-          await base44.entities.VerificationCode.update(recent.id, { used: true });
+          await db.entities.VerificationCode.update(recent.id, { used: true });
           return jsonResponse({ success: false, error: 'Too many attempts. Request a new code.' });
         }
         return jsonResponse({ success: false, error: 'Invalid verification code' });
@@ -338,19 +339,19 @@ Deno.serve(async (req: Request) => {
 
       const expiresAt = new Date(matchingCode.data?.expiresAt || matchingCode.expiresAt);
       if (expiresAt < new Date()) {
-        await base44.entities.VerificationCode.update(matchingCode.id, { used: true });
+        await db.entities.VerificationCode.update(matchingCode.id, { used: true });
         return jsonResponse({ success: false, error: 'Code has expired. Request a new one.' });
       }
 
-      await base44.entities.VerificationCode.update(matchingCode.id, { used: true });
+      await db.entities.VerificationCode.update(matchingCode.id, { used: true });
 
       const passwordHash = crypto.createHash('sha256').update(newPassword).digest('hex');
-      const users = await base44.entities.KoraUser.filter({ email });
+      const users = await db.entities.KoraUser.filter({ email });
       if (!users || users.length === 0) {
         return jsonResponse({ success: false, error: 'Account not found' });
       }
 
-      await base44.entities.KoraUser.update(users[0].id, { passwordHash });
+      await db.entities.KoraUser.update(users[0].id, { passwordHash });
       return jsonResponse({ success: true, message: 'Password reset successful' });
     }
 
@@ -362,16 +363,16 @@ Deno.serve(async (req: Request) => {
       }
 
       const lowerUsername = username.toLowerCase();
-      const existing = await base44.entities.KoraUser.filter({ username: lowerUsername });
+      const existing = await db.entities.KoraUser.filter({ username: lowerUsername });
       if (existing && existing.length > 0 && existing[0].id !== userId) {
         return jsonResponse({ success: false, error: 'Username is already taken' });
       }
 
-      await base44.entities.KoraUser.update(userId, {
+      await db.entities.KoraUser.update(userId, {
         fullName, username: lowerUsername, bio, avatarUrl, profileCompleted: true,
       });
 
-      const updated = await base44.entities.KoraUser.get(userId);
+      const updated = await db.entities.KoraUser.get(userId);
       return jsonResponse({ success: true, user: getUserFromRecord(updated) });
     }
 
