@@ -59,7 +59,9 @@ class DeviceManager {
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final random = DateTime.now().microsecondsSinceEpoch;
     final platform = Platform.operatingSystem;
-    return 'dev-$platform-$timestamp-${random.toString().substring(random.toString().length - 6)}';
+    final randomStr = random.toString();
+    final shortId = randomStr.substring(randomStr.length - 6);
+    return 'dev-$platform-$timestamp-$shortId';
   }
 
   /// Detects a readable device name from platform info.
