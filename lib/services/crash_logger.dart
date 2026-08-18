@@ -1,9 +1,11 @@
 import 'dart:async';
-import 'dart:isolate';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../config/kora_api.dart';
 
 /// Captures and persists every uncaught error in Kora Messenger.
 ///
@@ -16,8 +18,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// - timestamp, error type, message, stack trace
 /// - app version, platform, isDebug
 ///
-/// Logs are stored in SharedPreferences as a JSON array (max 100 entries).
-/// When you migrate to your own backend, add an upload step in [log].
+/// Logs are stored locally in SharedPreferences (max 100 entries)
+/// AND uploaded to the backend, which creates a GitHub Issue automatically.
+/// Domain-swappable: just change [KoraApi.crashReportEndpoint].
 class CrashLogger {
   static const _storageKey = 'kora_crash_logs';
   static const _maxEntries = 100;
@@ -61,23 +64,25 @@ class CrashLogger {
     );
   }
 
-  /// Core method — writes a crash entry to local storage.
+  /// Core method — stores crash locally AND uploads to backend (GitHub Issue).
   static Future<void> _record({
     required String type,
     required String message,
     required String stackTrace,
   }) async {
-    try {
-      final entry = {
-        'timestamp': DateTime.now().toIso8601String(),
-        'type': type,
-        'message': message,
-        'stackTrace': stackTrace,
-        'appVersion': appVersion,
-        'platform': Platform.operatingSystem,
-        'isDebug': kDebugMode.toString(),
-      };
+    final entry = {
+      'timestamp': DateTime.now().toIso8601String(),
+      'type': type,
+      'message': message,
+      'stackTrace': stackTrace,
+      'appVersion': appVersion,
+      'platform': Platform.operatingSystem,
+      'isDebug': kDebugMode.toString(),
+      'uploaded': 'false',
+    };
 
+    // 1. Store locally
+    try {
       final prefs = await SharedPreferences.getInstance();
       final raw = prefs.getString(_storageKey);
       final List<dynamic> logs = raw != null ? jsonDecode(raw) as List<dynamic> : [];
@@ -90,7 +95,42 @@ class CrashLogger {
 
       await prefs.setString(_storageKey, jsonEncode(logs));
     } catch (e) {
-      debugPrint('[CrashLogger] Failed to store crash log: $e');
+      debugPrint('[CrashLogger] Failed to store crash log locally: $e');
+    }
+
+    // 2. Upload to backend (creates GitHub Issue)
+    // Skip in debug mode to avoid spamming issues during development.
+    if (!kDebugMode) {
+      _uploadToBackend(entry);
+    } else {
+      debugPrint('[CrashLogger] Skipping upload in debug mode: $type — $message');
+    }
+  }
+
+  /// Sends crash data to the backend, which creates a GitHub Issue.
+  /// Fire-and-forget — failures are logged to console but don't block.
+  static Future<void> _uploadToBackend(Map<String, dynamic> entry) async {
+    try {
+      final response = await http.post(
+        Uri.parse(KoraApi.crashReportEndpoint),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'type': entry['type'],
+          'message': entry['message'],
+          'stackTrace': entry['stackTrace'],
+          'appVersion': entry['appVersion'],
+          'platform': entry['platform'],
+          'timestamp': entry['timestamp'],
+        }),
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        debugPrint('[CrashLogger] Crash report uploaded → GitHub Issue created');
+      } else {
+        debugPrint('[CrashLogger] Upload failed: ${response.statusCode} — ${response.body}');
+      }
+    } catch (e) {
+      debugPrint('[CrashLogger] Upload error: $e');
     }
   }
 

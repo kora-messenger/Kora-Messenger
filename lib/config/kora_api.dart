@@ -15,6 +15,11 @@ class KoraApi {
   /// Auth endpoint (handles signup, login, verification, password reset, profile)
   static const String authEndpoint = '$baseUrl/koraAuth';
 
+  /// Crash report endpoint — receives crash data and creates a GitHub Issue.
+  /// Temporary: Base44 backend function.
+  /// Future: 'https://api.koramessenger.com/crash-report' (or your domain)
+  static const String crashReportEndpoint = '$baseUrl/koraCrashReport';
+
   /// Legal documents — hosted on GitHub Pages.
   /// When you get your .com domain, change these to e.g.
   /// 'https://koramessenger.com/privacy-policy'
