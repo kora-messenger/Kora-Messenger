@@ -7,9 +7,9 @@ import crypto from 'node:crypto';
 // ─────────────────────────────────────────────────────────────
 const SMTP_HOST = Deno.env.get('SMTP_HOST') || 'smtp.gmail.com';
 const SMTP_PORT = parseInt(Deno.env.get('SMTP_PORT') || '587');
-const SMTP_USER = Deno.env.get('SMTP_USER') || 'koramessenger.app@gmail.com';
+const SMTP_USER = Deno.env.get('SMTP_USER') || 'koramessengerofficial@gmail.com';
 const SMTP_PASS = Deno.env.get('SMTP_PASS') || '';
-const EMAIL_FROM = Deno.env.get('EMAIL_FROM') || 'Kora Messenger <koramessenger.app@gmail.com>';
+const EMAIL_FROM = Deno.env.get('EMAIL_FROM') || 'Kora Messenger <koramessengerofficial@gmail.com>';
 const APP_NAME = 'Kora Messenger';
 
 function generateCode(): string {
