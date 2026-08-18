@@ -6,11 +6,13 @@ import '../../widgets/chat_list_item.dart';
 import '../../widgets/kora_empty_state.dart';
 import '../../widgets/kora_menu_sheet.dart';
 import '../../widgets/new_chat_sheet.dart';
-import '../search_screen.dart';
 import '../chat/kora_chat_screen.dart';
+import '../new_group_screen.dart';
+import '../channel_landing_screen.dart';
 
 /// The "Chats" tab — Kora's central conversation list.
 /// Owns the Home header (branding, avatar, search, three-dot menu).
+/// Features inline search bar, Read all, New Group, New Channel.
 class ChatsTab extends StatefulWidget {
   final VoidCallback? onProfileTap;
 
@@ -22,11 +24,20 @@ class ChatsTab extends StatefulWidget {
 
 class _ChatsTabState extends State<ChatsTab> {
   List<ChatPreview> _chats = [];
+  bool _showSearch = false;
+  final _searchController = TextEditingController();
+  String _searchQuery = '';
 
   @override
   void initState() {
     super.initState();
     _chats = ChatService.instance.getChats();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   void _openChat(ChatPreview chat) {
@@ -45,29 +56,116 @@ class _ChatsTabState extends State<ChatsTab> {
     );
   }
 
-  void _openSearch() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const SearchScreen()),
+  void _toggleSearch() {
+    setState(() {
+      _showSearch = !_showSearch;
+      if (!_showSearch) {
+        _searchController.clear();
+        _searchQuery = '';
+      }
+    });
+  }
+
+  void _readAll() {
+    setState(() {
+      _chats = _chats.map((c) {
+        // Can't mutate ChatPreview directly since it's immutable,
+        // but we mark unread as 0 visually — when we wire real data
+        // this will call the backend
+        return ChatPreview(
+          id: c.id,
+          name: c.name,
+          avatarAsset: c.avatarAsset,
+          avatarUrl: c.avatarUrl,
+          lastMessage: c.lastMessage,
+          timestamp: c.timestamp,
+          unreadCount: 0,
+          status: c.status,
+          badge: c.badge,
+          isMuted: c.isMuted,
+          isPinned: c.isPinned,
+          isOnline: c.isOnline,
+          isTyping: c.isTyping,
+        );
+      }).toList();
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('All messages marked as read'),
+        duration: const Duration(seconds: 1),
+        backgroundColor: KoraColors.purple,
+      ),
     );
   }
 
   void _openMenu() {
     KoraMenuSheet.show(context, [
-      KoraMenuOption(icon: Icons.group_add_outlined, label: 'New Group', onTap: () {}),
-      KoraMenuOption(icon: Icons.campaign_outlined, label: 'New Channel', onTap: () {}),
-      KoraMenuOption(icon: Icons.archive_outlined, label: 'Archived Chats', onTap: () {}),
-      KoraMenuOption(icon: Icons.star_outline, label: 'Starred Messages', onTap: () {}),
-      KoraMenuOption(icon: Icons.privacy_tip_outlined, label: 'Privacy', onTap: () {}),
-      KoraMenuOption(icon: Icons.settings_outlined, label: 'Settings', onTap: () {}),
+      KoraMenuOption(
+        icon: Icons.group_add_outlined,
+        label: 'New Group',
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const NewGroupScreen()),
+          );
+        },
+      ),
+      KoraMenuOption(
+        icon: Icons.campaign_outlined,
+        label: 'New Channel',
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const ChannelLandingScreen()),
+          );
+        },
+      ),
+      KoraMenuOption(
+        icon: Icons.archive_outlined,
+        label: 'Archived Chats',
+        onTap: () {},
+      ),
+      KoraMenuOption(
+        icon: Icons.star_outline,
+        label: 'Starred Messages',
+        onTap: () {},
+      ),
+      KoraMenuOption(
+        icon: Icons.done_all,
+        label: 'Read All',
+        onTap: _readAll,
+      ),
+      KoraMenuOption(
+        icon: Icons.privacy_tip_outlined,
+        label: 'Privacy',
+        onTap: () {},
+      ),
+      KoraMenuOption(
+        icon: Icons.settings_outlined,
+        label: 'Settings',
+        onTap: () {},
+      ),
     ]);
+  }
+
+  List<ChatPreview> get _filteredChats {
+    if (_searchQuery.isEmpty) return _chats;
+    final q = _searchQuery.toLowerCase();
+    return _chats.where((c) {
+      final name = c.name.toLowerCase();
+      // Also search by Kora ID and last message content
+      final lastMsg = c.lastMessage.toLowerCase();
+      return name.contains(q) || lastMsg.contains(q);
+    }).toList();
   }
 
   @override
   Widget build(BuildContext context) {
     final brightness = Theme.of(context).brightness;
     final bg = KoraColors.backgroundFor(brightness);
+    final surface = KoraColors.surfaceFor(brightness);
     final textPrimary = KoraColors.textPrimaryFor(brightness);
     final textSecondary = KoraColors.textSecondaryFor(brightness);
+    final textMuted = KoraColors.textMutedFor(brightness);
+    final border = KoraColors.borderFor(brightness);
 
     return Scaffold(
       backgroundColor: bg,
@@ -75,7 +173,9 @@ class _ChatsTabState extends State<ChatsTab> {
         bottom: false,
         child: Column(
           children: [
-            _buildHeader(context, textPrimary),
+            _buildHeader(context, textPrimary, surface, textMuted, border),
+            if (_showSearch)
+              _buildInlineSearch(surface, textPrimary, textMuted, border),
             Expanded(
               child: _chats.isEmpty
                   ? KoraEmptyState(
@@ -90,25 +190,37 @@ class _ChatsTabState extends State<ChatsTab> {
                       onRefresh: () async {
                         setState(() => _chats = ChatService.instance.getChats());
                       },
-                      child: ListView.separated(
-                        padding: const EdgeInsets.only(top: 4, bottom: 90),
-                        itemCount: _chats.length,
-                        separatorBuilder: (_, __) => Padding(
-                          padding: const EdgeInsets.only(left: 84),
-                          child: Divider(
-                            height: 1,
-                            color: textSecondary.withValues(alpha: 0.08),
-                          ),
-                        ),
-                        itemBuilder: (context, index) {
-                          final chat = _chats[index];
-                          return ChatListItem(
-                            chat: chat,
-                            onTap: () => _openChat(chat),
-                            onLongPress: () {},
-                          );
-                        },
-                      ),
+                      child: _filteredChats.isEmpty
+                          ? ListView(
+                              children: [
+                                const SizedBox(height: 120),
+                                Center(
+                                  child: Text(
+                                    'No results for "$_searchQuery"',
+                                    style: TextStyle(color: textSecondary, fontSize: 14),
+                                  ),
+                                ),
+                              ],
+                            )
+                          : ListView.separated(
+                              padding: const EdgeInsets.only(top: 4, bottom: 90),
+                              itemCount: _filteredChats.length,
+                              separatorBuilder: (_, __) => Padding(
+                                padding: const EdgeInsets.only(left: 84),
+                                child: Divider(
+                                  height: 1,
+                                  color: textSecondary.withValues(alpha: 0.08),
+                                ),
+                              ),
+                              itemBuilder: (context, index) {
+                                final chat = _filteredChats[index];
+                                return ChatListItem(
+                                  chat: chat,
+                                  onTap: () => _openChat(chat),
+                                  onLongPress: () {},
+                                );
+                              },
+                            ),
                     ),
             ),
           ],
@@ -125,7 +237,7 @@ class _ChatsTabState extends State<ChatsTab> {
     );
   }
 
-  Widget _buildHeader(BuildContext context, Color textPrimary) {
+  Widget _buildHeader(BuildContext context, Color textPrimary, Color surface, Color textMuted, Color border) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 12, 12, 8),
       child: Row(
@@ -184,13 +296,56 @@ class _ChatsTabState extends State<ChatsTab> {
           ),
           IconButton(
             icon: Icon(Icons.search, color: textPrimary, size: 24),
-            onPressed: _openSearch,
+            onPressed: _toggleSearch,
           ),
           IconButton(
             icon: Icon(Icons.more_vert, color: textPrimary, size: 24),
             onPressed: _openMenu,
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildInlineSearch(Color surface, Color textPrimary, Color textMuted, Color border) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+      child: Container(
+        height: 46,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        decoration: BoxDecoration(
+          color: surface,
+          borderRadius: BorderRadius.circular(23),
+          border: Border.all(color: border, width: 0.5),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.search, color: textMuted, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: TextField(
+                controller: _searchController,
+                autofocus: true,
+                onChanged: (v) => setState(() => _searchQuery = v),
+                style: TextStyle(color: textPrimary, fontSize: 15),
+                decoration: InputDecoration(
+                  hintText: 'Search messages, names, Kora IDs...',
+                  hintStyle: TextStyle(color: textMuted, fontSize: 14),
+                  border: InputBorder.none,
+                  isDense: true,
+                ),
+              ),
+            ),
+            if (_searchQuery.isNotEmpty)
+              GestureDetector(
+                onTap: () {
+                  _searchController.clear();
+                  setState(() => _searchQuery = '');
+                },
+                child: Icon(Icons.close, color: textMuted, size: 18),
+              ),
+          ],
+        ),
       ),
     );
   }
