@@ -19,10 +19,12 @@ class AppIconScreen extends StatefulWidget {
 class _AppIconScreenState extends State<AppIconScreen> {
   final _provider = ChatThemeProvider.instance;
   int _selectedIcon = 0;
+  bool _isApplying = false;
 
   @override
   void initState() {
     super.initState();
+    _selectedIcon = _provider.appIconIndex;
     _provider.addListener(_onChanged);
   }
 
@@ -61,6 +63,33 @@ class _AppIconScreenState extends State<AppIconScreen> {
         duration: const Duration(seconds: 2),
       ),
     );
+  }
+
+  Future<void> _applyIcon() async {
+    if (_isApplying) return;
+    setState(() => _isApplying = true);
+
+    // Persist selection
+    await _provider.setAppIcon(_selectedIcon);
+
+    // Attempt to change the actual app icon
+    final success = await AppIconSwitcher.setIcon(_selectedIcon);
+
+    if (mounted) {
+      setState(() => _isApplying = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            success
+                ? '${_icons[_selectedIcon].name} icon set! The app icon will update shortly.'
+                : '${_icons[_selectedIcon].name} icon saved. Restart the app to see the change.',
+          ),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: KoraColors.darkCard,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
   }
 
   void _showPremiumSheet() {
