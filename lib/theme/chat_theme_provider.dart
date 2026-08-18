@@ -175,6 +175,7 @@ class ChatThemeProvider extends ChangeNotifier {
   static const _kWallpaperImagePath = 'kora_wallpaper_image_path';
   static const _kAppThemeColor = 'kora_app_theme_color';
   static const _kIsPremium = 'kora_is_premium';
+  static const _kAppIconIndex = 'kora_app_icon_index';
 
   String _themeId = 'default';
   Color? _customSentBubble;
@@ -183,6 +184,7 @@ class ChatThemeProvider extends ChangeNotifier {
   String? _wallpaperImagePath;
   Color _appThemeColor = const Color(0xFF8B5CF6);
   bool _isPremium = false;
+  int _appIconIndex = 0;
 
   String get themeId => _themeId;
   Color? get customSentBubble => _customSentBubble;
@@ -191,6 +193,7 @@ class ChatThemeProvider extends ChangeNotifier {
   String? get wallpaperImagePath => _wallpaperImagePath;
   Color get appThemeColor => _appThemeColor;
   bool get isPremium => _isPremium;
+  int get appIconIndex => _appIconIndex;
 
   ChatThemePreset get activeTheme {
     final preset = kDefaultChatThemes.firstWhere(
@@ -221,6 +224,7 @@ class ChatThemeProvider extends ChangeNotifier {
     final appVal = prefs.getInt(_kAppThemeColor);
     _appThemeColor = appVal != null ? Color(appVal) : const Color(0xFF8B5CF6);
     _isPremium = prefs.getBool(_kIsPremium) ?? false;
+    _appIconIndex = prefs.getInt(_kAppIconIndex) ?? 0;
     notifyListeners();
   }
 
@@ -283,6 +287,14 @@ class ChatThemeProvider extends ChangeNotifier {
     _appThemeColor = const Color(0xFF8B5CF6);
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_kAppThemeColor);
+    notifyListeners();
+  }
+
+  Future<void> setAppIcon(int index) async {
+    if (!_isPremium) return;
+    _appIconIndex = index;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_kAppIconIndex, index);
     notifyListeners();
   }
 

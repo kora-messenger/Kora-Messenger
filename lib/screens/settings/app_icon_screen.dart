@@ -222,68 +222,123 @@ class _AppIconScreenState extends State<AppIconScreen> {
               ),
             ),
 
-            // ── Bottom section for non-premium ──
-            if (!isPremium)
-              Container(
-                padding: const EdgeInsets.fromLTRB(24, 16, 24, 28),
-                decoration: BoxDecoration(
-                  color: card,
-                  border: Border(
-                    top: BorderSide(color: border, width: 0.5),
-                  ),
+            // ── Bottom section ──
+            // Premium: "Set App Icon" button to apply the selected icon
+            // Non-premium: "Get Kora Premium" button to subscribe
+            Container(
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 28),
+              decoration: BoxDecoration(
+                color: card,
+                border: Border(
+                  top: BorderSide(color: border, width: 0.5),
                 ),
-                child: Column(
-                  children: [
-                    Row(
+              ),
+              child: isPremium
+                  ? Column(
                       children: [
-                        Icon(Icons.workspace_premium, color: KoraColors.purple, size: 22),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Choose your app icon with Kora Premium.',
-                            style: TextStyle(
-                              color: textSecondary,
-                              fontSize: 14,
-                              height: 1.4,
+                        if (_selectedIcon != _provider.appIconIndex)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Text(
+                              'Tap to apply ${_icons[_selectedIcon].name} icon',
+                              style: TextStyle(color: KoraColors.purple, fontSize: 13),
+                            ),
+                          ),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 52,
+                          child: GestureDetector(
+                            onTap: _isApplying ? null : _applyIcon,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                gradient: KoraColors.brandGradient,
+                                borderRadius: BorderRadius.circular(28),
+                                boxShadow: _isApplying ? null : [
+                                  BoxShadow(
+                                    color: KoraColors.purple.withValues(alpha: 0.35),
+                                    blurRadius: 20,
+                                    offset: const Offset(0, 8),
+                                  ),
+                                ],
+                              ),
+                              child: Center(
+                                child: _isApplying
+                                    ? const SizedBox(
+                                        width: 22,
+                                        height: 22,
+                                        child: CircularProgressIndicator(
+                                          color: Colors.white,
+                                          strokeWidth: 2.5,
+                                        ),
+                                      )
+                                    : Text(
+                                        _selectedIcon == _provider.appIconIndex
+                                            ? 'Set App Icon'
+                                            : 'Apply ${_icons[_selectedIcon].name} Icon',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    )
+                  : Column(
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.workspace_premium, color: KoraColors.purple, size: 22),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Choose your app icon with Kora Premium.',
+                                style: TextStyle(
+                                  color: textSecondary,
+                                  fontSize: 14,
+                                  height: 1.4,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 52,
+                          child: GestureDetector(
+                            onTap: _showPremiumSheet,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                gradient: KoraColors.brandGradient,
+                                borderRadius: BorderRadius.circular(28),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: KoraColors.purple.withValues(alpha: 0.35),
+                                    blurRadius: 20,
+                                    offset: const Offset(0, 8),
+                                  ),
+                                ],
+                              ),
+                              child: const Center(
+                                child: Text(
+                                  'Get Kora Premium',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: GestureDetector(
-                        onTap: _showPremiumSheet,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            gradient: KoraColors.brandGradient,
-                            borderRadius: BorderRadius.circular(28),
-                            boxShadow: [
-                              BoxShadow(
-                                color: KoraColors.purple.withValues(alpha: 0.35),
-                                blurRadius: 20,
-                                offset: const Offset(0, 8),
-                              ),
-                            ],
-                          ),
-                          child: const Center(
-                            child: Text(
-                              'Subscribe to Kora Premium',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+            ),
           ],
         ),
       ),

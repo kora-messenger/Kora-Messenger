@@ -1,5 +1,55 @@
 package com.kora.messenger
 
+import android.content.ComponentName
+import android.content.pm.PackageManager
 import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.MethodChannel
 
-class MainActivity : FlutterActivity()
+class MainActivity : FlutterActivity() {
+    private val CHANNEL = "com.kora.messenger/icon"
+
+    // All activity-alias names — must match AndroidManifest.xml
+    private val allAliases = listOf(
+        "IconClassic", "IconSunset", "IconEmerald", "IconMidnight", "IconRoseGold",
+        "IconOcean", "IconForest", "IconCrimson", "IconAurora", "IconCarbon"
+    )
+
+    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        super.configureFlutterEngine(flutterEngine)
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "setIcon" -> {
+                        val aliasName = call.argument<String>("alias") ?: ""
+                        try {
+                            val pm = packageManager
+                            val pkg = packageName
+
+                            // Disable all aliases first
+                            for (alias in allAliases) {
+                                pm.setComponentEnabledSetting(
+                                    ComponentName(pkg, "$pkg.$alias"),
+                                    PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                                    PackageManager.DONT_KILL_APP
+                                )
+                            }
+
+                            // Enable the selected alias
+                            pm.setComponentEnabledSetting(
+                                ComponentName(pkg, "$pkg.$aliasName"),
+                                PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+                                PackageManager.DONT_KILL_APP
+                            )
+
+                            result.success(true)
+                        } catch (e: Exception) {
+                            result.success(false)
+                        }
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+    }
+}

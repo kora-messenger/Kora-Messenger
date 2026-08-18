@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../theme/kora_colors.dart';
 import '../../theme/chat_theme_provider.dart';
+import 'premium_subscribe_sheet.dart';
+import 'billing_screen.dart';
 
 /// App theme picker — 20 colors. Premium only.
 /// Normal users see "This feature isn't available to you" dialog.
@@ -29,6 +31,23 @@ class _AppThemeScreenState extends State<AppThemeScreen> {
 
   void _onChanged() {
     if (mounted) setState(() {});
+  }
+
+  void _showPremiumSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black54,
+      builder: (context) => const PremiumSubscribeSheet(),
+    ).then((result) {
+      if (result == true && mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const BillingScreen()),
+        );
+      }
+    });
   }
 
   void _showNotAvailable() {
@@ -182,7 +201,7 @@ class _AppThemeScreenState extends State<AppThemeScreen> {
               ),
             Expanded(
               child: GridView.builder(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 5,
                   childAspectRatio: 1,
@@ -220,6 +239,90 @@ class _AppThemeScreenState extends State<AppThemeScreen> {
                   );
                 },
               ),
+            ),
+
+            // ── Bottom button ──
+            // Premium: "Set App Theme" button (confirms the current selection)
+            // Non-premium: "Get Kora Premium" button
+            Container(
+              padding: const EdgeInsets.fromLTRB(24, 12, 24, 28),
+              decoration: BoxDecoration(
+                color: KoraColors.cardFor(brightness),
+                border: Border(
+                  top: BorderSide(color: KoraColors.borderFor(brightness), width: 0.5),
+                ),
+              ),
+              child: isPremium
+                  ? SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: GestureDetector(
+                        onTap: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('App theme color applied'),
+                              behavior: SnackBarBehavior.floating,
+                              backgroundColor: KoraColors.cardFor(brightness),
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                          Navigator.pop(context);
+                        },
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: KoraColors.brandGradient,
+                            borderRadius: BorderRadius.circular(28),
+                            boxShadow: [
+                              BoxShadow(
+                                color: KoraColors.purple.withValues(alpha: 0.35),
+                                blurRadius: 20,
+                                offset: const Offset(0, 8),
+                              ),
+                            ],
+                          ),
+                          child: const Center(
+                            child: Text(
+                              'Set App Theme',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    )
+                  : SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: GestureDetector(
+                        onTap: _showPremiumSheet,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: KoraColors.brandGradient,
+                            borderRadius: BorderRadius.circular(28),
+                            boxShadow: [
+                              BoxShadow(
+                                color: KoraColors.purple.withValues(alpha: 0.35),
+                                blurRadius: 20,
+                                offset: const Offset(0, 8),
+                              ),
+                            ],
+                          ),
+                          child: const Center(
+                            child: Text(
+                              'Get Kora Premium',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
             ),
           ],
         ),
