@@ -403,7 +403,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
   // ── Section label ───────────────────────────────────────────
 
-  Widget _buildSectionLabel(String label, {required bool required = false}) {
+  Widget _buildSectionLabel(String label, {bool required = false}) {
     return Row(
       children: [
         Text(

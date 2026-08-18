@@ -204,14 +204,23 @@ class _VerificationScreenState extends State<VerificationScreen>
       });
 
       if (result.success) {
-        final sessionData = result.user ?? widget.userData ?? {};
-        await SessionManager.instance.saveSession(sessionData);
+        // Merge backend response with the original signup data so we
+        // don't lose fields like fullName that the backend might not echo back.
+        final mergedUser = <String, dynamic>{
+          ...?widget.userData,
+          ...?result.user,
+        };
+        // If backend returned empty fullName, fall back to the signup value.
+        if ((mergedUser['fullName'] ?? '').isEmpty) {
+          mergedUser['fullName'] = widget.userData?['fullName'] ?? '';
+        }
+        await SessionManager.instance.saveSession(mergedUser);
         if (!mounted) return;
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (_) => ProfileSetupScreen(
               email: (result.user?['email'] ?? widget.email) as String,
-              userData: result.user ?? widget.userData ?? {},
+              userData: mergedUser,
             ),
           ),
         );
