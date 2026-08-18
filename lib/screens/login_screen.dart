@@ -8,6 +8,7 @@ import 'forgot_password_screen.dart';
 import 'profile_setup_screen.dart';
 import 'kora_home_screen.dart';
 import 'login_verification_screen.dart';
+import 'signup_screen.dart';
 
 class LogInScreen extends StatefulWidget {
   const LogInScreen({super.key});
@@ -223,7 +224,13 @@ class _LogInScreenState extends State<LogInScreen> {
                     style: TextStyle(color: Color(0xFFA0A0B8), fontSize: 14),
                   ),
                   GestureDetector(
-                    onTap: () => Navigator.of(context).pop(),
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const SignUpScreen(),
+                        ),
+                      );
+                    },
                     child: const Text(
                       'Create Account',
                       style: TextStyle(
