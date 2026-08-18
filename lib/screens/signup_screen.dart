@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../theme/kora_colors.dart';
 import '../services/auth_service.dart';
@@ -24,8 +25,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
   bool _isLoading = false;
   String? _errorMessage;
 
+  // Username live-check state
+  UsernameStatus _usernameStatus = UsernameStatus.idle;
+  String _usernameMessage = '';
+  Timer? _usernameTimer;
+
   @override
   void dispose() {
+    _usernameTimer?.cancel();
     _nameController.dispose();
     _usernameController.dispose();
     _emailController.dispose();
@@ -71,8 +78,102 @@ class _SignUpScreenState extends State<SignUpScreen> {
     return null;
   }
 
+  // ── Username live availability check ─────────────────────
+  void _onUsernameChanged(String value) {
+    _usernameTimer?.cancel();
+
+    setState(() {
+      if (value.isEmpty) {
+        _usernameStatus = UsernameStatus.idle;
+        _usernameMessage = '';
+      } else if (value.length < 3) {
+        _usernameStatus = UsernameStatus.tooShort;
+        _usernameMessage = 'Too short';
+      } else if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(value)) {
+        _usernameStatus = UsernameStatus.invalid;
+        _usernameMessage = 'Only letters, numbers, underscores';
+      } else {
+        _usernameStatus = UsernameStatus.checking;
+        _usernameMessage = 'Checking...';
+        _usernameTimer = Timer(const Duration(milliseconds: 500), () {
+          _checkUsernameAvailability(value);
+        });
+      }
+    });
+  }
+
+  Future<void> _checkUsernameAvailability(String username) async {
+    final result = await _auth.checkUsername(username);
+    if (mounted) {
+      setState(() {
+        _usernameStatus = result.status;
+        _usernameMessage = result.message;
+      });
+    }
+  }
+
+  Color get _usernameBorderColor {
+    switch (_usernameStatus) {
+      case UsernameStatus.available:
+        return const Color(0xFF22C55E);
+      case UsernameStatus.taken:
+      case UsernameStatus.reserved:
+      case UsernameStatus.invalid:
+        return const Color(0xFFEF4444);
+      case UsernameStatus.checking:
+      case UsernameStatus.tooShort:
+      case UsernameStatus.idle:
+        return const Color(0xFF2E2E42);
+    }
+  }
+
+  Color get _usernameIconColor {
+    switch (_usernameStatus) {
+      case UsernameStatus.available:
+        return const Color(0xFF22C55E);
+      case UsernameStatus.taken:
+      case UsernameStatus.reserved:
+      case UsernameStatus.invalid:
+        return const Color(0xFFEF4444);
+      default:
+        return const Color(0xFF6B6B80);
+    }
+  }
+
+  IconData get _usernameTrailingIcon {
+    switch (_usernameStatus) {
+      case UsernameStatus.available:
+        return Icons.check_circle;
+      case UsernameStatus.taken:
+      case UsernameStatus.reserved:
+      case UsernameStatus.invalid:
+        return Icons.cancel;
+      case UsernameStatus.checking:
+        return Icons.hourglass_top;
+      default:
+        return Icons.alternate_email;
+    }
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+
+    // Block submission if username is taken/reserved/invalid
+    if (_usernameStatus == UsernameStatus.taken ||
+        _usernameStatus == UsernameStatus.reserved ||
+        _usernameStatus == UsernameStatus.invalid) {
+      setState(() {
+        _errorMessage = 'Please choose an available username';
+      });
+      return;
+    }
+    // If username is still checking, wait for it
+    if (_usernameStatus == UsernameStatus.checking) {
+      setState(() {
+        _errorMessage = 'Checking username availability...';
+      });
+      return;
+    }
 
     setState(() {
       _isLoading = true;
@@ -177,16 +278,41 @@ class _SignUpScreenState extends State<SignUpScreen> {
               ),
               const SizedBox(height: 16),
 
+              // Username with live availability check
               KoraInput(
                 label: 'Username',
                 controller: _usernameController,
                 keyboardType: TextInputType.text,
                 validator: _validateUsername,
-                prefixIcon: const Padding(
-                  padding: EdgeInsets.only(left: 14, right: 10),
-                  child: Icon(Icons.alternate_email, color: Color(0xFF6B6B80), size: 22),
+                prefixIcon: Padding(
+                  padding: const EdgeInsets.only(left: 14, right: 10),
+                  child: Icon(_usernameTrailingIcon, color: _usernameIconColor, size: 22),
                 ),
+                suffixIcon: _usernameStatus == UsernameStatus.checking
+                    ? const Padding(
+                        padding: EdgeInsets.only(right: 14),
+                        child: SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: KoraColors.purple),
+                        ),
+                      )
+                    : null,
+                onChanged: _onUsernameChanged,
               ),
+              // Username status message
+              if (_usernameStatus != UsernameStatus.idle)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6, left: 4),
+                  child: Text(
+                    _usernameMessage,
+                    style: TextStyle(
+                      color: _usernameBorderColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
               const SizedBox(height: 16),
 
               KoraInput(
@@ -291,23 +417,23 @@ class _SignUpScreenState extends State<SignUpScreen> {
           );
         },
         child: Container(
-          width: 92,
-          height: 92,
+          width: 90,
+          height: 90,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: KoraColors.darkCard,
-            border: Border.all(color: const Color(0xFF2E2E42), width: 2),
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+            ),
+            border: Border.all(color: const Color(0xFF3A3A4E), width: 2),
           ),
-          child: const Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.camera_alt_outlined, color: Color(0xFF6B6B80), size: 28),
-              SizedBox(height: 4),
-              Text(
-                'Add Photo',
-                style: TextStyle(color: Color(0xFF6B6B80), fontSize: 11),
-              ),
-            ],
+          child: const Center(
+            child: Icon(
+              Icons.add_a_photo_outlined,
+              color: Colors.white,
+              size: 30,
+            ),
           ),
         ),
       ),

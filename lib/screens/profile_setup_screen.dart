@@ -61,9 +61,11 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     _nameController.text = name;
     _usernameController.text = username;
 
-    // If username was pre-filled, trigger an availability check
+    // If username came from signup, it was already validated — mark as
+    // available so the user isn't told their own username is taken.
     if (username.isNotEmpty) {
-      _checkUsernameAvailability(username);
+      _usernameStatus = UsernameStatus.available;
+      _usernameMessage = 'Available';
     }
   }
 

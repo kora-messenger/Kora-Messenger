@@ -12,7 +12,9 @@ import 'new_password_screen.dart';
 /// Kora's unified verification-code screen.
 ///
 /// Used for registration and password-reset flows.
-/// Auto-fills code from clipboard and auto-verifies when complete.
+/// Auto-fills code from clipboard (only when the user returns from
+/// their email app with a freshly-copied code) and auto-verifies
+/// when all 6 digits are entered.
 class VerificationScreen extends StatefulWidget {
   final VerificationType type;
   final String email;
@@ -43,15 +45,28 @@ class _VerificationScreenState extends State<VerificationScreen>
   bool _isResending = false;
   bool _autoVerifying = false;
 
+  /// Clipboard content when the screen first opened.
+  /// We only auto-fill if the clipboard CHANGED since then (i.e. the
+  /// user copied a new code from their email app).
+  String? _initialClipboard;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _startCountdown();
-    // Check clipboard on screen load (user may have already copied the code)
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkClipboard();
-    });
+    // Record the clipboard state on screen open so we can detect
+    // NEW clipboard content later (when user returns from email app).
+    _snapshotClipboard();
+  }
+
+  Future<void> _snapshotClipboard() async {
+    try {
+      final data = await Clipboard.getData('text/plain');
+      _initialClipboard = data?.text?.trim() ?? '';
+    } catch (_) {
+      _initialClipboard = '';
+    }
   }
 
   @override
@@ -81,6 +96,12 @@ class _VerificationScreenState extends State<VerificationScreen>
     try {
       final data = await Clipboard.getData('text/plain');
       final text = data?.text?.trim() ?? '';
+
+      // Only auto-fill if the clipboard content CHANGED since the screen
+      // opened — this prevents using stale codes and ensures the user
+      // actually copied a fresh code from their email.
+      if (text == _initialClipboard) return;
+
       // Look for a 6-digit code in the clipboard text
       final match = RegExp(r'(\d{6})').firstMatch(text);
       if (match != null) {
@@ -392,71 +413,84 @@ class _VerificationScreenState extends State<VerificationScreen>
         return SizedBox(
           width: 48,
           height: 56,
-          child: TextField(
-            controller: _controllers[index],
+          child: KeyboardListener(
             focusNode: _focusNodes[index],
-            keyboardType: TextInputType.number,
-            textAlign: TextAlign.center,
-            maxLength: 1,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
-            decoration: InputDecoration(
-              counterText: '',
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(
-                  color: _controllers[index].text.isNotEmpty
-                      ? KoraColors.purple
-                      : const Color(0xFF2E2E42),
-                  width: 2,
+            onKeyEvent: (event) {
+              // Detect backspace on an EMPTY box — move focus to the
+              // previous box and clear it so the user can keep deleting
+              // backwards in one fluid motion.
+              if (event is KeyDownEvent &&
+                  event.logicalKey == LogicalKeyboardKey.backspace) {
+                if (_controllers[index].text.isEmpty && index > 0) {
+                  _controllers[index - 1].clear();
+                  _focusNodes[index - 1].requestFocus();
+                  setState(() {});
+                }
+              }
+            },
+            child: TextField(
+              controller: _controllers[index],
+              focusNode: _focusNodes[index],
+              keyboardType: TextInputType.number,
+              textAlign: TextAlign.center,
+              maxLength: 1,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
+              decoration: InputDecoration(
+                counterText: '',
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(
+                    color: _controllers[index].text.isNotEmpty
+                        ? KoraColors.purple
+                        : const Color(0xFF2E2E42),
+                    width: 2,
+                  ),
                 ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: KoraColors.purple, width: 2),
+                ),
+                filled: true,
+                fillColor: KoraColors.darkCard,
               ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: KoraColors.purple, width: 2),
-              ),
-              filled: true,
-              fillColor: KoraColors.darkCard,
-            ),
-            onChanged: (value) {
-              // Handle paste of multi-character text
-              if (value.length > 1) {
-                final digits = value.replaceAll(RegExp(r'[^\d]'), '');
-                if (digits.length >= 6) {
-                  _fillCode(digits.substring(0, 6));
+              onChanged: (value) {
+                // Handle paste of multi-character text
+                if (value.length > 1) {
+                  final digits = value.replaceAll(RegExp(r'[^\d]'), '');
+                  if (digits.length >= 6) {
+                    _fillCode(digits.substring(0, 6));
+                    return;
+                  }
+                  // Partial paste — fill what we can
+                  for (int i = 0; i < digits.length && (index + i) < 6; i++) {
+                    _controllers[index + i].text = digits[i];
+                  }
+                  if (index + digits.length < 6) {
+                    _focusNodes[index + digits.length].requestFocus();
+                  }
+                  setState(() {});
+                  if (_enteredCode.length == 6) {
+                    _triggerAutoVerify();
+                  }
                   return;
                 }
-                // Partial paste — fill what we can
-                for (int i = 0; i < digits.length && (index + i) < 6; i++) {
-                  _controllers[index + i].text = digits[i];
-                }
-                if (index + digits.length < 6) {
-                  _focusNodes[index + digits.length].requestFocus();
+
+                // Normal single-character input
+                if (value.isNotEmpty && index < 5) {
+                  _focusNodes[index + 1].requestFocus();
                 }
                 setState(() {});
+
+                // Auto-verify when all 6 digits filled
                 if (_enteredCode.length == 6) {
                   _triggerAutoVerify();
                 }
-                return;
-              }
-
-              // Normal single-character input
-              if (value.isNotEmpty && index < 5) {
-                _focusNodes[index + 1].requestFocus();
-              }
-              if (value.isEmpty && index > 0) {
-                _focusNodes[index - 1].requestFocus();
-              }
-              setState(() {});
-
-              // Auto-verify when all 6 digits filled
-              if (_enteredCode.length == 6) {
-                _triggerAutoVerify();
-              }
-            },
+              },
+            ),
           ),
         );
       }),
