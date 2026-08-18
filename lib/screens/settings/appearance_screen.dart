@@ -5,6 +5,7 @@ import 'default_chat_theme_screen.dart';
 import 'chat_bubble_color_screen.dart';
 import 'wallpaper_screen.dart';
 import 'app_theme_screen.dart';
+import 'app_icon_screen.dart';
 
 /// Appearance settings — chat themes, bubble colors, wallpaper, app theme.
 class AppearanceScreen extends StatefulWidget {
@@ -141,6 +142,26 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const AppThemeScreen()),
+                );
+              },
+            ),
+            const SizedBox(height: 8),
+            _settingTile(
+              brightness: brightness,
+              card: card,
+              border: border,
+              textPrimary: textPrimary,
+              textSecondary: textSecondary,
+              icon: Icons.apps_outlined,
+              iconColor: KoraColors.purple,
+              title: 'App icon',
+              subtitle: _themeProvider.isPremium
+                  ? 'Choose from 10 Kora app icons'
+                  : 'Premium feature — unlock to customize',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AppIconScreen()),
                 );
               },
             ),
