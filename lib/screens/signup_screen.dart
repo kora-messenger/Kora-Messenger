@@ -193,6 +193,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 
   Future<void> _submit() async {
+    if (_isLoading) return; // prevent double-tap
     if (!_formKey.currentState!.validate()) return;
 
     // Block if user hasn't agreed to terms
@@ -233,37 +234,64 @@ class _SignUpScreenState extends State<SignUpScreen> {
       _errorMessage = null;
     });
 
-    // Send verification code via backend
-    final result = await _auth.sendVerificationCode(
-      _emailController.text.trim(),
-      type: 'registration',
-    );
-
-    if (!mounted) return;
-
-    if (result.success) {
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => VerificationScreen(
-            type: VerificationType.registration,
-            email: _emailController.text.trim(),
-            userData: {
-              'fullName': _nameController.text.trim(),
-              'username': _usernameController.text.trim(),
-              'email': _emailController.text.trim(),
-              'phoneNumber': _phoneController.text.trim(),
-              'password': _passwordController.text,
-            },
-          ),
-        ),
+    try {
+      // Send verification code via backend
+      final result = await _auth.sendVerificationCode(
+        _emailController.text.trim(),
+        type: 'registration',
       );
-    } else {
-      setState(() {
-        _errorMessage = result.error ?? 'Failed to send verification code';
-      });
-    }
 
-    setState(() => _isLoading = false);
+      if (!mounted) return;
+
+      if (result.success) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => VerificationScreen(
+              type: VerificationType.registration,
+              email: _emailController.text.trim(),
+              userData: {
+                'fullName': _nameController.text.trim(),
+                'username': _usernameController.text.trim(),
+                'email': _emailController.text.trim(),
+                'phoneNumber': _phoneController.text.trim(),
+                'password': _passwordController.text,
+              },
+            ),
+          ),
+        );
+      } else {
+        // Show error as a SnackBar so it's always visible regardless of scroll
+        final errorMsg = result.error ?? 'Failed to send verification code';
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(errorMsg),
+              backgroundColor: const Color(0xFFEF4444),
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+          setState(() => _errorMessage = errorMsg);
+        }
+      }
+    } catch (e) {
+      // Catch any unexpected errors so the spinner never gets stuck
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Something went wrong. Please try again.'),
+            backgroundColor: const Color(0xFFEF4444),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+        setState(() => _errorMessage = 'Something went wrong. Please try again.');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   @override
@@ -292,29 +320,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 'Join Kora and start connecting today.',
                 style: TextStyle(color: Color(0xFFA0A0B8), fontSize: 15),
               ),
-              if (_errorMessage != null) ...[
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2D1517),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFEF4444), width: 1),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.error_outline, color: Color(0xFFEF4444), size: 20),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _errorMessage!,
-                          style: const TextStyle(color: Color(0xFFFCA5A5), fontSize: 13),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
               const SizedBox(height: 24),
 
               // Full name
@@ -423,6 +428,29 @@ class _SignUpScreenState extends State<SignUpScreen> {
               _buildTermsCheckbox(),
               const SizedBox(height: 24),
 
+              if (_errorMessage != null) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2D1517),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFEF4444), width: 1),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.error_outline, color: Color(0xFFEF4444), size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _errorMessage!,
+                          style: const TextStyle(color: Color(0xFFFCA5A5), fontSize: 13),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
               KoraButton(
                 label: 'Create Account',
                 onPressed: _submit,
