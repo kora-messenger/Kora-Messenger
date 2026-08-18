@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'device_manager.dart';
@@ -13,6 +14,16 @@ class AuthService {
   AuthService._();
 
   static const String _endpoint = KoraApi.authEndpoint;
+
+  /// Returns a user-friendly message for a caught exception,
+  /// distinguishing a timeout (server too slow / unreachable) from
+  /// other network errors so the UI never just hangs silently.
+  static String _friendlyError(Object e) {
+    if (e is TimeoutException) {
+      return 'Request timed out. Please check your connection and try again.';
+    }
+    return 'Network error. Check your connection and try again.';
+  }
 
   // ── Username validation (client-side) ──────────────────────
 
@@ -59,7 +70,7 @@ class AuthService {
         Uri.parse(_endpoint),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'action': 'checkUsername', 'username': username}),
-      );
+      ).timeout(const Duration(seconds: 15));
       final data = jsonDecode(response.body);
 
       if (data['success'] == true && data['available'] == true) {
@@ -73,7 +84,7 @@ class AuthService {
       }
       return UsernameCheckResult(UsernameStatus.invalid, data['error'] ?? 'Check failed');
     } catch (e) {
-      return const UsernameCheckResult(UsernameStatus.invalid, 'Network error');
+      return UsernameCheckResult(UsernameStatus.invalid, _friendlyError(e));
     }
   }
 
@@ -94,7 +105,7 @@ class AuthService {
           'email': email,
           'type': type,
         }),
-      );
+      ).timeout(const Duration(seconds: 15));
       final data = jsonDecode(response.body);
 
       if (data['success'] == true) {
@@ -102,7 +113,7 @@ class AuthService {
       }
       return (success: false, error: data['error'] as String?);
     } catch (e) {
-      return (success: false, error: 'Network error. Check your connection.');
+      return (success: false, error: _friendlyError(e));
     }
   }
 
@@ -126,7 +137,7 @@ class AuthService {
           'code': code,
           'userData': userData,
         }),
-      );
+      ).timeout(const Duration(seconds: 15));
       final data = jsonDecode(response.body);
 
       if (data['success'] == true) {
@@ -140,7 +151,7 @@ class AuthService {
     } catch (e) {
       return (
         success: false,
-        error: 'Network error. Check your connection.',
+        error: _friendlyError(e),
         user: null,
       );
     }
@@ -179,7 +190,7 @@ class AuthService {
           'deviceName': deviceName,
           'platform': platform,
         }),
-      );
+      ).timeout(const Duration(seconds: 15));
       final data = jsonDecode(response.body);
 
       if (data['success'] == true) {
@@ -210,7 +221,7 @@ class AuthService {
       return (
         success: false,
         needsDeviceVerification: false,
-        error: 'Network error. Check your connection.',
+        error: _friendlyError(e),
         user: null,
       );
     }
@@ -246,7 +257,7 @@ class AuthService {
           'platform': platform,
           'recognizeDevice': recognizeDevice,
         }),
-      );
+      ).timeout(const Duration(seconds: 15));
       final data = jsonDecode(response.body);
 
       if (data['success'] == true) {
@@ -260,7 +271,7 @@ class AuthService {
     } catch (e) {
       return (
         success: false,
-        error: 'Network error. Check your connection.',
+        error: _friendlyError(e),
         user: null,
       );
     }
@@ -286,7 +297,7 @@ class AuthService {
           'code': code,
           'type': type,
         }),
-      );
+      ).timeout(const Duration(seconds: 15));
       final data = jsonDecode(response.body);
 
       if (data['success'] == true) {
@@ -294,7 +305,7 @@ class AuthService {
       }
       return (success: false, error: data['error'] as String?);
     } catch (e) {
-      return (success: false, error: 'Network error. Check your connection.');
+      return (success: false, error: _friendlyError(e));
     }
   }
 
@@ -313,7 +324,7 @@ class AuthService {
           'code': code,
           'newPassword': newPassword,
         }),
-      );
+      ).timeout(const Duration(seconds: 15));
       final data = jsonDecode(response.body);
 
       if (data['success'] == true) {
@@ -321,7 +332,7 @@ class AuthService {
       }
       return (success: false, error: data['error'] as String?);
     } catch (e) {
-      return (success: false, error: 'Network error. Check your connection.');
+      return (success: false, error: _friendlyError(e));
     }
   }
 
@@ -349,7 +360,7 @@ class AuthService {
           'bio': bio,
           'avatarUrl': avatarUrl,
         }),
-      );
+      ).timeout(const Duration(seconds: 15));
       final data = jsonDecode(response.body);
 
       if (data['success'] == true) {
@@ -363,7 +374,7 @@ class AuthService {
     } catch (e) {
       return (
         success: false,
-        error: 'Network error. Check your connection.',
+        error: _friendlyError(e),
         user: null,
       );
     }

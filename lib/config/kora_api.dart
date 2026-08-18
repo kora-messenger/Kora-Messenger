@@ -24,11 +24,13 @@ class KoraApi {
     String endpoint,
     Map<String, dynamic> body,
   ) async {
-    final response = await http.post(
-      Uri.parse(endpoint),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(body),
-    );
+    final response = await http
+        .post(
+          Uri.parse(endpoint),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode(body),
+        )
+        .timeout(const Duration(seconds: 15));
     return jsonDecode(response.body) as Map<String, dynamic>;
   }
 }
