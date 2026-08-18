@@ -1,15 +1,26 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'theme/kora_colors.dart';
 import 'screens/welcome_screen.dart';
 import 'screens/kora_home_screen.dart';
 import 'screens/profile_setup_screen.dart';
 import 'services/session_manager.dart';
+import 'services/crash_logger.dart';
 import 'theme/chat_theme_provider.dart';
 
 void main() {
-  WidgetsFlutterBinding.ensureInitialized();
-  ChatThemeProvider.instance.load();
-  runApp(const KoraMessengerApp());
+  runZonedGuarded<Future<void>>(() async {
+    WidgetsFlutterBinding.ensureInitialized();
+
+    // Initialize crash logging before anything else.
+    CrashLogger.init();
+    ChatThemeProvider.instance.load();
+
+    runApp(const KoraMessengerApp());
+  }, (error, stackTrace) {
+    // 3. Zone errors — any uncaught async/sync error in the root zone.
+    CrashLogger.log(error, stackTrace: stackTrace, context: 'Zone');
+  });
 }
 
 class KoraMessengerApp extends StatelessWidget {
