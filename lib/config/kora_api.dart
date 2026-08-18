@@ -15,6 +15,14 @@ class KoraApi {
   /// Auth endpoint (handles signup, login, verification, password reset, profile)
   static const String authEndpoint = '$baseUrl/koraAuth';
 
+  /// Legal documents — hosted on GitHub Pages.
+  /// When you get your .com domain, change these to e.g.
+  /// 'https://koramessenger.com/privacy-policy'
+  static const String legalBaseUrl = 'https://24bada2.github.io/Kora-Messenger-Docs';
+  static const String privacyPolicyUrl = '$legalBaseUrl/privacy-policy.html';
+  static const String termsOfServiceUrl = '$legalBaseUrl/terms-of-service.html';
+  static const String learnMoreUrl = '$legalBaseUrl/index.html';
+
   /// Generic POST to the auth endpoint
   static Future<Map<String, dynamic>> post(Map<String, dynamic> body) async {
     return postTo(authEndpoint, body);

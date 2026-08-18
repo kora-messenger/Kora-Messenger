@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../theme/kora_colors.dart';
+import '../../config/kora_api.dart';
 
 /// Premium subscription bottom sheet.
 ///
@@ -15,28 +17,11 @@ class PremiumSubscribeSheet extends StatefulWidget {
 }
 
 class _PremiumSubscribeSheetState extends State<PremiumSubscribeSheet> {
-  void _showComingSoon(String title) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: KoraColors.darkCard,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          title,
-          style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
-        ),
-        content: Text(
-          '$title is coming soon. Stay tuned!',
-          style: const TextStyle(color: Color(0xFFA0A0B8), fontSize: 14),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK', style: TextStyle(color: KoraColors.purple, fontWeight: FontWeight.w600)),
-          ),
-        ],
-      ),
-    );
+  Future<void> _launchLegalUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 
   void _onSubscribe() {
@@ -217,8 +202,25 @@ class _PremiumSubscribeSheetState extends State<PremiumSubscribeSheet> {
     );
   }
 
-  /// Creates a clickable TextSpan that shows a "coming soon" dialog.
+  /// Creates a clickable TextSpan that opens the corresponding legal page.
   TextSpan _linkSpan(String text) {
+    final String url;
+    switch (text) {
+      case 'Terms of Service':
+        url = KoraApi.termsOfServiceUrl;
+        break;
+      case 'Privacy Policy':
+        url = KoraApi.privacyPolicyUrl;
+        break;
+      case 'canceled':
+        url = KoraApi.learnMoreUrl;
+        break;
+      case 'Learn more':
+        url = KoraApi.learnMoreUrl;
+        break;
+      default:
+        url = KoraApi.learnMoreUrl;
+    }
     return TextSpan(
       text: text,
       style: const TextStyle(
@@ -229,7 +231,7 @@ class _PremiumSubscribeSheetState extends State<PremiumSubscribeSheet> {
         decorationColor: KoraColors.purple,
       ),
       recognizer: TapGestureRecognizer()
-        ..onTap = () => _showComingSoon(text),
+        ..onTap = () => _launchLegalUrl(url),
     );
   }
 }

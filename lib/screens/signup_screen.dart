@@ -6,6 +6,8 @@ import '../widgets/kora_input.dart';
 import '../widgets/kora_button.dart';
 import 'verification_screen.dart';
 import 'login_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../config/kora_api.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -168,28 +170,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
   }
 
-  void _showComingSoon(String title) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: KoraColors.darkCard,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          title,
-          style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
-        ),
-        content: Text(
-          '$title is coming soon. Stay tuned!',
-          style: const TextStyle(color: Color(0xFFA0A0B8), fontSize: 14),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK', style: TextStyle(color: KoraColors.purple, fontWeight: FontWeight.w600)),
-          ),
-        ],
-      ),
-    );
+  Future<void> _launchLegalUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 
   Future<void> _submit() async {
@@ -516,7 +501,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   style: TextStyle(color: Color(0xFFA0A0B8), fontSize: 14),
                 ),
                 GestureDetector(
-                  onTap: () => _showComingSoon('Terms of Service'),
+                  onTap: () => _launchLegalUrl(KoraApi.termsOfServiceUrl),
                   child: const Text(
                     'Terms of Service',
                     style: TextStyle(
@@ -532,7 +517,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   style: TextStyle(color: Color(0xFFA0A0B8), fontSize: 14),
                 ),
                 GestureDetector(
-                  onTap: () => _showComingSoon('Privacy Policy'),
+                  onTap: () => _launchLegalUrl(KoraApi.privacyPolicyUrl),
                   child: const Text(
                     'Privacy Policy',
                     style: TextStyle(

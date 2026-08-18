@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../theme/kora_colors.dart';
 import 'signup_screen.dart';
 import 'login_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../config/kora_api.dart';
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
@@ -190,14 +192,24 @@ class WelcomeScreen extends StatelessWidget {
                       style: TextStyle(fontSize: 12.5, color: footerColor, height: 1.5),
                     ),
                     SizedBox(height: 2),
-                    Text(
-                      'Terms & Privacy Policy',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        color: KoraColors.purple,
-                        fontWeight: FontWeight.w600,
-                        height: 1.5,
+                    GestureDetector(
+                      onTap: () async {
+                        final uri = Uri.parse(KoraApi.privacyPolicyUrl);
+                        if (await canLaunchUrl(uri)) {
+                          await launchUrl(uri, mode: LaunchMode.externalApplication);
+                        }
+                      },
+                      child: Text(
+                        'Terms & Privacy Policy',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          color: KoraColors.purple,
+                          fontWeight: FontWeight.w600,
+                          height: 1.5,
+                          decoration: TextDecoration.underline,
+                          decorationColor: KoraColors.purple,
+                        ),
                       ),
                     ),
                   ],
