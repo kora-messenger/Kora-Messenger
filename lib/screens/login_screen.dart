@@ -11,6 +11,8 @@ import 'kora_home_screen.dart';
 import 'login_verification_screen.dart';
 import 'signup_screen.dart';
 
+/// Kora Login screen — deep black surface, purple gradient accents.
+/// User enters email + password to log in. New devices trigger verification.
 class LogInScreen extends StatefulWidget {
   const LogInScreen({super.key});
 
@@ -47,9 +49,19 @@ class _LogInScreenState extends State<LogInScreen> {
   }
 
   Future<void> _submit() async {
-    // Prevent double-tap
     if (_isLoading) return;
-    if (!_formKey.currentState!.validate()) return;
+
+    // Validate form
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    // Double-check fields aren't empty (belt + suspenders)
+    if (email.isEmpty || password.isEmpty) {
+      setState(() => _errorMessage = 'Please fill in all fields');
+      return;
+    }
 
     setState(() {
       _isLoading = true;
@@ -57,16 +69,12 @@ class _LogInScreenState extends State<LogInScreen> {
     });
 
     try {
-      final email = _emailController.text.trim();
-      final result = await _auth.login(
-        email: email,
-        password: _passwordController.text,
-      );
+      final result = await _auth.login(email: email, password: password);
 
       if (!mounted) return;
 
+      // New device → verification screen
       if (result.needsDeviceVerification) {
-        // New device — go to verification screen
         setState(() => _isLoading = false);
         Navigator.of(context).push(
           MaterialPageRoute(
@@ -76,12 +84,10 @@ class _LogInScreenState extends State<LogInScreen> {
         return;
       }
 
+      // Success → home or profile setup
       if (result.success && result.user != null) {
         final user = KoraUserSession.fromMap(result.user!);
-
-        // Save session locally so the app remembers login on restart
         await SessionManager.instance.saveSession(result.user!);
-
         if (!mounted) return;
 
         if (user.profileCompleted) {
@@ -93,7 +99,7 @@ class _LogInScreenState extends State<LogInScreen> {
           Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute(
               builder: (_) => ProfileSetupScreen(
-                email: result.user!['email'] as String,
+                email: email,
                 userData: result.user!,
               ),
             ),
@@ -102,14 +108,12 @@ class _LogInScreenState extends State<LogInScreen> {
         }
       } else {
         setState(() {
-          _errorMessage = result.error ?? 'Login failed';
+          _errorMessage = result.error ?? 'Login failed. Please try again.';
           _isLoading = false;
         });
       }
     } catch (e, stack) {
-      // Log the crash so we can see it in GitHub Issues
       await CrashLogger.log(e, stackTrace: stack, context: 'LoginScreen._submit');
-
       if (mounted) {
         setState(() {
           _errorMessage = 'Something went wrong. Please try again.';
@@ -139,6 +143,8 @@ class _LogInScreenState extends State<LogInScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 24),
             children: [
               const SizedBox(height: 8),
+
+              // Title
               const Text(
                 'Welcome back',
                 style: TextStyle(
@@ -153,6 +159,8 @@ class _LogInScreenState extends State<LogInScreen> {
                 'Log in to continue to Kora.',
                 style: TextStyle(color: Color(0xFFA0A0B8), fontSize: 15),
               ),
+
+              // Error banner
               if (_errorMessage != null) ...[
                 const SizedBox(height: 16),
                 Container(
@@ -178,6 +186,7 @@ class _LogInScreenState extends State<LogInScreen> {
               ],
               const SizedBox(height: 32),
 
+              // Email
               KoraInput(
                 label: 'Email',
                 controller: _emailController,
@@ -190,6 +199,7 @@ class _LogInScreenState extends State<LogInScreen> {
               ),
               const SizedBox(height: 16),
 
+              // Password
               KoraInput(
                 label: 'Password',
                 controller: _passwordController,
@@ -202,14 +212,13 @@ class _LogInScreenState extends State<LogInScreen> {
               ),
               const SizedBox(height: 12),
 
+              // Forgot password
               Align(
                 alignment: Alignment.centerRight,
                 child: GestureDetector(
                   onTap: () {
                     Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const ForgotPasswordScreen(),
-                      ),
+                      MaterialPageRoute(builder: (_) => const ForgotPasswordScreen()),
                     );
                   },
                   child: const Text(
@@ -224,6 +233,7 @@ class _LogInScreenState extends State<LogInScreen> {
               ),
               const SizedBox(height: 28),
 
+              // Log In button
               KoraButton(
                 label: 'Log In',
                 onPressed: _submit,
@@ -231,6 +241,7 @@ class _LogInScreenState extends State<LogInScreen> {
               ),
               const SizedBox(height: 16),
 
+              // Create account link
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -241,9 +252,7 @@ class _LogInScreenState extends State<LogInScreen> {
                   GestureDetector(
                     onTap: () {
                       Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const SignUpScreen(),
-                        ),
+                        MaterialPageRoute(builder: (_) => const SignUpScreen()),
                       );
                     },
                     child: const Text(

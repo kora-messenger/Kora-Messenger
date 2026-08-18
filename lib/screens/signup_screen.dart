@@ -2,14 +2,17 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../theme/kora_colors.dart';
 import '../services/auth_service.dart';
+import '../services/crash_logger.dart';
 import '../widgets/kora_input.dart';
 import '../widgets/kora_button.dart';
 import 'verification_screen.dart';
 import 'login_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../config/kora_api.dart';
-import '../services/crash_logger.dart';
 
+/// Kora Sign-up screen — deep black surface, purple gradient accents.
+/// Fields: full name, username (with live availability check),
+/// email, phone (optional), password, confirm password.
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
 
@@ -26,11 +29,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final AuthService _auth = AuthService.instance;
+
   bool _isLoading = false;
   String? _errorMessage;
   bool _agreedToTerms = false;
 
-  // Username live-check state
+  // Username live-check
   UsernameStatus _usernameStatus = UsernameStatus.idle;
   String _usernameMessage = '';
   Timer? _usernameTimer;
@@ -47,18 +51,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
     super.dispose();
   }
 
+  // ── Validators ──────────────────────────────────────────
+
   String? _validateName(String? value) {
     if (value == null || value.trim().isEmpty) return 'Please enter your full name';
     if (value.trim().length < 2) return 'Name must be at least 2 characters';
-    return null;
-  }
-
-  String? _validateUsername(String? value) {
-    if (value == null || value.trim().isEmpty) return 'Please enter a username';
-    if (value.trim().length < 3) return 'Username must be at least 3 characters';
-    if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(value.trim())) {
-      return 'Only letters, numbers and underscores allowed';
-    }
     return null;
   }
 
@@ -71,7 +68,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 
   String? _validatePhone(String? value) {
-    // Phone is optional — only validate if user entered something
     if (value == null || value.trim().isEmpty) return null;
     final cleaned = value.trim().replaceAll(RegExp(r'[\s\-\(\)]'), '');
     if (!RegExp(r'^\+?\d{7,15}$').hasMatch(cleaned)) {
@@ -94,7 +90,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
     return null;
   }
 
-  // ── Username live availability check ─────────────────────
+  // ── Username live availability ───────────────────────────
+
   void _onUsernameChanged(String value) {
     _usernameTimer?.cancel();
 
@@ -130,63 +127,128 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   Color get _usernameBorderColor {
     switch (_usernameStatus) {
-      case UsernameStatus.available:
-        return const Color(0xFF22C55E);
+      case UsernameStatus.available: return const Color(0xFF22C55E);
       case UsernameStatus.taken:
       case UsernameStatus.reserved:
-      case UsernameStatus.invalid:
-        return const Color(0xFFEF4444);
-      case UsernameStatus.checking:
-      case UsernameStatus.tooShort:
-      case UsernameStatus.idle:
-        return const Color(0xFF2E2E42);
+      case UsernameStatus.invalid: return const Color(0xFFEF4444);
+      default: return const Color(0xFF2E2E42);
     }
   }
 
   Color get _usernameIconColor {
     switch (_usernameStatus) {
-      case UsernameStatus.available:
-        return const Color(0xFF22C55E);
+      case UsernameStatus.available: return const Color(0xFF22C55E);
       case UsernameStatus.taken:
       case UsernameStatus.reserved:
-      case UsernameStatus.invalid:
-        return const Color(0xFFEF4444);
-      default:
-        return const Color(0xFF6B6B80);
+      case UsernameStatus.invalid: return const Color(0xFFEF4444);
+      default: return const Color(0xFF6B6B80);
     }
   }
 
   IconData get _usernameTrailingIcon {
     switch (_usernameStatus) {
-      case UsernameStatus.available:
-        return Icons.check_circle;
+      case UsernameStatus.available: return Icons.check_circle;
       case UsernameStatus.taken:
       case UsernameStatus.reserved:
-      case UsernameStatus.invalid:
-        return Icons.cancel;
-      case UsernameStatus.checking:
-        return Icons.hourglass_top;
-      default:
-        return Icons.alternate_email;
+      case UsernameStatus.invalid: return Icons.cancel;
+      case UsernameStatus.checking: return Icons.hourglass_top;
+      default: return Icons.alternate_email;
     }
   }
+
+  // ── Legal links ─────────────────────────────────────────
 
   Future<void> _launchLegalUrl(String url) async {
     final uri = Uri.parse(url);
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
-  Future<void> _submit() async {
-    if (_isLoading) return; // prevent double-tap
-    if (!_formKey.currentState!.validate()) return;
+  // ── Submit ──────────────────────────────────────────────
 
-    // Block if user hasn't agreed to terms
+  Future<void> _submit() async {
+    if (_isLoading) return;
+
+    // ── Manual validation first (read directly from controllers) ──
+    // This avoids any sync issues between TextFormField's internal value
+    // and the controller text.
+    final name = _nameController.text.trim();
+    final username = _usernameController.text.trim();
+    final email = _emailController.text.trim();
+    final phone = _phoneController.text.trim();
+    final password = _passwordController.text;
+    final confirmPassword = _confirmPasswordController.text;
+
+    // Clear previous error
+    setState(() => _errorMessage = null);
+
+    // Validate each field manually
+    if (name.isEmpty) {
+      setState(() => _errorMessage = 'Please enter your full name');
+      return;
+    }
+    if (name.length < 2) {
+      setState(() => _errorMessage = 'Name must be at least 2 characters');
+      return;
+    }
+    if (username.isEmpty) {
+      setState(() => _errorMessage = 'Please enter a username');
+      return;
+    }
+    if (username.length < 3) {
+      setState(() => _errorMessage = 'Username must be at least 3 characters');
+      return;
+    }
+    if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(username)) {
+      setState(() => _errorMessage = 'Username: only letters, numbers and underscores');
+      return;
+    }
+    if (email.isEmpty) {
+      setState(() => _errorMessage = 'Please enter your email');
+      return;
+    }
+    if (!RegExp(r'^[\w.+-]+@[\w-]+\.[\w.-]+$').hasMatch(email)) {
+      setState(() => _errorMessage = 'Please enter a valid email address');
+      return;
+    }
+    if (phone.isNotEmpty) {
+      final cleaned = phone.replaceAll(RegExp(r'[\s\-\(\)]'), '');
+      if (!RegExp(r'^\+?\d{7,15}$').hasMatch(cleaned)) {
+        setState(() => _errorMessage = 'Enter a valid phone number');
+        return;
+      }
+    }
+    if (password.isEmpty) {
+      setState(() => _errorMessage = 'Please enter a password');
+      return;
+    }
+    if (password.length < 8) {
+      setState(() => _errorMessage = 'Password must be at least 8 characters');
+      return;
+    }
+    if (!RegExp(r'[A-Z]').hasMatch(password)) {
+      setState(() => _errorMessage = 'Password must include at least one uppercase letter');
+      return;
+    }
+    if (!RegExp(r'[0-9]').hasMatch(password)) {
+      setState(() => _errorMessage = 'Password must include at least one number');
+      return;
+    }
+    if (confirmPassword.isEmpty) {
+      setState(() => _errorMessage = 'Please confirm your password');
+      return;
+    }
+    if (confirmPassword != password) {
+      setState(() => _errorMessage = 'Passwords do not match');
+      return;
+    }
+
+    // Terms
     if (!_agreedToTerms) {
       setState(() => _errorMessage = 'Please agree to the Terms of Service and Privacy Policy');
       return;
     }
 
-    // If username is still checking, wait for it to finish (max 5s)
+    // Wait for username check if still running
     if (_usernameStatus == UsernameStatus.checking) {
       setState(() {
         _isLoading = true;
@@ -199,9 +261,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
       }
     }
 
-    // Block only on definitive "not available" statuses
-    if (_usernameStatus == UsernameStatus.taken ||
-        _usernameStatus == UsernameStatus.reserved) {
+    // Block if username is taken/reserved
+    if (_usernameStatus == UsernameStatus.taken || _usernameStatus == UsernameStatus.reserved) {
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -210,8 +271,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
       }
       return;
     }
-    // If username check failed (invalid/network), don't block —
-    // the backend will reject if truly taken. Let the user proceed.
 
     setState(() {
       _isLoading = true;
@@ -219,11 +278,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     });
 
     try {
-      // Send verification code via backend
-      final result = await _auth.sendVerificationCode(
-        _emailController.text.trim(),
-        type: 'registration',
-      );
+      final result = await _auth.sendVerificationCode(email, type: 'registration');
 
       if (!mounted) return;
 
@@ -232,19 +287,18 @@ class _SignUpScreenState extends State<SignUpScreen> {
           MaterialPageRoute(
             builder: (_) => VerificationScreen(
               type: VerificationType.registration,
-              email: _emailController.text.trim(),
+              email: email,
               userData: {
-                'fullName': _nameController.text.trim(),
-                'username': _usernameController.text.trim(),
-                'email': _emailController.text.trim(),
-                'phoneNumber': _phoneController.text.trim(),
-                'password': _passwordController.text,
+                'fullName': name,
+                'username': username,
+                'email': email,
+                'phoneNumber': phone,
+                'password': password,
               },
             ),
           ),
         );
       } else {
-        // Show error as a SnackBar so it's always visible regardless of scroll
         final errorMsg = result.error ?? 'Failed to send verification code';
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -259,32 +313,38 @@ class _SignUpScreenState extends State<SignUpScreen> {
         }
       }
     } catch (e, stack) {
-      // Log the crash so we can see it in GitHub Issues
       await CrashLogger.log(e, stackTrace: stack, context: 'SignUpScreen._submit');
-      // Catch any unexpected errors so the spinner never gets stuck
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             content: Text('Something went wrong. Please try again.'),
-            backgroundColor: const Color(0xFFEF4444),
+            backgroundColor: Color(0xFFEF4444),
             behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 4),
+            duration: Duration(seconds: 4),
           ),
         );
         setState(() => _errorMessage = 'Something went wrong. Please try again.');
       }
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
+
+  // ── Build ───────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: KoraColors.trueBlack,
-      appBar: _buildAppBar(),
+      appBar: AppBar(
+        backgroundColor: KoraColors.trueBlack,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ),
       body: SafeArea(
         child: Form(
           key: _formKey,
@@ -292,6 +352,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 24),
             children: [
               const SizedBox(height: 8),
+
+              // Title
               const Text(
                 'Create your account',
                 style: TextStyle(
@@ -321,12 +383,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Username with live availability check
+              // Username (no form validator — validated manually in _submit)
               KoraInput(
                 label: 'Username',
                 controller: _usernameController,
                 keyboardType: TextInputType.text,
-                validator: _validateUsername,
                 prefixIcon: Padding(
                   padding: const EdgeInsets.only(left: 14, right: 10),
                   child: Icon(_usernameTrailingIcon, color: _usernameIconColor, size: 22),
@@ -343,7 +404,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     : null,
                 onChanged: _onUsernameChanged,
               ),
-              // Username status message
               if (_usernameStatus != UsernameStatus.idle)
                 Padding(
                   padding: const EdgeInsets.only(top: 6, left: 4),
@@ -358,7 +418,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 ),
               const SizedBox(height: 16),
 
-              // Email (required)
+              // Email
               KoraInput(
                 label: 'Email',
                 controller: _emailController,
@@ -371,7 +431,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Phone number (optional)
+              // Phone (optional)
               KoraInput(
                 label: 'Phone number (optional)',
                 controller: _phoneController,
@@ -410,10 +470,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
               ),
               const SizedBox(height: 20),
 
-              // Terms of Service checkbox
+              // Terms checkbox
               _buildTermsCheckbox(),
               const SizedBox(height: 24),
 
+              // Error banner
               if (_errorMessage != null) ...[
                 Container(
                   padding: const EdgeInsets.all(12),
@@ -437,6 +498,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 ),
                 const SizedBox(height: 16),
               ],
+
+              // Create Account button
               KoraButton(
                 label: 'Create Account',
                 onPressed: _submit,
@@ -444,6 +507,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
               ),
               const SizedBox(height: 16),
 
+              // Log In link
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -454,9 +518,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   GestureDetector(
                     onTap: () {
                       Navigator.of(context).pushReplacement(
-                        MaterialPageRoute(
-                          builder: (_) => const LogInScreen(),
-                        ),
+                        MaterialPageRoute(builder: (_) => const LogInScreen()),
                       );
                     },
                     child: const Text(
@@ -534,18 +596,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
           ),
         ),
       ],
-    );
-  }
-
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      backgroundColor: KoraColors.trueBlack,
-      elevation: 0,
-      scrolledUnderElevation: 0,
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back, color: Colors.white),
-        onPressed: () => Navigator.of(context).pop(),
-      ),
     );
   }
 }
