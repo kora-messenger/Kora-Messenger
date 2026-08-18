@@ -15,8 +15,6 @@ class PremiumSubscribeSheet extends StatefulWidget {
 }
 
 class _PremiumSubscribeSheetState extends State<PremiumSubscribeSheet> {
-  bool _isLoading = false;
-
   void _showComingSoon(String title) {
     showDialog(
       context: context,
@@ -143,7 +141,7 @@ class _PremiumSubscribeSheetState extends State<PremiumSubscribeSheet> {
                   width: double.infinity,
                   height: 54,
                   child: GestureDetector(
-                    onTap: _isLoading ? null : _onSubscribe,
+                    onTap: _onSubscribe,
                     child: Container(
                       decoration: BoxDecoration(
                         gradient: KoraColors.brandGradient,
@@ -157,16 +155,7 @@ class _PremiumSubscribeSheetState extends State<PremiumSubscribeSheet> {
                         ],
                       ),
                       child: Center(
-                        child: _isLoading
-                            ? const SizedBox(
-                                width: 22,
-                                height: 22,
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 2.5,
-                                ),
-                              )
-                            : const Text(
+                        child: const Text(
                                 'Subscribe and pay',
                                 style: TextStyle(
                                   color: Colors.white,
