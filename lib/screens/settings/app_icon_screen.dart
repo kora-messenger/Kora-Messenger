@@ -5,6 +5,37 @@ import 'premium_subscribe_sheet.dart';
 import 'billing_screen.dart';
 import '../../services/app_icon_switcher.dart';
 
+/// A single Kora app icon option — either a gradient swatch or a real
+/// asset image. Public so other screens (e.g. Appearance) can render
+/// a matching preview thumbnail of the currently-selected icon.
+class KoraIconDef {
+  final String name;
+  final List<Color>? gradient;
+  final String? assetPath;
+  const KoraIconDef({
+    required this.name,
+    this.gradient,
+    this.assetPath,
+  });
+}
+
+/// 12 Kora app icon definitions.
+/// Icons 0-9 use gradient previews; icons 10-11 use real asset images.
+const List<KoraIconDef> kKoraIconDefs = [
+  KoraIconDef(name: 'Classic',   gradient: [Color(0xFF8B5CF6), Color(0xFF3B82F6)]),
+  KoraIconDef(name: 'Sunset',     gradient: [Color(0xFFEF4444), Color(0xFFF59E0B)]),
+  KoraIconDef(name: 'Emerald',    gradient: [Color(0xFF10B981), Color(0xFF06B6D4)]),
+  KoraIconDef(name: 'Midnight',   gradient: [Color(0xFF1E1B4B), Color(0xFF4338CA)]),
+  KoraIconDef(name: 'Rose Gold',  gradient: [Color(0xFFF472B6), Color(0xFFFB923C)]),
+  KoraIconDef(name: 'Ocean',      gradient: [Color(0xFF0EA5E9), Color(0xFF6366F1)]),
+  KoraIconDef(name: 'Forest',     gradient: [Color(0xFF059669), Color(0xFF0D9488)]),
+  KoraIconDef(name: 'Crimson',    gradient: [Color(0xFFDC2626), Color(0xFF7C3AED)]),
+  KoraIconDef(name: 'Aurora',     gradient: [Color(0xFFA855F7), Color(0xFF2DD4BF)]),
+  KoraIconDef(name: 'Carbon',     gradient: [Color(0xFF374151), Color(0xFF111827)]),
+  KoraIconDef(name: 'Nebula',     assetPath: 'assets/icons/icon_nebula.png'),
+  KoraIconDef(name: 'Galaxy',     assetPath: 'assets/icons/icon_galaxy.png'),
+];
+
 /// App Icon picker — 12 Kora app icons. Premium only.
 ///
 /// Non-premium users see the icon grid locked with a
@@ -39,22 +70,9 @@ class _AppIconScreenState extends State<AppIconScreen> {
     if (mounted) setState(() {});
   }
 
-  // ── 12 Kora app icon definitions ─────────────────────────
-  // Icons 0-9 use gradient previews; icons 10-11 use real asset images.
-  static const List<_KoraIconDef> _icons = [
-    _KoraIconDef(name: 'Classic',   gradient: [Color(0xFF8B5CF6), Color(0xFF3B82F6)]),
-    _KoraIconDef(name: 'Sunset',     gradient: [Color(0xFFEF4444), Color(0xFFF59E0B)]),
-    _KoraIconDef(name: 'Emerald',    gradient: [Color(0xFF10B981), Color(0xFF06B6D4)]),
-    _KoraIconDef(name: 'Midnight',   gradient: [Color(0xFF1E1B4B), Color(0xFF4338CA)]),
-    _KoraIconDef(name: 'Rose Gold',  gradient: [Color(0xFFF472B6), Color(0xFFFB923C)]),
-    _KoraIconDef(name: 'Ocean',      gradient: [Color(0xFF0EA5E9), Color(0xFF6366F1)]),
-    _KoraIconDef(name: 'Forest',     gradient: [Color(0xFF059669), Color(0xFF0D9488)]),
-    _KoraIconDef(name: 'Crimson',    gradient: [Color(0xFFDC2626), Color(0xFF7C3AED)]),
-    _KoraIconDef(name: 'Aurora',     gradient: [Color(0xFFA855F7), Color(0xFF2DD4BF)]),
-    _KoraIconDef(name: 'Carbon',     gradient: [Color(0xFF374151), Color(0xFF111827)]),
-    _KoraIconDef(name: 'Nebula',     assetPath: 'assets/icons/icon_nebula.png'),
-    _KoraIconDef(name: 'Galaxy',     assetPath: 'assets/icons/icon_galaxy.png'),
-  ];
+  // 12 Kora app icon definitions live in the top-level `kKoraIconDefs`
+  // list below so the Appearance screen can render a matching preview.
+  static const List<KoraIconDef> _icons = kKoraIconDefs;
 
   void _selectIcon(int index) {
     if (!_provider.isPremium) return;
@@ -390,13 +408,4 @@ class _AppIconScreenState extends State<AppIconScreen> {
   }
 }
 
-class _KoraIconDef {
-  final String name;
-  final List<Color>? gradient;
-  final String? assetPath;
-  const _KoraIconDef({
-    required this.name,
-    this.gradient,
-    this.assetPath,
-  });
-}
+

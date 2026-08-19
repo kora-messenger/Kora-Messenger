@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import '../../theme/kora_colors.dart';
 import '../../theme/chat_theme_provider.dart';
+import 'wallpaper_screen.dart';
+import 'chat_bubble_color_screen.dart';
 
-/// Shows the 7 default chat themes. Tapping one applies it instantly.
+/// Shows the 7 default chat themes, plus the Wallpaper and Chat bubble
+/// customization tiles (moved here from the Appearance screen — both
+/// are really about customizing the chat theme, so they belong together).
 class DefaultChatThemeScreen extends StatefulWidget {
   const DefaultChatThemeScreen({super.key});
 
@@ -33,8 +37,12 @@ class _DefaultChatThemeScreenState extends State<DefaultChatThemeScreen> {
   Widget build(BuildContext context) {
     final brightness = Theme.of(context).brightness;
     final bg = KoraColors.backgroundFor(brightness);
+    final card = KoraColors.cardFor(brightness);
+    final border = KoraColors.borderFor(brightness);
     final textPrimary = KoraColors.textPrimaryFor(brightness);
     final textSecondary = KoraColors.textSecondaryFor(brightness);
+
+    final theme = _provider.activeTheme;
 
     return Scaffold(
       backgroundColor: bg,
@@ -73,18 +81,130 @@ class _DefaultChatThemeScreenState extends State<DefaultChatThemeScreen> {
               ),
               itemCount: kDefaultChatThemes.length,
               itemBuilder: (context, index) {
-                final theme = kDefaultChatThemes[index];
-                final isSelected = _provider.themeId == theme.id;
+                final t = kDefaultChatThemes[index];
+                final isSelected = _provider.themeId == t.id;
                 return _themeCard(
                   context,
-                  theme: theme,
+                  theme: t,
                   isSelected: isSelected,
                   textPrimary: textPrimary,
                   textSecondary: textSecondary,
                 );
               },
             ),
+            const SizedBox(height: 24),
+            Padding(
+              padding: const EdgeInsets.only(left: 4, bottom: 8),
+              child: Text(
+                'CUSTOMIZE',
+                style: TextStyle(
+                  color: textSecondary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+            _customizeTile(
+              context,
+              card: card,
+              border: border,
+              textPrimary: textPrimary,
+              textSecondary: textSecondary,
+              icon: Icons.chat_bubble_outline,
+              iconColor: _provider.customSentBubble ?? theme.sentBubble,
+              title: 'Chat bubble',
+              subtitle: 'Choose a color for your chat bubbles',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ChatBubbleColorScreen()),
+                );
+              },
+            ),
+            const SizedBox(height: 8),
+            _customizeTile(
+              context,
+              card: card,
+              border: border,
+              textPrimary: textPrimary,
+              textSecondary: textSecondary,
+              icon: Icons.image_outlined,
+              iconColor: KoraColors.purple,
+              title: 'Wallpaper',
+              subtitle: 'Choose from gallery or solid color',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const WallpaperScreen()),
+                );
+              },
+            ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _customizeTile(
+    BuildContext context, {
+    required Color card,
+    required Color border,
+    required Color textPrimary,
+    required Color textSecondary,
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: card,
+      borderRadius: BorderRadius.circular(14),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: border, width: 0.5),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: iconColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: iconColor, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        color: textPrimary,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(color: textSecondary, fontSize: 12.5),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, color: textSecondary),
+            ],
+          ),
         ),
       ),
     );
