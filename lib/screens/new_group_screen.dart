@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/kora_colors.dart';
 import '../widgets/kora_avatar.dart';
+import '../data/mock_contacts.dart';
 import 'new_group_details_screen.dart';
 
 /// New Group screen — pick the people to add to a new group.
@@ -30,21 +31,9 @@ class _NewGroupScreenState extends State<NewGroupScreen> {
     super.dispose();
   }
 
-  // Mock contacts — replace with real data later.
-  // `recent: true` means the user has messaged them recently, so they
-  // show under the "RECENT" section at the top.
-  final List<Map<String, Object>> _contacts = [
-    {'name': 'Amara Chukwu', 'koraId': 'KM-830192746', 'username': '@amara_c', 'recent': true},
-    {'name': 'David Okoro', 'koraId': 'KM-471038291', 'username': '@davido', 'recent': true},
-    {'name': 'Grace Adeyemi', 'koraId': 'KM-205918374', 'username': '@grace_a', 'recent': true},
-    {'name': 'Emeka Nwosu', 'koraId': 'KM-673920184', 'username': '@emeka_n', 'recent': false},
-    {'name': 'Chidi Okafor', 'koraId': 'KM-918273645', 'username': '@chidi_o', 'recent': false},
-    {'name': 'Fatima Bello', 'koraId': 'KM-384756102', 'username': '@fatima_b', 'recent': false},
-    {'name': 'Tunde Bakare', 'koraId': 'KM-561029384', 'username': '@tunde_b', 'recent': false},
-    {'name': 'Ngozi Eze', 'koraId': 'KM-728394016', 'username': '@ngozi_e', 'recent': false},
-    {'name': 'Kola Adekunle', 'koraId': 'KM-193847562', 'username': '@kola_a', 'recent': false},
-    {'name': 'Zainab Ibrahim', 'koraId': 'KM-640192837', 'username': '@zainab_i', 'recent': false},
-  ];
+  // Contacts sourced from the shared mock contacts list — replace
+  // with real data once the connections backend is wired up.
+  final List<Map<String, Object>> _contacts = koraMockContacts;
 
   List<Map<String, Object>> get _recentContacts =>
       _contacts.where((c) => c['recent'] == true).toList();
@@ -277,10 +266,12 @@ class _NewGroupScreenState extends State<NewGroupScreen> {
       final isSelected = _selectedIds.contains(koraId);
       final isLast = index == contacts.length - 1;
 
+      final isPremium = contact['premium'] == true;
+
       return Column(
         children: [
           ListTile(
-            leading: _buildSelectableAvatar(contact['name'] as String, isSelected),
+            leading: _buildSelectableAvatar(contact['name'] as String, isSelected, isPremium),
             title: Text(
               contact['name'] as String,
               style: TextStyle(color: textPrimary, fontSize: 15, fontWeight: FontWeight.w600),
@@ -301,14 +292,14 @@ class _NewGroupScreenState extends State<NewGroupScreen> {
     });
   }
 
-  Widget _buildSelectableAvatar(String name, bool isSelected) {
+  Widget _buildSelectableAvatar(String name, bool isSelected, bool isPremium) {
     return SizedBox(
       width: 48,
       height: 48,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          KoraAvatar(name: name, size: 48),
+          KoraAvatar(name: name, size: 48, isPremium: isPremium),
           Positioned(
             right: -2,
             bottom: -2,
