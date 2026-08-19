@@ -51,7 +51,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     super.dispose();
   }
 
-  // ── Validators ──────────────────────────────────────────
+  // ── Validators (used by form auto-validation on field blur) ──
 
   String? _validateName(String? value) {
     if (value == null || value.trim().isEmpty) return 'Please enter your full name';
@@ -168,9 +168,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
   Future<void> _submit() async {
     if (_isLoading) return;
 
-    // ── Manual validation first (read directly from controllers) ──
-    // This avoids any sync issues between TextFormField's internal value
-    // and the controller text.
+    // Read values directly from controllers — avoids any sync issues
+    // between TextFormField's internal value and the controller text.
     final name = _nameController.text.trim();
     final username = _usernameController.text.trim();
     final email = _emailController.text.trim();
@@ -178,73 +177,52 @@ class _SignUpScreenState extends State<SignUpScreen> {
     final password = _passwordController.text;
     final confirmPassword = _confirmPasswordController.text;
 
-    // Clear previous error
     setState(() => _errorMessage = null);
 
-    // Validate each field manually
+    // ── Manual validation (reads from controllers, not form state) ──
+    String? error;
+
     if (name.isEmpty) {
-      setState(() => _errorMessage = 'Please enter your full name');
-      return;
-    }
-    if (name.length < 2) {
-      setState(() => _errorMessage = 'Name must be at least 2 characters');
-      return;
-    }
-    if (username.isEmpty) {
-      setState(() => _errorMessage = 'Please enter a username');
-      return;
-    }
-    if (username.length < 3) {
-      setState(() => _errorMessage = 'Username must be at least 3 characters');
-      return;
-    }
-    if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(username)) {
-      setState(() => _errorMessage = 'Username: only letters, numbers and underscores');
-      return;
-    }
-    if (email.isEmpty) {
-      setState(() => _errorMessage = 'Please enter your email');
-      return;
-    }
-    if (!RegExp(r'^[\w.+-]+@[\w-]+\.[\w.-]+$').hasMatch(email)) {
-      setState(() => _errorMessage = 'Please enter a valid email address');
-      return;
-    }
-    if (phone.isNotEmpty) {
+      error = 'Please enter your full name';
+    } else if (name.length < 2) {
+      error = 'Name must be at least 2 characters';
+    } else if (username.isEmpty) {
+      error = 'Please enter a username';
+    } else if (username.length < 3) {
+      error = 'Username must be at least 3 characters';
+    } else if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(username)) {
+      error = 'Username: only letters, numbers and underscores';
+    } else if (email.isEmpty) {
+      error = 'Please enter your email';
+    } else if (!RegExp(r'^[\w.+-]+@[\w-]+\.[\w.-]+$').hasMatch(email)) {
+      error = 'Please enter a valid email address';
+    } else if (phone.isNotEmpty) {
       final cleaned = phone.replaceAll(RegExp(r'[\s\-\(\)]'), '');
       if (!RegExp(r'^\+?\d{7,15}$').hasMatch(cleaned)) {
-        setState(() => _errorMessage = 'Enter a valid phone number');
-        return;
+        error = 'Enter a valid phone number';
       }
     }
-    if (password.isEmpty) {
-      setState(() => _errorMessage = 'Please enter a password');
-      return;
-    }
-    if (password.length < 8) {
-      setState(() => _errorMessage = 'Password must be at least 8 characters');
-      return;
-    }
-    if (!RegExp(r'[A-Z]').hasMatch(password)) {
-      setState(() => _errorMessage = 'Password must include at least one uppercase letter');
-      return;
-    }
-    if (!RegExp(r'[0-9]').hasMatch(password)) {
-      setState(() => _errorMessage = 'Password must include at least one number');
-      return;
-    }
-    if (confirmPassword.isEmpty) {
-      setState(() => _errorMessage = 'Please confirm your password');
-      return;
-    }
-    if (confirmPassword != password) {
-      setState(() => _errorMessage = 'Passwords do not match');
-      return;
+
+    if (error == null) {
+      if (password.isEmpty) {
+        error = 'Please enter a password';
+      } else if (password.length < 8) {
+        error = 'Password must be at least 8 characters';
+      } else if (!RegExp(r'[A-Z]').hasMatch(password)) {
+        error = 'Password must include at least one uppercase letter';
+      } else if (!RegExp(r'[0-9]').hasMatch(password)) {
+        error = 'Password must include at least one number';
+      } else if (confirmPassword.isEmpty) {
+        error = 'Please confirm your password';
+      } else if (confirmPassword != password) {
+        error = 'Passwords do not match';
+      } else if (!_agreedToTerms) {
+        error = 'Please agree to the Terms of Service and Privacy Policy';
+      }
     }
 
-    // Terms
-    if (!_agreedToTerms) {
-      setState(() => _errorMessage = 'Please agree to the Terms of Service and Privacy Policy');
+    if (error != null) {
+      setState(() => _errorMessage = error);
       return;
     }
 
