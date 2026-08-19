@@ -121,21 +121,14 @@ class _PasskeyLoginScreenState extends State<PasskeyLoginScreen> {
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('kora_last_email', email);
 
+          if (!mounted) return;
           setState(() => _authenticating = false);
 
           // Navigate
-          final user = result.user!;
-          if (user['profileCompleted'] == true) {
-            Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (_) => const KoraHomeScreen()),
-              (route) => false,
-            );
-          } else {
-            Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (_) => const KoraHomeScreen()),
-              (route) => false,
-            );
-          }
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const KoraHomeScreen()),
+            (route) => false,
+          );
         } else {
           setState(() {
             _authenticating = false;

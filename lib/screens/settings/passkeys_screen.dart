@@ -441,9 +441,10 @@ class _PasskeysScreenState extends State<PasskeysScreen> {
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) {
+        final nav = Navigator.of(dialogContext);
         Future.delayed(const Duration(seconds: 2), () {
-          if (Navigator.of(dialogContext).canPop()) {
-            Navigator.of(dialogContext).pop();
+          if (nav.canPop()) {
+            nav.pop();
           }
         });
         return AlertDialog(

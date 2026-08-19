@@ -152,7 +152,7 @@ class _PhoneNumberScreenState extends State<PhoneNumberScreen> {
                         style: TextStyle(color: textPrimary, fontSize: 16),
                         decoration: InputDecoration(
                           hintText: '+1 234 567 890',
-                          hintStyle: TextStyle(color: textSecondary.withOpacity(0.5), fontSize: 16),
+                          hintStyle: TextStyle(color: textSecondary.withValues(alpha: 0.5), fontSize: 16),
                           prefixIcon: Icon(Icons.phone_outlined, color: textSecondary, size: 22),
                           border: InputBorder.none,
                           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
@@ -169,7 +169,7 @@ class _PhoneNumberScreenState extends State<PhoneNumberScreen> {
                     const SizedBox(height: 12),
                     Text(
                       "We won't share your phone number with anyone without your permission.",
-                      style: TextStyle(color: textSecondary.withOpacity(0.7), fontSize: 12.5, height: 1.4),
+                      style: TextStyle(color: textSecondary.withValues(alpha: 0.7), fontSize: 12.5, height: 1.4),
                     ),
                   ],
                 ),
