@@ -486,7 +486,6 @@ class _LoginVerificationScreenState extends State<LoginVerificationScreen>
           ),
           onChanged: (value) => _onDigitChanged(index, value),
         ),
-      ),
     );
   }
 

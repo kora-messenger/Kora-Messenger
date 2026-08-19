@@ -410,7 +410,6 @@ class _BackupPinLoginScreenState extends State<BackupPinLoginScreen> {
           ),
           onChanged: (value) => _onDigitChanged(index, value),
         ),
-      ),
     );
   }
 }

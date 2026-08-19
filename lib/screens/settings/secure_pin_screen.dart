@@ -420,7 +420,6 @@ class _SecurePinScreenState extends State<SecurePinScreen> {
           ),
           onChanged: (value) => _onDigitChanged(index, value),
         ),
-      ),
     );
   }
 }

@@ -416,7 +416,6 @@ class _TwoFactorVerifyScreenState extends State<TwoFactorVerifyScreen> {
           ),
           onChanged: (value) => _onDigitChanged(index, value),
         ),
-      ),
     );
   }
 }

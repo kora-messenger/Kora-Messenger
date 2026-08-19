@@ -559,7 +559,6 @@ class _VerificationScreenState extends State<VerificationScreen>
           ),
           onChanged: (value) => _onDigitChanged(index, value),
         ),
-      ),
     );
   }
 
