@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../theme/kora_colors.dart';
 import '../services/auth_service.dart';
 import '../services/crash_logger.dart';
@@ -261,6 +262,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
       if (!mounted) return;
 
       if (result.success) {
+        // Close out any pending Android autofill session (e.g. the
+        // "Save password?" prompt) BEFORE navigating away. Leaving a
+        // password field's autofill context open while its view is
+        // torn down is a known native Android crash.
+        TextInput.finishAutofillContext();
+
         Navigator.of(context).push(
           MaterialPageRoute(
             builder: (_) => VerificationScreen(

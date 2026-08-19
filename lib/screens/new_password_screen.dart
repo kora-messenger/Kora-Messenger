@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../theme/kora_colors.dart';
 import '../widgets/kora_input.dart';
 import '../widgets/kora_button.dart';
@@ -73,10 +74,13 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
 
       Future.delayed(const Duration(seconds: 2), () {
         if (!mounted) return;
+        // Close out any pending Android autofill session before
+        // leaving this password field's screen — avoids a native crash.
+        TextInput.finishAutofillContext();
         Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const LogInScreen()),
-        (route) => false,
-      );
+          MaterialPageRoute(builder: (_) => const LogInScreen()),
+          (route) => false,
+        );
       });
     } else {
       setState(() {

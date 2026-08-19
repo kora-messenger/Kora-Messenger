@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../theme/kora_colors.dart';
 import '../services/auth_service.dart';
 import '../services/session_manager.dart';
@@ -76,6 +77,9 @@ class _LogInScreenState extends State<LogInScreen> {
       // New device → verification screen
       if (result.needsDeviceVerification) {
         setState(() => _isLoading = false);
+        // Close out any pending Android autofill session before
+        // leaving this password field's screen — avoids a native crash.
+        TextInput.finishAutofillContext();
         Navigator.of(context).push(
           MaterialPageRoute(
             builder: (_) => LoginVerificationScreen(email: email),
@@ -89,6 +93,8 @@ class _LogInScreenState extends State<LogInScreen> {
         final user = KoraUserSession.fromMap(result.user!);
         await SessionManager.instance.saveSession(result.user!);
         if (!mounted) return;
+
+        TextInput.finishAutofillContext();
 
         if (user.profileCompleted) {
           Navigator.of(context).pushAndRemoveUntil(
