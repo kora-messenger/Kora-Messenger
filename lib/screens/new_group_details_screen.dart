@@ -44,6 +44,7 @@ class _NewGroupDetailsScreenState extends State<NewGroupDetailsScreen> {
     final brightness = Theme.of(context).brightness;
     final textPrimary = KoraColors.textPrimaryFor(brightness);
     final isDark = brightness == Brightness.dark;
+    final card = KoraColors.cardFor(brightness);
 
     showModalBottomSheet(
       context: context,
@@ -160,6 +161,7 @@ class _NewGroupDetailsScreenState extends State<NewGroupDetailsScreen> {
       backgroundColor: Colors.transparent,
       builder: (sheetContext) {
         final brightness = Theme.of(sheetContext).brightness;
+        final card = KoraColors.cardFor(brightness);
         final textPrimary = KoraColors.textPrimaryFor(brightness);
         final textSecondary = KoraColors.textSecondaryFor(brightness);
         final textMuted = KoraColors.textMutedFor(brightness);
