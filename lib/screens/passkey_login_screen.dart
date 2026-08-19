@@ -103,7 +103,6 @@ class _PasskeyLoginScreenState extends State<PasskeyLoginScreen> {
         localizedReason: 'Authenticate to sign in to Kora',
         options: const AuthenticationOptions(
           biometricOnly: false,
-          sticky: true,
         ),
       );
 
