@@ -67,7 +67,6 @@ class _AccountScreenState extends State<AccountScreen> {
     final textPrimary = KoraColors.textPrimaryFor(brightness);
     final textSecondary = KoraColors.textSecondaryFor(brightness);
     final card = KoraColors.cardFor(brightness);
-    final border = KoraColors.borderFor(brightness);
 
     showDialog(
       context: context,
@@ -268,6 +267,8 @@ class _AccountScreenState extends State<AccountScreen> {
         // Clear local session
         await SessionManager.instance.clearSession();
 
+        if (!mounted) return;
+
         // Navigate to welcome screen, removing all previous routes
         Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
       } else {
@@ -299,7 +300,6 @@ class _AccountScreenState extends State<AccountScreen> {
     final textSecondary = KoraColors.textSecondaryFor(brightness);
     final textMuted = KoraColors.textMutedFor(brightness);
     final card = KoraColors.cardFor(brightness);
-    final border = KoraColors.borderFor(brightness);
 
     return Scaffold(
       backgroundColor: bg,
@@ -500,7 +500,6 @@ class _AccountScreenState extends State<AccountScreen> {
     final textPrimary = KoraColors.textPrimaryFor(brightness);
     final textSecondary = KoraColors.textSecondaryFor(brightness);
     final card = KoraColors.cardFor(brightness);
-    final border = KoraColors.borderFor(brightness);
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
