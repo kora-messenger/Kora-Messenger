@@ -24,35 +24,46 @@ class LogInScreen extends StatefulWidget {
 }
 
 class _LogInScreenState extends State<LogInScreen> {
-  final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _emailFocus = FocusNode();
+  final _passwordFocus = FocusNode();
   final AuthService _auth = AuthService.instance;
+
   bool _isLoading = false;
   String? _errorMessage;
+  bool _popupShown = false;
 
   @override
   void initState() {
     super.initState();
-    // Show backup PIN popup shortly after the screen opens
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _showBackupPinPopup();
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _showBackupPinPopup());
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    _emailFocus.dispose();
+    _passwordFocus.dispose();
+    super.dispose();
   }
 
   void _showBackupPinPopup() {
+    if (_popupShown || !mounted) return;
+    _popupShown = true;
+
     showModalBottomSheet(
       context: context,
       backgroundColor: KoraColors.darkCard,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (context) => Padding(
+      builder: (sheetContext) => Padding(
         padding: const EdgeInsets.fromLTRB(24, 20, 24, 36),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Drag handle
             Container(
               width: 40,
               height: 4,
@@ -62,7 +73,6 @@ class _LogInScreenState extends State<LogInScreen> {
               ),
             ),
             const SizedBox(height: 20),
-            // Icon
             Container(
               width: 56,
               height: 56,
@@ -75,11 +85,7 @@ class _LogInScreenState extends State<LogInScreen> {
             const SizedBox(height: 16),
             const Text(
               'Login using Backup PIN',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-              ),
+              style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
             const Text(
@@ -88,7 +94,6 @@ class _LogInScreenState extends State<LogInScreen> {
               style: TextStyle(color: Color(0xFFA0A0B8), fontSize: 14, height: 1.4),
             ),
             const SizedBox(height: 24),
-            // Use Backup PIN button
             SizedBox(
               width: double.infinity,
               height: 50,
@@ -99,11 +104,9 @@ class _LogInScreenState extends State<LogInScreen> {
                 ),
                 child: ElevatedButton(
                   onPressed: () {
-                    Navigator.of(context).pop();
+                    Navigator.of(sheetContext).pop();
                     Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const BackupPinLoginScreen(),
-                      ),
+                      MaterialPageRoute(builder: (_) => const BackupPinLoginScreen()),
                     );
                   },
                   style: ElevatedButton.styleFrom(
@@ -119,12 +122,11 @@ class _LogInScreenState extends State<LogInScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            // Continue with email/password
             SizedBox(
               width: double.infinity,
               height: 50,
               child: TextButton(
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed: () => Navigator.of(sheetContext).pop(),
                 child: const Text(
                   'Continue with email',
                   style: TextStyle(color: Color(0xFFA0A0B8), fontSize: 15, fontWeight: FontWeight.w500),
@@ -137,38 +139,22 @@ class _LogInScreenState extends State<LogInScreen> {
     );
   }
 
-  @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
-  }
-
-  String? _validateEmail(String? value) {
-    if (value == null || value.trim().isEmpty) return 'Please enter your email';
-    if (!RegExp(r'^[\w.+-]+@[\w-]+\.[\w.-]+$').hasMatch(value.trim())) {
-      return 'Please enter a valid email address';
-    }
-    return null;
-  }
-
-  String? _validatePassword(String? value) {
-    if (value == null || value.isEmpty) return 'Please enter your password';
-    return null;
-  }
-
   Future<void> _submit() async {
     if (_isLoading) return;
-
-    // Validate form
-    if (!(_formKey.currentState?.validate() ?? false)) return;
 
     final email = _emailController.text.trim();
     final password = _passwordController.text;
 
-    // Double-check fields aren't empty (belt + suspenders)
-    if (email.isEmpty || password.isEmpty) {
-      setState(() => _errorMessage = 'Please fill in all fields');
+    if (email.isEmpty) {
+      setState(() => _errorMessage = 'Please enter your email');
+      return;
+    }
+    if (!RegExp(r'^[\w.+-]+@[\w-]+\.[\w.-]+$').hasMatch(email)) {
+      setState(() => _errorMessage = 'Please enter a valid email address');
+      return;
+    }
+    if (password.isEmpty) {
+      setState(() => _errorMessage = 'Please enter your password');
       return;
     }
 
@@ -182,25 +168,18 @@ class _LogInScreenState extends State<LogInScreen> {
 
       if (!mounted) return;
 
-      // New device → verification screen
       if (result.needsDeviceVerification) {
         setState(() => _isLoading = false);
-        // Close out any pending Android autofill session before
-        // leaving this password field's screen — avoids a native crash.
         TextInput.finishAutofillContext();
         Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => LoginVerificationScreen(email: email),
-          ),
+          MaterialPageRoute(builder: (_) => LoginVerificationScreen(email: email)),
         );
         return;
       }
 
-      // Success → home or profile setup
       if (result.success && result.user != null) {
         final user = KoraUserSession.fromMap(result.user!);
         await SessionManager.instance.saveSession(result.user!);
-        // Save last email for backup PIN pre-fill
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('kora_last_email', email);
         if (!mounted) return;
@@ -215,10 +194,7 @@ class _LogInScreenState extends State<LogInScreen> {
         } else {
           Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute(
-              builder: (_) => ProfileSetupScreen(
-                email: email,
-                userData: result.user!,
-              ),
+              builder: (_) => ProfileSetupScreen(email: email, userData: result.user!),
             ),
             (route) => false,
           );
@@ -254,14 +230,13 @@ class _LogInScreenState extends State<LogInScreen> {
         ),
       ),
       body: SafeArea(
-        child: Form(
-          key: _formKey,
+        child: GestureDetector(
+          onTap: () => FocusScope.of(context).unfocus(),
           child: ListView(
             padding: const EdgeInsets.symmetric(horizontal: 24),
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             children: [
               const SizedBox(height: 8),
-
-              // Title
               const Text(
                 'Welcome back',
                 style: TextStyle(
@@ -277,7 +252,6 @@ class _LogInScreenState extends State<LogInScreen> {
                 style: TextStyle(color: Color(0xFFA0A0B8), fontSize: 15),
               ),
 
-              // Error banner
               if (_errorMessage != null) ...[
                 const SizedBox(height: 16),
                 Container(
@@ -303,12 +277,13 @@ class _LogInScreenState extends State<LogInScreen> {
               ],
               const SizedBox(height: 32),
 
-              // Email
               KoraInput(
                 label: 'Email',
                 controller: _emailController,
+                focusNode: _emailFocus,
                 keyboardType: TextInputType.emailAddress,
-                validator: _validateEmail,
+                textInputAction: TextInputAction.next,
+                onFieldSubmitted: (_) => _passwordFocus.requestFocus(),
                 prefixIcon: const Padding(
                   padding: EdgeInsets.only(left: 14, right: 10),
                   child: Icon(Icons.email_outlined, color: Color(0xFF6B6B80), size: 22),
@@ -316,12 +291,13 @@ class _LogInScreenState extends State<LogInScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Password
               KoraInput(
                 label: 'Password',
                 controller: _passwordController,
+                focusNode: _passwordFocus,
                 obscureText: true,
-                validator: _validatePassword,
+                textInputAction: TextInputAction.done,
+                onFieldSubmitted: (_) => _submit(),
                 prefixIcon: const Padding(
                   padding: EdgeInsets.only(left: 14, right: 10),
                   child: Icon(Icons.lock_outline, color: Color(0xFF6B6B80), size: 22),
@@ -329,7 +305,6 @@ class _LogInScreenState extends State<LogInScreen> {
               ),
               const SizedBox(height: 12),
 
-              // Forgot password
               Align(
                 alignment: Alignment.centerRight,
                 child: GestureDetector(
@@ -340,17 +315,12 @@ class _LogInScreenState extends State<LogInScreen> {
                   },
                   child: const Text(
                     'Forgot password?',
-                    style: TextStyle(
-                      color: KoraColors.purple,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: TextStyle(color: KoraColors.purple, fontSize: 14, fontWeight: FontWeight.w600),
                   ),
                 ),
               ),
               const SizedBox(height: 28),
 
-              // Log In button
               KoraButton(
                 label: 'Log In',
                 onPressed: _submit,
@@ -358,7 +328,6 @@ class _LogInScreenState extends State<LogInScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Create account link
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -374,11 +343,7 @@ class _LogInScreenState extends State<LogInScreen> {
                     },
                     child: const Text(
                       'Create Account',
-                      style: TextStyle(
-                        color: KoraColors.purple,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: TextStyle(color: KoraColors.purple, fontSize: 14, fontWeight: FontWeight.w600),
                     ),
                   ),
                 ],

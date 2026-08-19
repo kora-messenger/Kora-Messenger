@@ -19,6 +19,9 @@ class KoraInput extends StatefulWidget {
   final VoidCallback? onTap;
   final String? hintText;
   final ValueChanged<String>? onChanged;
+  final FocusNode? focusNode;
+  final TextInputAction? textInputAction;
+  final ValueChanged<String>? onFieldSubmitted;
 
   const KoraInput({
     super.key,
@@ -36,6 +39,9 @@ class KoraInput extends StatefulWidget {
     this.onTap,
     this.hintText,
     this.onChanged,
+    this.focusNode,
+    this.textInputAction,
+    this.onFieldSubmitted,
   });
 
   @override
@@ -78,14 +84,17 @@ class _KoraInputState extends State<KoraInput> {
       onFocusChange: (focused) => setState(() => _hasFocus = focused),
       child: TextFormField(
         controller: widget.controller,
+        focusNode: widget.focusNode,
         obscureText: _obscure,
         keyboardType: widget.keyboardType,
+        textInputAction: widget.textInputAction,
         validator: widget.validator,
         maxLines: widget.obscureText ? 1 : widget.maxLines,
         maxLength: widget.maxLength,
         readOnly: widget.readOnly,
         onChanged: widget.onChanged,
         onTap: widget.onTap,
+        onFieldSubmitted: widget.onFieldSubmitted,
         style: TextStyle(
           color: textColor,
           fontSize: 16,

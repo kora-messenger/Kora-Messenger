@@ -11,8 +11,8 @@ import 'new_password_screen.dart';
 
 /// Kora's unified 6-digit verification-code screen.
 ///
-/// Used for the registration, login-device-verification, and
-/// password-reset flows. Behavior contract (per Kora's design rules):
+/// Used for the registration and password-reset flows. Behavior
+/// contract (per Kora's design rules):
 ///   • No submit button — verification fires automatically the instant
 ///     the 6th digit is entered.
 ///   • The code auto-fills from the clipboard when a fresh 6-digit
@@ -41,9 +41,9 @@ class _VerificationScreenState extends State<VerificationScreen>
   static const Duration _clipboardPollInterval = Duration(milliseconds: 1500);
 
   final AuthService _auth = AuthService.instance;
-  late final List<TextEditingController> _controllers =
+  final List<TextEditingController> _controllers =
       List.generate(_codeLength, (_) => TextEditingController());
-  late final List<FocusNode> _focusNodes =
+  final List<FocusNode> _focusNodes =
       List.generate(_codeLength, (_) => FocusNode());
 
   Timer? _countdownTimer;
@@ -70,6 +70,9 @@ class _VerificationScreenState extends State<VerificationScreen>
     _startResendCountdown();
     _snapshotClipboard();
     _clipboardTimer = Timer.periodic(_clipboardPollInterval, (_) => _checkClipboard());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _focusNodes[0].requestFocus();
+    });
   }
 
   @override
@@ -438,11 +441,7 @@ class _VerificationScreenState extends State<VerificationScreen>
                     onTap: _changeEmail,
                     child: const Text(
                       'Change',
-                      style: TextStyle(
-                        color: KoraColors.purple,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: TextStyle(color: KoraColors.purple, fontSize: 13, fontWeight: FontWeight.w600),
                     ),
                   ),
                 ],
@@ -529,12 +528,7 @@ class _VerificationScreenState extends State<VerificationScreen>
           keyboardType: TextInputType.number,
           textAlign: TextAlign.center,
           maxLength: 1,
-          autofocus: index == 0,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
           decoration: InputDecoration(
             counterText: '',
             enabledBorder: OutlineInputBorder(
@@ -588,11 +582,7 @@ class _VerificationScreenState extends State<VerificationScreen>
             onTap: _resend,
             child: const Text(
               'Resend code',
-              style: TextStyle(
-                color: KoraColors.purple,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-              ),
+              style: TextStyle(color: KoraColors.purple, fontSize: 14, fontWeight: FontWeight.w600),
             ),
           ),
       ],

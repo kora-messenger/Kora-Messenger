@@ -16,14 +16,12 @@ import '../services/crash_logger.dart';
 /// - 6-digit code entry with auto-verify (no button press needed)
 /// - "Recognize this device" toggle (saves device for future auto-login)
 /// - Resend code with 60s countdown
+/// - Clipboard auto-fill
 /// - Kora's dark theme design language
 class LoginVerificationScreen extends StatefulWidget {
   final String email;
 
-  const LoginVerificationScreen({
-    super.key,
-    required this.email,
-  });
+  const LoginVerificationScreen({super.key, required this.email});
 
   @override
   State<LoginVerificationScreen> createState() => _LoginVerificationScreenState();
@@ -31,19 +29,23 @@ class LoginVerificationScreen extends StatefulWidget {
 
 class _LoginVerificationScreenState extends State<LoginVerificationScreen>
     with WidgetsBindingObserver {
+  static const int _codeLength = 6;
+  static const int _resendCooldownSeconds = 60;
+
   final AuthService _auth = AuthService.instance;
   final List<TextEditingController> _controllers =
-      List.generate(6, (_) => TextEditingController());
-  final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
+      List.generate(_codeLength, (_) => TextEditingController());
+  final List<FocusNode> _focusNodes = List.generate(_codeLength, (_) => FocusNode());
 
   Timer? _countdownTimer;
-  int _countdown = 60;
+  Timer? _clipboardTimer;
+  int _countdown = _resendCooldownSeconds;
   String? _errorMessage;
   bool _isVerifying = false;
   bool _isResending = false;
   bool _recognizeDevice = true;
-  String? _initialClipboard;
-  Timer? _clipboardTimer;
+  bool _verifyTriggered = false;
+  String _initialClipboard = '';
 
   @override
   void initState() {
@@ -51,54 +53,10 @@ class _LoginVerificationScreenState extends State<LoginVerificationScreen>
     WidgetsBinding.instance.addObserver(this);
     _startCountdown();
     _snapshotClipboard();
-    // Auto-focus the first box
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _focusNodes[0].requestFocus();
+      if (mounted) _focusNodes[0].requestFocus();
     });
-    // Poll clipboard for codes copied from notifications
-    _clipboardTimer = Timer.periodic(const Duration(milliseconds: 1500), (_) {
-      _checkClipboard();
-    });
-  }
-
-  Future<void> _snapshotClipboard() async {
-    try {
-      final data = await Clipboard.getData('text/plain');
-      _initialClipboard = data?.text?.trim() ?? '';
-    } catch (_) {
-      _initialClipboard = '';
-    }
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      _checkClipboard();
-    }
-  }
-
-  Future<void> _checkClipboard() async {
-    if (_enteredCode.length >= 6 || _isVerifying) return;
-    try {
-      final data = await Clipboard.getData('text/plain');
-      final text = data?.text?.trim() ?? '';
-      if (text == _initialClipboard) return;
-      final match = RegExp(r'(\d{6})').firstMatch(text);
-      if (match != null) {
-        _fillCode(match.group(1)!);
-      }
-    } catch (_) {}
-  }
-
-  void _fillCode(String code) {
-    final sixDigits = code.replaceAll(RegExp(r'[^\d]'), '');
-    if (sixDigits.length < 6) return;
-    for (int i = 0; i < 6; i++) {
-      _controllers[i].text = sixDigits[i];
-    }
-    _focusNodes[5].unfocus();
-    setState(() {});
-    _onCodeChanged();
+    _clipboardTimer = Timer.periodic(const Duration(milliseconds: 1500), (_) => _checkClipboard());
   }
 
   @override
@@ -115,84 +73,156 @@ class _LoginVerificationScreenState extends State<LoginVerificationScreen>
     super.dispose();
   }
 
-  void _startCountdown() {
-    _countdownTimer?.cancel();
-    _countdown = 60;
-    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (mounted) {
-        setState(() {
-          if (_countdown > 0) {
-            _countdown--;
-          } else {
-            timer.cancel();
-          }
-        });
-      } else {
-        timer.cancel();
-      }
-    });
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkClipboard();
+    }
   }
 
-  String get _maskedEmail => _auth.maskEmail(widget.email);
+  // ── Clipboard auto-fill ──────────────────────────────────────
+
+  Future<void> _snapshotClipboard() async {
+    try {
+      final data = await Clipboard.getData('text/plain');
+      _initialClipboard = data?.text?.trim() ?? '';
+    } catch (_) {
+      _initialClipboard = '';
+    }
+  }
+
+  Future<void> _checkClipboard() async {
+    if (!mounted || _enteredCode.length == _codeLength || _isVerifying) return;
+    try {
+      final data = await Clipboard.getData('text/plain');
+      final text = data?.text?.trim() ?? '';
+      if (text.isEmpty || text == _initialClipboard) return;
+      final match = RegExp(r'(\d{6})').firstMatch(text);
+      if (match == null) return;
+      _initialClipboard = text;
+      _fillCode(match.group(1)!);
+    } catch (_) {
+      // Ignore clipboard access errors.
+    }
+  }
+
+  // ── Code entry ────────────────────────────────────────────────
+
   String get _enteredCode => _controllers.map((c) => c.text).join();
 
-  /// Auto-verify when all 6 digits are entered.
-  void _onCodeChanged() {
-    if (_enteredCode.length == 6 && !_isVerifying) {
+  void _fillCode(String digits) {
+    final clean = digits.replaceAll(RegExp(r'[^\d]'), '');
+    if (clean.length < _codeLength || !mounted) return;
+    for (int i = 0; i < _codeLength; i++) {
+      _controllers[i].text = clean[i];
+    }
+    _focusNodes[_codeLength - 1].unfocus();
+    setState(() => _errorMessage = null);
+    _maybeAutoVerify();
+  }
+
+  void _onDigitChanged(int index, String value) {
+    if (value.length > 1) {
+      final digits = value.replaceAll(RegExp(r'[^\d]'), '');
+      if (digits.length >= _codeLength) {
+        _fillCode(digits.substring(0, _codeLength));
+        return;
+      }
+      for (int i = 0; i < digits.length && (index + i) < _codeLength; i++) {
+        _controllers[index + i].text = digits[i];
+      }
+      final nextIndex = index + digits.length;
+      if (nextIndex < _codeLength) {
+        _focusNodes[nextIndex].requestFocus();
+      }
+      setState(() {});
+      _maybeAutoVerify();
+      return;
+    }
+
+    if (value.isNotEmpty && index < _codeLength - 1) {
+      _focusNodes[index + 1].requestFocus();
+    }
+    setState(() => _errorMessage = null);
+    _maybeAutoVerify();
+  }
+
+  void _onBackspaceOnEmptyBox(int index) {
+    if (index == 0) return;
+    _controllers[index - 1].clear();
+    _focusNodes[index - 1].requestFocus();
+    setState(() {});
+  }
+
+  void _maybeAutoVerify() {
+    if (_enteredCode.length == _codeLength && !_verifyTriggered && !_isVerifying) {
+      _verifyTriggered = true;
       _verify();
     }
   }
 
+  void _clearInputs() {
+    for (final c in _controllers) {
+      c.clear();
+    }
+    _verifyTriggered = false;
+    if (mounted) setState(() {});
+    _focusNodes[0].requestFocus();
+  }
+
+  // ── Verification ──────────────────────────────────────────────
+
   Future<void> _verify() async {
-    if (_isVerifying) return;
+    if (_enteredCode.length < _codeLength) {
+      _verifyTriggered = false;
+      return;
+    }
 
     _clipboardTimer?.cancel();
-
     setState(() {
       _isVerifying = true;
       _errorMessage = null;
     });
 
     try {
-    final result = await _auth.verifyLogin(
-      email: widget.email,
-      code: _enteredCode,
-      recognizeDevice: _recognizeDevice,
-    );
+      final result = await _auth.verifyLogin(
+        email: widget.email,
+        code: _enteredCode,
+        recognizeDevice: _recognizeDevice,
+      );
 
-    if (!mounted) return;
-
-    if (result.success && result.user != null) {
-      // Save session
-      await SessionManager.instance.saveSession(result.user!);
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('kora_last_email', widget.email);
       if (!mounted) return;
 
-      final user = KoraUserSession.fromMap(result.user!);
-      if (user.profileCompleted) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const KoraHomeScreen()),
-          (route) => false,
-        );
-      } else {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(
-            builder: (_) => ProfileSetupScreen(
-              email: result.user!['email'] as String,
-              userData: result.user!,
+      if (result.success && result.user != null) {
+        await SessionManager.instance.saveSession(result.user!);
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('kora_last_email', widget.email);
+        if (!mounted) return;
+
+        final user = KoraUserSession.fromMap(result.user!);
+        if (user.profileCompleted) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const KoraHomeScreen()),
+            (route) => false,
+          );
+        } else {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(
+              builder: (_) => ProfileSetupScreen(
+                email: result.user!['email'] as String,
+                userData: result.user!,
+              ),
             ),
-          ),
-          (route) => false,
-        );
+            (route) => false,
+          );
+        }
+      } else {
+        setState(() {
+          _isVerifying = false;
+          _errorMessage = result.error ?? 'Verification failed';
+        });
+        _clearInputs();
       }
-    } else {
-      setState(() {
-        _isVerifying = false;
-        _errorMessage = result.error ?? 'Verification failed';
-      });
-      _clearInputs();
-    }
     } catch (e, stack) {
       await CrashLogger.log(e, stackTrace: stack, context: 'LoginVerificationScreen._verify');
       if (mounted) {
@@ -205,6 +235,24 @@ class _LoginVerificationScreenState extends State<LoginVerificationScreen>
     }
   }
 
+  // ── Resend ──────────────────────────────────────────────────────
+
+  void _startCountdown() {
+    _countdownTimer?.cancel();
+    _countdown = _resendCooldownSeconds;
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_countdown <= 0) {
+        timer.cancel();
+        return;
+      }
+      setState(() => _countdown--);
+    });
+  }
+
   Future<void> _resend() async {
     if (_countdown > 0 || _isResending) return;
 
@@ -213,33 +261,29 @@ class _LoginVerificationScreenState extends State<LoginVerificationScreen>
       _errorMessage = null;
     });
 
-    final result = await _auth.sendVerificationCode(widget.email, type: 'login');
+    try {
+      final result = await _auth.sendVerificationCode(widget.email, type: 'login');
+      if (!mounted) return;
 
-    if (!mounted) return;
-
-    if (result.success) {
-      _clearInputs();
-      _startCountdown();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('A new code has been sent to your email.'),
-          backgroundColor: KoraColors.darkCard,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    } else {
-      setState(() => _errorMessage = result.error ?? 'Failed to resend code');
+      if (result.success) {
+        _clearInputs();
+        _startCountdown();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('A new code has been sent to your email.'),
+            backgroundColor: KoraColors.darkCard,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      } else {
+        setState(() => _errorMessage = result.error ?? 'Failed to resend code');
+      }
+    } finally {
+      if (mounted) setState(() => _isResending = false);
     }
-
-    setState(() => _isResending = false);
   }
 
-  void _clearInputs() {
-    for (final c in _controllers) {
-      c.clear();
-    }
-    _focusNodes[0].requestFocus();
-  }
+  String get _maskedEmail => _auth.maskEmail(widget.email);
 
   @override
   Widget build(BuildContext context) {
@@ -262,24 +306,15 @@ class _LoginVerificationScreenState extends State<LoginVerificationScreen>
             children: [
               const SizedBox(height: 8),
 
-              // Shield icon
               Center(
                 child: Container(
                   width: 64,
                   height: 64,
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [KoraColors.purple, KoraColors.blue],
-                    ),
+                    gradient: KoraColors.brandGradient,
                     borderRadius: BorderRadius.circular(18),
                   ),
-                  child: const Icon(
-                    Icons.shield_outlined,
-                    color: Colors.white,
-                    size: 32,
-                  ),
+                  child: const Icon(Icons.shield_outlined, color: Colors.white, size: 32),
                 ),
               ),
               const SizedBox(height: 20),
@@ -320,22 +355,16 @@ class _LoginVerificationScreenState extends State<LoginVerificationScreen>
                     onTap: () => Navigator.of(context).pop(),
                     child: const Text(
                       'Change',
-                      style: TextStyle(
-                        color: KoraColors.purple,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: TextStyle(color: KoraColors.purple, fontSize: 13, fontWeight: FontWeight.w600),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 36),
 
-              // Code boxes
               _buildCodeBoxes(),
               const SizedBox(height: 16),
 
-              // Error message
               if (_errorMessage != null)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8),
@@ -353,7 +382,6 @@ class _LoginVerificationScreenState extends State<LoginVerificationScreen>
                   ),
                 ),
 
-              // Loading indicator (auto-verify in progress)
               if (_isVerifying)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 8),
@@ -361,25 +389,19 @@ class _LoginVerificationScreenState extends State<LoginVerificationScreen>
                     child: SizedBox(
                       width: 24,
                       height: 24,
-                      child: CircularProgressIndicator(
-                        color: KoraColors.purple,
-                        strokeWidth: 2.5,
-                      ),
+                      child: CircularProgressIndicator(color: KoraColors.purple, strokeWidth: 2.5),
                     ),
                   ),
                 ),
 
               const SizedBox(height: 12),
 
-              // Recognize this device toggle
               _buildRecognizeToggle(),
               const SizedBox(height: 24),
 
-              // Resend section
               _buildResendSection(),
               const Spacer(),
 
-              // Info about device trust
               Padding(
                 padding: const EdgeInsets.only(bottom: 24),
                 child: Center(
@@ -387,18 +409,12 @@ class _LoginVerificationScreenState extends State<LoginVerificationScreen>
                     children: [
                       Text(
                         'Codes expire in 10 minutes.',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.25),
-                          fontSize: 12,
-                        ),
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.25), fontSize: 12),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         'New devices become trusted after 1 month of use.',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          fontSize: 11,
-                        ),
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.2), fontSize: 11),
                       ),
                     ],
                   ),
@@ -414,161 +430,116 @@ class _LoginVerificationScreenState extends State<LoginVerificationScreen>
   Widget _buildCodeBoxes() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: List.generate(6, (index) {
-        return SizedBox(
-          width: 48,
-          height: 56,
-          child: TextField(
-            controller: _controllers[index],
-            focusNode: _focusNodes[index],
-            keyboardType: TextInputType.number,
-            textAlign: TextAlign.center,
-            maxLength: 1,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
+      children: List.generate(_codeLength, (index) => _buildCodeBox(index)),
+    );
+  }
+
+  Widget _buildCodeBox(int index) {
+    final filled = _controllers[index].text.isNotEmpty;
+    return SizedBox(
+      width: 48,
+      height: 56,
+      child: KeyboardListener(
+        focusNode: _focusNodes[index],
+        onKeyEvent: (event) {
+          if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.backspace) {
+            if (_controllers[index].text.isEmpty) {
+              _onBackspaceOnEmptyBox(index);
+            }
+          }
+        },
+        child: TextField(
+          controller: _controllers[index],
+          focusNode: _focusNodes[index],
+          enabled: !_isVerifying,
+          keyboardType: TextInputType.number,
+          textAlign: TextAlign.center,
+          maxLength: 1,
+          style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+          decoration: InputDecoration(
+            counterText: '',
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(
+                color: filled ? KoraColors.purple : const Color(0xFF2E2E42),
+                width: 2,
+              ),
             ),
-            decoration: InputDecoration(
-              counterText: '',
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(
-                  color: _controllers[index].text.isNotEmpty
-                      ? KoraColors.purple
-                      : const Color(0xFF2A2A3E),
-                  width: 1.5,
-                ),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: KoraColors.purple, width: 2),
-              ),
-              errorBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
-              ),
-              focusedErrorBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Colors.redAccent, width: 2),
-              ),
-              filled: true,
-              fillColor: const Color(0xFF14141F),
-              contentPadding: EdgeInsets.zero,
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: KoraColors.purple, width: 2),
             ),
-            onChanged: (value) {
-              if (value.length == 1 && index < 5) {
-                _focusNodes[index + 1].requestFocus();
-              }
-              setState(() {});
-              _onCodeChanged();
-            },
-            onTap: () {
-              if (_controllers[index].text.isNotEmpty) {
-                _controllers[index].clear();
-                setState(() {});
-              }
-            },
+            disabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(
+                color: filled ? KoraColors.purple : const Color(0xFF2E2E42),
+                width: 2,
+              ),
+            ),
+            filled: true,
+            fillColor: KoraColors.darkCard,
           ),
-        );
-      }),
+          onChanged: (value) => _onDigitChanged(index, value),
+        ),
+      ),
     );
   }
 
   Widget _buildRecognizeToggle() {
-    return GestureDetector(
-      onTap: () {
-        setState(() => _recognizeDevice = !_recognizeDevice);
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: const Color(0xFF14141F),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: _recognizeDevice
-                ? KoraColors.purple.withValues(alpha: 0.5)
-                : const Color(0xFF2A2A3E),
-            width: 1,
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: KoraColors.darkCard,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.verified_user_outlined, color: Color(0xFF6B6B80), size: 20),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Text(
+              'Recognize this device next time',
+              style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500),
+            ),
           ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 22,
-              height: 22,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: _recognizeDevice ? KoraColors.purple : const Color(0xFF6B6B80),
-                  width: 2,
-                ),
-                color: _recognizeDevice ? KoraColors.purple : Colors.transparent,
-              ),
-              child: _recognizeDevice
-                  ? const Icon(Icons.check, color: Colors.white, size: 16)
-                  : null,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Recognize this device',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    _recognizeDevice
-                        ? 'You won\'t need a code next time you log in here.'
-                        : 'You\'ll need a verification code each time you log in.',
-                    style: const TextStyle(color: Color(0xFF6B6B80), fontSize: 12),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+          Switch(
+            value: _recognizeDevice,
+            onChanged: (value) => setState(() => _recognizeDevice = value),
+            activeColor: KoraColors.purple,
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildResendSection() {
-    if (_countdown > 0) {
-      return Center(
-        child: Text(
-          'Resend code in ${_countdown}s',
-          style: const TextStyle(color: Color(0xFF6B6B80), fontSize: 13),
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Text(
+          "Didn't get the code? ",
+          style: TextStyle(color: Color(0xFFA0A0B8), fontSize: 14),
         ),
-      );
-    }
-
-    return Center(
-      child: GestureDetector(
-        onTap: _resend,
-        child: _isResending
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  color: KoraColors.purple,
-                  strokeWidth: 2,
-                ),
-              )
-            : const Text(
-                'Resend code',
-                style: TextStyle(
-                  color: KoraColors.purple,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-      ),
+        if (_countdown > 0)
+          Text(
+            'Resend in ${_countdown}s',
+            style: const TextStyle(color: Color(0xFF6B6B80), fontSize: 14),
+          )
+        else if (_isResending)
+          const SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(strokeWidth: 2, color: KoraColors.purple),
+          )
+        else
+          GestureDetector(
+            onTap: _resend,
+            child: const Text(
+              'Resend code',
+              style: TextStyle(color: KoraColors.purple, fontSize: 14, fontWeight: FontWeight.w600),
+            ),
+          ),
+      ],
     );
   }
 }
