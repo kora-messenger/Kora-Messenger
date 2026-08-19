@@ -166,7 +166,9 @@ class _SecurePinScreenState extends State<SecurePinScreen> {
           await SessionManager.instance.saveSession(session);
         }
 
-        ScaffoldMessenger.of(context).showSnackBar(
+        if (!mounted) return;
+        final messenger = ScaffoldMessenger.of(context);
+        messenger.showSnackBar(
           const SnackBar(
             content: Text('Secure PIN saved successfully.'),
             backgroundColor: KoraColors.purple,
@@ -174,6 +176,7 @@ class _SecurePinScreenState extends State<SecurePinScreen> {
           ),
         );
 
+        if (!mounted) return;
         Navigator.of(context).pop();
       } else {
         setState(() {
