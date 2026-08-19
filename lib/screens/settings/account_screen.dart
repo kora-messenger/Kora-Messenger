@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../theme/kora_colors.dart';
 import '../../services/session_manager.dart';
-import '../../services/auth_service.dart';
 import '../../config/kora_api.dart';
 
 /// Account settings screen — request account info, delete account,
