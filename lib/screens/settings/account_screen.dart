@@ -3,8 +3,7 @@ import '../../theme/kora_colors.dart';
 import '../../services/session_manager.dart';
 import '../../config/kora_api.dart';
 
-/// Account settings screen — request account info, delete account,
-/// and view account details.
+/// Account settings screen — security, account details, and data management.
 class AccountScreen extends StatefulWidget {
   const AccountScreen({super.key});
 
@@ -17,6 +16,8 @@ class _AccountScreenState extends State<AccountScreen> {
   bool _loading = true;
   bool _requestingInfo = false;
   bool _deletingAccount = false;
+  bool _loggingOut = false;
+  String _confirmDeleteText = '';
 
   @override
   void initState() {
@@ -33,6 +34,8 @@ class _AccountScreenState extends State<AccountScreen> {
       });
     }
   }
+
+  // ── 3-dot menu actions ──────────────────────────────────────
 
   Future<void> _requestAccountInfo() async {
     if (_session == null) return;
@@ -246,8 +249,6 @@ class _AccountScreenState extends State<AccountScreen> {
     );
   }
 
-  String _confirmDeleteText = '';
-
   Future<void> _deleteAccount() async {
     if (_session == null) return;
 
@@ -263,12 +264,10 @@ class _AccountScreenState extends State<AccountScreen> {
       if (!mounted) return;
 
       if (result['success'] == true) {
-        // Clear local session
         await SessionManager.instance.clearSession();
 
         if (!mounted) return;
 
-        // Navigate to welcome screen, removing all previous routes
         Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
       } else {
         setState(() => _deletingAccount = false);
@@ -281,11 +280,41 @@ class _AccountScreenState extends State<AccountScreen> {
     }
   }
 
+  // ── Logout ──────────────────────────────────────────────────
+
+  Future<void> _logout() async {
+    setState(() => _loggingOut = true);
+
+    try {
+      await SessionManager.instance.clearSession();
+
+      if (!mounted) return;
+
+      Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loggingOut = false);
+      _showError('Failed to log out. Please try again.');
+    }
+  }
+
+  // ── Helpers ─────────────────────────────────────────────────
+
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
         backgroundColor: Colors.red.shade800,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  void _showComingSoon(String feature) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$feature is coming soon.'),
+        backgroundColor: KoraColors.purple,
         behavior: SnackBarBehavior.floating,
       ),
     );
@@ -318,6 +347,44 @@ class _AccountScreenState extends State<AccountScreen> {
           icon: Icon(Icons.arrow_back, color: textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          PopupMenuButton<String>(
+            icon: Icon(Icons.more_vert, color: textPrimary),
+            color: card,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            onSelected: (value) {
+              if (value == 'request_info') {
+                _requestAccountInfo();
+              } else if (value == 'delete') {
+                _showDeleteConfirmation();
+              }
+            },
+            itemBuilder: (ctx) => [
+              PopupMenuItem<String>(
+                value: 'request_info',
+                child: Row(
+                  children: [
+                    Icon(Icons.download_outlined, color: KoraColors.purple, size: 20),
+                    const SizedBox(width: 12),
+                    Text('Request Account Info',
+                        style: TextStyle(color: textPrimary, fontSize: 14)),
+                  ],
+                ),
+              ),
+              PopupMenuItem<String>(
+                value: 'delete',
+                child: Row(
+                  children: [
+                    const Icon(Icons.delete_forever_outlined, color: Colors.red, size: 20),
+                    const SizedBox(width: 12),
+                    Text('Delete Account',
+                        style: TextStyle(color: Colors.red.shade400, fontSize: 14)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: KoraColors.purple))
@@ -385,45 +452,103 @@ class _AccountScreenState extends State<AccountScreen> {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 16),
-                          Divider(color: border, height: 1),
-                          const SizedBox(height: 14),
-                          _detailRow(Icons.email_outlined, _session!['email']?.toString() ?? 'N/A', textPrimary, textSecondary),
                         ],
                       ),
                     ),
                     const SizedBox(height: 24),
                   ],
 
-                  // ── DATA section ──────────────────────────────
-                  _sectionLabel('DATA', textMuted),
+                  // ── SECURITY section ───────────────────────────
+                  _sectionLabel('SECURITY', textMuted),
                   _actionTile(
                     context,
-                    icon: Icons.download_outlined,
+                    icon: Icons.key_rounded,
                     iconColor: KoraColors.purple,
-                    title: 'Request Account Info',
-                    subtitle: 'Download a copy of your account data',
-                    onTap: _requestingInfo ? null : _requestAccountInfo,
-                    trailing: _requestingInfo
-                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: KoraColors.purple))
-                        : Icon(Icons.chevron_right, color: textMuted),
+                    title: 'Passkeys',
+                    subtitle: 'Passwordless sign-in with passkeys',
+                    trailing: _buildToggle(false),
+                    onTap: () => _showComingSoon('Passkeys'),
+                  ),
+                  _actionTile(
+                    context,
+                    icon: Icons.email_outlined,
+                    iconColor: KoraColors.purple,
+                    title: 'Email Address',
+                    subtitle: _session?['email']?.toString() ?? 'N/A',
+                    onTap: () => _showComingSoon('Email management'),
+                    trailing: Icon(Icons.chevron_right, color: textMuted),
+                  ),
+                  _actionTile(
+                    context,
+                    icon: Icons.shield_outlined,
+                    iconColor: KoraColors.purple,
+                    title: '2FA Verification',
+                    subtitle: 'Two-factor authentication for extra security',
+                    trailing: _buildToggle(false),
+                    onTap: () => _showComingSoon('2FA verification'),
+                  ),
+                  _actionTile(
+                    context,
+                    icon: Icons.notifications_active_outlined,
+                    iconColor: KoraColors.purple,
+                    title: 'Security Notifications',
+                    subtitle: 'Alerts about suspicious activity',
+                    trailing: _buildToggle(true),
+                    onTap: () => _showComingSoon('Security notifications'),
                   ),
 
                   const SizedBox(height: 24),
 
-                  // ── DANGER section ─────────────────────────────
-                  _sectionLabel('DANGER ZONE', textMuted),
+                  // ── YOUR ACCOUNT section ───────────────────────
+                  _sectionLabel('YOUR ACCOUNT', textMuted),
                   _actionTile(
                     context,
-                    icon: Icons.delete_forever_outlined,
-                    iconColor: Colors.red,
-                    title: 'Delete Account',
-                    subtitle: 'Permanently erase your account and all data',
-                    onTap: _deletingAccount ? null : _showDeleteConfirmation,
-                    titleColor: Colors.red,
-                    trailing: _deletingAccount
-                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.red))
-                        : Icon(Icons.chevron_right, color: textMuted),
+                    icon: Icons.alternate_email_rounded,
+                    iconColor: KoraColors.purple,
+                    title: '@ Username',
+                    subtitle: '@${_session?['username']?.toString() ?? 'user'}',
+                    onTap: () => _showComingSoon('Username editing'),
+                    trailing: Icon(Icons.chevron_right, color: textMuted),
+                  ),
+                  _actionTile(
+                    context,
+                    icon: Icons.phone_outlined,
+                    iconColor: KoraColors.purple,
+                    title: 'Change Phone Number',
+                    subtitle: _session?['phoneNumber']?.toString() ?? 'Not set',
+                    onTap: () => _showComingSoon('Phone number change'),
+                    trailing: Icon(Icons.chevron_right, color: textMuted),
+                  ),
+
+                  const SizedBox(height: 32),
+
+                  // ── Logout button ─────────────────────────────
+                  SizedBox(
+                    width: double.infinity,
+                    child: TextButton(
+                      onPressed: _loggingOut ? null : _logout,
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.red.shade400,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          side: BorderSide(color: Colors.red.withValues(alpha: 0.3), width: 0.5),
+                        ),
+                      ),
+                      child: _loggingOut
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.red))
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.logout_rounded, size: 18),
+                                const SizedBox(width: 8),
+                                const Text('Log Out', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                              ],
+                            ),
+                    ),
                   ),
 
                   const SizedBox(height: 20),
@@ -443,7 +568,7 @@ class _AccountScreenState extends State<AccountScreen> {
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                            'Account deletion is permanent and irreversible. Your profile, messages, and premium features cannot be recovered once deleted.',
+                            'Manage your security settings and account details here. Use the menu above to request account info or delete your account.',
                             style: TextStyle(color: textSecondary, fontSize: 12.5, height: 1.5),
                           ),
                         ),
@@ -453,6 +578,19 @@ class _AccountScreenState extends State<AccountScreen> {
                 ],
               ),
             ),
+    );
+  }
+
+  // ── Widgets ─────────────────────────────────────────────────
+
+  Widget _buildToggle(bool value) {
+    return Switch.adaptive(
+      value: value,
+      onChanged: (v) {
+        // Coming soon — just show the snackbar
+        _showComingSoon('This setting');
+      },
+      activeColor: KoraColors.purple,
     );
   }
 
@@ -467,21 +605,6 @@ class _AccountScreenState extends State<AccountScreen> {
           fontWeight: FontWeight.w700,
           letterSpacing: 0.5,
         ),
-      ),
-    );
-  }
-
-  Widget _detailRow(IconData icon, String value, Color textPrimary, Color textSecondary) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: textSecondary),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(value, style: TextStyle(color: textPrimary, fontSize: 14)),
-          ),
-        ],
       ),
     );
   }
