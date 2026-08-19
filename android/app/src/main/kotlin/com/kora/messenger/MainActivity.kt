@@ -12,7 +12,8 @@ class MainActivity : FlutterActivity() {
     // All activity-alias names — must match AndroidManifest.xml
     private val allAliases = listOf(
         "IconClassic", "IconSunset", "IconEmerald", "IconMidnight", "IconRoseGold",
-        "IconOcean", "IconForest", "IconCrimson", "IconAurora", "IconCarbon"
+        "IconOcean", "IconForest", "IconCrimson", "IconAurora", "IconCarbon",
+        "IconNebula", "IconGalaxy"
     )
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {

@@ -168,6 +168,33 @@
             </intent-filter>
         </activity-alias>
 
+
+        <activity-alias
+            android:name=".IconNebula"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_icon_nebula"
+            android:label="Kora Messenger"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".IconGalaxy"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_icon_galaxy"
+            android:label="Kora Messenger"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />

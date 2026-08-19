@@ -5,7 +5,7 @@ import 'premium_subscribe_sheet.dart';
 import 'billing_screen.dart';
 import '../../services/app_icon_switcher.dart';
 
-/// App Icon picker — 10 Kora app icons. Premium only.
+/// App Icon picker — 12 Kora app icons. Premium only.
 ///
 /// Non-premium users see the icon grid locked with a
 /// "Choose your app icon with Kora Premium" banner and a
@@ -39,7 +39,8 @@ class _AppIconScreenState extends State<AppIconScreen> {
     if (mounted) setState(() {});
   }
 
-  // ── 10 Kora app icon definitions ─────────────────────────
+  // ── 12 Kora app icon definitions ─────────────────────────
+  // Icons 0-9 use gradient previews; icons 10-11 use real asset images.
   static const List<_KoraIconDef> _icons = [
     _KoraIconDef(name: 'Classic',   gradient: [Color(0xFF8B5CF6), Color(0xFF3B82F6)]),
     _KoraIconDef(name: 'Sunset',     gradient: [Color(0xFFEF4444), Color(0xFFF59E0B)]),
@@ -51,6 +52,8 @@ class _AppIconScreenState extends State<AppIconScreen> {
     _KoraIconDef(name: 'Crimson',    gradient: [Color(0xFFDC2626), Color(0xFF7C3AED)]),
     _KoraIconDef(name: 'Aurora',     gradient: [Color(0xFFA855F7), Color(0xFF2DD4BF)]),
     _KoraIconDef(name: 'Carbon',     gradient: [Color(0xFF374151), Color(0xFF111827)]),
+    _KoraIconDef(name: 'Nebula',     assetPath: 'assets/icons/icon_nebula.png'),
+    _KoraIconDef(name: 'Galaxy',     assetPath: 'assets/icons/icon_galaxy.png'),
   ];
 
   void _selectIcon(int index) {
@@ -183,15 +186,27 @@ class _AppIconScreenState extends State<AppIconScreen> {
                                 borderRadius: BorderRadius.circular(16),
                                 child: Stack(
                                   children: [
-                                    Container(
-                                      decoration: BoxDecoration(
-                                        gradient: LinearGradient(
-                                          begin: Alignment.topLeft,
-                                          end: Alignment.bottomRight,
-                                          colors: icon.gradient,
+                                    // ── Icon preview ──
+                                    if (icon.assetPath != null)
+                                      SizedBox(
+                                        width: 76,
+                                        height: 76,
+                                        child: Image.asset(
+                                          icon.assetPath!,
+                                          fit: BoxFit.cover,
+                                        ),
+                                      )
+                                    else
+                                      Container(
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                            colors: icon.gradient,
+                                          ),
                                         ),
                                       ),
-                                    ),
+                                    // ── Lock overlay for non-premium ──
                                     if (!isPremium)
                                       Container(
                                         color: Colors.black.withValues(alpha: 0.45),
@@ -203,7 +218,8 @@ class _AppIconScreenState extends State<AppIconScreen> {
                                           ),
                                         ),
                                       ),
-                                    if (isPremium)
+                                    // ── K letter for gradient icons (premium only) ──
+                                    if (isPremium && icon.assetPath == null)
                                       Center(
                                         child: Text(
                                           'K',
@@ -253,8 +269,6 @@ class _AppIconScreenState extends State<AppIconScreen> {
             ),
 
             // ── Bottom section ──
-            // Premium: "Set App Icon" button to apply the selected icon
-            // Non-premium: "Get Kora Premium" button to subscribe
             Container(
               padding: const EdgeInsets.fromLTRB(24, 16, 24, 28),
               decoration: BoxDecoration(
@@ -378,6 +392,11 @@ class _AppIconScreenState extends State<AppIconScreen> {
 
 class _KoraIconDef {
   final String name;
-  final List<Color> gradient;
-  const _KoraIconDef({required this.name, required this.gradient});
+  final List<Color>? gradient;
+  final String? assetPath;
+  const _KoraIconDef({
+    required this.name,
+    this.gradient,
+    this.assetPath,
+  });
 }
