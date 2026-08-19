@@ -230,145 +230,159 @@ class _SecurePinScreenState extends State<SecurePinScreen> {
         ),
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              const SizedBox(height: 8),
-
-              // Shield icon
-              Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  gradient: KoraColors.brandGradient,
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: const Icon(Icons.lock_outline, color: Colors.white, size: 30),
-              ),
-              const SizedBox(height: 20),
-
-              // Title
-              Text(
-                'Secure PIN',
-                style: TextStyle(color: textPrimary, fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: -0.5),
-              ),
-
-              // ── Warning description ──
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.orange.withValues(alpha: 0.25), width: 0.5),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // ── Scrollable top content ──
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Icon(Icons.warning_amber_rounded, color: Colors.orange.shade600, size: 20),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'Keep your backup key safe. Anyone with access to your backup PIN can get full access to your account.',
-                        style: TextStyle(color: textSecondary, fontSize: 12.5, height: 1.5),
+                    const SizedBox(height: 8),
+
+                    // Shield icon
+                    Container(
+                      width: 64,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        gradient: KoraColors.brandGradient,
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: const Icon(Icons.lock_outline, color: Colors.white, size: 30),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Title
+                    Text(
+                      'Secure PIN',
+                      style: TextStyle(color: textPrimary, fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: -0.5),
+                    ),
+
+                    // ── Warning description ──
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.orange.withValues(alpha: 0.25), width: 0.5),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(Icons.warning_amber_rounded, color: Colors.orange.shade600, size: 20),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Keep your backup key safe. Anyone with access to your backup PIN can get full access to your account.',
+                              style: TextStyle(color: textSecondary, fontSize: 12.5, height: 1.5),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
+                    const SizedBox(height: 24),
+
+                    // ── Step description ──
+                    Text(
+                      _step == 0
+                          ? 'Create a secure 6 digit PIN that you can remember'
+                          : 'Confirm your PIN',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: textSecondary, fontSize: 14, height: 1.4),
+                    ),
+                    const SizedBox(height: 28),
+
+                    // ── 6-digit PIN boxes ──
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: List.generate(_pinLength, (index) => _buildPinBox(index, textPrimary, card, border)),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Error message
+                    if (_errorMessage != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.error_outline, color: Colors.redAccent.shade400, size: 18),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(_errorMessage!, style: TextStyle(color: Colors.redAccent.shade400, fontSize: 13)),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                    // PIN mismatch hint
+                    if (_step == 1 && _enteredPin.length == _pinLength && _enteredPin != _createdPin)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Text('PINs do not match', style: TextStyle(color: Colors.redAccent.shade400, fontSize: 13)),
+                      ),
+
+                    const SizedBox(height: 12),
+
+                    // ── 2 progress dots ──
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _buildDot(_step == 0),
+                        const SizedBox(width: 10),
+                        _buildDot(_step == 1),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
+            ),
 
-              // ── Step description ──
-              Text(
-                _step == 0
-                    ? 'Create a secure 6 digit PIN that you can remember'
-                    : 'Confirm your PIN',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: textSecondary, fontSize: 14, height: 1.4),
-              ),
-              const SizedBox(height: 28),
-
-              // ── 6-digit PIN boxes ──
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: List.generate(_pinLength, (index) => _buildPinBox(index, textPrimary, card, border)),
-              ),
-              const SizedBox(height: 16),
-
-              // Error message
-              if (_errorMessage != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.error_outline, color: Colors.redAccent.shade400, size: 18),
-                      const SizedBox(width: 8),
-                      Text(_errorMessage!, style: TextStyle(color: Colors.redAccent.shade400, fontSize: 13)),
-                    ],
-                  ),
-                ),
-
-              // PIN mismatch hint
-              if (_step == 1 && _enteredPin.length == _pinLength && _enteredPin != _createdPin)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Text('PINs do not match', style: TextStyle(color: Colors.redAccent.shade400, fontSize: 13)),
-                ),
-
-              const Spacer(),
-
-              // ── 2 progress dots ──
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _buildDot(_step == 0),
-                  const SizedBox(width: 10),
-                  _buildDot(_step == 1),
-                ],
-              ),
-              const SizedBox(height: 20),
-
-              // ── Bottom button ──
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: _isConfirmPinValid && !_isSaving
-                        ? KoraColors.brandGradient
-                        : LinearGradient(colors: [
-                            KoraColors.purple.withValues(alpha: 0.3),
-                            KoraColors.blue.withValues(alpha: 0.3),
-                          ]),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: ElevatedButton(
-                    onPressed: _isConfirmPinValid && !_isSaving ? _save : null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.transparent,
-                      shadowColor: Colors.transparent,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      disabledBackgroundColor: Colors.transparent,
-                      disabledForegroundColor: Colors.white54,
+            // ── Bottom button (always pinned above the keyboard) ──
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+              child: Center(
+                child: SizedBox(
+                  width: 200,
+                  height: 52,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: _isConfirmPinValid && !_isSaving
+                          ? KoraColors.brandGradient
+                          : LinearGradient(colors: [
+                              KoraColors.purple.withValues(alpha: 0.3),
+                              KoraColors.blue.withValues(alpha: 0.3),
+                            ]),
+                      borderRadius: BorderRadius.circular(14),
                     ),
-                    child: _isSaving
-                        ? const SizedBox(
-                            width: 22, height: 22,
-                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
-                          )
-                        : Text(
-                            _step == 0 ? 'Next' : 'Save',
-                            style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700),
-                          ),
+                    child: ElevatedButton(
+                      onPressed: _isConfirmPinValid && !_isSaving ? _save : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        disabledBackgroundColor: Colors.transparent,
+                        disabledForegroundColor: Colors.white54,
+                      ),
+                      child: _isSaving
+                          ? const SizedBox(
+                              width: 22, height: 22,
+                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                            )
+                          : Text(
+                              _step == 0 ? 'Next' : 'Save',
+                              style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700),
+                            ),
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(height: 24),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
