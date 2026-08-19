@@ -1,8 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../theme/kora_colors.dart';
+import '../../services/auth_service.dart';
+import '../../services/session_manager.dart';
+import '../../services/crash_logger.dart';
+import 'two_factor_verify_screen.dart';
+import 'secure_pin_screen.dart';
 
-/// Two-factor authentication settings screen — adds an extra email
-/// verification step when signing in from a new or untrusted device.
+/// 2FA Verification settings screen.
+///
+/// Toggle requires email verification to turn ON or OFF.
+/// "Backup code" opens the Secure PIN creation flow.
 class TwoFactorScreen extends StatefulWidget {
   const TwoFactorScreen({super.key});
 
@@ -12,14 +20,81 @@ class TwoFactorScreen extends StatefulWidget {
 
 class _TwoFactorScreenState extends State<TwoFactorScreen> {
   bool _enabled = false;
+  bool _isLoading = false;
+  String? _userEmail;
 
-  void _viewBackupCodes() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Backup codes are coming soon.'),
-        backgroundColor: KoraColors.purple,
-        behavior: SnackBarBehavior.floating,
+  @override
+  void initState() {
+    super.initState();
+    _loadState();
+  }
+
+  Future<void> _loadState() async {
+    final session = await SessionManager.instance.loadSession();
+    if (mounted && session != null) {
+      setState(() {
+        _userEmail = session['email'] as String?;
+        _enabled = session['twoFactorEnabled'] == true;
+      });
+    }
+  }
+
+  Future<void> _onToggleChanged(bool value) async {
+    if (_isLoading) return;
+    if (_userEmail == null || _userEmail!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to determine your email. Please restart the app.'),
+          backgroundColor: Color(0xFFEF4444),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    final targetEnabled = value;
+
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => TwoFactorVerifyScreen(
+          email: _userEmail!,
+          enabling: targetEnabled,
+        ),
       ),
+    );
+
+    if (result == true && mounted) {
+      setState(() => _enabled = targetEnabled);
+      await _persistTwoFactor(targetEnabled);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(targetEnabled
+              ? 'Two-Factor Authentication is now enabled.'
+              : 'Two-Factor Authentication is now disabled.'),
+          backgroundColor: targetEnabled ? KoraColors.purple : const Color(0xFF6B6B80),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  Future<void> _persistTwoFactor(bool enabled) async {
+    try {
+      final session = await SessionManager.instance.loadSession();
+      if (session != null) {
+        session['twoFactorEnabled'] = enabled;
+        await SessionManager.instance.saveSession(session);
+      }
+    } catch (e, stack) {
+      await CrashLogger.log(e, stackTrace: stack, context: 'TwoFactorScreen._persistTwoFactor');
+    }
+  }
+
+  void _openBackupCodes() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const SecurePinScreen()),
     );
   }
 
@@ -38,6 +113,7 @@ class _TwoFactorScreenState extends State<TwoFactorScreen> {
       appBar: AppBar(
         backgroundColor: bg,
         elevation: 0,
+        scrolledUnderElevation: 0,
         title: Text(
           '2FA Verification',
           style: TextStyle(color: textPrimary, fontSize: 18, fontWeight: FontWeight.w700),
@@ -109,14 +185,14 @@ class _TwoFactorScreenState extends State<TwoFactorScreen> {
                   Switch.adaptive(
                     value: _enabled,
                     activeTrackColor: KoraColors.purple,
-                    onChanged: (v) => setState(() => _enabled = v),
+                    onChanged: _onToggleChanged,
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 12),
             InkWell(
-              onTap: _viewBackupCodes,
+              onTap: _openBackupCodes,
               borderRadius: BorderRadius.circular(14),
               child: Container(
                 padding: const EdgeInsets.all(16),
@@ -141,10 +217,10 @@ class _TwoFactorScreenState extends State<TwoFactorScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Backup Codes',
+                          Text('Backup code',
                               style: TextStyle(color: textPrimary, fontSize: 15, fontWeight: FontWeight.w600)),
                           const SizedBox(height: 3),
-                          Text('Use if you lose access to your email',
+                          Text('Create a secure PIN as a backup',
                               style: TextStyle(color: textSecondary, fontSize: 12.5)),
                         ],
                       ),
@@ -169,7 +245,7 @@ class _TwoFactorScreenState extends State<TwoFactorScreen> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Your account already sends a verification code for logins on new devices. Enabling 2FA here extends that protection to every sign-in.',
+                      'Toggling 2FA requires email verification. A code will be sent to ${_userEmail ?? 'your email'} to confirm it\'s you.',
                       style: TextStyle(color: textSecondary, fontSize: 12.5, height: 1.5),
                     ),
                   ),
