@@ -41,6 +41,25 @@ class _TwoFactorVerifyScreenState extends State<TwoFactorVerifyScreen> {
   String get _enteredCode => _controllers.map((c) => c.text).join();
 
   @override
+  void initState() {
+    super.initState();
+    _setupFocusNodeKeyHandlers();
+  }
+
+  void _setupFocusNodeKeyHandlers() {
+    for (int i = 0; i < _codeLength; i++) {
+      _focusNodes[i].onKeyEvent = (node, event) {
+        if (event is KeyDownEvent &&
+            event.logicalKey == LogicalKeyboardKey.backspace &&
+            _controllers[i].text.isEmpty) {
+          _onBackspaceOnEmptyBox(i);
+        }
+        return KeyEventResult.ignored;
+      };
+    }
+  }
+
+  @override
   void dispose() {
     for (final c in _controllers) {
       c.dispose();
@@ -369,16 +388,7 @@ class _TwoFactorVerifyScreenState extends State<TwoFactorVerifyScreen> {
     return SizedBox(
       width: 48,
       height: 56,
-      child: KeyboardListener(
-        focusNode: _focusNodes[index],
-        onKeyEvent: (event) {
-          if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.backspace) {
-            if (_controllers[index].text.isEmpty) {
-              _onBackspaceOnEmptyBox(index);
-            }
-          }
-        },
-        child: TextField(
+      child: TextField(
           controller: _controllers[index],
           focusNode: _focusNodes[index],
           enabled: !_isVerifying,

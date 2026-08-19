@@ -40,10 +40,24 @@ class _BackupPinLoginScreenState extends State<BackupPinLoginScreen> {
   @override
   void initState() {
     super.initState();
+    _setupFocusNodeKeyHandlers();
     _loadLastEmail();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _focusNodes[0].requestFocus();
     });
+  }
+
+  void _setupFocusNodeKeyHandlers() {
+    for (int i = 0; i < _pinLength; i++) {
+      _focusNodes[i].onKeyEvent = (node, event) {
+        if (event is KeyDownEvent &&
+            event.logicalKey == LogicalKeyboardKey.backspace &&
+            _controllers[i].text.isEmpty) {
+          _onBackspaceOnEmptyBox(i);
+        }
+        return KeyEventResult.ignored;
+      };
+    }
   }
 
   Future<void> _loadLastEmail() async {
@@ -368,16 +382,7 @@ class _BackupPinLoginScreenState extends State<BackupPinLoginScreen> {
     return SizedBox(
       width: 48,
       height: 56,
-      child: KeyboardListener(
-        focusNode: _focusNodes[index],
-        onKeyEvent: (event) {
-          if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.backspace) {
-            if (_controllers[index].text.isEmpty) {
-              _onBackspaceOnEmptyBox(index);
-            }
-          }
-        },
-        child: TextField(
+      child: TextField(
           controller: _controllers[index],
           focusNode: _focusNodes[index],
           enabled: !_isLoading,

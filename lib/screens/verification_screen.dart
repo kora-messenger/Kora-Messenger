@@ -66,6 +66,7 @@ class _VerificationScreenState extends State<VerificationScreen>
   @override
   void initState() {
     super.initState();
+    _setupFocusNodeKeyHandlers();
     WidgetsBinding.instance.addObserver(this);
     _startResendCountdown();
     _snapshotClipboard();
@@ -125,6 +126,19 @@ class _VerificationScreenState extends State<VerificationScreen>
       _fillCode(match.group(1)!);
     } catch (_) {
       // Clipboard access can fail on some platforms/permissions — ignore.
+    }
+  }
+
+  void _setupFocusNodeKeyHandlers() {
+    for (int i = 0; i < _codeLength; i++) {
+      _focusNodes[i].onKeyEvent = (node, event) {
+        if (event is KeyDownEvent &&
+            event.logicalKey == LogicalKeyboardKey.backspace &&
+            _controllers[i].text.isEmpty) {
+          _onBackspaceOnEmptyBox(i);
+        }
+        return KeyEventResult.ignored;
+      };
     }
   }
 
@@ -512,16 +526,7 @@ class _VerificationScreenState extends State<VerificationScreen>
     return SizedBox(
       width: 48,
       height: 56,
-      child: KeyboardListener(
-        focusNode: _focusNodes[index],
-        onKeyEvent: (event) {
-          if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.backspace) {
-            if (_controllers[index].text.isEmpty) {
-              _onBackspaceOnEmptyBox(index);
-            }
-          }
-        },
-        child: TextField(
+      child: TextField(
           controller: _controllers[index],
           focusNode: _focusNodes[index],
           enabled: !_isVerifying,
