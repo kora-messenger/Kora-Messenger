@@ -505,7 +505,7 @@ class _LoginVerificationScreenState extends State<LoginVerificationScreen>
           Switch(
             value: _recognizeDevice,
             onChanged: (value) => setState(() => _recognizeDevice = value),
-            activeColor: KoraColors.purple,
+            activeThumbColor: KoraColors.purple,
           ),
         ],
       ),
