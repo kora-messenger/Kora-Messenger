@@ -410,6 +410,65 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ success: true, user: getUserFromRecord(updated) });
     }
 
+
+    // ── REQUEST ACCOUNT INFO ────────────────────────────────
+    if (action === 'requestAccountInfo') {
+      const { userId, email } = body;
+      if (!userId || !email) return jsonResponse({ success: false, error: 'User ID and email are required' });
+
+      const user = await db.entities.KoraUser.get(userId);
+      if (!user) return jsonResponse({ success: false, error: 'Account not found' });
+
+      const userData = getUserFromRecord(user);
+      const trustedDevices = await db.entities.TrustedDevice.filter({ userEmail: email });
+
+      return jsonResponse({
+        success: true,
+        accountCreated: user.created_date || user.createdAt || 'N/A',
+        deviceCount: trustedDevices ? trustedDevices.length : 0,
+        profile: {
+          fullName: userData.fullName,
+          username: userData.username,
+          koraId: userData.koraId,
+          email: userData.email,
+          bio: userData.bio,
+          avatarUrl: userData.avatarUrl,
+          isVerified: userData.isVerified,
+          profileCompleted: userData.profileCompleted,
+        },
+      });
+    }
+
+    // ── DELETE ACCOUNT ──────────────────────────────────────
+    if (action === 'deleteAccount') {
+      const { userId, email } = body;
+      if (!userId || !email) return jsonResponse({ success: false, error: 'User ID and email are required' });
+
+      const user = await db.entities.KoraUser.get(userId);
+      if (!user) return jsonResponse({ success: false, error: 'Account not found' });
+
+      // Delete trusted devices
+      const devices = await db.entities.TrustedDevice.filter({ userEmail: email });
+      if (devices && devices.length > 0) {
+        for (const device of devices) {
+          await db.entities.TrustedDevice.delete(device.id);
+        }
+      }
+
+      // Delete verification codes
+      const codes = await db.entities.VerificationCode.filter({ email });
+      if (codes && codes.length > 0) {
+        for (const code of codes) {
+          await db.entities.VerificationCode.delete(code.id);
+        }
+      }
+
+      // Delete the user account
+      await db.entities.KoraUser.delete(userId);
+
+      return jsonResponse({ success: true, message: 'Account deleted successfully' });
+    }
+
     return jsonResponse({ success: false, error: `Unknown action: ${action}` });
   } catch (error: any) {
     console.error('koraAuth error:', error);

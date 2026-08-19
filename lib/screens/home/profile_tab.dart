@@ -3,6 +3,7 @@ import '../../theme/kora_colors.dart';
 import '../../widgets/kora_avatar.dart';
 import '../settings/appearance_screen.dart';
 import '../settings/crash_logs_screen.dart';
+import '../settings/account_screen.dart';
 import '../../services/crash_logger.dart';
 
 /// "Profile" tab — the user's own profile summary plus settings shortcuts.
@@ -75,7 +76,7 @@ class ProfileTab extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             _sectionLabel('ACCOUNT', textMuted),
-            _tile(context, Icons.person_outline, 'Account', 'Privacy, security, change number'),
+            _accountTile(context),
             _tile(context, Icons.chat_bubble_outline, 'Chats', 'Theme, wallpapers, chat history'),
             _appearanceTile(context),
             _tile(context, Icons.notifications_outlined, 'Notifications', 'Message, group & call tones'),
@@ -101,6 +102,64 @@ class ProfileTab extends StatelessWidget {
           fontSize: 12,
           fontWeight: FontWeight.w700,
           letterSpacing: 0.5,
+        ),
+      ),
+    );
+  }
+
+
+  Widget _accountTile(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
+    final textPrimary = KoraColors.textPrimaryFor(brightness);
+    final textSecondary = KoraColors.textSecondaryFor(brightness);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const AccountScreen()),
+          );
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: KoraColors.purple.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.person_outline, color: KoraColors.purple, size: 20),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Account',
+                      style: TextStyle(
+                        color: textPrimary,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Request info, delete account',
+                      style: TextStyle(color: textSecondary, fontSize: 12.5),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, color: KoraColors.textMutedFor(brightness)),
+            ],
+          ),
         ),
       ),
     );
