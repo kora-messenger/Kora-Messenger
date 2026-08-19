@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import '../theme/kora_colors.dart';
 import '../widgets/kora_avatar.dart';
+import 'new_group_details_screen.dart';
 
-/// New Group screen — shows frequently connected Kora users and contacts.
-/// Search bar filters by Name, Kora ID, or @Username.
-/// Back arrow at bottom-right returns to home.
+/// New Group screen — pick the people to add to a new group.
+///
+/// Recently-contacted Kora users show at the top under "RECENT",
+/// everyone else shows below under "ALL CONTACTS". Tapping a contact
+/// toggles a selection circle at the corner of their avatar. The
+/// forward arrow at the bottom-right continues to the group-details
+/// screen with the selected contacts.
 class NewGroupScreen extends StatefulWidget {
   const NewGroupScreen({super.key});
 
@@ -16,35 +21,79 @@ class _NewGroupScreenState extends State<NewGroupScreen> {
   final _searchController = TextEditingController();
   String _query = '';
 
+  /// Kora IDs of the contacts the user has selected for the new group.
+  final Set<String> _selectedIds = {};
+
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
   }
 
-  // Mock contacts — replace with real data later
-  final List<Map<String, String>> _contacts = [
-    {'name': 'Amara Chukwu', 'koraId': 'KM-830192746', 'username': '@amara_c', 'avatar': ''},
-    {'name': 'David Okoro', 'koraId': 'KM-471038291', 'username': '@davido', 'avatar': ''},
-    {'name': 'Grace Adeyemi', 'koraId': 'KM-205918374', 'username': '@grace_a', 'avatar': ''},
-    {'name': 'Emeka Nwosu', 'koraId': 'KM-673920184', 'username': '@emeka_n', 'avatar': ''},
-    {'name': 'Chidi Okafor', 'koraId': 'KM-918273645', 'username': '@chidi_o', 'avatar': ''},
-    {'name': 'Fatima Bello', 'koraId': 'KM-384756102', 'username': '@fatima_b', 'avatar': ''},
-    {'name': 'Tunde Bakare', 'koraId': 'KM-561029384', 'username': '@tunde_b', 'avatar': ''},
-    {'name': 'Ngozi Eze', 'koraId': 'KM-728394016', 'username': '@ngozi_e', 'avatar': ''},
-    {'name': 'Kola Adekunle', 'koraId': 'KM-193847562', 'username': '@kola_a', 'avatar': ''},
-    {'name': 'Zainab Ibrahim', 'koraId': 'KM-640192837', 'username': '@zainab_i', 'avatar': ''},
+  // Mock contacts — replace with real data later.
+  // `recent: true` means the user has messaged them recently, so they
+  // show under the "RECENT" section at the top.
+  final List<Map<String, Object>> _contacts = [
+    {'name': 'Amara Chukwu', 'koraId': 'KM-830192746', 'username': '@amara_c', 'recent': true},
+    {'name': 'David Okoro', 'koraId': 'KM-471038291', 'username': '@davido', 'recent': true},
+    {'name': 'Grace Adeyemi', 'koraId': 'KM-205918374', 'username': '@grace_a', 'recent': true},
+    {'name': 'Emeka Nwosu', 'koraId': 'KM-673920184', 'username': '@emeka_n', 'recent': false},
+    {'name': 'Chidi Okafor', 'koraId': 'KM-918273645', 'username': '@chidi_o', 'recent': false},
+    {'name': 'Fatima Bello', 'koraId': 'KM-384756102', 'username': '@fatima_b', 'recent': false},
+    {'name': 'Tunde Bakare', 'koraId': 'KM-561029384', 'username': '@tunde_b', 'recent': false},
+    {'name': 'Ngozi Eze', 'koraId': 'KM-728394016', 'username': '@ngozi_e', 'recent': false},
+    {'name': 'Kola Adekunle', 'koraId': 'KM-193847562', 'username': '@kola_a', 'recent': false},
+    {'name': 'Zainab Ibrahim', 'koraId': 'KM-640192837', 'username': '@zainab_i', 'recent': false},
   ];
 
-  List<Map<String, String>> get _filtered {
-    if (_query.isEmpty) return _contacts;
+  List<Map<String, Object>> get _recentContacts =>
+      _contacts.where((c) => c['recent'] == true).toList();
+
+  List<Map<String, Object>> get _allContacts =>
+      _contacts.where((c) => c['recent'] != true).toList();
+
+  List<Map<String, Object>> _filter(List<Map<String, Object>> source) {
+    if (_query.isEmpty) return source;
     final q = _query.toLowerCase();
-    return _contacts.where((c) {
-      final name = c['name']!.toLowerCase();
-      final koraId = c['koraId']!.toLowerCase();
-      final username = c['username']!.toLowerCase();
+    return source.where((c) {
+      final name = (c['name'] as String).toLowerCase();
+      final koraId = (c['koraId'] as String).toLowerCase();
+      final username = (c['username'] as String).toLowerCase();
       return name.contains(q) || koraId.contains(q) || username.contains(q);
     }).toList();
+  }
+
+  void _toggleSelection(String koraId) {
+    setState(() {
+      if (_selectedIds.contains(koraId)) {
+        _selectedIds.remove(koraId);
+      } else {
+        _selectedIds.add(koraId);
+      }
+    });
+  }
+
+  void _continue() {
+    if (_selectedIds.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Select at least one contact to continue.'),
+          backgroundColor: KoraColors.purple,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    final selectedContacts =
+        _contacts.where((c) => _selectedIds.contains(c['koraId'])).toList();
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => NewGroupDetailsScreen(members: selectedContacts),
+      ),
+    );
   }
 
   @override
@@ -75,7 +124,9 @@ class _NewGroupScreenState extends State<NewGroupScreen> {
                   const SizedBox(width: 16),
                   Expanded(
                     child: Text(
-                      'New Group',
+                      _selectedIds.isEmpty
+                          ? 'New Group'
+                          : '${_selectedIds.length} selected',
                       style: TextStyle(
                         color: textPrimary,
                         fontSize: 20,
@@ -128,14 +179,14 @@ class _NewGroupScreenState extends State<NewGroupScreen> {
             ),
             // Contact list
             Expanded(child: _buildList(context, textPrimary, textSecondary, textMuted)),
-            // Back arrow at bottom-right
+            // Forward arrow — continues to group details
             Padding(
               padding: const EdgeInsets.fromLTRB(0, 0, 20, 24),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   GestureDetector(
-                    onTap: () => Navigator.pop(context),
+                    onTap: _continue,
                     child: Container(
                       width: 56,
                       height: 56,
@@ -151,7 +202,7 @@ class _NewGroupScreenState extends State<NewGroupScreen> {
                         ],
                       ),
                       child: const Icon(
-                        Icons.arrow_back,
+                        Icons.arrow_forward,
                         color: Colors.white,
                         size: 26,
                       ),
@@ -167,9 +218,10 @@ class _NewGroupScreenState extends State<NewGroupScreen> {
   }
 
   Widget _buildList(BuildContext context, Color textPrimary, Color textSecondary, Color textMuted) {
-    final filtered = _filtered;
+    final recent = _filter(_recentContacts);
+    final all = _filter(_allContacts);
 
-    if (filtered.isEmpty) {
+    if (recent.isEmpty && all.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -182,30 +234,103 @@ class _NewGroupScreenState extends State<NewGroupScreen> {
       );
     }
 
-    return ListView.separated(
+    return ListView(
       padding: const EdgeInsets.only(bottom: 16),
-      itemCount: filtered.length,
-      separatorBuilder: (_, __) => Padding(
-        padding: const EdgeInsets.only(left: 76),
-        child: Divider(height: 1, color: textMuted.withValues(alpha: 0.08)),
+      children: [
+        if (recent.isNotEmpty) ...[
+          _sectionLabel('RECENT', textMuted),
+          ..._buildContactTiles(recent, textPrimary, textSecondary, textMuted),
+          const SizedBox(height: 8),
+        ],
+        if (all.isNotEmpty) ...[
+          _sectionLabel('ALL CONTACTS', textMuted),
+          ..._buildContactTiles(all, textPrimary, textSecondary, textMuted),
+        ],
+      ],
+    );
+  }
+
+  Widget _sectionLabel(String label, Color color) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.5,
+        ),
       ),
-      itemBuilder: (context, index) {
-        final contact = filtered[index];
-        return ListTile(
-          leading: KoraAvatar(name: contact['name']!, size: 48),
-          title: Text(
-            contact['name']!,
-            style: TextStyle(color: textPrimary, fontSize: 15, fontWeight: FontWeight.w600),
+    );
+  }
+
+  List<Widget> _buildContactTiles(
+    List<Map<String, Object>> contacts,
+    Color textPrimary,
+    Color textSecondary,
+    Color textMuted,
+  ) {
+    return List.generate(contacts.length, (index) {
+      final contact = contacts[index];
+      final koraId = contact['koraId'] as String;
+      final isSelected = _selectedIds.contains(koraId);
+      final isLast = index == contacts.length - 1;
+
+      return Column(
+        children: [
+          ListTile(
+            leading: _buildSelectableAvatar(contact['name'] as String, isSelected),
+            title: Text(
+              contact['name'] as String,
+              style: TextStyle(color: textPrimary, fontSize: 15, fontWeight: FontWeight.w600),
+            ),
+            subtitle: Text(
+              '$koraId · ${contact['username']}',
+              style: TextStyle(color: textSecondary, fontSize: 13),
+            ),
+            onTap: () => _toggleSelection(koraId),
           ),
-          subtitle: Text(
-            '${contact['koraId']} · ${contact['username']}',
-            style: TextStyle(color: textSecondary, fontSize: 13),
+          if (!isLast)
+            Padding(
+              padding: const EdgeInsets.only(left: 76),
+              child: Divider(height: 1, color: textMuted.withValues(alpha: 0.08)),
+            ),
+        ],
+      );
+    });
+  }
+
+  Widget _buildSelectableAvatar(String name, bool isSelected) {
+    return SizedBox(
+      width: 48,
+      height: 48,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          KoraAvatar(name: name, size: 48),
+          Positioned(
+            right: -2,
+            bottom: -2,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isSelected ? KoraColors.purple : Colors.transparent,
+                border: Border.all(
+                  color: isSelected ? KoraColors.purple : Colors.white,
+                  width: 2,
+                ),
+              ),
+              child: isSelected
+                  ? const Icon(Icons.check, color: Colors.white, size: 13)
+                  : null,
+            ),
           ),
-          onTap: () {
-            // TODO: Start group creation with selected contact
-          },
-        );
-      },
+        ],
+      ),
     );
   }
 }
