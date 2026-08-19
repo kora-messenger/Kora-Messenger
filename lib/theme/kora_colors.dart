@@ -6,6 +6,9 @@ class KoraColors {
   static const Color purple = Color(0xFF8B5CF6);
   static const Color blue = Color(0xFF3B82F6);
 
+  // Semantic
+  static const Color red = Color(0xFFEF4444);
+
   // Welcome/splash screen — pure near-black background
   static const Color trueBlack = Color(0xFF050508);
 

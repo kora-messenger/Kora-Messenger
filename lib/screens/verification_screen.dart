@@ -5,7 +5,7 @@ import '../theme/kora_colors.dart';
 import '../services/auth_service.dart';
 import '../services/session_manager.dart';
 import '../services/crash_logger.dart';
-import 'profile_setup_screen.dart';
+import 'phone_number_screen.dart';
 import 'kora_home_screen.dart';
 import 'new_password_screen.dart';
 
@@ -271,7 +271,7 @@ class _VerificationScreenState extends State<VerificationScreen>
 
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (_) => ProfileSetupScreen(
+          builder: (_) => PhoneNumberScreen(
             email: (result.user?['email'] ?? widget.email) as String,
             userData: mergedUser,
           ),

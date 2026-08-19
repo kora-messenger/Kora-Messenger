@@ -2,11 +2,11 @@ package com.kora.messenger
 
 import android.content.ComponentName
 import android.content.pm.PackageManager
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
-class MainActivity : FlutterActivity() {
+class MainActivity : FlutterFragmentActivity() {
     private val CHANNEL = "com.kora.messenger/icon"
 
     // All activity-alias names — must match AndroidManifest.xml

@@ -480,6 +480,192 @@ class AuthService {
       );
     }
   }
+
+  // ── Save phone number (optional, onboarding) ────────────────
+
+  Future<({bool success, String? error, Map<String, dynamic>? user})> savePhoneNumber({
+    required String userId,
+    required String phoneNumber,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse(_endpoint),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'action': 'savePhoneNumber',
+          'userId': userId,
+          'phoneNumber': phoneNumber,
+        }),
+      ).timeout(const Duration(seconds: 15));
+      final data = jsonDecode(response.body);
+
+      if (data['success'] == true) {
+        return (success: true, error: null, user: data['user'] as Map<String, dynamic>?);
+      }
+      return (success: false, error: data['error'] as String?, user: null);
+    } catch (e) {
+      return (success: false, error: _friendlyError(e), user: null);
+    }
+  }
+
+  // ── Passkeys ─────────────────────────────────────────────────
+
+  /// Turns the Passkeys feature on/off for the account.
+  Future<({bool success, String? error})> setPasskeysEnabled({
+    required String email,
+    required bool enabled,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse(_endpoint),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'action': 'setPasskeysEnabled',
+          'email': email,
+          'enabled': enabled,
+        }),
+      ).timeout(const Duration(seconds: 15));
+      final data = jsonDecode(response.body);
+
+      if (data['success'] == true) return (success: true, error: null);
+      return (success: false, error: data['error'] as String?);
+    } catch (e) {
+      return (success: false, error: _friendlyError(e));
+    }
+  }
+
+  /// Registers this device as a Passkey for the account. Call this only
+  /// after the device's biometric/PIN prompt has already succeeded.
+  Future<({bool success, String? error, Map<String, dynamic>? passkey})> createPasskey({
+    required String email,
+  }) async {
+    try {
+      final deviceId = await DeviceManager.getDeviceId();
+      final deviceName = await DeviceManager.getDeviceName();
+      final platform = DeviceManager.getPlatform();
+
+      final response = await http.post(
+        Uri.parse(_endpoint),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'action': 'createPasskey',
+          'email': email,
+          'deviceId': deviceId,
+          'deviceName': deviceName,
+          'platform': platform,
+        }),
+      ).timeout(const Duration(seconds: 15));
+      final data = jsonDecode(response.body);
+
+      if (data['success'] == true) {
+        return (success: true, error: null, passkey: data['passkey'] as Map<String, dynamic>?);
+      }
+      return (success: false, error: data['error'] as String?, passkey: null);
+    } catch (e) {
+      return (success: false, error: _friendlyError(e), passkey: null);
+    }
+  }
+
+  /// Lists all passkeys registered on the account (across devices).
+  Future<({bool success, String? error, List<Map<String, dynamic>> passkeys})> listPasskeys({
+    required String email,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse(_endpoint),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'action': 'listPasskeys', 'email': email}),
+      ).timeout(const Duration(seconds: 15));
+      final data = jsonDecode(response.body);
+
+      if (data['success'] == true) {
+        final list = (data['passkeys'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+        return (success: true, error: null, passkeys: list);
+      }
+      return (success: false, error: data['error'] as String?, passkeys: <Map<String, dynamic>>[]);
+    } catch (e) {
+      return (success: false, error: _friendlyError(e), passkeys: <Map<String, dynamic>>[]);
+    }
+  }
+
+  /// Deletes a passkey by its record ID.
+  Future<({bool success, String? error})> deletePasskey({
+    required String email,
+    required String passkeyId,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse(_endpoint),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'action': 'deletePasskey', 'email': email, 'passkeyId': passkeyId}),
+      ).timeout(const Duration(seconds: 15));
+      final data = jsonDecode(response.body);
+
+      if (data['success'] == true) return (success: true, error: null);
+      return (success: false, error: data['error'] as String?);
+    } catch (e) {
+      return (success: false, error: _friendlyError(e));
+    }
+  }
+
+  /// Logs in using this device's Passkey (biometric/PIN already verified
+  /// on-device before calling this).
+  Future<({bool success, String? error, Map<String, dynamic>? user})> loginWithPasskey({
+    required String email,
+  }) async {
+    try {
+      final deviceId = await DeviceManager.getDeviceId();
+      final deviceName = await DeviceManager.getDeviceName();
+      final platform = DeviceManager.getPlatform();
+
+      final response = await http.post(
+        Uri.parse(_endpoint),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'action': 'loginWithPasskey',
+          'email': email,
+          'deviceId': deviceId,
+          'deviceName': deviceName,
+          'platform': platform,
+        }),
+      ).timeout(const Duration(seconds: 15));
+      final data = jsonDecode(response.body);
+
+      if (data['success'] == true) {
+        return (success: true, error: null, user: data['user'] as Map<String, dynamic>?);
+      }
+      return (success: false, error: data['error'] as String?, user: null);
+    } catch (e) {
+      return (success: false, error: _friendlyError(e), user: null);
+    }
+  }
+
+  /// Checks which alternative sign-in methods (backup PIN / passkeys)
+  /// are available for an account, so the login screen can show the
+  /// right options.
+  Future<({bool success, bool hasBackupPin, bool passkeysEnabled})> checkSignInOptions({
+    required String email,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse(_endpoint),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'action': 'checkSignInOptions', 'email': email}),
+      ).timeout(const Duration(seconds: 15));
+      final data = jsonDecode(response.body);
+
+      if (data['success'] == true) {
+        return (
+          success: true,
+          hasBackupPin: data['hasBackupPin'] == true,
+          passkeysEnabled: data['passkeysEnabled'] == true,
+        );
+      }
+      return (success: false, hasBackupPin: false, passkeysEnabled: false);
+    } catch (e) {
+      return (success: false, hasBackupPin: false, passkeysEnabled: false);
+    }
+  }
 }
 
 /// Which flow triggered the verification screen.

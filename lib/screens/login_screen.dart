@@ -13,6 +13,7 @@ import 'kora_home_screen.dart';
 import 'login_verification_screen.dart';
 import 'signup_screen.dart';
 import 'backup_pin_login_screen.dart';
+import 'passkey_login_screen.dart';
 
 /// Kora Login screen — deep black surface, purple gradient accents.
 /// User enters email + password to log in. New devices trigger verification.
@@ -49,9 +50,26 @@ class _LogInScreenState extends State<LogInScreen> {
     super.dispose();
   }
 
-  void _showBackupPinPopup() {
+  void _showBackupPinPopup() async {
     if (_popupShown || !mounted) return;
     _popupShown = true;
+
+    // Check which alternative sign-in options exist
+    final prefs = await SharedPreferences.getInstance();
+    final lastEmail = prefs.getString('kora_last_email') ?? '';
+    bool hasBackupPin = false;
+    bool hasPasskey = false;
+
+    if (lastEmail.isNotEmpty) {
+      final options = await _auth.checkSignInOptions(email: lastEmail);
+      hasBackupPin = options.hasBackupPin;
+      hasPasskey = options.passkeysEnabled;
+    }
+
+    if (!mounted) return;
+
+    // If neither option is available, don't show the popup
+    if (!hasBackupPin && !hasPasskey) return;
 
     showModalBottomSheet(
       context: context,
@@ -84,55 +102,96 @@ class _LogInScreenState extends State<LogInScreen> {
             ),
             const SizedBox(height: 16),
             const Text(
-              'Login using Backup PIN',
+              'Alternative Sign-in',
               style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
             const Text(
-              'You can log in with your 6-digit backup PIN instead of your email and password.',
+              'Choose a faster way to sign in to your account.',
               textAlign: TextAlign.center,
               style: TextStyle(color: Color(0xFFA0A0B8), fontSize: 14, height: 1.4),
             ),
             const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: KoraColors.brandGradient,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.of(sheetContext).pop();
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const BackupPinLoginScreen()),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.transparent,
-                    shadowColor: Colors.transparent,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            // Passkey option (if available)
+            if (hasPasskey) ...[
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: KoraColors.brandGradient,
+                    borderRadius: BorderRadius.circular(14),
                   ),
-                  child: const Text(
-                    'Use Backup PIN',
-                    style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700),
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(sheetContext).pop();
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const PasskeyLoginScreen()),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.fingerprint, color: Colors.white, size: 20),
+                        SizedBox(width: 8),
+                        Text('Use Passkey', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: TextButton(
-                onPressed: () => Navigator.of(sheetContext).pop(),
-                child: const Text(
-                  'Continue with email',
-                  style: TextStyle(color: Color(0xFFA0A0B8), fontSize: 15, fontWeight: FontWeight.w500),
-                ),
+              const SizedBox(height: 12),
+            ],
+            // Backup PIN option (if available)
+            if (hasBackupPin) ...[
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: hasPasskey
+                  ? TextButton(
+                      onPressed: () {
+                        Navigator.of(sheetContext).pop();
+                        Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const BackupPinLoginScreen()),
+                        );
+                      },
+                      style: TextButton.styleFrom(
+                        foregroundColor: KoraColors.purple,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          side: const BorderSide(color: KoraColors.purple, width: 1),
+                        ),
+                      ),
+                      child: const Text('Use Backup PIN', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                    )
+                  : DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: KoraColors.brandGradient,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.of(sheetContext).pop();
+                          Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const BackupPinLoginScreen()),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        ),
+                        child: const Text('Use Backup PIN', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
+                      ),
+                    ),
               ),
-            ),
+              const SizedBox(height: 12),
+            ],
           ],
         ),
       ),

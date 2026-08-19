@@ -536,6 +536,173 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ success: true, user });
     }
 
+    // ── SAVE PHONE NUMBER (optional, during onboarding) ────
+    if (action === 'savePhoneNumber') {
+      const { userId, phoneNumber } = body;
+      if (!userId) return jsonResponse({ success: false, error: 'User ID is required' });
+
+      await db.entities.KoraUser.update(userId, { phoneNumber: phoneNumber || '' });
+      const updated = await db.entities.KoraUser.get(userId);
+      return jsonResponse({ success: true, user: getUserFromRecord(updated) });
+    }
+
+    // ── SET PASSKEYS ENABLED (on/off toggle) ────────────────
+    if (action === 'setPasskeysEnabled') {
+      const { email, enabled } = body;
+      if (!email) return jsonResponse({ success: false, error: 'Email is required' });
+
+      const users = await db.entities.KoraUser.filter({ email });
+      if (!users || users.length === 0) {
+        return jsonResponse({ success: false, error: 'Account not found' });
+      }
+
+      await db.entities.KoraUser.update(users[0].id, { passkeysEnabled: !!enabled });
+      return jsonResponse({ success: true });
+    }
+
+    // ── CREATE PASSKEY ───────────────────────────────────────
+    if (action === 'createPasskey') {
+      const { email, deviceId, deviceName, platform } = body;
+      if (!email || !deviceId) return jsonResponse({ success: false, error: 'Email and device ID are required' });
+
+      const users = await db.entities.KoraUser.filter({ email });
+      if (!users || users.length === 0) {
+        return jsonResponse({ success: false, error: 'Account not found' });
+      }
+
+      // If a passkey already exists for this device, just refresh it
+      const existing = await db.entities.Passkey.filter({ userEmail: email, deviceId });
+      if (existing && existing.length > 0) {
+        const updated = await db.entities.Passkey.update(existing[0].id, {
+          deviceName: deviceName || existing[0].data?.deviceName || existing[0].deviceName || 'Unknown Device',
+          platform: platform || existing[0].data?.platform || existing[0].platform || 'unknown',
+        });
+        return jsonResponse({ success: true, passkey: { id: updated.id, deviceName: updated.data?.deviceName ?? updated.deviceName, platform: updated.data?.platform ?? updated.platform, createdAt: updated.created_date } });
+      }
+
+      const created = await db.entities.Passkey.create({
+        userEmail: email,
+        deviceId,
+        deviceName: deviceName || 'Unknown Device',
+        platform: platform || 'unknown',
+      });
+
+      // Ensure passkeys are marked enabled for the account
+      await db.entities.KoraUser.update(users[0].id, { passkeysEnabled: true });
+
+      return jsonResponse({
+        success: true,
+        passkey: {
+          id: created.id,
+          deviceName: created.data?.deviceName ?? created.deviceName,
+          platform: created.data?.platform ?? created.platform,
+          createdAt: created.created_date,
+        },
+      });
+    }
+
+    // ── LIST PASSKEYS ────────────────────────────────────────
+    if (action === 'listPasskeys') {
+      const { email } = body;
+      if (!email) return jsonResponse({ success: false, error: 'Email is required' });
+
+      const passkeys = await db.entities.Passkey.filter({ userEmail: email });
+      const list = (passkeys || []).map((p: any) => ({
+        id: p.id,
+        deviceName: p.data?.deviceName ?? p.deviceName ?? 'Unknown Device',
+        platform: p.data?.platform ?? p.platform ?? 'unknown',
+        createdAt: p.created_date,
+      }));
+
+      return jsonResponse({ success: true, passkeys: list });
+    }
+
+    // ── DELETE PASSKEY ───────────────────────────────────────
+    if (action === 'deletePasskey') {
+      const { passkeyId, email } = body;
+      if (!passkeyId || !email) return jsonResponse({ success: false, error: 'Passkey ID and email are required' });
+
+      const passkeys = await db.entities.Passkey.filter({ userEmail: email });
+      const match = (passkeys || []).find((p: any) => p.id === passkeyId);
+      if (!match) {
+        return jsonResponse({ success: false, error: 'Passkey not found' });
+      }
+
+      await db.entities.Passkey.delete(passkeyId);
+
+      // If no passkeys remain, mark the feature as disabled
+      const remaining = await db.entities.Passkey.filter({ userEmail: email });
+      if (!remaining || remaining.length === 0) {
+        const users = await db.entities.KoraUser.filter({ email });
+        if (users && users.length > 0) {
+          await db.entities.KoraUser.update(users[0].id, { passkeysEnabled: false });
+        }
+      }
+
+      return jsonResponse({ success: true, message: 'Passkey deleted' });
+    }
+
+    // ── LOGIN WITH PASSKEY ──────────────────────────────────
+    if (action === 'loginWithPasskey') {
+      const { email, deviceId, deviceName, platform } = body;
+      if (!email || !deviceId) return jsonResponse({ success: false, error: 'Email and device ID are required' });
+
+      const users = await db.entities.KoraUser.filter({ email });
+      if (!users || users.length === 0) {
+        return jsonResponse({ success: false, error: 'Invalid email' });
+      }
+
+      const userRecord = users[0];
+      const passkeysEnabled = userRecord.data?.passkeysEnabled ?? userRecord.passkeysEnabled ?? false;
+      if (!passkeysEnabled) {
+        return jsonResponse({ success: false, error: 'Passkeys are not enabled for this account' });
+      }
+
+      const passkeys = await db.entities.Passkey.filter({ userEmail: email, deviceId });
+      if (!passkeys || passkeys.length === 0) {
+        return jsonResponse({ success: false, error: 'No passkey found for this device' });
+      }
+
+      const user = getUserFromRecord(userRecord);
+
+      // Register/update trusted device (biometric already verified on-device)
+      const trustedDevices = await db.entities.TrustedDevice.filter({ userEmail: email, deviceId });
+      const now = new Date().toISOString();
+      if (trustedDevices && trustedDevices.length > 0) {
+        await db.entities.TrustedDevice.update(trustedDevices[0].id, { lastLoginDate: now, isActive: true });
+      } else if (deviceName) {
+        await db.entities.TrustedDevice.create({
+          userEmail: email,
+          deviceId,
+          deviceName,
+          platform: platform || 'unknown',
+          firstLoginDate: now,
+          lastLoginDate: now,
+          isActive: true,
+          isTrusted: false,
+        });
+      }
+
+      return jsonResponse({ success: true, user });
+    }
+
+    // ── CHECK ACCOUNT SIGN-IN OPTIONS (backup PIN / passkey) ─
+    if (action === 'checkSignInOptions') {
+      const { email } = body;
+      if (!email) return jsonResponse({ success: false, error: 'Email is required' });
+
+      const users = await db.entities.KoraUser.filter({ email });
+      if (!users || users.length === 0) {
+        return jsonResponse({ success: true, hasBackupPin: false, passkeysEnabled: false });
+      }
+
+      const u = users[0];
+      const hasBackupPin = !!(u.data?.securePinHash ?? u.securePinHash);
+      const passkeysEnabled = !!(u.data?.passkeysEnabled ?? u.passkeysEnabled);
+
+      return jsonResponse({ success: true, hasBackupPin, passkeysEnabled });
+    }
+
     return jsonResponse({ success: false, error: `Unknown action: ${action}` });
   } catch (error: any) {
     console.error('koraAuth error:', error);
