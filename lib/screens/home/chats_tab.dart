@@ -246,17 +246,12 @@ class _ChatsTabState extends State<ChatsTab> {
             width: 30,
             height: 30,
             decoration: const BoxDecoration(
-              gradient: KoraColors.brandGradient,
               shape: BoxShape.circle,
             ),
-            child: const Center(
-              child: Text(
-                'K',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                ),
+            child: ClipOval(
+              child: Image.asset(
+                'assets/images/kora_logo_lockup.png',
+                fit: BoxFit.cover,
               ),
             ),
           ),

@@ -121,18 +121,21 @@ class _SplashScreenState extends State<SplashScreen> {
             Container(
               width: 72,
               height: 72,
-              decoration: const BoxDecoration(
-                gradient: KoraColors.brandGradient,
-                borderRadius: BorderRadius.all(Radius.circular(18)),
-              ),
-              child: const Center(
-                child: Text(
-                  'K',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 40,
-                    fontWeight: FontWeight.w800,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: KoraColors.purple.withValues(alpha: 0.35),
+                    blurRadius: 24,
+                    offset: const Offset(0, 8),
                   ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Image.asset(
+                  'assets/images/kora_logo_lockup.png',
+                  fit: BoxFit.cover,
                 ),
               ),
             ),
