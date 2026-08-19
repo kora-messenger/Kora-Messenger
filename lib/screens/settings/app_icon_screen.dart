@@ -202,7 +202,7 @@ class _AppIconScreenState extends State<AppIconScreen> {
                                           gradient: LinearGradient(
                                             begin: Alignment.topLeft,
                                             end: Alignment.bottomRight,
-                                            colors: icon.gradient,
+                                            colors: icon.gradient!,
                                           ),
                                         ),
                                       ),
