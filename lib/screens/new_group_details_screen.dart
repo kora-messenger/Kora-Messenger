@@ -42,7 +42,6 @@ class _NewGroupDetailsScreenState extends State<NewGroupDetailsScreen> {
 
   void _showPhotoOptions() {
     final brightness = Theme.of(context).brightness;
-    final card = KoraColors.cardFor(brightness);
     final textPrimary = KoraColors.textPrimaryFor(brightness);
     final isDark = brightness == Brightness.dark;
 
@@ -161,7 +160,6 @@ class _NewGroupDetailsScreenState extends State<NewGroupDetailsScreen> {
       backgroundColor: Colors.transparent,
       builder: (sheetContext) {
         final brightness = Theme.of(sheetContext).brightness;
-        final card = KoraColors.cardFor(brightness);
         final textPrimary = KoraColors.textPrimaryFor(brightness);
         final textSecondary = KoraColors.textSecondaryFor(brightness);
         final textMuted = KoraColors.textMutedFor(brightness);
@@ -390,7 +388,6 @@ class _NewGroupDetailsScreenState extends State<NewGroupDetailsScreen> {
   Widget build(BuildContext context) {
     final brightness = Theme.of(context).brightness;
     final bg = KoraColors.backgroundFor(brightness);
-    final card = KoraColors.cardFor(brightness);
     final surface = KoraColors.surfaceFor(brightness);
     final textPrimary = KoraColors.textPrimaryFor(brightness);
     final textSecondary = KoraColors.textSecondaryFor(brightness);
