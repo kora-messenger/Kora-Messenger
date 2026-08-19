@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../../theme/kora_colors.dart';
 import '../../services/session_manager.dart';
 import '../../services/crash_logger.dart';
@@ -19,7 +18,7 @@ class TwoFactorScreen extends StatefulWidget {
 
 class _TwoFactorScreenState extends State<TwoFactorScreen> {
   bool _enabled = false;
-  bool _isLoading = false;
+  final bool _isLoading = false;
   String? _userEmail;
 
   @override
@@ -65,6 +64,7 @@ class _TwoFactorScreenState extends State<TwoFactorScreen> {
     if (result == true && mounted) {
       setState(() => _enabled = targetEnabled);
       await _persistTwoFactor(targetEnabled);
+      if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
