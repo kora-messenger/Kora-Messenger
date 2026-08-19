@@ -34,7 +34,6 @@ class _BackupPinLoginScreenState extends State<BackupPinLoginScreen> {
   bool _isLoading = false;
   bool _autoLoginTriggered = false;
   String? _errorMessage;
-  String? _lastEmail;
 
   String get _enteredPin => _controllers.map((c) => c.text).join();
 
@@ -53,7 +52,6 @@ class _BackupPinLoginScreenState extends State<BackupPinLoginScreen> {
     final lastEmail = prefs.getString('kora_last_email');
     if (mounted && lastEmail != null && lastEmail.isNotEmpty) {
       setState(() {
-        _lastEmail = lastEmail;
         _emailController.text = lastEmail;
       });
     }
