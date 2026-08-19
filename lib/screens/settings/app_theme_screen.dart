@@ -58,22 +58,6 @@ class _AppThemeScreenState extends State<AppThemeScreen> {
     }
   }
 
-
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      barrierColor: Colors.black54,
-      builder: (context) => const PremiumSubscribeSheet(),
-    ).then((result) {
-      if (result == true && mounted) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const BillingScreen()),
-        );
-      }
-    });
-  }
-
   void _showNotAvailable() {
     showDialog(
       context: context,
