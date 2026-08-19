@@ -469,6 +469,73 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ success: true, message: 'Account deleted successfully' });
     }
 
+    // ── SAVE BACKUP PIN ──────────────────────────────────────
+    if (action === 'saveBackupPin') {
+      const { email, pin } = body;
+      if (!email || !pin) return jsonResponse({ success: false, error: 'Email and PIN are required' });
+
+      const users = await db.entities.KoraUser.filter({ email });
+      if (!users || users.length === 0) {
+        return jsonResponse({ success: false, error: 'Account not found' });
+      }
+
+      const pinHash = crypto.createHash('sha256').update(pin).digest('hex');
+      await db.entities.KoraUser.update(users[0].id, { securePinHash: pinHash });
+      return jsonResponse({ success: true, message: 'Backup PIN saved' });
+    }
+
+    // ── LOGIN WITH BACKUP PIN ───────────────────────────────
+    if (action === 'loginWithBackupPin') {
+      const { email, pin, deviceId, deviceName, platform } = body;
+      if (!email || !pin) return jsonResponse({ success: false, error: 'Email and PIN are required' });
+
+      const users = await db.entities.KoraUser.filter({ email });
+      if (!users || users.length === 0) {
+        return jsonResponse({ success: false, error: 'Invalid email or PIN' });
+      }
+
+      const userRecord = users[0];
+      const storedPinHash = userRecord.data?.securePinHash ?? userRecord.securePinHash ?? '';
+      if (!storedPinHash) {
+        return jsonResponse({ success: false, error: 'No backup PIN set. Please use email and password to log in.' });
+      }
+
+      const pinHash = crypto.createHash('sha256').update(pin).digest('hex');
+      if (pinHash !== storedPinHash) {
+        return jsonResponse({ success: false, error: 'Invalid backup PIN' });
+      }
+
+      // PIN is correct — log the user in
+      const user = getUserFromRecord(userRecord);
+
+      // Register/update device
+      if (deviceId) {
+        const trustedDevices = await db.entities.TrustedDevice.filter({ userEmail: email, deviceId });
+        if (trustedDevices && trustedDevices.length > 0) {
+          const device = trustedDevices[0];
+          const now = new Date().toISOString();
+          await db.entities.TrustedDevice.update(device.id, {
+            lastLoginDate: now,
+            isActive: true,
+          });
+        } else if (deviceName) {
+          const now = new Date().toISOString();
+          await db.entities.TrustedDevice.create({
+            userEmail: email,
+            deviceId,
+            deviceName,
+            platform: platform || 'unknown',
+            firstLoginDate: now,
+            lastLoginDate: now,
+            isActive: true,
+            isTrusted: false,
+          });
+        }
+      }
+
+      return jsonResponse({ success: true, user });
+    }
+
     return jsonResponse({ success: false, error: `Unknown action: ${action}` });
   } catch (error: any) {
     console.error('koraAuth error:', error);

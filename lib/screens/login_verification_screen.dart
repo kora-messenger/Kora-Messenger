@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/services.dart';
 import '../theme/kora_colors.dart';
 import '../services/auth_service.dart';
@@ -164,6 +165,8 @@ class _LoginVerificationScreenState extends State<LoginVerificationScreen>
     if (result.success && result.user != null) {
       // Save session
       await SessionManager.instance.saveSession(result.user!);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('kora_last_email', email);
       if (!mounted) return;
 
       final user = KoraUserSession.fromMap(result.user!);

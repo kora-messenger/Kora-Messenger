@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/services.dart';
 import '../theme/kora_colors.dart';
 import '../services/auth_service.dart';
@@ -11,6 +12,7 @@ import 'profile_setup_screen.dart';
 import 'kora_home_screen.dart';
 import 'login_verification_screen.dart';
 import 'signup_screen.dart';
+import 'backup_pin_login_screen.dart';
 
 /// Kora Login screen — deep black surface, purple gradient accents.
 /// User enters email + password to log in. New devices trigger verification.
@@ -28,6 +30,112 @@ class _LogInScreenState extends State<LogInScreen> {
   final AuthService _auth = AuthService.instance;
   bool _isLoading = false;
   String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    // Show backup PIN popup shortly after the screen opens
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showBackupPinPopup();
+    });
+  }
+
+  void _showBackupPinPopup() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: KoraColors.darkCard,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 36),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Drag handle
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: const Color(0xFF3A3A4E),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            // Icon
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                gradient: KoraColors.brandGradient,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Icon(Icons.lock_outline, color: Colors.white, size: 26),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Login using Backup PIN',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'You can log in with your 6-digit backup PIN instead of your email and password.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Color(0xFFA0A0B8), fontSize: 14, height: 1.4),
+            ),
+            const SizedBox(height: 24),
+            // Use Backup PIN button
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: KoraColors.brandGradient,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const BackupPinLoginScreen(),
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    shadowColor: Colors.transparent,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  child: const Text(
+                    'Use Backup PIN',
+                    style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            // Continue with email/password
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text(
+                  'Continue with email',
+                  style: TextStyle(color: Color(0xFFA0A0B8), fontSize: 15, fontWeight: FontWeight.w500),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   void dispose() {
@@ -92,6 +200,9 @@ class _LogInScreenState extends State<LogInScreen> {
       if (result.success && result.user != null) {
         final user = KoraUserSession.fromMap(result.user!);
         await SessionManager.instance.saveSession(result.user!);
+        // Save last email for backup PIN pre-fill
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('kora_last_email', email);
         if (!mounted) return;
 
         TextInput.finishAutofillContext();

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../theme/kora_colors.dart';
 import '../../services/session_manager.dart';
+import '../../services/auth_service.dart';
 import '../../services/crash_logger.dart';
 
 /// Secure PIN creation screen — backup code for 2FA.
@@ -30,6 +31,7 @@ class _SecurePinScreenState extends State<SecurePinScreen> {
   String _createdPin = '';
   bool _isSaving = false;
   String? _errorMessage;
+  final AuthService _auth = AuthService.instance;
 
   late final List<TextEditingController> _controllers =
       List.generate(_pinLength, (_) => TextEditingController());
@@ -141,24 +143,44 @@ class _SecurePinScreenState extends State<SecurePinScreen> {
     });
 
     try {
-      // Persist the PIN hash in the session
+      // Save PIN to backend (server-side hashing)
       final session = await SessionManager.instance.loadSession();
-      if (session != null) {
-        session['securePin'] = _createdPin;
-        await SessionManager.instance.saveSession(session);
+      final email = session?['email'] as String?;
+
+      if (email == null || email.isEmpty) {
+        setState(() {
+          _isSaving = false;
+          _errorMessage = 'Unable to determine your email. Please log in again.';
+        });
+        return;
       }
+
+      final result = await _auth.saveBackupPin(email: email, pin: _createdPin);
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Secure PIN saved successfully.'),
-          backgroundColor: KoraColors.purple,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      if (result.success) {
+        // Also save locally for convenience
+        if (session != null) {
+          session['securePin'] = _createdPin;
+          await SessionManager.instance.saveSession(session);
+        }
 
-      Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Secure PIN saved successfully.'),
+            backgroundColor: KoraColors.purple,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+
+        Navigator.of(context).pop();
+      } else {
+        setState(() {
+          _isSaving = false;
+          _errorMessage = result.error ?? 'Failed to save PIN. Please try again.';
+        });
+      }
     } catch (e, stack) {
       await CrashLogger.log(e, stackTrace: stack, context: 'SecurePinScreen._save');
       if (mounted) {

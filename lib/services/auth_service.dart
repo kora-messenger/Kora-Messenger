@@ -420,6 +420,87 @@ enum UsernameStatus {
 }
 
 /// Result of checking a username.
+  // ── Save backup PIN ────────────────────────────────────────
+
+  /// Saves the backup PIN to the user's account on the backend.
+  /// The PIN is hashed server-side (SHA-256) — we send the raw PIN over HTTPS.
+  Future<({bool success, String? error})> saveBackupPin({
+    required String email,
+    required String pin,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse(_endpoint),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'action': 'saveBackupPin',
+          'email': email,
+          'pin': pin,
+        }),
+      ).timeout(const Duration(seconds: 15));
+      final data = jsonDecode(response.body);
+
+      if (data['success'] == true) {
+        return (success: true, error: null);
+      }
+      return (success: false, error: data['error'] as String?);
+    } catch (e) {
+      return (success: false, error: _friendlyError(e));
+    }
+  }
+
+  // ── Login with backup PIN ──────────────────────────────────
+
+  /// Logs in using email + backup PIN (bypasses password + device verification).
+  /// The PIN is verified server-side against the stored hash.
+  Future<({
+    bool success,
+    String? error,
+    Map<String, dynamic>? user,
+  })> loginWithBackupPin({
+    required String email,
+    required String pin,
+  }) async {
+    try {
+      final deviceId = await DeviceManager.getDeviceId();
+      final deviceName = await DeviceManager.getDeviceName();
+      final platform = DeviceManager.getPlatform();
+
+      final response = await http.post(
+        Uri.parse(_endpoint),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'action': 'loginWithBackupPin',
+          'email': email,
+          'pin': pin,
+          'deviceId': deviceId,
+          'deviceName': deviceName,
+          'platform': platform,
+        }),
+      ).timeout(const Duration(seconds: 15));
+      final data = jsonDecode(response.body);
+
+      if (data['success'] == true) {
+        return (
+          success: true,
+          error: null,
+          user: data['user'] as Map<String, dynamic>?,
+        );
+      }
+      return (
+        success: false,
+        error: data['error'] as String?,
+        user: null,
+      );
+    } catch (e) {
+      return (
+        success: false,
+        error: _friendlyError(e),
+        user: null,
+      );
+    }
+  }
+
 class UsernameCheckResult {
   final UsernameStatus status;
   final String message;
