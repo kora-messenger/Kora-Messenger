@@ -399,27 +399,7 @@ class AuthService {
         localPart.length >= 2 ? localPart.substring(0, 2) : localPart[0];
     return '$visible***$domain';
   }
-}
 
-/// Which flow triggered the verification screen.
-enum VerificationType {
-  registration,
-  login,
-  passwordReset,
-}
-
-/// Status of a username availability check.
-enum UsernameStatus {
-  idle,
-  checking,
-  available,
-  taken,
-  reserved,
-  invalid,
-  tooShort,
-}
-
-/// Result of checking a username.
   // ── Save backup PIN ────────────────────────────────────────
 
   /// Saves the backup PIN to the user's account on the backend.
@@ -500,7 +480,27 @@ enum UsernameStatus {
       );
     }
   }
+}
 
+/// Which flow triggered the verification screen.
+enum VerificationType {
+  registration,
+  login,
+  passwordReset,
+}
+
+/// Status of a username availability check.
+enum UsernameStatus {
+  idle,
+  checking,
+  available,
+  taken,
+  reserved,
+  invalid,
+  tooShort,
+}
+
+/// Result of checking a username.
 class UsernameCheckResult {
   final UsernameStatus status;
   final String message;

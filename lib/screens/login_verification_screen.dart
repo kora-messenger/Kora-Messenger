@@ -166,7 +166,7 @@ class _LoginVerificationScreenState extends State<LoginVerificationScreen>
       // Save session
       await SessionManager.instance.saveSession(result.user!);
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('kora_last_email', email);
+      await prefs.setString('kora_last_email', widget.email);
       if (!mounted) return;
 
       final user = KoraUserSession.fromMap(result.user!);
