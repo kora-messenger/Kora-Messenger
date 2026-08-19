@@ -4,6 +4,7 @@ import 'theme/kora_colors.dart';
 import 'screens/welcome_screen.dart';
 import 'screens/kora_home_screen.dart';
 import 'screens/profile_setup_screen.dart';
+import 'screens/crash_report_screen.dart';
 import 'services/session_manager.dart';
 import 'services/crash_logger.dart';
 import 'theme/chat_theme_provider.dart';
@@ -19,7 +20,7 @@ void main() {
     runApp(const KoraMessengerApp());
   }, (error, stackTrace) {
     // 3. Zone errors — any uncaught async/sync error in the root zone.
-    CrashLogger.log(error, stackTrace: stackTrace, context: 'Zone');
+    CrashLogger.log(error, stackTrace: stackTrace, context: 'Zone', isFatal: true);
   });
 }
 
@@ -64,6 +65,7 @@ class KoraMessengerApp extends StatelessWidget {
 }
 
 /// Checks for a saved session on startup and routes accordingly:
+/// - Unread crash → CrashReportScreen (then proceed to normal routing)
 /// - No session → WelcomeScreen
 /// - Session with profileCompleted → KoraHomeScreen
 /// - Session without profileCompleted → ProfileSetupScreen
@@ -78,10 +80,66 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    _checkSession();
+    _boot();
   }
 
-  Future<void> _checkSession() async {
+  Future<void> _boot() async {
+    // 1. Check for unread fatal crash from the previous run.
+    final hasCrash = await CrashLogger.hasUnreadCrash();
+
+    if (!mounted) return;
+
+    if (hasCrash) {
+      final crashLog = await CrashLogger.getUnreadCrash();
+      if (!mounted) return;
+
+      if (crashLog != null) {
+        // Show the crash report screen. After the user dismisses it,
+        // continue with normal session routing.
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => CrashReportScreen(
+              crashLog: crashLog,
+              onDismiss: () => _routeAfterCrash(),
+            ),
+          ),
+        );
+        return;
+      }
+    }
+
+    // 2. Normal routing — no crash detected.
+    _routeToSession();
+  }
+
+  Future<void> _routeAfterCrash() async {
+    final session = await SessionManager.instance.loadSession();
+    if (!mounted) return;
+
+    if (session == null) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+      );
+    } else {
+      final profileCompleted = session['profileCompleted'] == true;
+      if (profileCompleted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const KoraHomeScreen()),
+        );
+      } else {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => ProfileSetupScreen(
+              email: session['email']?.toString() ?? '',
+              userData: session,
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _routeToSession() async {
     final session = await SessionManager.instance.loadSession();
 
     if (!mounted) return;

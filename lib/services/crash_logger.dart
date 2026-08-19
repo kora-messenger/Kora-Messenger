@@ -14,15 +14,15 @@ import '../config/kora_api.dart';
 /// 2. `Isolate.current.addErrorListener` — errors in other isolates
 /// 3. `runZonedGuarded` — any uncaught async/sync error in the root zone
 ///
-/// Each crash record contains:
-/// - timestamp, error type, message, stack trace
-/// - app version, platform, isDebug
+/// Fatal (uncaught) crashes set a flag so the next launch shows the
+/// CrashReportScreen with a copiable/downloadable log.
 ///
 /// Logs are stored locally in SharedPreferences (max 100 entries)
 /// AND uploaded to the backend, which creates a GitHub Issue automatically.
 /// Domain-swappable: just change [KoraApi.crashReportEndpoint].
 class CrashLogger {
   static const _storageKey = 'kora_crash_logs';
+  static const _unreadCrashKey = 'kora_has_unread_crash';
   static const _maxEntries = 100;
 
   /// App version — update on each release. Domain-swappable.
@@ -32,12 +32,11 @@ class CrashLogger {
   static void init() {
     // 1. Flutter framework errors (build failures, layout errors, etc.)
     FlutterError.onError = (FlutterErrorDetails details) {
-      // Upload synchronously (awaited) so the report gets out before
-      // the app potentially dies.
       _record(
         type: 'FlutterError',
         message: details.exceptionAsString(),
         stackTrace: details.stack?.toString() ?? '(no stack trace)',
+        isFatal: true,
       );
       FlutterError.presentError(details);
     };
@@ -49,20 +48,24 @@ class CrashLogger {
         type: 'IsolateError',
         message: errorData[0].toString(),
         stackTrace: errorData[1].toString(),
+        isFatal: true,
       );
     }).sendPort);
   }
 
   /// Manually log a caught exception (useful in try-catch blocks).
+  /// These are NOT fatal and won't trigger the crash report screen.
   static Future<void> log(
     dynamic exception, {
     StackTrace? stackTrace,
     String? context,
+    bool isFatal = false,
   }) async {
     await _record(
       type: 'CaughtError${context != null ? ' ($context)' : ''}',
       message: exception.toString(),
       stackTrace: stackTrace?.toString() ?? '(no stack trace)',
+      isFatal: isFatal,
     );
   }
 
@@ -71,6 +74,7 @@ class CrashLogger {
     required String type,
     required String message,
     required String stackTrace,
+    required bool isFatal,
   }) async {
     final entry = {
       'timestamp': DateTime.now().toIso8601String(),
@@ -80,6 +84,7 @@ class CrashLogger {
       'appVersion': appVersion,
       'platform': Platform.operatingSystem,
       'isDebug': kDebugMode.toString(),
+      'isFatal': isFatal.toString(),
       'uploaded': 'false',
     };
 
@@ -96,6 +101,11 @@ class CrashLogger {
       }
 
       await prefs.setString(_storageKey, jsonEncode(logs));
+
+      // Set the unread crash flag if this was a fatal crash.
+      if (isFatal) {
+        await prefs.setBool(_unreadCrashKey, true);
+      }
     } catch (e) {
       debugPrint('[CrashLogger] Failed to store crash log locally: $e');
     }
@@ -120,7 +130,6 @@ class CrashLogger {
       if (response.statusCode == 200) {
         debugPrint('[CrashLogger] Crash report uploaded -> GitHub Issue created');
         // Mark as uploaded locally
-        entry['uploaded'] = 'true';
         try {
           final prefs = await SharedPreferences.getInstance();
           final raw = prefs.getString(_storageKey);
@@ -149,10 +158,44 @@ class CrashLogger {
     return logs.cast<Map<String, dynamic>>();
   }
 
+  /// Get the most recent fatal crash log (for the crash report screen).
+  /// Returns null if there's no unread fatal crash.
+  static Future<Map<String, dynamic>?> getUnreadCrash() async {
+    final prefs = await SharedPreferences.getInstance();
+    final hasUnread = prefs.getBool(_unreadCrashKey) ?? false;
+    if (!hasUnread) return null;
+
+    final logs = await getAll();
+    if (logs.isEmpty) return null;
+
+    // Find the most recent fatal crash.
+    for (final log in logs) {
+      if (log['isFatal'] == 'true') {
+        return log;
+      }
+    }
+
+    // Fallback — if no fatal flag, just return the most recent.
+    return logs.first;
+  }
+
+  /// Clear the unread crash flag (call after the user has seen the crash report).
+  static Future<void> clearUnreadCrash() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_unreadCrashKey, false);
+  }
+
+  /// Check if there's an unread fatal crash (for splash screen routing).
+  static Future<bool> hasUnreadCrash() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_unreadCrashKey) ?? false;
+  }
+
   /// Delete all stored crash logs.
   static Future<void> clearAll() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_storageKey);
+    await prefs.setBool(_unreadCrashKey, false);
   }
 
   /// Get the count of stored crash logs.
@@ -161,5 +204,31 @@ class CrashLogger {
     final raw = prefs.getString(_storageKey);
     if (raw == null) return 0;
     return (jsonDecode(raw) as List<dynamic>).length;
+  }
+
+  /// Format a crash log entry into a readable text string for copying/downloading.
+  static String formatCrashLog(Map<String, dynamic> log) {
+    final buffer = StringBuffer();
+    buffer.writeln('═══════════════════════════════════════════════════════════');
+    buffer.writeln('  KORA MESSENGER — CRASH REPORT');
+    buffer.writeln('═══════════════════════════════════════════════════════════');
+    buffer.writeln('');
+    buffer.writeln('Timestamp:  ${log['timestamp'] ?? 'unknown'}');
+    buffer.writeln('Type:       ${log['type'] ?? 'Unknown'}');
+    buffer.writeln('Platform:   ${log['platform'] ?? 'unknown'}');
+    buffer.writeln('App Version: ${log['appVersion'] ?? 'unknown'}');
+    buffer.writeln('Debug Mode: ${log['isDebug'] ?? 'unknown'}');
+    buffer.writeln('Uploaded:   ${log['uploaded'] ?? 'unknown'}');
+    buffer.writeln('');
+    buffer.writeln('─── Error Message ────────────────────────────────────────');
+    buffer.writeln('');
+    buffer.writeln(log['message'] ?? '(no message)');
+    buffer.writeln('');
+    buffer.writeln('─── Stack Trace ──────────────────────────────────────────');
+    buffer.writeln('');
+    buffer.writeln(log['stackTrace'] ?? '(no stack trace)');
+    buffer.writeln('');
+    buffer.writeln('═══════════════════════════════════════════════════════════');
+    return buffer.toString();
   }
 }

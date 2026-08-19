@@ -3,9 +3,7 @@ import '../../theme/kora_colors.dart';
 import '../../widgets/kora_avatar.dart';
 import '../../services/session_manager.dart';
 import '../settings/appearance_screen.dart';
-import '../settings/crash_logs_screen.dart';
 import '../settings/account_screen.dart';
-import '../../services/crash_logger.dart';
 
 /// "Profile" tab — the user's own profile summary plus settings shortcuts.
 class ProfileTab extends StatefulWidget {
@@ -125,7 +123,6 @@ class _ProfileTabState extends State<ProfileTab> {
             _tile(context, Icons.workspace_premium_outlined, 'Kora Premium', 'Unlock premium features'),
             _tile(context, Icons.support_agent_outlined, 'Kora Support', 'Get help from the Kora team'),
             _tile(context, Icons.info_outline, 'About Kora', 'App version, terms & privacy'),
-            _crashLogsTile(context),
           ],
         ),
       ),
@@ -312,87 +309,4 @@ class _ProfileTabState extends State<ProfileTab> {
     );
   }
 
-  Widget _crashLogsTile(BuildContext context) {
-    final brightness = Theme.of(context).brightness;
-    final textPrimary = KoraColors.textPrimaryFor(brightness);
-    final textSecondary = KoraColors.textSecondaryFor(brightness);
-
-    return FutureBuilder<int>(
-      future: CrashLogger.count(),
-      builder: (context, snapshot) {
-        final count = snapshot.data ?? 0;
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6),
-          child: InkWell(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const CrashLogsScreen()),
-              );
-            },
-            borderRadius: BorderRadius.circular(12),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 6),
-              child: Row(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: (count > 0 ? Colors.red : KoraColors.purple).withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      Icons.bug_report_outlined,
-                      color: count > 0 ? Colors.red : KoraColors.purple,
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Crash Logs',
-                          style: TextStyle(
-                            color: textPrimary,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          count > 0
-                              ? '$count crash${count == 1 ? '' : 'es'} recorded'
-                              : 'No crashes recorded',
-                          style: TextStyle(color: textSecondary, fontSize: 12.5),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (count > 0)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: Colors.red.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        '$count',
-                        style: const TextStyle(
-                          color: Colors.red,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
 }
