@@ -38,9 +38,9 @@ const List<KoraIconDef> kKoraIconDefs = [
 
 /// App Icon picker — 12 Kora app icons. Premium only.
 ///
-/// Non-premium users see the icon grid locked with a
-/// "Choose your app icon with Kora Premium" banner and a
-/// Subscribe button at the bottom.
+/// Non-premium users can see all icons but the grid is
+/// read-only. A "Get Kora Premium" button appears at the
+/// bottom instead of the Apply button.
 class AppIconScreen extends StatefulWidget {
   const AppIconScreen({super.key});
 
@@ -224,20 +224,8 @@ class _AppIconScreenState extends State<AppIconScreen> {
                                           ),
                                         ),
                                       ),
-                                    // ── Lock overlay for non-premium ──
-                                    if (!isPremium)
-                                      Container(
-                                        color: Colors.black.withValues(alpha: 0.45),
-                                        child: Center(
-                                          child: Icon(
-                                            Icons.lock,
-                                            color: Colors.white.withValues(alpha: 0.8),
-                                            size: 24,
-                                          ),
-                                        ),
-                                      ),
-                                    // ── K letter for gradient icons (premium only) ──
-                                    if (isPremium && icon.assetPath == null)
+                                    // ── K letter for gradient icons ──
+                                    if (icon.assetPath == null)
                                       Center(
                                         child: Text(
                                           'K',

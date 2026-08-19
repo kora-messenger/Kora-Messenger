@@ -248,7 +248,7 @@ class _ProfileTabState extends State<ProfileTab> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Chat theme, wallpaper, app theme',
+                      'Chat theme, app icon, app theme',
                       style: TextStyle(color: textSecondary, fontSize: 12.5),
                     ),
                   ],
