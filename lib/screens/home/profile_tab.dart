@@ -1,14 +1,39 @@
 import 'package:flutter/material.dart';
 import '../../theme/kora_colors.dart';
 import '../../widgets/kora_avatar.dart';
+import '../../services/session_manager.dart';
 import '../settings/appearance_screen.dart';
 import '../settings/crash_logs_screen.dart';
 import '../settings/account_screen.dart';
 import '../../services/crash_logger.dart';
 
 /// "Profile" tab — the user's own profile summary plus settings shortcuts.
-class ProfileTab extends StatelessWidget {
+class ProfileTab extends StatefulWidget {
   const ProfileTab({super.key});
+
+  @override
+  State<ProfileTab> createState() => _ProfileTabState();
+}
+
+class _ProfileTabState extends State<ProfileTab> {
+  Map<String, dynamic>? _session;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSession();
+  }
+
+  Future<void> _loadSession() async {
+    final session = await SessionManager.instance.loadSession();
+    if (mounted) {
+      setState(() {
+        _session = session;
+        _loading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -18,6 +43,10 @@ class ProfileTab extends StatelessWidget {
     final textPrimary = KoraColors.textPrimaryFor(brightness);
     final textSecondary = KoraColors.textSecondaryFor(brightness);
     final textMuted = KoraColors.textMutedFor(brightness);
+
+    final fullName = _session?['fullName']?.toString() ?? 'Kora User';
+    final username = _session?['username']?.toString() ?? 'user';
+    final koraId = _session?['koraId']?.toString() ?? '';
 
     return Scaffold(
       backgroundColor: bg,
@@ -41,38 +70,49 @@ class ProfileTab extends StatelessWidget {
                 color: card,
                 borderRadius: BorderRadius.circular(18),
               ),
-              child: Row(
-                children: [
-                  const KoraAvatar(name: 'Ijezie Goodluck', size: 62),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+              child: _loading
+                  ? const Center(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 8),
+                        child: SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(strokeWidth: 2.2, color: KoraColors.purple),
+                        ),
+                      ),
+                    )
+                  : Row(
                       children: [
-                        Text(
-                          'Ijezie Goodluck',
-                          style: TextStyle(
-                            color: textPrimary,
-                            fontSize: 17,
-                            fontWeight: FontWeight.w700,
+                        KoraAvatar(name: fullName, size: 62),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                fullName,
+                                style: TextStyle(
+                                  color: textPrimary,
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                '@$username',
+                                style: TextStyle(color: textSecondary, fontSize: 13.5),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                koraId.isNotEmpty ? koraId : 'Tap to view your Kora ID',
+                                style: TextStyle(color: textMuted, fontSize: 12),
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 3),
-                        Text(
-                          '@ijezie',
-                          style: TextStyle(color: textSecondary, fontSize: 13.5),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          'Tap to view your Kora ID',
-                          style: TextStyle(color: textMuted, fontSize: 12),
-                        ),
+                        Icon(Icons.chevron_right, color: textMuted),
                       ],
                     ),
-                  ),
-                  Icon(Icons.chevron_right, color: textMuted),
-                ],
-              ),
             ),
             const SizedBox(height: 24),
             _sectionLabel('ACCOUNT', textMuted),
@@ -151,7 +191,7 @@ class ProfileTab extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Request info, delete account',
+                      'Security, username, phone number',
                       style: TextStyle(color: textSecondary, fontSize: 12.5),
                     ),
                   ],

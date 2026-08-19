@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import '../../theme/kora_colors.dart';
 import '../../services/session_manager.dart';
 import '../../config/kora_api.dart';
+import 'passkeys_screen.dart';
+import 'two_factor_screen.dart';
+import 'security_notifications_screen.dart';
 
-/// Account settings screen — security, account details, and data management.
+/// Account settings screen — security shortcuts and account details.
 class AccountScreen extends StatefulWidget {
   const AccountScreen({super.key});
 
@@ -288,6 +291,20 @@ class _AccountScreenState extends State<AccountScreen> {
     }
   }
 
+  // ── Navigation ────────────────────────────────────────────────
+
+  void _openPasskeys() {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const PasskeysScreen()));
+  }
+
+  void _openTwoFactor() {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const TwoFactorScreen()));
+  }
+
+  void _openSecurityNotifications() {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const SecurityNotificationsScreen()));
+  }
+
   // ── Helpers ─────────────────────────────────────────────────
 
   void _showError(String message) {
@@ -318,7 +335,6 @@ class _AccountScreenState extends State<AccountScreen> {
     final textSecondary = KoraColors.textSecondaryFor(brightness);
     final textMuted = KoraColors.textMutedFor(brightness);
     final card = KoraColors.cardFor(brightness);
-    final border = KoraColors.borderFor(brightness);
 
     return Scaffold(
       backgroundColor: bg,
@@ -382,72 +398,6 @@ class _AccountScreenState extends State<AccountScreen> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
                 children: [
-                  // ── Account details card ──────────────────────
-                  if (_session != null) ...[
-                    Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: card,
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(color: border, width: 0.5),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Container(
-                                width: 52,
-                                height: 52,
-                                decoration: BoxDecoration(
-                                  gradient: KoraColors.brandGradient,
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    (_session!['fullName']?.toString() ?? 'K')[0].toUpperCase(),
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      _session!['fullName']?.toString() ?? 'Kora User',
-                                      style: TextStyle(
-                                        color: textPrimary,
-                                        fontSize: 17,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 3),
-                                    Text(
-                                      '@${_session!['username']?.toString() ?? 'user'}',
-                                      style: TextStyle(color: textSecondary, fontSize: 13.5),
-                                    ),
-                                    const SizedBox(height: 3),
-                                    Text(
-                                      _session!['koraId']?.toString() ?? '',
-                                      style: TextStyle(color: textMuted, fontSize: 12),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                  ],
-
                   // ── SECURITY section ───────────────────────────
                   _sectionLabel('SECURITY', textMuted),
                   _actionTile(
@@ -456,8 +406,8 @@ class _AccountScreenState extends State<AccountScreen> {
                     iconColor: KoraColors.purple,
                     title: 'Passkeys',
                     subtitle: 'Passwordless sign-in with passkeys',
-                    trailing: _buildToggle(false),
-                    onTap: () => _showComingSoon('Passkeys'),
+                    onTap: _openPasskeys,
+                    trailing: Icon(Icons.chevron_right, color: textMuted),
                   ),
                   _actionTile(
                     context,
@@ -474,8 +424,8 @@ class _AccountScreenState extends State<AccountScreen> {
                     iconColor: KoraColors.purple,
                     title: '2FA Verification',
                     subtitle: 'Two-factor authentication for extra security',
-                    trailing: _buildToggle(false),
-                    onTap: () => _showComingSoon('2FA verification'),
+                    onTap: _openTwoFactor,
+                    trailing: Icon(Icons.chevron_right, color: textMuted),
                   ),
                   _actionTile(
                     context,
@@ -483,8 +433,8 @@ class _AccountScreenState extends State<AccountScreen> {
                     iconColor: KoraColors.purple,
                     title: 'Security Notifications',
                     subtitle: 'Alerts about suspicious activity',
-                    trailing: _buildToggle(true),
-                    onTap: () => _showComingSoon('Security notifications'),
+                    onTap: _openSecurityNotifications,
+                    trailing: Icon(Icons.chevron_right, color: textMuted),
                   ),
 
                   const SizedBox(height: 24),
@@ -572,17 +522,6 @@ class _AccountScreenState extends State<AccountScreen> {
   }
 
   // ── Widgets ─────────────────────────────────────────────────
-
-  Widget _buildToggle(bool value) {
-    return Switch.adaptive(
-      value: value,
-      onChanged: (v) {
-        // Coming soon — just show the snackbar
-        _showComingSoon('This setting');
-      },
-      activeTrackColor: KoraColors.purple,
-    );
-  }
 
   Widget _sectionLabel(String label, Color color) {
     return Padding(
