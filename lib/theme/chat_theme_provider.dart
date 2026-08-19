@@ -1,5 +1,15 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+/// Kora Messenger owner accounts — these always have Premium active,
+/// free forever, regardless of subscription/payment status. Checked
+/// against the saved session email on every app launch and login.
+const Set<String> kOwnerEmails = {
+  'goodluckijezie9@gmail.com',
+  'ijeziegoodluck7@gmail.com',
+  'ijeziegoodluck4@gmail.com',
+};
 
 /// A chat theme preset — defines bubble colors and wallpaper.
 class ChatThemePreset {
@@ -225,7 +235,27 @@ class ChatThemeProvider extends ChangeNotifier {
     _appThemeColor = appVal != null ? Color(appVal) : const Color(0xFF8B5CF6);
     _isPremium = prefs.getBool(_kIsPremium) ?? false;
     _appIconIndex = prefs.getInt(_kAppIconIndex) ?? 0;
+
+    // Owner accounts are always Premium — free forever.
+    if (_isOwnerSession(prefs)) {
+      _isPremium = true;
+    }
+
     notifyListeners();
+  }
+
+  /// Checks the saved login session against the hardcoded owner email
+  /// list. Owner accounts always get Premium, no subscription needed.
+  bool _isOwnerSession(SharedPreferences prefs) {
+    try {
+      final raw = prefs.getString('kora_session');
+      if (raw == null || raw.isEmpty) return false;
+      final session = jsonDecode(raw) as Map<String, dynamic>;
+      final email = (session['email'] as String?)?.toLowerCase().trim();
+      return email != null && kOwnerEmails.contains(email);
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<void> setChatTheme(String id) async {
@@ -295,6 +325,15 @@ class ChatThemeProvider extends ChangeNotifier {
     _appIconIndex = index;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_kAppIconIndex, index);
+    notifyListeners();
+  }
+
+  /// Resets the app icon back to the free Default icon (index 0).
+  /// Always allowed — no Premium needed to go back to Default.
+  Future<void> resetAppIcon() async {
+    _appIconIndex = 0;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_kAppIconIndex, 0);
     notifyListeners();
   }
 

@@ -27,5 +27,6 @@ flutter:
     - assets/images/world_map_glow.png
     - assets/images/kora_support_avatar.png
     - assets/images/kora_ai_avatar.png
-    - assets/icons/icon_nebula.png
-    - assets/icons/icon_galaxy.png
+    - assets/icons/icon_default_circle.png
+    - assets/icons/icon_aurora_circle.png
+    - assets/icons/icon_gold_elite.png

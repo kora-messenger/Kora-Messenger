@@ -8,11 +8,10 @@ import 'package:flutter/services.dart';
 class AppIconSwitcher {
   static const _channel = MethodChannel('com.kora.messenger/icon');
 
-  /// The 12 alias names — must match AndroidManifest.xml activity-alias names.
+  /// The 3 alias names — must match AndroidManifest.xml activity-alias names.
+  /// Index 0 (IconClassic) is the free Default icon; the rest are Premium.
   static const List<String> aliases = [
-    'IconClassic', 'IconSunset', 'IconEmerald', 'IconMidnight', 'IconRoseGold',
-    'IconOcean', 'IconForest', 'IconCrimson', 'IconAurora', 'IconCarbon',
-    'IconNebula', 'IconGalaxy',
+    'IconClassic', 'IconAuroraCircle', 'IconGoldElite',
   ];
 
   /// Switches the app icon to the alias at [index].

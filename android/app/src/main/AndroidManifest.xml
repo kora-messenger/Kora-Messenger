@@ -37,7 +37,7 @@
         <!-- ── App icon activity aliases ── -->
         <!-- Each alias has its own icon + LAUNCHER intent-filter. -->
         <!-- Only ONE is enabled at a time. The platform channel switches them. -->
-        <!-- Default: IconClassic (enabled) -->
+        <!-- Default: IconClassic (enabled, free) -->
         <activity-alias
             android:name=".IconClassic"
             android:enabled="true"
@@ -51,11 +51,12 @@
             </intent-filter>
         </activity-alias>
 
+        <!-- Premium: Aurora Circle -->
         <activity-alias
-            android:name=".IconSunset"
+            android:name=".IconAuroraCircle"
             android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_sunset"
+            android:icon="@mipmap/ic_launcher_aurora_circle"
             android:label="Kora Messenger"
             android:targetActivity=".MainActivity">
             <intent-filter>
@@ -64,129 +65,12 @@
             </intent-filter>
         </activity-alias>
 
+        <!-- Premium: Gold Elite -->
         <activity-alias
-            android:name=".IconEmerald"
+            android:name=".IconGoldElite"
             android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_emerald"
-            android:label="Kora Messenger"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity-alias>
-
-        <activity-alias
-            android:name=".IconMidnight"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/ic_launcher_midnight"
-            android:label="Kora Messenger"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity-alias>
-
-        <activity-alias
-            android:name=".IconRoseGold"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/ic_launcher_rosegold"
-            android:label="Kora Messenger"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity-alias>
-
-        <activity-alias
-            android:name=".IconOcean"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/ic_launcher_ocean"
-            android:label="Kora Messenger"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity-alias>
-
-        <activity-alias
-            android:name=".IconForest"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/ic_launcher_forest"
-            android:label="Kora Messenger"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity-alias>
-
-        <activity-alias
-            android:name=".IconCrimson"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/ic_launcher_crimson"
-            android:label="Kora Messenger"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity-alias>
-
-        <activity-alias
-            android:name=".IconAurora"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/ic_launcher_aurora"
-            android:label="Kora Messenger"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity-alias>
-
-        <activity-alias
-            android:name=".IconCarbon"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/ic_launcher_carbon"
-            android:label="Kora Messenger"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity-alias>
-
-
-        <activity-alias
-            android:name=".IconNebula"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/ic_launcher_icon_nebula"
-            android:label="Kora Messenger"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity-alias>
-
-        <activity-alias
-            android:name=".IconGalaxy"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/ic_launcher_icon_galaxy"
+            android:icon="@mipmap/ic_launcher_gold_elite"
             android:label="Kora Messenger"
             android:targetActivity=".MainActivity">
             <intent-filter>

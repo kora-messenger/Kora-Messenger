@@ -38,21 +38,29 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
     if (mounted) setState(() {});
   }
 
-  void _showPremiumSheet() {
-    showModalBottomSheet(
+  bool _isLoadingPremium = false;
+
+  Future<void> _showPremiumSheet() async {
+    if (_isLoadingPremium) return;
+    setState(() => _isLoadingPremium = true);
+    await Future.delayed(const Duration(milliseconds: 450));
+    if (!mounted) return;
+    setState(() => _isLoadingPremium = false);
+
+    final result = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       barrierColor: Colors.black54,
       builder: (context) => const PremiumSubscribeSheet(),
-    ).then((result) {
-      if (result == true && mounted) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const BillingScreen()),
-        );
-      }
-    });
+    );
+
+    if (result == true && mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const BillingScreen()),
+      );
+    }
   }
 
   @override
@@ -271,34 +279,15 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
   }
 
   /// Small preview thumbnail for "App icon" — shows the currently
-  /// selected Kora icon's gradient or asset image.
+  /// selected Kora icon's asset image.
   Widget _appIconPreview(KoraIconDef icon) {
+    final radius = icon.isCircle ? BorderRadius.circular(16) : BorderRadius.circular(10);
     return ClipRRect(
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: radius,
       child: SizedBox(
         width: 32,
         height: 32,
-        child: icon.assetPath != null
-            ? Image.asset(icon.assetPath!, fit: BoxFit.cover)
-            : Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: icon.gradient!,
-                  ),
-                ),
-                child: const Center(
-                  child: Text(
-                    'K',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-              ),
+        child: Image.asset(icon.assetPath, fit: BoxFit.cover),
       ),
     );
   }

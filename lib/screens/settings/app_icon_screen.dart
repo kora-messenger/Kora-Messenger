@@ -5,42 +5,46 @@ import 'premium_subscribe_sheet.dart';
 import 'billing_screen.dart';
 import '../../services/app_icon_switcher.dart';
 
-/// A single Kora app icon option — either a gradient swatch or a real
-/// asset image. Public so other screens (e.g. Appearance) can render
-/// a matching preview thumbnail of the currently-selected icon.
+/// A single Kora app icon option. Every icon is a real asset image now —
+/// no gradient/letter placeholders. `isPremiumIcon` gates selection;
+/// `isCircle` controls whether the picker renders it as a circle (only
+/// the free Default icon) or a rounded-square "box" (Premium icons).
 class KoraIconDef {
   final String name;
-  final List<Color>? gradient;
-  final String? assetPath;
+  final String assetPath;
+  final bool isPremiumIcon;
+  final bool isCircle;
   const KoraIconDef({
     required this.name,
-    this.gradient,
-    this.assetPath,
+    required this.assetPath,
+    this.isPremiumIcon = true,
+    this.isCircle = false,
   });
 }
 
-/// 12 Kora app icon definitions.
-/// Icons 0-9 use gradient previews; icons 10-11 use real asset images.
+/// Kora app icon definitions.
+/// Index 0 — Default — is free for everyone and rendered as a circle.
+/// Indices 1+ are Premium-only and rendered as rounded-square boxes.
 const List<KoraIconDef> kKoraIconDefs = [
-  KoraIconDef(name: 'Classic',   gradient: [Color(0xFF8B5CF6), Color(0xFF3B82F6)]),
-  KoraIconDef(name: 'Sunset',     gradient: [Color(0xFFEF4444), Color(0xFFF59E0B)]),
-  KoraIconDef(name: 'Emerald',    gradient: [Color(0xFF10B981), Color(0xFF06B6D4)]),
-  KoraIconDef(name: 'Midnight',   gradient: [Color(0xFF1E1B4B), Color(0xFF4338CA)]),
-  KoraIconDef(name: 'Rose Gold',  gradient: [Color(0xFFF472B6), Color(0xFFFB923C)]),
-  KoraIconDef(name: 'Ocean',      gradient: [Color(0xFF0EA5E9), Color(0xFF6366F1)]),
-  KoraIconDef(name: 'Forest',     gradient: [Color(0xFF059669), Color(0xFF0D9488)]),
-  KoraIconDef(name: 'Crimson',    gradient: [Color(0xFFDC2626), Color(0xFF7C3AED)]),
-  KoraIconDef(name: 'Aurora',     gradient: [Color(0xFFA855F7), Color(0xFF2DD4BF)]),
-  KoraIconDef(name: 'Carbon',     gradient: [Color(0xFF374151), Color(0xFF111827)]),
-  KoraIconDef(name: 'Nebula',     assetPath: 'assets/icons/icon_nebula.png'),
-  KoraIconDef(name: 'Galaxy',     assetPath: 'assets/icons/icon_galaxy.png'),
+  KoraIconDef(
+    name: 'Default',
+    assetPath: 'assets/icons/icon_default_circle.png',
+    isPremiumIcon: false,
+    isCircle: true,
+  ),
+  KoraIconDef(
+    name: 'Aurora Circle',
+    assetPath: 'assets/icons/icon_aurora_circle.png',
+  ),
+  KoraIconDef(
+    name: 'Gold Elite',
+    assetPath: 'assets/icons/icon_gold_elite.png',
+  ),
 ];
 
-/// App Icon picker — 12 Kora app icons. Premium only.
-///
-/// Non-premium users can see all icons but the grid is
-/// read-only. A "Get Kora Premium" button appears at the
-/// bottom instead of the Apply button.
+/// App Icon picker. Default (index 0) is free for everyone; the other
+/// icons require Kora Premium to select and apply. A 3-dot menu at the
+/// top lets the user reset back to the Default icon at any time.
 class AppIconScreen extends StatefulWidget {
   const AppIconScreen({super.key});
 
@@ -52,6 +56,7 @@ class _AppIconScreenState extends State<AppIconScreen> {
   final _provider = ChatThemeProvider.instance;
   int _selectedIcon = 0;
   bool _isApplying = false;
+  bool _isLoadingPremiumSheet = false;
 
   @override
   void initState() {
@@ -70,16 +75,21 @@ class _AppIconScreenState extends State<AppIconScreen> {
     if (mounted) setState(() {});
   }
 
-  // 12 Kora app icon definitions live in the top-level `kKoraIconDefs`
-  // list below so the Appearance screen can render a matching preview.
+  // Icon definitions live in the top-level `kKoraIconDefs` list below so
+  // the Appearance screen can render a matching preview thumbnail.
   static const List<KoraIconDef> _icons = kKoraIconDefs;
 
   void _selectIcon(int index) {
-    if (!_provider.isPremium) return;
+    final icon = _icons[index];
+    if (icon.isPremiumIcon && !_provider.isPremium) {
+      // Premium-locked icon — offer Premium instead of selecting it.
+      _showPremiumSheet();
+      return;
+    }
     setState(() => _selectedIcon = index);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('${_icons[index].name} icon selected'),
+        content: Text('${icon.name} icon selected'),
         behavior: SnackBarBehavior.floating,
         backgroundColor: KoraColors.darkCard,
         duration: const Duration(seconds: 2),
@@ -89,6 +99,9 @@ class _AppIconScreenState extends State<AppIconScreen> {
 
   Future<void> _applyIcon() async {
     if (_isApplying) return;
+    final icon = _icons[_selectedIcon];
+    if (icon.isPremiumIcon && !_provider.isPremium) return;
+
     setState(() => _isApplying = true);
 
     // Persist selection
@@ -103,8 +116,8 @@ class _AppIconScreenState extends State<AppIconScreen> {
         SnackBar(
           content: Text(
             success
-                ? '${_icons[_selectedIcon].name} icon set! The app icon will update shortly.'
-                : '${_icons[_selectedIcon].name} icon saved. Restart the app to see the change.',
+                ? '${icon.name} icon set! The app icon will update shortly.'
+                : '${icon.name} icon saved. Restart the app to see the change.',
           ),
           behavior: SnackBarBehavior.floating,
           backgroundColor: KoraColors.darkCard,
@@ -114,21 +127,56 @@ class _AppIconScreenState extends State<AppIconScreen> {
     }
   }
 
-  void _showPremiumSheet() {
-    showModalBottomSheet(
+  /// Resets the app icon back to the free Default icon — always allowed.
+  Future<void> _resetToDefault() async {
+    setState(() {
+      _selectedIcon = 0;
+      _isApplying = true;
+    });
+
+    await _provider.resetAppIcon();
+    final success = await AppIconSwitcher.setIcon(0);
+
+    if (mounted) {
+      setState(() => _isApplying = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            success
+                ? 'App icon reset to Default.'
+                : 'Default icon saved. Restart the app to see the change.',
+          ),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: KoraColors.darkCard,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
+  Future<void> _showPremiumSheet() async {
+    if (_isLoadingPremiumSheet) return;
+    setState(() => _isLoadingPremiumSheet = true);
+
+    // Brief loading state for tactile feedback before the sheet opens.
+    await Future.delayed(const Duration(milliseconds: 450));
+    if (!mounted) return;
+    setState(() => _isLoadingPremiumSheet = false);
+
+    final result = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       barrierColor: Colors.black54,
       builder: (context) => const PremiumSubscribeSheet(),
-    ).then((result) {
-      if (result == true && mounted) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const BillingScreen()),
-        );
-      }
-    });
+    );
+
+    if (result == true && mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const BillingScreen()),
+      );
+    }
   }
 
   @override
@@ -158,10 +206,49 @@ class _AppIconScreenState extends State<AppIconScreen> {
           icon: Icon(Icons.arrow_back, color: textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          PopupMenuButton<String>(
+            icon: Icon(Icons.more_vert, color: textPrimary),
+            color: card,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+              side: BorderSide(color: border, width: 0.5),
+            ),
+            onSelected: (value) {
+              if (value == 'reset') _resetToDefault();
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: 'reset',
+                child: Row(
+                  children: [
+                    const Text('🔁', style: TextStyle(fontSize: 16)),
+                    const SizedBox(width: 10),
+                    Text(
+                      'Reset app icon',
+                      style: TextStyle(color: textPrimary, fontSize: 14.5),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
       body: SafeArea(
         child: Column(
           children: [
+            if (!isPremium)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Only the Default icon is free. Unlock the rest with Kora Premium.',
+                    style: TextStyle(color: textSecondary, fontSize: 13, height: 1.4),
+                  ),
+                ),
+              ),
             // ── Icon grid ──
             Expanded(
               child: GridView.builder(
@@ -176,6 +263,14 @@ class _AppIconScreenState extends State<AppIconScreen> {
                 itemBuilder: (context, index) {
                   final icon = _icons[index];
                   final isSelected = index == _selectedIcon;
+                  final isLocked = icon.isPremiumIcon && !isPremium;
+                  final radius = icon.isCircle
+                      ? BorderRadius.circular(38)
+                      : BorderRadius.circular(18);
+                  final innerRadius = icon.isCircle
+                      ? BorderRadius.circular(36)
+                      : BorderRadius.circular(16);
+
                   return GestureDetector(
                     onTap: () => _selectIcon(index),
                     child: Column(
@@ -186,7 +281,7 @@ class _AppIconScreenState extends State<AppIconScreen> {
                               width: 76,
                               height: 76,
                               decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(18),
+                                borderRadius: radius,
                                 border: isSelected
                                     ? Border.all(color: KoraColors.purple, width: 3)
                                     : Border.all(color: border, width: 0.5),
@@ -201,39 +296,29 @@ class _AppIconScreenState extends State<AppIconScreen> {
                                     : null,
                               ),
                               child: ClipRRect(
-                                borderRadius: BorderRadius.circular(16),
+                                borderRadius: innerRadius,
                                 child: Stack(
                                   children: [
-                                    // ── Icon preview ──
-                                    if (icon.assetPath != null)
-                                      SizedBox(
-                                        width: 76,
-                                        height: 76,
-                                        child: Image.asset(
-                                          icon.assetPath!,
-                                          fit: BoxFit.cover,
-                                        ),
-                                      )
-                                    else
-                                      Container(
-                                        decoration: BoxDecoration(
-                                          gradient: LinearGradient(
-                                            begin: Alignment.topLeft,
-                                            end: Alignment.bottomRight,
-                                            colors: icon.gradient!,
-                                          ),
-                                        ),
+                                    SizedBox(
+                                      width: 76,
+                                      height: 76,
+                                      child: Image.asset(
+                                        icon.assetPath,
+                                        fit: BoxFit.cover,
                                       ),
-                                    // ── K letter for gradient icons ──
-                                    if (icon.assetPath == null)
-                                      Center(
-                                        child: Text(
-                                          'K',
-                                          style: TextStyle(
-                                            color: Colors.white.withValues(alpha: 0.9),
-                                            fontSize: 32,
-                                            fontWeight: FontWeight.w900,
-                                            letterSpacing: -1,
+                                    ),
+                                    if (isLocked)
+                                      Positioned(
+                                        bottom: 0,
+                                        left: 0,
+                                        right: 0,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(vertical: 4),
+                                          color: Colors.black.withValues(alpha: 0.55),
+                                          child: const Icon(
+                                            Icons.workspace_premium,
+                                            color: Colors.white,
+                                            size: 14,
                                           ),
                                         ),
                                       ),
@@ -241,7 +326,7 @@ class _AppIconScreenState extends State<AppIconScreen> {
                                 ),
                               ),
                             ),
-                            if (isSelected && isPremium)
+                            if (isSelected)
                               Positioned(
                                 top: -2,
                                 right: -2,
@@ -283,111 +368,94 @@ class _AppIconScreenState extends State<AppIconScreen> {
                   top: BorderSide(color: border, width: 0.5),
                 ),
               ),
-              child: isPremium
-                  ? Column(
-                      children: [
-                        if (_selectedIcon != _provider.appIconIndex)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: Text(
-                              'Tap to apply ${_icons[_selectedIcon].name} icon',
-                              style: TextStyle(color: KoraColors.purple, fontSize: 13),
-                            ),
-                          ),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 52,
-                          child: GestureDetector(
-                            onTap: _isApplying ? null : _applyIcon,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                gradient: KoraColors.brandGradient,
-                                borderRadius: BorderRadius.circular(28),
-                                boxShadow: _isApplying ? null : [
-                                  BoxShadow(
-                                    color: KoraColors.purple.withValues(alpha: 0.35),
-                                    blurRadius: 20,
-                                    offset: const Offset(0, 8),
-                                  ),
-                                ],
-                              ),
-                              child: Center(
-                                child: _isApplying
-                                    ? const SizedBox(
-                                        width: 22,
-                                        height: 22,
-                                        child: CircularProgressIndicator(
-                                          color: Colors.white,
-                                          strokeWidth: 2.5,
-                                        ),
-                                      )
-                                    : Text(
-                                        _selectedIcon == _provider.appIconIndex
-                                            ? 'Set App Icon'
-                                            : 'Apply ${_icons[_selectedIcon].name} Icon',
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    )
-                  : Column(
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.workspace_premium, color: KoraColors.purple, size: 22),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'Choose your app icon with Kora Premium.',
-                                style: TextStyle(
-                                  color: textSecondary,
-                                  fontSize: 14,
-                                  height: 1.4,
-                                ),
-                              ),
+              child: Column(
+                children: [
+                  if (_selectedIcon != _provider.appIconIndex)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Text(
+                        'Tap to apply ${_icons[_selectedIcon].name} icon',
+                        style: TextStyle(color: KoraColors.purple, fontSize: 13),
+                      ),
+                    ),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: GestureDetector(
+                      onTap: _isApplying ? null : _applyIcon,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: KoraColors.brandGradient,
+                          borderRadius: BorderRadius.circular(28),
+                          boxShadow: _isApplying ? null : [
+                            BoxShadow(
+                              color: KoraColors.purple.withValues(alpha: 0.35),
+                              blurRadius: 20,
+                              offset: const Offset(0, 8),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 52,
-                          child: GestureDetector(
-                            onTap: _showPremiumSheet,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                gradient: KoraColors.brandGradient,
-                                borderRadius: BorderRadius.circular(28),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: KoraColors.purple.withValues(alpha: 0.35),
-                                    blurRadius: 20,
-                                    offset: const Offset(0, 8),
+                        child: Center(
+                          child: _isApplying
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2.5,
                                   ),
-                                ],
-                              ),
-                              child: const Center(
-                                child: Text(
-                                  'Get Kora Premium',
-                                  style: TextStyle(
+                                )
+                              : Text(
+                                  _selectedIcon == _provider.appIconIndex
+                                      ? 'Set App Icon'
+                                      : 'Apply ${_icons[_selectedIcon].name} Icon',
+                                  style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 16,
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
-                              ),
-                            ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (!isPremium) ...[
+                    const SizedBox(height: 14),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: GestureDetector(
+                        onTap: _isLoadingPremiumSheet ? null : _showPremiumSheet,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            border: Border.all(color: KoraColors.purple, width: 1.5),
+                            borderRadius: BorderRadius.circular(26),
+                          ),
+                          child: Center(
+                            child: _isLoadingPremiumSheet
+                                ? SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      color: KoraColors.purple,
+                                      strokeWidth: 2.5,
+                                    ),
+                                  )
+                                : Text(
+                                    'Get Kora Premium',
+                                    style: TextStyle(
+                                      color: KoraColors.purple,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
                           ),
                         ),
-                      ],
+                      ),
                     ),
+                  ],
+                ],
+              ),
             ),
           ],
         ),
@@ -395,5 +463,3 @@ class _AppIconScreenState extends State<AppIconScreen> {
     );
   }
 }
-
-

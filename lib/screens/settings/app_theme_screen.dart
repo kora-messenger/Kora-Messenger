@@ -29,12 +29,36 @@ class _AppThemeScreenState extends State<AppThemeScreen> {
     super.dispose();
   }
 
+  bool _isLoadingPremium = false;
+
   void _onChanged() {
     if (mounted) setState(() {});
   }
 
-  void _showPremiumSheet() {
-    showModalBottomSheet(
+  Future<void> _showPremiumSheet() async {
+    if (_isLoadingPremium) return;
+    setState(() => _isLoadingPremium = true);
+    await Future.delayed(const Duration(milliseconds: 450));
+    if (!mounted) return;
+    setState(() => _isLoadingPremium = false);
+
+    final result = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black54,
+      builder: (context) => const PremiumSubscribeSheet(),
+    );
+
+    if (result == true && mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const BillingScreen()),
+      );
+    }
+  }
+
+
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -297,7 +321,7 @@ class _AppThemeScreenState extends State<AppThemeScreen> {
                       width: double.infinity,
                       height: 52,
                       child: GestureDetector(
-                        onTap: _showPremiumSheet,
+                        onTap: _isLoadingPremium ? null : _showPremiumSheet,
                         child: Container(
                           decoration: BoxDecoration(
                             gradient: KoraColors.brandGradient,
@@ -310,15 +334,24 @@ class _AppThemeScreenState extends State<AppThemeScreen> {
                               ),
                             ],
                           ),
-                          child: const Center(
-                            child: Text(
-                              'Get Kora Premium',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
+                          child: Center(
+                            child: _isLoadingPremium
+                                ? const SizedBox(
+                                    width: 22,
+                                    height: 22,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2.5,
+                                    ),
+                                  )
+                                : const Text(
+                                    'Get Kora Premium',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
                           ),
                         ),
                       ),
