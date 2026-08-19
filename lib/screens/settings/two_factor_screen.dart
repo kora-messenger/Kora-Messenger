@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../theme/kora_colors.dart';
-import '../../services/auth_service.dart';
 import '../../services/session_manager.dart';
 import '../../services/crash_logger.dart';
 import 'two_factor_verify_screen.dart';

@@ -176,7 +176,6 @@ class _SecurePinScreenState extends State<SecurePinScreen> {
     final bg = KoraColors.backgroundFor(brightness);
     final textPrimary = KoraColors.textPrimaryFor(brightness);
     final textSecondary = KoraColors.textSecondaryFor(brightness);
-    final textMuted = KoraColors.textMutedFor(brightness);
     final card = KoraColors.cardFor(brightness);
     final border = KoraColors.borderFor(brightness);
 
