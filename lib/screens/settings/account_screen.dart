@@ -14,8 +14,6 @@ class AccountScreen extends StatefulWidget {
 class _AccountScreenState extends State<AccountScreen> {
   Map<String, dynamic>? _session;
   bool _loading = true;
-  bool _requestingInfo = false;
-  bool _deletingAccount = false;
   bool _loggingOut = false;
   String _confirmDeleteText = '';
 
@@ -40,8 +38,6 @@ class _AccountScreenState extends State<AccountScreen> {
   Future<void> _requestAccountInfo() async {
     if (_session == null) return;
 
-    setState(() => _requestingInfo = true);
-
     try {
       final result = await KoraApi.post({
         'action': 'requestAccountInfo',
@@ -50,7 +46,6 @@ class _AccountScreenState extends State<AccountScreen> {
       });
 
       if (!mounted) return;
-      setState(() => _requestingInfo = false);
 
       if (result['success'] == true) {
         _showInfoDialog(result);
@@ -59,7 +54,6 @@ class _AccountScreenState extends State<AccountScreen> {
       }
     } catch (e) {
       if (!mounted) return;
-      setState(() => _requestingInfo = false);
       _showError('Network error. Check your connection and try again.');
     }
   }
@@ -252,8 +246,6 @@ class _AccountScreenState extends State<AccountScreen> {
   Future<void> _deleteAccount() async {
     if (_session == null) return;
 
-    setState(() => _deletingAccount = true);
-
     try {
       final result = await KoraApi.post({
         'action': 'deleteAccount',
@@ -270,12 +262,10 @@ class _AccountScreenState extends State<AccountScreen> {
 
         Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
       } else {
-        setState(() => _deletingAccount = false);
         _showError(result['error'] as String? ?? 'Failed to delete account. Please try again.');
       }
     } catch (e) {
       if (!mounted) return;
-      setState(() => _deletingAccount = false);
       _showError('Network error. Check your connection and try again.');
     }
   }
@@ -590,7 +580,7 @@ class _AccountScreenState extends State<AccountScreen> {
         // Coming soon — just show the snackbar
         _showComingSoon('This setting');
       },
-      activeColor: KoraColors.purple,
+      activeTrackColor: KoraColors.purple,
     );
   }
 
