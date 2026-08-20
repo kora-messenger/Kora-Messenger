@@ -219,7 +219,6 @@ void main() {
 void homeScreenTests() {
   group('Kora Home Screen', () {
     setUp(() {
-      ChatService.instance.showEmptyState = false;
     });
 
     testWidgets('Chats tab shows Kora branding and header icons', (tester) async {
@@ -263,14 +262,12 @@ void homeScreenTests() {
     });
 
     testWidgets('Empty state shows when there are no chats', (tester) async {
-      ChatService.instance.showEmptyState = true;
       await tester.pumpWidget(const MaterialApp(home: KoraHomeScreen()));
       await tester.pumpAndSettle();
 
       expect(find.text('No conversations yet'), findsOneWidget);
       expect(find.text('Start a Chat'), findsOneWidget);
 
-      ChatService.instance.showEmptyState = false;
     });
 
     testWidgets('Tapping search icon opens the search screen', (tester) async {

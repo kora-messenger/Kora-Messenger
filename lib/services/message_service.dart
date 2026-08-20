@@ -100,7 +100,7 @@ class MessageService {
     String? replyToText,
     String? replyToName,
   }) async {
-    final messages = _cache.putIfAbsent(chatId, () []);
+    final messages = _cache.putIfAbsent(chatId, () => <KoraMessage>[]);
     messages.add(KoraMessage(
       id: 'msg_${DateTime.now().millisecondsSinceEpoch}',
       text: text,
@@ -123,7 +123,7 @@ class MessageService {
     String? actionType,
     KoraMessageType type = KoraMessageType.text,
   }) async {
-    final messages = _cache.putIfAbsent(chatId, () []);
+    final messages = _cache.putIfAbsent(chatId, () => <KoraMessage>[]);
     messages.add(KoraMessage(
       id: 'in_${DateTime.now().millisecondsSinceEpoch}',
       text: text,
@@ -139,7 +139,7 @@ class MessageService {
   }
 
   Future<void> sendVoiceMessage(String chatId, String duration) async {
-    final messages = _cache.putIfAbsent(chatId, () []);
+    final messages = _cache.putIfAbsent(chatId, () => <KoraMessage>[]);
     messages.add(KoraMessage(
       id: 'voice_${DateTime.now().millisecondsSinceEpoch}',
       text: '',
@@ -207,7 +207,7 @@ class MessageService {
   }
 
   void _seedExpiryMessage() {
-    final messages = _cache.putIfAbsent('kora_support', () []);
+    final messages = _cache.putIfAbsent('kora_support', () => <KoraMessage>[]);
     messages.add(KoraMessage(
       id: 'expiry_1',
       text: 'Your 7-day Kora Premium subscription has expired. 😔\n\n'

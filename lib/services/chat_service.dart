@@ -1,5 +1,4 @@
 import '../models/chat_models.dart';
-import '../models/message_model.dart';
 import 'message_service.dart';
 
 /// Builds the Home chat list from real persisted conversations.
