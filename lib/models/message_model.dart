@@ -35,6 +35,12 @@ class KoraMessage {
   /// can show a subtle "AI" indicator if needed.
   final bool isAi;
 
+  /// Whether an INCOMING message (isMe=false) has been viewed by the
+  /// user in this chat. Drives the home screen's unread badge/count.
+  /// Outgoing messages (isMe=true) are always considered seen — this
+  /// field is only meaningful for incoming messages.
+  final bool isSeen;
+
   const KoraMessage({
     required this.id,
     required this.text,
@@ -51,6 +57,7 @@ class KoraMessage {
     this.actionLabel,
     this.actionType,
     this.isAi = false,
+    this.isSeen = false,
   });
 
   KoraMessage copyWith({
@@ -69,6 +76,7 @@ class KoraMessage {
     String? actionLabel,
     String? actionType,
     bool? isAi,
+    bool? isSeen,
   }) {
     return KoraMessage(
       id: id ?? this.id,
@@ -86,6 +94,7 @@ class KoraMessage {
       actionLabel: actionLabel ?? this.actionLabel,
       actionType: actionType ?? this.actionType,
       isAi: isAi ?? this.isAi,
+      isSeen: isSeen ?? this.isSeen,
     );
   }
 
@@ -106,6 +115,7 @@ class KoraMessage {
     'actionLabel': actionLabel,
     'actionType': actionType,
     'isAi': isAi,
+    'isSeen': isSeen,
   };
 
   /// Deserialise from JSON.
@@ -131,5 +141,8 @@ class KoraMessage {
     actionLabel: j['actionLabel'] as String?,
     actionType: j['actionType'] as String?,
     isAi: j['isAi'] as bool? ?? false,
+    // Default true for legacy messages saved before this field existed,
+    // so we don't retroactively mark old, already-seen chats unread.
+    isSeen: j['isSeen'] as bool? ?? true,
   );
 }

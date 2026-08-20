@@ -28,7 +28,7 @@ class ChatService {
       timestamp: supportMsgs.isNotEmpty
           ? supportMsgs.last.timestamp
           : DateTime.now(),
-      unreadCount: supportMsgs.any((m) => !m.isMe) ? 1 : 0,
+      unreadCount: ms.unreadCountFor('kora_support'),
       badge: KoraBadgeType.officialPurple,
       isPinned: true,
       status: MessageStatus.none,
@@ -46,7 +46,7 @@ class ChatService {
       timestamp: aiMsgs.isNotEmpty
           ? aiMsgs.last.timestamp
           : DateTime.now().subtract(const Duration(hours: 1)),
-      unreadCount: 0,
+      unreadCount: ms.unreadCountFor('kora_ai'),
       badge: KoraBadgeType.officialPurple,
       isPinned: true,
       status: MessageStatus.none,

@@ -74,8 +74,11 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
     _themeProvider.addListener(_onThemeChanged);
     _loadMessages();
     // Refresh every 500ms to pick up status changes (sent → delivered → read)
+    // and mark any newly-arrived incoming messages as viewed while open.
     _statusTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
-      if (mounted) _refreshMessages();
+      if (!mounted) return;
+      _messageService.markChatViewed(widget.chatId);
+      _refreshMessages();
     });
   }
 
@@ -93,6 +96,8 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
 
   Future<void> _loadMessages() async {
     _messages = await _messageService.loadMessages(widget.chatId);
+    // Mark all incoming messages as viewed — clears the Home unread badge.
+    await _messageService.markChatViewed(widget.chatId);
     if (mounted) {
       setState(() => _isLoading = false);
       WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());

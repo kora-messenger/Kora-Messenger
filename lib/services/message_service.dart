@@ -157,8 +157,35 @@ class MessageService {
       type: type,
       actionLabel: actionLabel,
       actionType: actionType,
+      isSeen: false, // unread until the recipient opens the chat
     ));
     await _persist(chatId);
+  }
+
+  /// Marks every incoming message in [chatId] as seen. Call this when
+  /// the user opens the chat screen — it clears the unread badge on
+  /// the Home screen and is the source of truth for "has this chat
+  /// been viewed" (separate from [markAsRead], which marks the OTHER
+  /// side reading messages *I* sent).
+  Future<void> markChatViewed(String chatId) async {
+    final messages = _cache[chatId];
+    if (messages == null) return;
+    bool changed = false;
+    for (int i = 0; i < messages.length; i++) {
+      if (!messages[i].isMe && !messages[i].isSeen) {
+        messages[i] = messages[i].copyWith(isSeen: true);
+        changed = true;
+      }
+    }
+    if (changed) await _persist(chatId);
+  }
+
+  /// Number of unseen incoming messages in [chatId]. Drives the
+  /// Home screen's unread badge/bold state.
+  int unreadCountFor(String chatId) {
+    final messages = _cache[chatId];
+    if (messages == null) return 0;
+    return messages.where((m) => !m.isMe && !m.isSeen).length;
   }
 
   Future<void> sendVoiceMessage(String chatId, String duration) async {

@@ -64,7 +64,11 @@ class _ChatsTabState extends State<ChatsTab> {
           lastSeen: chat.isOnline ? null : 'last seen recently',
         ),
       ),
-    );
+    ).then((_) {
+      // Refresh unread badges/bold state after returning — the chat
+      // screen marks incoming messages as viewed while it's open.
+      if (mounted) setState(() => _chats = ChatService.instance.getChats());
+    });
   }
 
   void _toggleSearch() {
@@ -77,29 +81,16 @@ class _ChatsTabState extends State<ChatsTab> {
     });
   }
 
-  void _readAll() {
-    setState(() {
-      _chats = _chats.map((c) {
-        // Can't mutate ChatPreview directly since it's immutable,
-        // but we mark unread as 0 visually — when we wire real data
-        // this will call the backend
-        return ChatPreview(
-          id: c.id,
-          name: c.name,
-          avatarAsset: c.avatarAsset,
-          avatarUrl: c.avatarUrl,
-          lastMessage: c.lastMessage,
-          timestamp: c.timestamp,
-          unreadCount: 0,
-          status: c.status,
-          badge: c.badge,
-          isMuted: c.isMuted,
-          isPinned: c.isPinned,
-          isOnline: c.isOnline,
-          isTyping: c.isTyping,
-        );
-      }).toList();
-    });
+  Future<void> _readAll() async {
+    // Persist: mark every incoming message in every chat as viewed,
+    // so the badges stay cleared after the next refresh too.
+    for (final c in _chats) {
+      await MessageService.instance.markChatViewed(c.id);
+    }
+    if (mounted) {
+      setState(() => _chats = ChatService.instance.getChats());
+    }
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Text('All messages marked as read'),
