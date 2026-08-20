@@ -126,37 +126,47 @@ class _ChatThemePreviewScreenState extends State<ChatThemePreviewScreen> {
           IgnorePointer(
             child: Container(color: Colors.black.withValues(alpha: _dimLevel * 0.75)),
           ),
-          // Top bar
-          SafeArea(
-            bottom: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(8, 4, 16, 0),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: Icon(Icons.arrow_back, color: chromeColor, shadows: chromeShadow),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                  Text(
-                    'Preview',
-                    style: TextStyle(
-                      color: chromeColor,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                      shadows: chromeShadow,
+          // Top bar — pinned to the very top of the screen. Must be
+          // wrapped in Positioned (not a plain Stack child) because the
+          // Stack uses fit: StackFit.expand, which would otherwise
+          // stretch this Row to fill the whole screen height and
+          // vertically center its contents instead of keeping them at
+          // the top.
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(8, 4, 16, 0),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: Icon(Icons.arrow_back, color: chromeColor, shadows: chromeShadow),
+                      onPressed: () => Navigator.pop(context),
                     ),
-                  ),
-                  const Spacer(),
-                  GestureDetector(
-                    onTap: _confirm,
-                    child: Container(
-                      width: 38,
-                      height: 38,
-                      decoration: const BoxDecoration(color: Color(0xFF25D366), shape: BoxShape.circle),
-                      child: const Icon(Icons.check, color: Colors.white, size: 20),
+                    Text(
+                      'Preview',
+                      style: TextStyle(
+                        color: chromeColor,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                        shadows: chromeShadow,
+                      ),
                     ),
-                  ),
-                ],
+                    const Spacer(),
+                    GestureDetector(
+                      onTap: _confirm,
+                      child: Container(
+                        width: 38,
+                        height: 38,
+                        decoration: const BoxDecoration(color: Color(0xFF25D366), shape: BoxShape.circle),
+                        child: const Icon(Icons.check, color: Colors.white, size: 20),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
