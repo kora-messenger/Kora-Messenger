@@ -1,17 +1,43 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../theme/kora_colors.dart';
 import '../../theme/chat_theme_provider.dart';
 import 'solid_color_screen.dart';
 
-/// Wallpaper settings — choose from gallery or solid color.
+/// Wallpaper picker — matches the classic "Choose from gallery / Set a
+/// color / Create with AI" menu followed by a grid of preset wallpaper
+/// thumbnails. Preset tiles are placeholders (built from the app's brand
+/// palette) until real wallpaper images are supplied — swap
+/// [_presetWallpapers] for real assets/URLs when they arrive.
 class WallpaperScreen extends StatefulWidget {
   const WallpaperScreen({super.key});
 
   @override
   State<WallpaperScreen> createState() => _WallpaperScreenState();
 }
+
+/// A single preset wallpaper tile. [colors] with length 1 renders a solid
+/// fill; length 2+ renders a gradient. Once real images are provided,
+/// add an `imagePath` / `imageUrl` field here and render that instead.
+class _PresetWallpaper {
+  final List<Color> colors;
+  const _PresetWallpaper(this.colors);
+}
+
+const List<_PresetWallpaper> _presetWallpapers = [
+  _PresetWallpaper([Color(0xFFDD9FF0), Color(0xFFB794F4)]),
+  _PresetWallpaper([Color(0xFFC7D2FE), Color(0xFFE0C3FC)]),
+  _PresetWallpaper([Color(0xFFFBC2EB), Color(0xFFFDCBF1)]),
+  _PresetWallpaper([Color(0xFFFDCBF1), Color(0xFFE6DEE9)]),
+  _PresetWallpaper([Color(0xFFF5F3FF), Color(0xFFE4E4F7)]),
+  _PresetWallpaper([Color(0xFF6D6AE8), Color(0xFF8B5CF6)]),
+  _PresetWallpaper([Color(0xFFFFD59E), Color(0xFFFF9A5A)]),
+  _PresetWallpaper([Color(0xFFFFB88C), Color(0xFFFF7EB3)]),
+  _PresetWallpaper([Color(0xFFFFD3E0), Color(0xFFFFB3C6)]),
+  _PresetWallpaper([Color(0xFFB7F0AD), Color(0xFF7BE495)]),
+  _PresetWallpaper([Color(0xFF9BE8FF), Color(0xFF4FACFE)]),
+  _PresetWallpaper([Color(0xFFD9F2A3), Color(0xFFA8E063)]),
+];
 
 class _WallpaperScreenState extends State<WallpaperScreen> {
   final _provider = ChatThemeProvider.instance;
@@ -42,9 +68,19 @@ class _WallpaperScreenState extends State<WallpaperScreen> {
       if (image != null) {
         await _provider.setWallpaperImage(image.path);
       }
-    } catch (e) {
+    } catch (_) {
       // ignore
     }
+  }
+
+  void _createWithAI() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Create with AI is coming soon ✨')),
+    );
+  }
+
+  Future<void> _resetToDefault() async {
+    await _provider.setChatTheme(_provider.themeId);
   }
 
   @override
@@ -53,88 +89,52 @@ class _WallpaperScreenState extends State<WallpaperScreen> {
     final bg = KoraColors.backgroundFor(brightness);
     final textPrimary = KoraColors.textPrimaryFor(brightness);
     final textSecondary = KoraColors.textSecondaryFor(brightness);
-    final card = KoraColors.cardFor(brightness);
     final border = KoraColors.borderFor(brightness);
-
-    final currentWallpaper = _provider.wallpaperColor ?? _provider.activeTheme.wallpaper;
-    final hasImage = _provider.wallpaperImagePath != null;
 
     return Scaffold(
       backgroundColor: bg,
       appBar: AppBar(
         backgroundColor: bg,
         elevation: 0,
+        titleSpacing: 0,
         title: Text(
           'Wallpaper',
-          style: TextStyle(color: textPrimary, fontSize: 18, fontWeight: FontWeight.w700),
+          style: TextStyle(color: textPrimary, fontSize: 20, fontWeight: FontWeight.w600),
         ),
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          PopupMenuButton<String>(
+            icon: Icon(Icons.more_vert, color: textPrimary),
+            color: KoraColors.cardFor(brightness),
+            onSelected: (value) {
+              if (value == 'reset') _resetToDefault();
+            },
+            itemBuilder: (_) => [
+              PopupMenuItem(
+                value: 'reset',
+                child: Text('Reset to default', style: TextStyle(color: textPrimary)),
+              ),
+            ],
+          ),
+        ],
       ),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+          padding: const EdgeInsets.fromLTRB(8, 4, 8, 24),
           children: [
-            // Current wallpaper preview
-            Container(
-              height: 140,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: border, width: 0.5),
-                color: currentWallpaper,
-              ),
-              child: hasImage
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: Image.file(
-                        File(_provider.wallpaperImagePath!),
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                      ),
-                    )
-                  : Center(
-                      child: Text(
-                        'Current wallpaper',
-                        style: TextStyle(
-                          color: currentWallpaper.computeLuminance() > 0.5
-                              ? const Color(0xFF1A1A2E)
-                              : Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-            ),
-            const SizedBox(height: 24),
-
-            // Choose from gallery
-            _optionTile(
-              context,
-              card: card,
-              border: border,
-              textPrimary: textPrimary,
-              textSecondary: textSecondary,
-              icon: Icons.photo_library_outlined,
-              iconColor: KoraColors.purple,
-              title: 'Choose from gallery',
-              subtitle: 'Pick a photo from your device',
+            _menuRow(
+              icon: Icons.image_outlined,
+              label: 'Choose from gallery',
+              color: textPrimary,
               onTap: _pickFromGallery,
             ),
-            const SizedBox(height: 10),
-
-            // Select a color
-            _optionTile(
-              context,
-              card: card,
-              border: border,
-              textPrimary: textPrimary,
-              textSecondary: textSecondary,
-              icon: Icons.palette_outlined,
-              iconColor: KoraColors.blue,
-              title: 'Select a color',
-              subtitle: 'Choose from light solid colors',
+            _menuRow(
+              icon: Icons.colorize_outlined,
+              label: 'Set a color',
+              color: textPrimary,
               onTap: () {
                 Navigator.push(
                   context,
@@ -142,69 +142,106 @@ class _WallpaperScreenState extends State<WallpaperScreen> {
                 );
               },
             ),
+            _menuRow(
+              icon: Icons.auto_awesome_outlined,
+              label: 'Create with AI',
+              color: textPrimary,
+              onTap: _createWithAI,
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: Divider(color: border, height: 1),
+            ),
+            const SizedBox(height: 16),
+            GridView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                childAspectRatio: 0.62,
+                crossAxisSpacing: 8,
+                mainAxisSpacing: 8,
+              ),
+              itemCount: _presetWallpapers.length,
+              itemBuilder: (context, index) {
+                final preset = _presetWallpapers[index];
+                final tileColor = preset.colors.first;
+                final isSelected = _provider.wallpaperImagePath == null &&
+                    _provider.wallpaperColor?.toARGB32() == tileColor.toARGB32();
+                return GestureDetector(
+                  onTap: () => _provider.setWallpaperColor(tileColor),
+                  child: Stack(
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          gradient: preset.colors.length > 1
+                              ? LinearGradient(
+                                  colors: preset.colors,
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                )
+                              : null,
+                          color: preset.colors.length == 1 ? preset.colors.first : null,
+                          border: isSelected
+                              ? Border.all(color: KoraColors.purple, width: 3)
+                              : null,
+                        ),
+                      ),
+                      if (isSelected)
+                        Positioned(
+                          right: 8,
+                          top: 8,
+                          child: Container(
+                            padding: const EdgeInsets.all(3),
+                            decoration: const BoxDecoration(
+                              color: KoraColors.purple,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.check, color: Colors.white, size: 14),
+                          ),
+                        ),
+                    ],
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text(
+                'More wallpapers coming soon',
+                style: TextStyle(color: textSecondary, fontSize: 12.5),
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _optionTile(
-    BuildContext context, {
-    required Color card,
-    required Color border,
-    required Color textPrimary,
-    required Color textSecondary,
+  Widget _menuRow({
     required IconData icon,
-    required Color iconColor,
-    required String title,
-    required String subtitle,
+    required String label,
+    required Color color,
     required VoidCallback onTap,
   }) {
     return Material(
-      color: card,
-      borderRadius: BorderRadius.circular(14),
-      clipBehavior: Clip.antiAlias,
+      color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: border, width: 0.5),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           child: Row(
             children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: iconColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(icon, color: iconColor, size: 20),
+              Icon(icon, color: color, size: 22),
+              const SizedBox(width: 24),
+              Text(
+                label,
+                style: TextStyle(color: color, fontSize: 16, fontWeight: FontWeight.w400),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        color: textPrimary,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: TextStyle(color: textSecondary, fontSize: 12.5),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(Icons.chevron_right, color: textSecondary),
             ],
           ),
         ),
