@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/call_log.dart';
+import '../models/chat_models.dart';
 
 /// Manages call history with local persistence (SharedPreferences).
 ///
