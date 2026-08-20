@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import '../models/chat_models.dart';
 
 /// Kora's verified-account badge system.
-/// Purple checkmark = official Kora accounts (Support, AI Assistant, etc.)
-/// Blue checkmark = Kora Premium subscriber.
-/// Kept as ONE small reusable widget so it stays visually consistent
+/// Purple scalloped seal = official Kora accounts (Support, AI Assistant, etc.)
+/// Blue scalloped seal = Kora Premium subscriber.
+/// Rendered from bundled artwork (the classic scalloped verified-checkmark
+/// seal, matching the reference designs) so it stays crisp and consistent
 /// everywhere in the app (chat list, chat header, search results, profile).
 class KoraBadge extends StatelessWidget {
   final KoraBadgeType type;
@@ -20,26 +21,15 @@ class KoraBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     if (type == KoraBadgeType.none) return const SizedBox.shrink();
 
-    final color = type == KoraBadgeType.officialPurple
-        ? KoraBadgeColors.official
-        : KoraBadgeColors.premium;
+    final assetPath = type == KoraBadgeType.officialPurple
+        ? 'assets/badges/official_badge.png'
+        : 'assets/badges/premium_badge.png';
 
-    return Container(
+    return Image.asset(
+      assetPath,
       width: size,
       height: size,
-      decoration: BoxDecoration(
-        color: color,
-        shape: BoxShape.circle,
-        border: Border.all(
-          color: Theme.of(context).scaffoldBackgroundColor,
-          width: 1.2,
-        ),
-      ),
-      child: Icon(
-        Icons.check,
-        size: size * 0.65,
-        color: Colors.white,
-      ),
+      fit: BoxFit.contain,
     );
   }
 }
