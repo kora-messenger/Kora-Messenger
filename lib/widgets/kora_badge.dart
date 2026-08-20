@@ -47,7 +47,7 @@ class KoraNameWithBadge extends StatelessWidget {
     required this.name,
     this.badge = KoraBadgeType.none,
     this.style,
-    this.badgeSize = 15,
+    this.badgeSize = 17,
   });
 
   @override

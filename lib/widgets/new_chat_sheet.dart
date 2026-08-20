@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../theme/kora_colors.dart';
 import '../widgets/kora_input.dart';
+import '../screens/contacts/new_contact_screen.dart';
+import '../screens/contacts/qr_code_screen.dart';
 
 /// Kora's "New Chat" sheet — the entry point for starting a conversation.
 /// Distinct from a plain contact-picker list: a search field up top for
@@ -99,6 +101,32 @@ class NewChatSheet extends StatelessWidget {
                       label: 'New Channel',
                       subtitle: 'Broadcast to an audience',
                     ),
+                    _quickAction(
+                      context,
+                      icon: Icons.person_add_alt_1_outlined,
+                      label: 'New Contact',
+                      subtitle: 'Add someone by name or Kora ID',
+                      onTap: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const NewContactScreen()),
+                        );
+                      },
+                    ),
+                    _quickAction(
+                      context,
+                      icon: Icons.qr_code_2_rounded,
+                      label: 'QR Code',
+                      subtitle: 'Share or scan a code to connect',
+                      onTap: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const QrCodeScreen()),
+                        );
+                      },
+                    ),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
                       child: Text(
@@ -136,13 +164,14 @@ class NewChatSheet extends StatelessWidget {
     required IconData icon,
     required String label,
     required String subtitle,
+    VoidCallback? onTap,
   }) {
     final brightness = Theme.of(context).brightness;
     final textPrimary = KoraColors.textPrimaryFor(brightness);
     final textSecondary = KoraColors.textSecondaryFor(brightness);
 
     return InkWell(
-      onTap: () {},
+      onTap: onTap ?? () {},
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         child: Row(
