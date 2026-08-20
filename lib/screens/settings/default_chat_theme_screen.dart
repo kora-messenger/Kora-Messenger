@@ -1,13 +1,43 @@
 import 'package:flutter/material.dart';
 import '../../theme/kora_colors.dart';
 import '../../theme/chat_theme_provider.dart';
+import '../../widgets/kora_menu_sheet.dart';
 import 'wallpaper_screen.dart';
 import 'chat_bubble_color_screen.dart';
 import 'chat_theme_preview_screen.dart';
 
-/// Shows the 7 default chat themes, plus the Wallpaper and Chat bubble
-/// customization tiles (moved here from the Appearance screen — both
-/// are really about customizing the chat theme, so they belong together).
+/// A single tile in the "Chat theme" grid — either a solid-color preset,
+/// a bundled image wallpaper preset, or the special "Create with AI" card.
+class _ThemeCard {
+  final String id;
+  final Color? wallpaperColor;
+  final String? wallpaperAsset;
+  final Color sentBubble;
+  final Color receivedBubble;
+  final bool isAi;
+
+  const _ThemeCard({
+    required this.id,
+    this.wallpaperColor,
+    this.wallpaperAsset,
+    this.sentBubble = KoraColors.purple,
+    this.receivedBubble = Colors.white,
+    this.isAi = false,
+  });
+
+  const _ThemeCard.ai()
+      : id = 'create_with_ai',
+        wallpaperColor = null,
+        wallpaperAsset = null,
+        sentBubble = KoraColors.purple,
+        receivedBubble = Colors.white,
+        isAi = true;
+}
+
+/// Shows the chat theme grid (solid presets + bundled wallpaper presets +
+/// "Create with AI"), plus the Chat bubble and Wallpaper customization
+/// tiles beneath it — matching the classic "Chat theme" screen layout,
+/// reachable both from a chat's 3-dot menu and from Appearance settings.
 class DefaultChatThemeScreen extends StatefulWidget {
   const DefaultChatThemeScreen({super.key});
 
@@ -17,6 +47,79 @@ class DefaultChatThemeScreen extends StatefulWidget {
 
 class _DefaultChatThemeScreenState extends State<DefaultChatThemeScreen> {
   final _provider = ChatThemeProvider.instance;
+
+  // Ordered to mirror the reference layout: solid presets interleaved
+  // with bundled image wallpapers, with "Create with AI" as the second
+  // card (top row).
+  late final List<_ThemeCard> _cards = [
+    _ThemeCard(
+      id: kDefaultChatThemes[0].id, // Default
+      wallpaperColor: kDefaultChatThemes[0].wallpaper,
+      sentBubble: kDefaultChatThemes[0].sentBubble,
+      receivedBubble: kDefaultChatThemes[0].receivedBubble,
+    ),
+    const _ThemeCard(
+      id: 'cosmic_swirl',
+      wallpaperAsset: 'assets/wallpapers/cosmic_swirl.jpg',
+      sentBubble: Color(0xFF4F46E5),
+      receivedBubble: Colors.white,
+    ),
+    const _ThemeCard.ai(),
+    const _ThemeCard(
+      id: 'rose_petals',
+      wallpaperAsset: 'assets/wallpapers/rose_petals.jpg',
+      sentBubble: Color(0xFFA855F7),
+      receivedBubble: Colors.white,
+    ),
+    _ThemeCard(
+      id: kDefaultChatThemes[5].id, // Ocean
+      wallpaperColor: kDefaultChatThemes[5].wallpaper,
+      sentBubble: kDefaultChatThemes[5].sentBubble,
+      receivedBubble: kDefaultChatThemes[5].receivedBubble,
+    ),
+    const _ThemeCard(
+      id: 'terracotta_shapes',
+      wallpaperAsset: 'assets/wallpapers/terracotta_shapes.jpg',
+      sentBubble: Color(0xFFDC2626),
+      receivedBubble: Colors.white,
+    ),
+    _ThemeCard(
+      id: kDefaultChatThemes[2].id, // Coral
+      wallpaperColor: kDefaultChatThemes[2].wallpaper,
+      sentBubble: kDefaultChatThemes[2].sentBubble,
+      receivedBubble: kDefaultChatThemes[2].receivedBubble,
+    ),
+    const _ThemeCard(
+      id: 'blue_pink_waves',
+      wallpaperAsset: 'assets/wallpapers/blue_pink_waves.jpg',
+      sentBubble: Color(0xFF0D9488),
+      receivedBubble: Colors.white,
+    ),
+    _ThemeCard(
+      id: kDefaultChatThemes[1].id, // Midnight
+      wallpaperColor: kDefaultChatThemes[1].wallpaper,
+      sentBubble: kDefaultChatThemes[1].sentBubble,
+      receivedBubble: kDefaultChatThemes[1].receivedBubble,
+    ),
+    _ThemeCard(
+      id: kDefaultChatThemes[3].id, // Forest
+      wallpaperColor: kDefaultChatThemes[3].wallpaper,
+      sentBubble: kDefaultChatThemes[3].sentBubble,
+      receivedBubble: kDefaultChatThemes[3].receivedBubble,
+    ),
+    _ThemeCard(
+      id: kDefaultChatThemes[4].id, // Rose
+      wallpaperColor: kDefaultChatThemes[4].wallpaper,
+      sentBubble: kDefaultChatThemes[4].sentBubble,
+      receivedBubble: kDefaultChatThemes[4].receivedBubble,
+    ),
+    _ThemeCard(
+      id: kDefaultChatThemes[6].id, // Sand
+      wallpaperColor: kDefaultChatThemes[6].wallpaper,
+      sentBubble: kDefaultChatThemes[6].sentBubble,
+      receivedBubble: kDefaultChatThemes[6].receivedBubble,
+    ),
+  ];
 
   @override
   void initState() {
@@ -34,32 +137,71 @@ class _DefaultChatThemeScreenState extends State<DefaultChatThemeScreen> {
     if (mounted) setState(() {});
   }
 
-  void _openPreview(int index) {
-    final backgrounds = kDefaultChatThemes
-        .map((t) => PreviewBackground(color: t.wallpaper, bubbleColor: t.sentBubble))
+  bool _isSelected(_ThemeCard card) {
+    if (card.isAi) return false;
+    if (card.wallpaperAsset != null) {
+      return _provider.wallpaperAssetPath == card.wallpaperAsset;
+    }
+    // Solid preset — selected only if it's the active theme id and no
+    // custom overrides (color/asset) are in play.
+    return _provider.themeId == card.id &&
+        _provider.wallpaperColor == null &&
+        _provider.wallpaperAssetPath == null &&
+        _provider.wallpaperImagePath == null;
+  }
+
+  void _createWithAi() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Create with AI is coming soon ✨')),
+    );
+  }
+
+  void _openPreview(_ThemeCard tapped) {
+    final regularCards = _cards.where((c) => !c.isAi).toList();
+    final initialIndex = regularCards.indexWhere((c) => c.id == tapped.id);
+    final backgrounds = regularCards
+        .map((c) => c.wallpaperAsset != null
+            ? PreviewBackground(assetPath: c.wallpaperAsset, bubbleColor: c.sentBubble)
+            : PreviewBackground(color: c.wallpaperColor, bubbleColor: c.sentBubble))
         .toList();
+
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => ChatThemePreviewScreen(
           backgrounds: backgrounds,
-          initialIndex: index,
-          initialBubbleColor: kDefaultChatThemes[index].sentBubble,
+          initialIndex: initialIndex < 0 ? 0 : initialIndex,
+          initialBubbleColor: tapped.sentBubble,
           hintText: 'Swipe left or right to preview more themes ✨',
           onApply: (bg, bubbleColor, dimLevel) {
-            final matchIndex = kDefaultChatThemes.indexWhere(
-              (t) => bg.color != null && t.wallpaper.toARGB32() == bg.color!.toARGB32(),
-            );
-            final matched = matchIndex != -1 ? kDefaultChatThemes[matchIndex] : kDefaultChatThemes[index];
-            _provider.setChatTheme(matched.id);
-            if (bubbleColor.toARGB32() != matched.sentBubble.toARGB32()) {
+            if (bg.assetPath != null) {
+              _provider.setWallpaperAsset(bg.assetPath!);
               _provider.setCustomSentBubble(bubbleColor);
+            } else if (bg.color != null) {
+              final matched = kDefaultChatThemes.firstWhere(
+                (t) => t.wallpaper.toARGB32() == bg.color!.toARGB32(),
+                orElse: () => kDefaultChatThemes[0],
+              );
+              _provider.setChatTheme(matched.id);
+              if (bubbleColor.toARGB32() != matched.sentBubble.toARGB32()) {
+                _provider.setCustomSentBubble(bubbleColor);
+              }
             }
             _provider.setWallpaperDimLevel(dimLevel);
           },
         ),
       ),
     );
+  }
+
+  void _showMenu() {
+    KoraMenuSheet.show(context, [
+      KoraMenuOption(
+        icon: Icons.restart_alt,
+        label: 'Reset to default',
+        onTap: () => _provider.setChatTheme(kDefaultChatThemes[0].id),
+      ),
+    ]);
   }
 
   @override
@@ -73,65 +215,87 @@ class _DefaultChatThemeScreenState extends State<DefaultChatThemeScreen> {
 
     final theme = _provider.activeTheme;
 
+    const cardWidth = 108.0;
+    const cardHeight = 148.0;
+    const spacing = 12.0;
+
     return Scaffold(
       backgroundColor: bg,
       appBar: AppBar(
         backgroundColor: bg,
         elevation: 0,
         title: Text(
-          'Default chat theme',
-          style: TextStyle(color: textPrimary, fontSize: 18, fontWeight: FontWeight.w700),
+          'Chat theme',
+          style: TextStyle(color: textPrimary, fontSize: 19, fontWeight: FontWeight.w700),
         ),
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.more_vert, color: textPrimary),
+            onPressed: _showMenu,
+          ),
+        ],
       ),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
           children: [
             Padding(
-              padding: const EdgeInsets.only(left: 4, bottom: 4),
+              padding: const EdgeInsets.only(left: 4, bottom: 12),
+              child: Text(
+                'Themes',
+                style: TextStyle(
+                  color: textSecondary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            SizedBox(
+              height: cardHeight * 2 + spacing,
+              child: GridView.builder(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  mainAxisSpacing: spacing,
+                  crossAxisSpacing: spacing,
+                  childAspectRatio: cardHeight / cardWidth,
+                ),
+                itemCount: _cards.length,
+                itemBuilder: (context, index) {
+                  final c = _cards[index];
+                  if (c.isAi) {
+                    return _aiCard(textPrimary);
+                  }
+                  return _themeCard(
+                    card: c,
+                    isSelected: _isSelected(c),
+                    onTap: () => _openPreview(c),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 20),
+            Padding(
+              padding: const EdgeInsets.only(left: 4),
               child: Text(
                 'The chat bubble and wallpaper will both change.',
                 style: TextStyle(color: textSecondary, fontSize: 13),
               ),
             ),
-            const SizedBox(height: 12),
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                childAspectRatio: 0.82,
-                crossAxisSpacing: 14,
-                mainAxisSpacing: 14,
-              ),
-              itemCount: kDefaultChatThemes.length,
-              itemBuilder: (context, index) {
-                final t = kDefaultChatThemes[index];
-                final isSelected = _provider.themeId == t.id;
-                return _themeCard(
-                  context,
-                  theme: t,
-                  isSelected: isSelected,
-                  textPrimary: textPrimary,
-                  textSecondary: textSecondary,
-                  onTap: () => _openPreview(index),
-                );
-              },
-            ),
             const SizedBox(height: 24),
             Padding(
               padding: const EdgeInsets.only(left: 4, bottom: 8),
               child: Text(
-                'CUSTOMIZE',
+                'Customize',
                 style: TextStyle(
                   color: textSecondary,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.5,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
@@ -240,102 +404,112 @@ class _DefaultChatThemeScreenState extends State<DefaultChatThemeScreen> {
     );
   }
 
-  Widget _themeCard(
-    BuildContext context, {
-    required ChatThemePreset theme,
+  /// A theme grid tile — blank bubble shapes over the wallpaper (no text,
+  /// no name label), with a small black checkmark badge in the bottom-right
+  /// corner when this theme is the active one.
+  Widget _themeCard({
+    required _ThemeCard card,
     required bool isSelected,
-    required Color textPrimary,
-    required Color textSecondary,
     required VoidCallback onTap,
   }) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isSelected ? KoraColors.purple : Colors.transparent,
-            width: 2.5,
-          ),
-        ),
-        child: Container(
-          decoration: BoxDecoration(
-            color: theme.wallpaper,
-            borderRadius: BorderRadius.circular(13),
-          ),
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              // Mini chat preview
-              Column(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (card.wallpaperAsset != null)
+              Image.asset(card.wallpaperAsset!, fit: BoxFit.cover)
+            else
+              Container(color: card.wallpaperColor ?? const Color(0xFFECE5DD)),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: theme.receivedBubble,
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(12),
-                          topRight: Radius.circular(12),
-                          bottomRight: Radius.circular(12),
-                          bottomLeft: Radius.circular(4),
-                        ),
-                      ),
-                      child: Text(
-                        'Hi there!',
-                        style: TextStyle(color: theme.receivedTextColor, fontSize: 12),
+                  Container(
+                    width: 34,
+                    height: 16,
+                    decoration: BoxDecoration(
+                      color: card.receivedBubble,
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(8),
+                        topRight: Radius.circular(8),
+                        bottomRight: Radius.circular(8),
+                        bottomLeft: Radius.circular(3),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 8),
                   Align(
                     alignment: Alignment.centerRight,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      width: 44,
+                      height: 16,
                       decoration: BoxDecoration(
-                        color: theme.sentBubble,
+                        color: card.sentBubble,
                         borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(12),
-                          topRight: Radius.circular(12),
-                          bottomLeft: Radius.circular(12),
-                          bottomRight: Radius.circular(4),
+                          topLeft: Radius.circular(8),
+                          topRight: Radius.circular(8),
+                          bottomLeft: Radius.circular(8),
+                          bottomRight: Radius.circular(3),
                         ),
-                      ),
-                      child: Text(
-                        'Hello!',
-                        style: TextStyle(color: theme.sentTextColor, fontSize: 12),
                       ),
                     ),
                   ),
                 ],
               ),
-              // Label + check
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      theme.name,
-                      style: TextStyle(
-                        color: theme.wallpaper.computeLuminance() > 0.5
-                            ? const Color(0xFF1A1A2E)
-                            : Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
+            ),
+            if (isSelected)
+              Positioned(
+                right: 8,
+                bottom: 8,
+                child: Container(
+                  width: 22,
+                  height: 22,
+                  decoration: const BoxDecoration(
+                    color: Colors.black,
+                    shape: BoxShape.circle,
                   ),
-                  if (isSelected)
-                    Container(
-                      padding: const EdgeInsets.all(2),
-                      decoration: const BoxDecoration(
-                        color: KoraColors.purple,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.check, color: Colors.white, size: 14),
-                    ),
-                ],
+                  child: const Icon(Icons.check, color: Colors.white, size: 14),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// The special "Create with AI" card — sparkle icon + label on a soft
+  /// gradient card, matching the surrounding theme tiles' proportions.
+  Widget _aiCard(Color textPrimary) {
+    return GestureDetector(
+      onTap: _createWithAi,
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFFF3E8FF), Color(0xFFFCE7F3)],
+          ),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.auto_awesome, color: KoraColors.purple, size: 22),
+              const SizedBox(height: 8),
+              Text(
+                'Create with AI',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: textPrimary,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ],
           ),
