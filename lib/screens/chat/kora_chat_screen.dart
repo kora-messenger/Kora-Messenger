@@ -145,6 +145,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
           'chatType': chatType,
           'message': userMessage,
           'history': history,
+          'isPremium': _themeProvider.isPremium,
         }),
       ).timeout(const Duration(seconds: 30));
 
