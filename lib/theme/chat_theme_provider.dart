@@ -183,6 +183,7 @@ class ChatThemeProvider extends ChangeNotifier {
   static const _kCustomReceivedBubble = 'kora_custom_received_bubble';
   static const _kWallpaperColor = 'kora_wallpaper_color';
   static const _kWallpaperImagePath = 'kora_wallpaper_image_path';
+  static const _kWallpaperAssetPath = 'kora_wallpaper_asset_path';
   static const _kAppThemeColor = 'kora_app_theme_color';
   static const _kIsPremium = 'kora_is_premium';
   static const _kAppIconIndex = 'kora_app_icon_index';
@@ -192,6 +193,7 @@ class ChatThemeProvider extends ChangeNotifier {
   Color? _customReceivedBubble;
   Color? _wallpaperColor;
   String? _wallpaperImagePath;
+  String? _wallpaperAssetPath;
   Color _appThemeColor = const Color(0xFF8B5CF6);
   bool _isPremium = false;
   int _appIconIndex = 0;
@@ -201,6 +203,7 @@ class ChatThemeProvider extends ChangeNotifier {
   Color? get customReceivedBubble => _customReceivedBubble;
   Color? get wallpaperColor => _wallpaperColor;
   String? get wallpaperImagePath => _wallpaperImagePath;
+  String? get wallpaperAssetPath => _wallpaperAssetPath;
   Color get appThemeColor => _appThemeColor;
   bool get isPremium => _isPremium;
   int get appIconIndex => _appIconIndex;
@@ -231,6 +234,7 @@ class ChatThemeProvider extends ChangeNotifier {
     final wallVal = prefs.getInt(_kWallpaperColor);
     _wallpaperColor = wallVal != null ? Color(wallVal) : null;
     _wallpaperImagePath = prefs.getString(_kWallpaperImagePath);
+    _wallpaperAssetPath = prefs.getString(_kWallpaperAssetPath);
     final appVal = prefs.getInt(_kAppThemeColor);
     _appThemeColor = appVal != null ? Color(appVal) : const Color(0xFF8B5CF6);
     _isPremium = prefs.getBool(_kIsPremium) ?? false;
@@ -264,12 +268,14 @@ class ChatThemeProvider extends ChangeNotifier {
     _customReceivedBubble = null;
     _wallpaperColor = null;
     _wallpaperImagePath = null;
+    _wallpaperAssetPath = null;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_kThemeId, id);
     await prefs.remove(_kCustomSentBubble);
     await prefs.remove(_kCustomReceivedBubble);
     await prefs.remove(_kWallpaperColor);
     await prefs.remove(_kWallpaperImagePath);
+    await prefs.remove(_kWallpaperAssetPath);
     notifyListeners();
   }
 
@@ -290,18 +296,34 @@ class ChatThemeProvider extends ChangeNotifier {
   Future<void> setWallpaperColor(Color color) async {
     _wallpaperColor = color;
     _wallpaperImagePath = null;
+    _wallpaperAssetPath = null;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_kWallpaperColor, color.toARGB32());
     await prefs.remove(_kWallpaperImagePath);
+    await prefs.remove(_kWallpaperAssetPath);
     notifyListeners();
   }
 
   Future<void> setWallpaperImage(String path) async {
     _wallpaperImagePath = path;
     _wallpaperColor = null;
+    _wallpaperAssetPath = null;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_kWallpaperImagePath, path);
     await prefs.remove(_kWallpaperColor);
+    await prefs.remove(_kWallpaperAssetPath);
+    notifyListeners();
+  }
+
+  /// Applies a bundled preset wallpaper (asset image shipped with the app).
+  Future<void> setWallpaperAsset(String assetPath) async {
+    _wallpaperAssetPath = assetPath;
+    _wallpaperColor = null;
+    _wallpaperImagePath = null;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kWallpaperAssetPath, assetPath);
+    await prefs.remove(_kWallpaperColor);
+    await prefs.remove(_kWallpaperImagePath);
     notifyListeners();
   }
 

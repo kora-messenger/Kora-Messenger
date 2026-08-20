@@ -6,9 +6,7 @@ import 'solid_color_screen.dart';
 
 /// Wallpaper picker — matches the classic "Choose from gallery / Set a
 /// color / Create with AI" menu followed by a grid of preset wallpaper
-/// thumbnails. Preset tiles are placeholders (built from the app's brand
-/// palette) until real wallpaper images are supplied — swap
-/// [_presetWallpapers] for real assets/URLs when they arrive.
+/// thumbnails.
 class WallpaperScreen extends StatefulWidget {
   const WallpaperScreen({super.key});
 
@@ -16,27 +14,18 @@ class WallpaperScreen extends StatefulWidget {
   State<WallpaperScreen> createState() => _WallpaperScreenState();
 }
 
-/// A single preset wallpaper tile. [colors] with length 1 renders a solid
-/// fill; length 2+ renders a gradient. Once real images are provided,
-/// add an `imagePath` / `imageUrl` field here and render that instead.
-class _PresetWallpaper {
-  final List<Color> colors;
-  const _PresetWallpaper(this.colors);
-}
-
-const List<_PresetWallpaper> _presetWallpapers = [
-  _PresetWallpaper([Color(0xFFDD9FF0), Color(0xFFB794F4)]),
-  _PresetWallpaper([Color(0xFFC7D2FE), Color(0xFFE0C3FC)]),
-  _PresetWallpaper([Color(0xFFFBC2EB), Color(0xFFFDCBF1)]),
-  _PresetWallpaper([Color(0xFFFDCBF1), Color(0xFFE6DEE9)]),
-  _PresetWallpaper([Color(0xFFF5F3FF), Color(0xFFE4E4F7)]),
-  _PresetWallpaper([Color(0xFF6D6AE8), Color(0xFF8B5CF6)]),
-  _PresetWallpaper([Color(0xFFFFD59E), Color(0xFFFF9A5A)]),
-  _PresetWallpaper([Color(0xFFFFB88C), Color(0xFFFF7EB3)]),
-  _PresetWallpaper([Color(0xFFFFD3E0), Color(0xFFFFB3C6)]),
-  _PresetWallpaper([Color(0xFFB7F0AD), Color(0xFF7BE495)]),
-  _PresetWallpaper([Color(0xFF9BE8FF), Color(0xFF4FACFE)]),
-  _PresetWallpaper([Color(0xFFD9F2A3), Color(0xFFA8E063)]),
+/// Bundled preset wallpapers shipped as app assets.
+const List<String> _presetWallpapers = [
+  'assets/wallpapers/cosmic_swirl.jpg',
+  'assets/wallpapers/white_horse_snow.jpg',
+  'assets/wallpapers/palm_leaf.jpg',
+  'assets/wallpapers/moon_in_hand.jpg',
+  'assets/wallpapers/otters_umbrella.jpg',
+  'assets/wallpapers/forest_squirrels.jpg',
+  'assets/wallpapers/polished_pebbles.jpg',
+  'assets/wallpapers/blue_pink_waves.jpg',
+  'assets/wallpapers/terracotta_shapes.jpg',
+  'assets/wallpapers/rose_petals.jpg',
 ];
 
 class _WallpaperScreenState extends State<WallpaperScreen> {
@@ -165,28 +154,28 @@ class _WallpaperScreenState extends State<WallpaperScreen> {
               ),
               itemCount: _presetWallpapers.length,
               itemBuilder: (context, index) {
-                final preset = _presetWallpapers[index];
-                final tileColor = preset.colors.first;
-                final isSelected = _provider.wallpaperImagePath == null &&
-                    _provider.wallpaperColor?.toARGB32() == tileColor.toARGB32();
+                final assetPath = _presetWallpapers[index];
+                final isSelected = _provider.wallpaperAssetPath == assetPath;
                 return GestureDetector(
-                  onTap: () => _provider.setWallpaperColor(tileColor),
+                  onTap: () => _provider.setWallpaperAsset(assetPath),
                   child: Stack(
                     children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
-                          gradient: preset.colors.length > 1
-                              ? LinearGradient(
-                                  colors: preset.colors,
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                )
-                              : null,
-                          color: preset.colors.length == 1 ? preset.colors.first : null,
-                          border: isSelected
-                              ? Border.all(color: KoraColors.purple, width: 3)
-                              : null,
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(16),
+                            border: isSelected
+                                ? Border.all(color: KoraColors.purple, width: 3)
+                                : null,
+                          ),
+                          child: Image.asset(
+                            assetPath,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              color: KoraColors.purple.withValues(alpha: 0.15),
+                            ),
+                          ),
                         ),
                       ),
                       if (isSelected)

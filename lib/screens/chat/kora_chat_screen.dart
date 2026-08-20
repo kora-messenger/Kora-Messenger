@@ -166,6 +166,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
   Widget build(BuildContext context) {
     final theme = _themeProvider.activeTheme;
     final hasWallpaperImage = _themeProvider.wallpaperImagePath != null;
+    final hasWallpaperAsset = _themeProvider.wallpaperAssetPath != null;
 
     return Scaffold(
       backgroundColor: theme.wallpaper,
@@ -202,15 +203,23 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
             // Message area
             Expanded(
               child: Container(
-                decoration: hasWallpaperImage
+                decoration: hasWallpaperAsset
                     ? BoxDecoration(
                         image: DecorationImage(
-                          image: FileImage(File(_themeProvider.wallpaperImagePath!)),
+                          image: AssetImage(_themeProvider.wallpaperAssetPath!),
                           fit: BoxFit.cover,
                           onError: (_, __) {},
                         ),
                       )
-                    : null,
+                    : hasWallpaperImage
+                        ? BoxDecoration(
+                            image: DecorationImage(
+                              image: FileImage(File(_themeProvider.wallpaperImagePath!)),
+                              fit: BoxFit.cover,
+                              onError: (_, __) {},
+                            ),
+                          )
+                        : null,
                 child: _isEmpty
                     ? ChatEmptyState(
                         name: widget.name,
