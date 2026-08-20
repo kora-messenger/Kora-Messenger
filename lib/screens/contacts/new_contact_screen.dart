@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import '../../theme/kora_colors.dart';
 import '../../widgets/kora_button.dart';
 import 'qr_code_screen.dart';
+import '../chat/contact_info_screen.dart';
+import '../../models/chat_models.dart';
+import '../../data/mock_contacts.dart';
 
 /// A small dial-code entry for the country picker sheet.
 class _DialCountry {
@@ -145,19 +148,70 @@ class _NewContactScreenState extends State<NewContactScreen> {
     }
   }
 
+  /// Tries to match the entered username/Kora ID to a known Kora
+  /// user. If found, opens their profile screen directly.
+  /// Otherwise, saves the contact with the entered info and shows
+  /// a confirmation.
   void _save() {
     if (!_canSave || _isSaving) return;
     setState(() => _isSaving = true);
 
-    // In-memory add for now — Kora contacts sync will land with the
-    // backend contacts model.
+    final firstName = _firstNameController.text.trim();
+    final lastName = _lastNameController.text.trim();
+    final fullName = lastName.isEmpty ? firstName : '$firstName $lastName';
+    final identifier = _usernameController.text.trim().toLowerCase();
+
+    // Try to find the user on Kora by username/Kora ID
+    Map<String, Object>? match;
+    if (identifier.isNotEmpty) {
+      for (final contact in koraMockContacts) {
+        final koraId = (contact['koraId'] as String).toLowerCase();
+        final username = (contact['username'] as String).toLowerCase();
+        final usernameClean = username.replaceAll('@', '');
+        if (koraId == identifier || username == identifier || usernameClean == identifier) {
+          match = contact;
+          break;
+        }
+      }
+    }
+
     Future.delayed(const Duration(milliseconds: 400), () {
       if (!mounted) return;
       setState(() => _isSaving = false);
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${_firstNameController.text.trim()} added to contacts')),
-      );
+
+      if (match != null) {
+        // Contact found on Kora — pop the New Contact screen and
+        // immediately open their profile.
+        final name = match['name'] as String;
+        final koraId = match['koraId'] as String;
+        final username = match['username'] as String;
+        final isPremium = match['premium'] as bool;
+
+        Navigator.pop(context); // Close NewContactScreen
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ContactInfoScreen(
+              name: name,
+              koraId: koraId,
+              username: username,
+              badge: isPremium ? KoraBadgeType.premiumBlue : KoraBadgeType.none,
+              isOnline: true,
+              about: 'Hey there! I\'m on Kora.',
+            ),
+          ),
+        );
+      } else {
+        // No match — save as a local contact
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('$fullName added to contacts'),
+            backgroundColor: KoraColors.purple,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     });
   }
 

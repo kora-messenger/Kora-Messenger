@@ -6,6 +6,7 @@ import 'screens/kora_home_screen.dart';
 import 'screens/profile_setup_screen.dart';
 import 'screens/crash_report_screen.dart';
 import 'services/session_manager.dart';
+import 'services/notification_service.dart';
 import 'services/crash_logger.dart';
 import 'theme/chat_theme_provider.dart';
 
@@ -16,6 +17,9 @@ void main() {
     // Initialize crash logging before anything else.
     CrashLogger.init();
     ChatThemeProvider.instance.load();
+
+    // Initialize local notifications (creates channels + sets icon).
+    KoraNotificationService.instance.init();
 
     runApp(const KoraMessengerApp());
   }, (error, stackTrace) {

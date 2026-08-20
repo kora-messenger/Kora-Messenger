@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kora notification icon — white silhouette on transparent background.
+     Android requires notification small icons to be monochrome (white
+     on transparent) with alpha. The system tints them automatically. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- A rounded chat bubble shape representing Kora -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M4,2 L20,2 C22.2,2 24,3.8 24,6 L24,14 C24,16.2 22.2,18 20,18 L14,18 L8,22 L8,18 L4,18 C1.8,18 0,16.2 0,14 L0,6 C0,3.8 1.8,2 4,2 Z M7,7 L7,9 L17,9 L17,7 Z M7,11 L7,13 L14,13 L14,11 Z" />
+</vector>

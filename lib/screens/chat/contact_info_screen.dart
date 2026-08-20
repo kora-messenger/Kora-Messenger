@@ -3,6 +3,7 @@ import '../../theme/kora_colors.dart';
 import '../../models/chat_models.dart';
 import '../../widgets/kora_avatar.dart';
 import '../../widgets/kora_badge.dart';
+import '../../widgets/secure_screen.dart';
 
 /// Full-screen contact info — opens when the user taps the avatar or
 /// name in a chat. Shows a large circular profile photo centered near
@@ -44,7 +45,11 @@ class ContactInfoScreen extends StatelessWidget {
     final textMuted = KoraColors.textMutedFor(brightness);
     final border = KoraColors.borderFor(brightness);
 
-    return Scaffold(
+    // Screenshot protection — FLAG_SECURE on Android prevents
+    // screenshots, screen recording, and content exposure in the
+    // recent apps preview.
+    return SecureScreen(
+      child: Scaffold(
       backgroundColor: bg,
       body: SafeArea(
         child: Column(
@@ -118,6 +123,7 @@ class ContactInfoScreen extends StatelessWidget {
           ],
         ),
       ),
+    ),
     );
   }
 

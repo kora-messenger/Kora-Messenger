@@ -2,12 +2,14 @@ package com.kora.messenger
 
 import android.content.ComponentName
 import android.content.pm.PackageManager
+import android.view.WindowManager
 import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterFragmentActivity() {
-    private val CHANNEL = "com.kora.messenger/icon"
+    private val ICON_CHANNEL = "com.kora.messenger/icon"
+    private val SECURE_CHANNEL = "com.kora.messenger/secure"
 
     // All activity-alias names — must match AndroidManifest.xml
     private val allAliases = listOf(
@@ -17,7 +19,8 @@ class MainActivity : FlutterFragmentActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
+        // ── App icon switcher ──
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, ICON_CHANNEL)
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "setIcon" -> {
@@ -46,6 +49,29 @@ class MainActivity : FlutterFragmentActivity() {
                         } catch (e: Exception) {
                             result.success(false)
                         }
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+
+        // ── Screenshot prevention (FLAG_SECURE) ──
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, SECURE_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "enableSecure" -> {
+                        runOnUiThread {
+                            window.setFlags(
+                                WindowManager.LayoutParams.FLAG_SECURE,
+                                WindowManager.LayoutParams.FLAG_SECURE
+                            )
+                        }
+                        result.success(true)
+                    }
+                    "disableSecure" -> {
+                        runOnUiThread {
+                            window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                        }
+                        result.success(true)
                     }
                     else -> result.notImplemented()
                 }
