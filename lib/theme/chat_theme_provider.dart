@@ -99,6 +99,10 @@ const List<ChatThemePreset> kDefaultChatThemes = [
   ),
 ];
 
+/// The default Kora wallpaper asset — a warm milk/cream doodle pattern.
+/// Used automatically when the active chat theme is "Default".
+const String kDefaultWallpaperAsset = 'assets/wallpapers/kora_default_doodle_milk.png';
+
 /// 20 app theme colors (Premium feature).
 const List<Color> kAppThemeColors = [
   Color(0xFF8B5CF6),
@@ -226,6 +230,21 @@ class ChatThemeProvider extends ChangeNotifier {
       receivedTextColor: preset.receivedTextColor,
     );
   }
+
+  /// Whether the active theme should use the default doodle wallpaper
+  /// asset. True when the user is on the "default" theme AND hasn't
+  /// set a custom wallpaper (image, asset, or solid color override).
+  bool get usesDefaultWallpaperAsset {
+    if (_themeId != 'default') return false;
+    if (_wallpaperImagePath != null) return false;
+    if (_wallpaperAssetPath != null) return false;
+    if (_wallpaperColor != null) return false;
+    return true;
+  }
+
+  /// The default wallpaper asset path (the milk doodle pattern).
+  /// Used by the chat screen when [usesDefaultWallpaperAsset] is true.
+  String get defaultWallpaperAsset => kDefaultWallpaperAsset;
 
   Future<void> load() async {
     final prefs = await SharedPreferences.getInstance();

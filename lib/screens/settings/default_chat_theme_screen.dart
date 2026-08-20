@@ -52,8 +52,8 @@ class _DefaultChatThemeScreenState extends State<DefaultChatThemeScreen> {
   // card (top row).
   late final List<_ThemeCard> _cards = [
     _ThemeCard(
-      id: kDefaultChatThemes[0].id, // Default
-      wallpaperColor: kDefaultChatThemes[0].wallpaper,
+      id: kDefaultChatThemes[0].id, // Default — Kora's milk doodle wallpaper
+      wallpaperAsset: kDefaultWallpaperAsset,
       sentBubble: kDefaultChatThemes[0].sentBubble,
       receivedBubble: kDefaultChatThemes[0].receivedBubble,
     ),
@@ -138,6 +138,11 @@ class _DefaultChatThemeScreenState extends State<DefaultChatThemeScreen> {
 
   bool _isSelected(_ThemeCard card) {
     if (card.isAi) return false;
+    // The "Default" card uses the milk doodle wallpaper — it's selected
+    // when the theme is "default" and no custom wallpaper overrides exist.
+    if (card.id == kDefaultChatThemes[0].id) {
+      return _provider.usesDefaultWallpaperAsset;
+    }
     if (card.wallpaperAsset != null) {
       return _provider.wallpaperAssetPath == card.wallpaperAsset;
     }
@@ -174,8 +179,16 @@ class _DefaultChatThemeScreenState extends State<DefaultChatThemeScreen> {
           hintText: 'Swipe left or right to preview more themes ✨',
           onApply: (bg, bubbleColor, dimLevel) {
             if (bg.assetPath != null) {
-              _provider.setWallpaperAsset(bg.assetPath!);
-              _provider.setCustomSentBubble(bubbleColor);
+              // Special case: the default milk doodle wallpaper.
+              if (bg.assetPath == kDefaultWallpaperAsset) {
+                _provider.setChatTheme(kDefaultChatThemes[0].id);
+                if (bubbleColor.toARGB32() != kDefaultChatThemes[0].sentBubble.toARGB32()) {
+                  _provider.setCustomSentBubble(bubbleColor);
+                }
+              } else {
+                _provider.setWallpaperAsset(bg.assetPath!);
+                _provider.setCustomSentBubble(bubbleColor);
+              }
             } else if (bg.color != null) {
               final matched = kDefaultChatThemes.firstWhere(
                 (t) => t.wallpaper.toARGB32() == bg.color!.toARGB32(),

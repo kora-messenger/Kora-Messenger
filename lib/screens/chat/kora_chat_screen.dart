@@ -254,6 +254,13 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
     final theme = _themeProvider.activeTheme;
     final hasWallpaperImage = _themeProvider.wallpaperImagePath != null;
     final hasWallpaperAsset = _themeProvider.wallpaperAssetPath != null;
+    // When the default theme has no custom wallpaper override, use
+    // Kora's signature milk doodle wallpaper.
+    final usesDefaultDoodle = _themeProvider.usesDefaultWallpaperAsset;
+    final wallpaperAssetPath = hasWallpaperAsset
+        ? _themeProvider.wallpaperAssetPath!
+        : (usesDefaultDoodle ? _themeProvider.defaultWallpaperAsset : null);
+    final hasWallpaper = wallpaperAssetPath != null;
 
     return Scaffold(
       backgroundColor: theme.wallpaper,
@@ -293,10 +300,10 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
                 children: [
                   Positioned.fill(
                     child: Container(
-                      decoration: hasWallpaperAsset
+                      decoration: hasWallpaper
                           ? BoxDecoration(
                               image: DecorationImage(
-                                image: AssetImage(_themeProvider.wallpaperAssetPath!),
+                                image: AssetImage(wallpaperAssetPath),
                                 fit: BoxFit.cover,
                                 onError: (_, __) {},
                               ),
@@ -312,7 +319,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
                               : null,
                     ),
                   ),
-                  if ((hasWallpaperAsset || hasWallpaperImage) && _themeProvider.wallpaperDimLevel > 0)
+                  if ((hasWallpaper || hasWallpaperImage) && _themeProvider.wallpaperDimLevel > 0)
                     Positioned.fill(
                       child: IgnorePointer(
                         child: Container(
