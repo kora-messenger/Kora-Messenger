@@ -101,8 +101,9 @@ class MessageService {
     String? replyToName,
   }) async {
     final messages = _cache.putIfAbsent(chatId, () => <KoraMessage>[]);
+    final msgId = 'msg_${DateTime.now().millisecondsSinceEpoch}';
     messages.add(KoraMessage(
-      id: 'msg_${DateTime.now().millisecondsSinceEpoch}',
+      id: msgId,
       text: text,
       timestamp: DateTime.now(),
       isMe: true,
@@ -112,6 +113,28 @@ class MessageService {
       replyToName: replyToName,
     ));
     await _persist(chatId);
+
+    // Auto-progress: sent → delivered (1.5s) → read (4s)
+    // Simulates recipient receiving and reading the message
+    Future.delayed(const Duration(milliseconds: 1500), () async {
+      final msgs = _cache[chatId];
+      if (msgs == null) return;
+      final idx = msgs.indexWhere((m) => m.id == msgId);
+      if (idx != -1 && msgs[idx].status == MessageStatus.sent) {
+        msgs[idx] = msgs[idx].copyWith(status: MessageStatus.delivered);
+        await _persist(chatId);
+      }
+    });
+
+    Future.delayed(const Duration(seconds: 4), () async {
+      final msgs = _cache[chatId];
+      if (msgs == null) return;
+      final idx = msgs.indexWhere((m) => m.id == msgId);
+      if (idx != -1 && msgs[idx].status == MessageStatus.delivered) {
+        msgs[idx] = msgs[idx].copyWith(status: MessageStatus.read);
+        await _persist(chatId);
+      }
+    });
   }
 
   /// Adds an incoming message (used for AI replies).
@@ -140,8 +163,9 @@ class MessageService {
 
   Future<void> sendVoiceMessage(String chatId, String duration) async {
     final messages = _cache.putIfAbsent(chatId, () => <KoraMessage>[]);
+    final msgId = 'voice_${DateTime.now().millisecondsSinceEpoch}';
     messages.add(KoraMessage(
-      id: 'voice_${DateTime.now().millisecondsSinceEpoch}',
+      id: msgId,
       text: '',
       timestamp: DateTime.now(),
       isMe: true,
@@ -150,6 +174,27 @@ class MessageService {
       voiceDuration: duration,
     ));
     await _persist(chatId);
+
+    // Auto-progress voice messages too
+    Future.delayed(const Duration(milliseconds: 1500), () async {
+      final msgs = _cache[chatId];
+      if (msgs == null) return;
+      final idx = msgs.indexWhere((m) => m.id == msgId);
+      if (idx != -1 && msgs[idx].status == MessageStatus.sent) {
+        msgs[idx] = msgs[idx].copyWith(status: MessageStatus.delivered);
+        await _persist(chatId);
+      }
+    });
+
+    Future.delayed(const Duration(seconds: 4), () async {
+      final msgs = _cache[chatId];
+      if (msgs == null) return;
+      final idx = msgs.indexWhere((m) => m.id == msgId);
+      if (idx != -1 && msgs[idx].status == MessageStatus.delivered) {
+        msgs[idx] = msgs[idx].copyWith(status: MessageStatus.read);
+        await _persist(chatId);
+      }
+    });
   }
 
   Future<void> toggleReaction(String chatId, String messageId, String emoji) async {

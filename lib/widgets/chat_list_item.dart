@@ -140,7 +140,7 @@ class ChatListItem extends StatelessWidget {
       case MessageStatus.delivered:
         return const Icon(Icons.done_all, size: 15, color: Color(0xFF9A9AB0));
       case MessageStatus.read:
-        return const Icon(Icons.done_all, size: 15, color: KoraColors.purple);
+        return const Icon(Icons.done_all, size: 15, color: KoraColors.blue);
       case MessageStatus.none:
         return const SizedBox.shrink();
     }

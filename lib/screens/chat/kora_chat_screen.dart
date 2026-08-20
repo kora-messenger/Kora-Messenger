@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -62,6 +63,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
   KoraMessage? _replyTarget;
   bool _isLoading = true;
   bool _isAiTyping = false;
+  Timer? _statusTimer;
 
   bool get _isAiChat =>
       widget.chatId == 'kora_support' || widget.chatId == 'kora_ai';
@@ -71,10 +73,15 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
     super.initState();
     _themeProvider.addListener(_onThemeChanged);
     _loadMessages();
+    // Refresh every 500ms to pick up status changes (sent → delivered → read)
+    _statusTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
+      if (mounted) _refreshMessages();
+    });
   }
 
   @override
   void dispose() {
+    _statusTimer?.cancel();
     _themeProvider.removeListener(_onThemeChanged);
     _scrollController.dispose();
     super.dispose();
@@ -145,7 +152,6 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
           'chatType': chatType,
           'message': userMessage,
           'history': history,
-          'isPremium': _themeProvider.isPremium,
         }),
       ).timeout(const Duration(seconds: 30));
 

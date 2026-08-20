@@ -331,14 +331,13 @@ class MessageBubble extends StatelessWidget {
   }
 
   Widget _buildStatusIcon(MessageStatus status, bool isMe) {
-    final color = isMe ? Colors.white.withValues(alpha: 0.65) : const Color(0xFF9A9AB0);
     switch (status) {
       case MessageStatus.sent:
-        return Icon(Icons.check, size: 13, color: color);
+        return Icon(Icons.check, size: 14, color: isMe ? Colors.white.withValues(alpha: 0.55) : const Color(0xFF9A9AB0));
       case MessageStatus.delivered:
-        return Icon(Icons.done_all, size: 13, color: color);
+        return Icon(Icons.done_all, size: 14, color: isMe ? Colors.white.withValues(alpha: 0.55) : const Color(0xFF9A9AB0));
       case MessageStatus.read:
-        return Icon(Icons.done_all, size: 13, color: isMe ? Colors.white.withValues(alpha: 0.9) : KoraColors.purple);
+        return Icon(Icons.done_all, size: 14, color: KoraColors.blue);
       case MessageStatus.none:
         return const SizedBox.shrink();
     }

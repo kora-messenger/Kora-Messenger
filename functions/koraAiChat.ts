@@ -1,6 +1,4 @@
-// Kora AI Chat — v3 (Google Gemini Flash-Lite + premium gating + fallback)
-// Premium users: real AI via gemini-flash-lite-latest (~1-2s response)
-// Non-premium: instant knowledge-base fallback (no API call)
+// Kora AI Chat — v4 (Google Gemini Flash-Lite, free for all users)
 function jsonResponse(data: any, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
@@ -38,15 +36,14 @@ const SUPPORT_FALLBACKS: FallbackEntry[] = [
   { keywords: ['logout','sign out'], response: 'Log out: Settings > Account > Log out. 👋' },
   { keywords: ['hello','hi','hey','help'], response: 'Hi! 👋 I\'m Kora Support. Ask about account, passwords, passkeys, groups, wallpapers, themes, premium, security!' },
   { keywords: ['free','trial','expired'], response: '7 days free Premium! 🎉 After that, tap "Subscribe to Kora Premium". Owner accounts = free forever. 💜' },
-  { keywords: ['ai','kora ai','smart'], response: 'Kora AI is a Premium feature — upgrade for full AI responses! 🤖\n\nI (Kora Support) can still help with Kora questions anytime.' },
+  { keywords: ['ai','kora ai','smart'], response: 'Kora AI is a free assistant in Kora Messenger — ask it anything! 🤖\n\nI (Kora Support) handle Kora-specific questions.' },
 ];
 
 const AI_FALLBACKS: FallbackEntry[] = [
-  { keywords: ['hello','hi','hey'], response: 'Hey! 👋 I\'m Kora AI. Premium unlocks full AI responses — upgrade to ask me anything!' },
-  { keywords: ['who are you','what are you'], response: 'I\'m Kora AI — your smart assistant in Kora Messenger. Upgrade to Premium for full AI chat! 🤖' },
+  { keywords: ['hello','hi','hey'], response: 'Hey! 👋 I\'m Kora AI — ask me anything!' },
+  { keywords: ['who are you','what are you'], response: 'I\'m Kora AI — a friendly assistant in Kora Messenger. 🤖' },
   { keywords: ['kora','messenger'], response: 'Kora Messenger = modern messaging app, purple-to-blue design. For features, ask Kora Support! 💜' },
   { keywords: ['thank'], response: 'Anytime! 😊' },
-  { keywords: ['premium','upgrade','subscribe'], response: 'Upgrade to Kora Premium for full AI responses, custom themes, animated emoji, and more! 💜' },
 ];
 
 function findFallback(entries: FallbackEntry[], message: string): string | null {
@@ -89,25 +86,14 @@ Deno.serve(async (req: Request) => {
   let body: any;
   try { body = await req.json(); }
   catch { return jsonResponse({ success: false, error: 'Invalid JSON body' }, 400); }
-  const { chatType, message, history, isPremium } = body;
+  const { chatType, message, history } = body;
   if (!message || message.trim() === '') return jsonResponse({ success: false, error: 'Message is required' }, 400);
   const isSupport = chatType === 'support';
-
-  // Non-premium: instant knowledge-base fallback
-  if (!isPremium) {
-    if (isSupport) {
-      const match = findFallback(SUPPORT_FALLBACKS, message);
-      return jsonResponse({ success: true, reply: match || "I'd love to help! Ask about: account, passwords, passkeys, groups, wallpapers, themes, premium, security.", isFallback: true });
-    } else {
-      const match = findFallback(AI_FALLBACKS, message);
-      return jsonResponse({ success: true, reply: match || "Kora AI is a Premium feature! Upgrade to Kora Premium for full AI responses. 🤖\n\nFor Kora questions, chat with Kora Support — it's free!", isFallback: true, requiresPremium: true });
-    }
-  }
-
-  // Premium: real Gemini AI (fast — flash-lite, fallback to 3.6-flash)
-  const apiKey = Deno.env.get('GOOGLE_API_KEY') || '';
   const systemPrompt = isSupport ? SUPPORT_PROMPT : AI_PROMPT;
   const hist = history || [];
+
+  // Real Gemini AI for all users (free)
+  const apiKey = Deno.env.get('GOOGLE_API_KEY') || '';
   if (apiKey) {
     try {
       const reply = await callGemini('gemini-flash-lite-latest', apiKey, systemPrompt, message, hist);
