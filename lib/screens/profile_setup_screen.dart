@@ -204,9 +204,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     try {
       final xfile = await _picker.pickImage(
         source: ImageSource.gallery,
-        maxWidth: 512,
-        maxHeight: 512,
-        imageQuality: 85,
+        maxWidth: 384,
+        maxHeight: 384,
+        imageQuality: 70,
       );
       if (xfile != null && mounted) {
         setState(() => _photo = File(xfile.path));
@@ -220,9 +220,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     try {
       final xfile = await _picker.pickImage(
         source: ImageSource.camera,
-        maxWidth: 512,
-        maxHeight: 512,
-        imageQuality: 85,
+        maxWidth: 384,
+        maxHeight: 384,
+        imageQuality: 70,
       );
       if (xfile != null && mounted) {
         setState(() => _photo = File(xfile.path));

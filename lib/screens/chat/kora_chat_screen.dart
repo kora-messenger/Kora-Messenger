@@ -17,6 +17,9 @@ import 'chat_header.dart';
 import 'message_bubble.dart';
 import 'message_composer.dart';
 import 'message_action_menu.dart';
+import 'contact_info_screen.dart';
+import '../../models/call_log.dart';
+import '../../services/call_service.dart';
 import 'reply_preview.dart';
 import 'chat_empty_state.dart';
 import 'translate_sheet.dart';
@@ -67,6 +70,12 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
   bool _isBlocked = false;
   Timer? _statusTimer;
 
+  // Inline chat search
+  bool _showSearch = false;
+  final _searchController = TextEditingController();
+  String _searchQuery = '';
+  List<KoraMessage> _searchResults = [];
+
   bool get _isAiChat =>
       widget.chatId == 'kora_support' || widget.chatId == 'kora_ai';
 
@@ -77,7 +86,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
     _loadMessages();
     // Refresh every 500ms to pick up status changes (sent → delivered → read)
     // and mark any newly-arrived incoming messages as viewed while open.
-    _statusTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
+    _statusTimer = Timer.periodic(const Duration(seconds: 2), (_) {
       if (!mounted) return;
       _messageService.markChatViewed(widget.chatId);
       _refreshMessages();
@@ -86,6 +95,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
 
   @override
   void dispose() {
+    _searchController.dispose();
     _statusTimer?.cancel();
     _themeProvider.removeListener(_onThemeChanged);
     _scrollController.dispose();
@@ -305,9 +315,26 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
           isVideo: isVideo,
           avatarAsset: widget.avatarAsset,
           avatarUrl: widget.avatarUrl,
+          badge: widget.badge,
         ),
       ),
-    );
+    ).then((result) {
+      // Log the call when the user returns from the call screen.
+      // result = true means the call was answered (duration > 3s).
+      // result = false or null means it was missed/declined.
+      final answered = result == true;
+      CallService.instance.addLog(CallLog(
+        id: 'call_${DateTime.now().millisecondsSinceEpoch}',
+        contactName: widget.name,
+        avatarAsset: widget.avatarAsset,
+        avatarUrl: widget.avatarUrl,
+        badge: widget.badge,
+        type: isVideo ? CallType.video : CallType.voice,
+        status: answered ? CallStatus.outgoing : CallStatus.missed,
+        timestamp: DateTime.now(),
+        durationSeconds: answered ? 60 : null,
+      ));
+    });
   }
 
   void _onActionTap(KoraMessage message) {
@@ -331,89 +358,100 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
   }
 
   void _showContactInfo() {
+    // Derive Kora ID and username from mock contact data
+    final lowerName = widget.name.toLowerCase().replaceAll(' ', '_');
+    final koraId = 'KM-${widget.name.hashCode.abs().toString().padLeft(9, '0')}';
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ContactInfoScreen(
+          name: widget.name,
+          avatarAsset: widget.avatarAsset,
+          avatarUrl: widget.avatarUrl,
+          badge: widget.badge,
+          isOnline: _isAiChat ? true : widget.isOnline,
+          lastSeen: _isAiChat ? 'AI Assistant' : widget.lastSeen,
+          koraId: koraId,
+          username: '@$lowerName',
+          about: 'Hey there! I am using Kora Messenger.',
+          phone: '+123 456 7890',
+        ),
+      ),
+    );
+  }
+
+  void _showChatSearch() {
+    setState(() {
+      _showSearch = true;
+      _searchQuery = '';
+      _searchResults = [];
+    });
+  }
+
+  void _hideSearch() {
+    setState(() {
+      _showSearch = false;
+      _searchController.clear();
+      _searchQuery = '';
+      _searchResults = [];
+    });
+  }
+
+  void _doSearch(String query) {
+    setState(() {
+      _searchQuery = query;
+      if (query.isEmpty) {
+        _searchResults = [];
+      } else {
+        final lower = query.toLowerCase();
+        _searchResults = _messages.where((m) => m.text.toLowerCase().contains(lower)).toList();
+      }
+    });
+  }
+
+  Widget _buildSearchBar() {
     final brightness = Theme.of(context).brightness;
     final textPrimary = KoraColors.textPrimaryFor(brightness);
     final textSecondary = KoraColors.textSecondaryFor(brightness);
-    final surface = KoraColors.cardFor(brightness);
+    final surface = KoraColors.surfaceFor(brightness);
 
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (_) => Container(
-        height: MediaQuery.of(context).size.height * 0.85,
-        decoration: BoxDecoration(
-          color: surface,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
-          ),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: KoraColors.cardFor(brightness),
+        border: Border(
+          bottom: BorderSide(color: KoraColors.borderFor(brightness), width: 0.5),
         ),
-        child: Column(
+      ),
+      child: SafeArea(
+        top: false,
+        child: Row(
           children: [
-            const SizedBox(height: 8),
-            Container(
-              width: 40, height: 4,
-              decoration: BoxDecoration(
-                color: KoraColors.borderFor(brightness),
-                borderRadius: BorderRadius.circular(2),
-              ),
+            IconButton(
+              icon: Icon(Icons.arrow_back, color: textPrimary, size: 22),
+              onPressed: _hideSearch,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
             ),
-            const SizedBox(height: 20),
-            // Avatar
-              Container(
-                width: 90, height: 90,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: KoraColors.brandGradient,
-                ),
-                child: Center(
-                  child: Text(
-                    widget.name.isNotEmpty ? widget.name[0].toUpperCase() : '?',
-                    style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w700),
+            const SizedBox(width: 4),
+            Expanded(
+              child: TextField(
+                controller: _searchController,
+                autofocus: true,
+                onChanged: _doSearch,
+                decoration: InputDecoration(
+                  hintText: 'Search messages...',
+                  hintStyle: TextStyle(color: textSecondary, fontSize: 14),
+                  prefixIcon: Icon(Icons.search, color: textSecondary, size: 20),
+                  filled: true,
+                  fillColor: surface,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
                   ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
                 ),
-              ),
-            const SizedBox(height: 14),
-            // Name
-            Text(
-              widget.name,
-              style: TextStyle(color: textPrimary, fontSize: 22, fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              widget.isOnline ? 'online' : (widget.lastSeen ?? 'last seen recently'),
-              style: TextStyle(color: KoraColors.purple, fontSize: 13),
-            ),
-            const SizedBox(height: 24),
-            Divider(color: KoraColors.borderFor(brightness), height: 1),
-            // Info tiles
-            _contactInfoTile(Icons.info_outline, 'About', 'Hey there! I am using Kora Messenger.', surface, textPrimary, textSecondary),
-            _contactInfoTile(Icons.phone_outlined, 'Phone', '+123 456 7890', surface, textPrimary, textSecondary),
-            _contactInfoTile(Icons.alternate_email, 'Kora ID', '@${widget.name.toLowerCase().replaceAll(' ', '_')}', surface, textPrimary, textSecondary),
-            const Spacer(),
-            // Action buttons
-            SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextButton.icon(
-                        onPressed: () => Navigator.pop(context),
-                        icon: Icon(Icons.block, color: Colors.red, size: 18),
-                        label: const Text('Block', style: TextStyle(color: Colors.red)),
-                      ),
-                    ),
-                    Expanded(
-                      child: TextButton.icon(
-                        onPressed: () => Navigator.pop(context),
-                        icon: Icon(Icons.report_outlined, color: Colors.red, size: 18),
-                        label: const Text('Report', style: TextStyle(color: Colors.red)),
-                      ),
-                    ),
-                  ],
-                ),
+                style: TextStyle(color: textPrimary, fontSize: 14),
               ),
             ),
           ],
@@ -422,149 +460,47 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
     );
   }
 
-  Widget _contactInfoTile(IconData icon, String label, String value, Color surface, Color textPrimary, Color textSecondary) {
-    return ListTile(
-      leading: Icon(icon, color: KoraColors.purple, size: 22),
-      title: Text(label, style: TextStyle(color: textSecondary, fontSize: 13)),
-      subtitle: Text(value, style: TextStyle(color: textPrimary, fontSize: 15, fontWeight: FontWeight.w500)),
-    );
-  }
-
-  void _showChatSearch() {
+  Widget _buildSearchResults() {
     final brightness = Theme.of(context).brightness;
     final textPrimary = KoraColors.textPrimaryFor(brightness);
     final textSecondary = KoraColors.textSecondaryFor(brightness);
-    final surface = KoraColors.cardFor(brightness);
-    final border = KoraColors.borderFor(brightness);
 
-    final searchController = TextEditingController();
-    List<KoraMessage> searchResults = [];
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (_) => StatefulBuilder(
-        builder: (context, setSheetState) {
-          void doSearch(String query) {
-            if (query.isEmpty) {
-              searchResults = [];
-            } else {
-              searchResults = _messages.where((m) {
-                final lower = query.toLowerCase();
-                return m.text.toLowerCase().contains(lower);
-              }).toList();
-            }
-            setSheetState(() {});
-          }
-
-          return Container(
-            height: MediaQuery.of(context).size.height * 0.9,
-            decoration: BoxDecoration(
-              color: surface,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(20),
-                topRight: Radius.circular(20),
-              ),
+    if (_searchQuery.isEmpty) {
+      return Center(
+        child: Text('Start typing to search', style: TextStyle(color: textSecondary, fontSize: 14)),
+      );
+    }
+    if (_searchResults.isEmpty) {
+      return Center(
+        child: Text('No messages found', style: TextStyle(color: textSecondary, fontSize: 14)),
+      );
+    }
+    return ListView.builder(
+      itemCount: _searchResults.length,
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      itemBuilder: (context, index) {
+        final msg = _searchResults[index];
+        return ListTile(
+          leading: CircleAvatar(
+            backgroundColor: msg.isMe ? KoraColors.purple : KoraColors.cardFor(brightness),
+            child: Icon(
+              msg.isMe ? Icons.arrow_upward : Icons.arrow_downward,
+              color: msg.isMe ? Colors.white : textPrimary,
+              size: 18,
             ),
-            child: Column(
-              children: [
-                const SizedBox(height: 8),
-                Container(
-                  width: 40, height: 4,
-                  decoration: BoxDecoration(
-                    color: border,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                // Search bar
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: searchController,
-                          autofocus: true,
-                          onChanged: doSearch,
-                          decoration: InputDecoration(
-                            hintText: 'Search messages by date or text...',
-                            hintStyle: TextStyle(color: textSecondary, fontSize: 14),
-                            prefixIcon: Icon(Icons.search, color: textSecondary, size: 20),
-                            filled: true,
-                            fillColor: KoraColors.surfaceFor(brightness),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide.none,
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                          ),
-                          style: TextStyle(color: textPrimary, fontSize: 14),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      GestureDetector(
-                        onTap: () => Navigator.pop(context),
-                        child: Text('Cancel', style: TextStyle(color: KoraColors.purple, fontSize: 14, fontWeight: FontWeight.w500)),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                // Date hint
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'Tip: Try searching a date like "20/8" or a keyword',
-                      style: TextStyle(color: textSecondary, fontSize: 12),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                // Search results
-                Expanded(
-                  child: searchResults.isEmpty
-                      ? Center(
-                          child: Text(
-                            searchController.text.isEmpty ? 'Start typing to search' : 'No messages found',
-                            style: TextStyle(color: textSecondary, fontSize: 14),
-                          ),
-                        )
-                      : ListView.builder(
-                          itemCount: searchResults.length,
-                          itemBuilder: (context, index) {
-                            final msg = searchResults[index];
-                            return ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor: msg.isMe ? KoraColors.purple : surface,
-                                child: Icon(
-                                  msg.isMe ? Icons.arrow_upward : Icons.arrow_downward,
-                                  color: msg.isMe ? Colors.white : textPrimary,
-                                  size: 18,
-                                ),
-                              ),
-                              title: Text(
-                                msg.text,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(color: textPrimary, fontSize: 14),
-                              ),
-                              subtitle: Text(
-                                '${msg.isMe ? 'You' : widget.name} • ${msg.timestamp.day}/${msg.timestamp.month}/${msg.timestamp.year}',
-                                style: TextStyle(color: textSecondary, fontSize: 12),
-                              ),
-                            );
-                          },
-                        ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
+          ),
+          title: Text(
+            msg.text,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(color: textPrimary, fontSize: 14),
+          ),
+          subtitle: Text(
+            '${msg.isMe ? 'You' : widget.name} • ${msg.timestamp.day}/${msg.timestamp.month}/${msg.timestamp.year}',
+            style: TextStyle(color: textSecondary, fontSize: 12),
+          ),
+        );
+      },
     );
   }
 
@@ -1021,6 +957,10 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
       body: SafeArea(
         child: Column(
           children: [
+            // When searching, show the inline search bar instead of the chat header.
+            if (_showSearch)
+              _buildSearchBar()
+            else
             ChatHeader(
               name: widget.name,
               avatarAsset: widget.avatarAsset,
@@ -1029,7 +969,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
               isOnline: _isAiChat ? true : widget.isOnline,
               lastSeen: _isAiChat ? 'AI Assistant' : widget.lastSeen,
               onBack: () => Navigator.pop(context),
-              onAvatarTap: () {},
+              onAvatarTap: _showContactInfo,
               onVoiceCall: () => _openCallScreen(isVideo: false),
               onVideoCall: () => _openCallScreen(isVideo: true),
               menuOptions: [
@@ -1047,9 +987,11 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
                 ],
               ],
             ),
-            // Message area
+            // Message area (or search results when searching)
             Expanded(
-              child: Stack(
+              child: _showSearch
+                ? _buildSearchResults()
+                : Stack(
                 children: [
                   Positioned.fill(
                     child: Container(
@@ -1126,23 +1068,24 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
               ),
             ),
             // Reply preview
-            if (_replyTarget != null)
+            if (_replyTarget != null && !_showSearch)
               ReplyPreview(
                 name: _replyTarget!.isMe ? 'You' : widget.name,
                 text: _replyTarget!.text,
                 onCancel: () => setState(() => _replyTarget = null),
               ),
-            // Composer or blocked-state bar — padded up when keyboard appears
-            AnimatedPadding(
-              padding: EdgeInsets.only(bottom: bottomInset),
-              duration: const Duration(milliseconds: 200),
-              child: _isBlocked && !_isAiChat
-                  ? _buildBlockedBar()
-                  : MessageComposer(
-                      onSend: _sendMessage,
-                      onSendVoice: _sendVoice,
-                    ),
-            ),
+            // Composer or blocked-state bar — hidden during search
+            if (!_showSearch)
+              AnimatedPadding(
+                padding: EdgeInsets.only(bottom: bottomInset),
+                duration: const Duration(milliseconds: 200),
+                child: _isBlocked && !_isAiChat
+                    ? _buildBlockedBar()
+                    : MessageComposer(
+                        onSend: _sendMessage,
+                        onSendVoice: _sendVoice,
+                      ),
+              ),
           ],
         ),
       ),
@@ -1308,12 +1251,14 @@ class _CallScreen extends StatefulWidget {
   final bool isVideo;
   final String? avatarAsset;
   final String? avatarUrl;
+  final KoraBadgeType badge;
 
   const _CallScreen({
     required this.name,
     required this.isVideo,
     this.avatarAsset,
     this.avatarUrl,
+    this.badge = KoraBadgeType.none,
   });
 
   @override
@@ -1442,9 +1387,9 @@ class _CallScreenState extends State<_CallScreen> {
                         ),
                       ),
                     ),
-                    // End call
+                    // End call — pop with whether it was answered
                     GestureDetector(
-                      onTap: () => Navigator.pop(context),
+                      onTap: () => Navigator.pop(context, _seconds >= 3),
                       child: Container(
                         width: 64, height: 64,
                         decoration: const BoxDecoration(

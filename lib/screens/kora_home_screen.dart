@@ -5,6 +5,7 @@ import 'home/channels_tab.dart';
 import 'home/chats_tab.dart';
 import 'home/profile_tab.dart';
 import 'home/status_tab.dart';
+import '../services/permission_service.dart';
 
 /// Main Kora experience — hosts the bottom navigation and switches
 /// between Chats, Calls, Status, Channels, and Profile.
@@ -17,6 +18,13 @@ class KoraHomeScreen extends StatefulWidget {
 
 class _KoraHomeScreenState extends State<KoraHomeScreen> {
   int _tabIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // Ask for essential permissions once on first Home visit.
+    KoraPermissionService.requestEssentialOnce();
+  }
 
   void _goToProfile() => setState(() => _tabIndex = 4);
 

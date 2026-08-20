@@ -61,7 +61,7 @@ class _WallpaperScreenState extends State<WallpaperScreen> {
     try {
       final XFile? image = await _picker.pickImage(
         source: ImageSource.gallery,
-        imageQuality: 80,
+        imageQuality: 65,
       );
       if (image != null) {
         await _provider.setWallpaperImage(image.path);

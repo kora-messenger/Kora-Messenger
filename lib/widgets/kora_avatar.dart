@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../theme/kora_colors.dart';
 
-/// Reusable circular avatar for Kora — shows an asset image, a network
-/// image, or falls back to a gradient initials badge. Used in the chat
-/// list, chat header, search results, and new-chat picker so avatars
-/// look consistent everywhere.
+/// Reusable circular avatar for Kora — shows an asset image, a cached
+/// network image, or falls back to a gradient initials badge. Used in
+/// the chat list, chat header, search results, and new-chat picker so
+/// avatars look consistent everywhere.
+///
+/// Uses CachedNetworkImage for network avatars to minimize data usage:
+/// images are cached on-device after first download, so repeated
+/// views of the same avatar don't re-download bytes.
 class KoraAvatar extends StatelessWidget {
   final String name;
   final String? assetPath;
@@ -99,11 +104,14 @@ class KoraAvatar extends StatelessWidget {
     if (assetPath != null) {
       return Image.asset(assetPath!, fit: BoxFit.cover);
     }
-    if (imageUrl != null) {
-      return Image.network(
-        imageUrl!,
+    if (imageUrl != null && imageUrl!.isNotEmpty) {
+      return CachedNetworkImage(
+        imageUrl: imageUrl!,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => _buildInitials(),
+        placeholder: (_, __) => _buildInitials(),
+        errorWidget: (_, __, ___) => _buildInitials(),
+        // Small image — no need for full-res downloads
+        memCacheWidth: (size * 2).toInt(),
       );
     }
     return _buildInitials();
