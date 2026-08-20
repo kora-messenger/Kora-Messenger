@@ -89,7 +89,7 @@ class ChatHeader extends StatelessWidget {
                       KoraNameWithBadge(
                         name: name,
                         badge: badge,
-                        badgeSize: 16,
+                        badgeSize: 18,
                         style: TextStyle(
                           color: textPrimary,
                           fontSize: 16,

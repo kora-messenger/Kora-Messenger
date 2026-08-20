@@ -53,7 +53,7 @@ class ChatListItem extends StatelessWidget {
                         child: KoraNameWithBadge(
                           name: chat.name,
                           badge: chat.badge,
-                          badgeSize: 17,
+                          badgeSize: 19,
                           style: TextStyle(
                             color: textPrimary,
                             fontSize: 16,

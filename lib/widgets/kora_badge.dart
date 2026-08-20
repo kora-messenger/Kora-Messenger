@@ -14,7 +14,7 @@ class KoraBadge extends StatelessWidget {
   const KoraBadge({
     super.key,
     required this.type,
-    this.size = 15,
+    this.size = 17,
   });
 
   @override
@@ -47,7 +47,7 @@ class KoraNameWithBadge extends StatelessWidget {
     required this.name,
     this.badge = KoraBadgeType.none,
     this.style,
-    this.badgeSize = 17,
+    this.badgeSize = 19,
   });
 
   @override
