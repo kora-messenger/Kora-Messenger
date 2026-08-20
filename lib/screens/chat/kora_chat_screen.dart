@@ -19,7 +19,6 @@ import 'reply_preview.dart';
 import 'chat_empty_state.dart';
 import 'translate_sheet.dart';
 import '../settings/default_chat_theme_screen.dart';
-import '../settings/wallpaper_screen.dart';
 import '../settings/premium_subscribe_sheet.dart';
 
 /// Kora's main conversation screen.
