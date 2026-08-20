@@ -102,12 +102,6 @@ class _ChatThemePreviewScreenState extends State<ChatThemePreviewScreen> {
     return Container(color: bg.color ?? const Color(0xFFECE5DD));
   }
 
-  bool get _bgIsDark {
-    final bg = widget.backgrounds[_currentIndex];
-    if (bg.color != null) return bg.color!.computeLuminance() < 0.5;
-    return true; // photos read best with light overlay chrome
-  }
-
   @override
   Widget build(BuildContext context) {
     final chromeColor = Colors.white;
