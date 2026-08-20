@@ -92,6 +92,31 @@ class _PremiumSubscribeSheetState extends State<PremiumSubscribeSheet> {
                 _benefitRow(Icons.image_outlined, 'Premium wallpapers', 'Exclusive wallpaper collection'),
                 _benefitRow(Icons.flash_on_outlined, 'Priority support', 'Get faster responses from our team'),
                 _benefitRow(Icons.lock_open_outlined, 'No ads', 'Enjoy a clean, ad-free experience'),
+                _benefitRow(
+                  Icons.favorite_rounded,
+                  'Infinite Reactions',
+                  'React with thousands of emoji — with multiple reactions per message.',
+                ),
+                _benefitRow(
+                  Icons.speed_rounded,
+                  'Faster Download Speed',
+                  'No more limits on the speed with which media and documents are downloaded.',
+                ),
+                _benefitRow(
+                  Icons.translate_rounded,
+                  'Real-Time Translation',
+                  'Real-time translation of channels and chats into other languages.',
+                ),
+                _benefitRow(
+                  Icons.emoji_emotions_outlined,
+                  'Animated Emoji',
+                  'Include animated emoji from different emoji sets in any message you send.',
+                ),
+                _benefitRow(
+                  Icons.star_rounded,
+                  'Profile Badge',
+                  'A badge next to your name showing that you are helping support Kora.',
+                ),
                 const SizedBox(height: 28),
 
                 // ── Legal text ──
