@@ -184,7 +184,7 @@ async function callOpenAI(systemPrompt: string, message: string, history: any[])
       model: 'gpt-5.4-mini',
       instructions: systemPrompt,
       input,
-      store: true,
+      store: false,
     }),
   });
 

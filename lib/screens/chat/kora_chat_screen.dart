@@ -133,7 +133,8 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
   void _refreshMessages() {
     _messages = List.from(_messageService.getMessages(widget.chatId));
     setState(() {});
-    _scrollToBottom();
+    // Do NOT scroll here — this is called by the periodic timer every 500ms.
+    // Scrolling here prevents the user from scrolling up to read older messages.
   }
 
   Future<void> _sendMessage(String text) async {
@@ -1013,7 +1014,9 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
         : (usesDefaultDoodle ? _themeProvider.defaultWallpaperAsset : null);
     final hasWallpaper = wallpaperAssetPath != null;
 
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       backgroundColor: theme.wallpaper,
       body: SafeArea(
         child: Column(
@@ -1129,14 +1132,17 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
                 text: _replyTarget!.text,
                 onCancel: () => setState(() => _replyTarget = null),
               ),
-            // Composer or blocked-state bar
-            if (_isBlocked && !_isAiChat)
-              _buildBlockedBar()
-            else
-              MessageComposer(
-                onSend: _sendMessage,
-                onSendVoice: _sendVoice,
-              ),
+            // Composer or blocked-state bar — padded up when keyboard appears
+            AnimatedPadding(
+              padding: EdgeInsets.only(bottom: bottomInset),
+              duration: const Duration(milliseconds: 200),
+              child: _isBlocked && !_isAiChat
+                  ? _buildBlockedBar()
+                  : MessageComposer(
+                      onSend: _sendMessage,
+                      onSendVoice: _sendVoice,
+                    ),
+            ),
           ],
         ),
       ),
