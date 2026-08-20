@@ -184,6 +184,7 @@ class ChatThemeProvider extends ChangeNotifier {
   static const _kWallpaperColor = 'kora_wallpaper_color';
   static const _kWallpaperImagePath = 'kora_wallpaper_image_path';
   static const _kWallpaperAssetPath = 'kora_wallpaper_asset_path';
+  static const _kWallpaperDimLevel = 'kora_wallpaper_dim_level';
   static const _kAppThemeColor = 'kora_app_theme_color';
   static const _kIsPremium = 'kora_is_premium';
   static const _kAppIconIndex = 'kora_app_icon_index';
@@ -194,6 +195,7 @@ class ChatThemeProvider extends ChangeNotifier {
   Color? _wallpaperColor;
   String? _wallpaperImagePath;
   String? _wallpaperAssetPath;
+  double _wallpaperDimLevel = 0.0;
   Color _appThemeColor = const Color(0xFF8B5CF6);
   bool _isPremium = false;
   int _appIconIndex = 0;
@@ -204,6 +206,7 @@ class ChatThemeProvider extends ChangeNotifier {
   Color? get wallpaperColor => _wallpaperColor;
   String? get wallpaperImagePath => _wallpaperImagePath;
   String? get wallpaperAssetPath => _wallpaperAssetPath;
+  double get wallpaperDimLevel => _wallpaperDimLevel;
   Color get appThemeColor => _appThemeColor;
   bool get isPremium => _isPremium;
   int get appIconIndex => _appIconIndex;
@@ -235,6 +238,7 @@ class ChatThemeProvider extends ChangeNotifier {
     _wallpaperColor = wallVal != null ? Color(wallVal) : null;
     _wallpaperImagePath = prefs.getString(_kWallpaperImagePath);
     _wallpaperAssetPath = prefs.getString(_kWallpaperAssetPath);
+    _wallpaperDimLevel = prefs.getDouble(_kWallpaperDimLevel) ?? 0.0;
     final appVal = prefs.getInt(_kAppThemeColor);
     _appThemeColor = appVal != null ? Color(appVal) : const Color(0xFF8B5CF6);
     _isPremium = prefs.getBool(_kIsPremium) ?? false;
@@ -324,6 +328,15 @@ class ChatThemeProvider extends ChangeNotifier {
     await prefs.setString(_kWallpaperAssetPath, assetPath);
     await prefs.remove(_kWallpaperColor);
     await prefs.remove(_kWallpaperImagePath);
+    notifyListeners();
+  }
+
+  /// Adjusts how much the wallpaper is dimmed (0 = full brightness,
+  /// 1 = fully dark), similar to WhatsApp's wallpaper brightness slider.
+  Future<void> setWallpaperDimLevel(double value) async {
+    _wallpaperDimLevel = value.clamp(0.0, 1.0);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_kWallpaperDimLevel, _wallpaperDimLevel);
     notifyListeners();
   }
 

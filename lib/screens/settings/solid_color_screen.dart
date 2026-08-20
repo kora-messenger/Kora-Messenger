@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../theme/kora_colors.dart';
 import '../../theme/chat_theme_provider.dart';
+import 'chat_theme_preview_screen.dart';
 
 /// "Solid color" picker — light solid wallpaper colors.
 class SolidColorScreen extends StatefulWidget {
@@ -27,6 +28,26 @@ class _SolidColorScreenState extends State<SolidColorScreen> {
 
   void _onChanged() {
     if (mounted) setState(() {});
+  }
+
+  void _openPreview(int index) {
+    final backgrounds = kSolidWallpaperColors.map((c) => PreviewBackground(color: c)).toList();
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ChatThemePreviewScreen(
+          backgrounds: backgrounds,
+          initialIndex: index,
+          initialBubbleColor: _provider.customSentBubble ?? _provider.activeTheme.sentBubble,
+          hintText: 'Swipe left or right to preview more colors 🎨✨',
+          onApply: (bg, bubbleColor, dimLevel) {
+            if (bg.color != null) _provider.setWallpaperColor(bg.color!);
+            _provider.setCustomSentBubble(bubbleColor);
+            _provider.setWallpaperDimLevel(dimLevel);
+          },
+        ),
+      ),
+    );
   }
 
   @override
@@ -65,7 +86,7 @@ class _SolidColorScreenState extends State<SolidColorScreen> {
             final color = kSolidWallpaperColors[index];
             final isSelected = current.toARGB32() == color.toARGB32();
             return GestureDetector(
-              onTap: () => _provider.setWallpaperColor(color),
+              onTap: () => _openPreview(index),
               child: Container(
                 decoration: BoxDecoration(
                   color: color,

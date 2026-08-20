@@ -202,55 +202,71 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
             ),
             // Message area
             Expanded(
-              child: Container(
-                decoration: hasWallpaperAsset
-                    ? BoxDecoration(
-                        image: DecorationImage(
-                          image: AssetImage(_themeProvider.wallpaperAssetPath!),
-                          fit: BoxFit.cover,
-                          onError: (_, __) {},
-                        ),
-                      )
-                    : hasWallpaperImage
-                        ? BoxDecoration(
-                            image: DecorationImage(
-                              image: FileImage(File(_themeProvider.wallpaperImagePath!)),
-                              fit: BoxFit.cover,
-                              onError: (_, __) {},
-                            ),
-                          )
-                        : null,
-                child: _isEmpty
-                    ? ChatEmptyState(
-                        name: widget.name,
-                        isOfficial: _isOfficial,
-                      )
-                    : ListView.builder(
-                      controller: _scrollController,
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      itemCount: _messages.length,
-                      itemBuilder: (context, index) {
-                        final message = _messages[index];
-                        final rk = _rowKeys.putIfAbsent(message.id, () => GlobalKey());
-
-                        final showDate = index == 0 ||
-                            !_isSameDay(_messages[index - 1].timestamp, message.timestamp);
-
-                        return Column(
-                          children: [
-                            if (showDate) _buildDateSeparator(context, message.timestamp),
-                            Container(
-                              key: rk,
-                              child: MessageBubble(
-                                key: ValueKey(message.id),
-                                message: message,
-                                onLongPress: () => _showMessageActions(rk, message),
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: Container(
+                      decoration: hasWallpaperAsset
+                          ? BoxDecoration(
+                              image: DecorationImage(
+                                image: AssetImage(_themeProvider.wallpaperAssetPath!),
+                                fit: BoxFit.cover,
+                                onError: (_, __) {},
                               ),
-                            ),
-                          ],
-                        );
-                      },
+                            )
+                          : hasWallpaperImage
+                              ? BoxDecoration(
+                                  image: DecorationImage(
+                                    image: FileImage(File(_themeProvider.wallpaperImagePath!)),
+                                    fit: BoxFit.cover,
+                                    onError: (_, __) {},
+                                  ),
+                                )
+                              : null,
                     ),
+                  ),
+                  if ((hasWallpaperAsset || hasWallpaperImage) && _themeProvider.wallpaperDimLevel > 0)
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: Container(
+                          color: Colors.black.withValues(alpha: _themeProvider.wallpaperDimLevel * 0.75),
+                        ),
+                      ),
+                    ),
+                  Positioned.fill(
+                    child: _isEmpty
+                        ? ChatEmptyState(
+                            name: widget.name,
+                            isOfficial: _isOfficial,
+                          )
+                        : ListView.builder(
+                          controller: _scrollController,
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          itemCount: _messages.length,
+                          itemBuilder: (context, index) {
+                            final message = _messages[index];
+                            final rk = _rowKeys.putIfAbsent(message.id, () => GlobalKey());
+
+                            final showDate = index == 0 ||
+                                !_isSameDay(_messages[index - 1].timestamp, message.timestamp);
+
+                            return Column(
+                              children: [
+                                if (showDate) _buildDateSeparator(context, message.timestamp),
+                                Container(
+                                  key: rk,
+                                  child: MessageBubble(
+                                    key: ValueKey(message.id),
+                                    message: message,
+                                    onLongPress: () => _showMessageActions(rk, message),
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                  ),
+                ],
               ),
             ),
             // Reply preview

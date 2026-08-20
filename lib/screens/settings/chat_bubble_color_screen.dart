@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../theme/kora_colors.dart';
 import '../../theme/chat_theme_provider.dart';
+import 'chat_theme_preview_screen.dart';
 
 /// Color picker for chat bubble colors.
 class ChatBubbleColorScreen extends StatefulWidget {
@@ -33,6 +34,25 @@ class _ChatBubbleColorScreenState extends State<ChatBubbleColorScreen> {
         _selected = _provider.customSentBubble ?? _provider.activeTheme.sentBubble;
       });
     }
+  }
+
+  void _openPreview(Color color) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ChatThemePreviewScreen(
+          backgrounds: [currentPreviewBackground(_provider)],
+          initialBubbleColor: color,
+          allowSwipe: false,
+          hintText: null,
+          descriptionText: 'This is how your sent messages will look.',
+          onApply: (bg, bubbleColor, dimLevel) {
+            _provider.setCustomSentBubble(bubbleColor);
+            _provider.setWallpaperDimLevel(dimLevel);
+          },
+        ),
+      ),
+    );
   }
 
   @override
@@ -132,7 +152,7 @@ class _ChatBubbleColorScreenState extends State<ChatBubbleColorScreen> {
                   final color = kChatBubbleColors[index];
                   final isSelected = _selected.toARGB32() == color.toARGB32();
                   return GestureDetector(
-                    onTap: () => _provider.setCustomSentBubble(color),
+                    onTap: () => _openPreview(color),
                     child: Container(
                       decoration: BoxDecoration(
                         color: color,

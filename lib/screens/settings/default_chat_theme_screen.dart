@@ -3,6 +3,7 @@ import '../../theme/kora_colors.dart';
 import '../../theme/chat_theme_provider.dart';
 import 'wallpaper_screen.dart';
 import 'chat_bubble_color_screen.dart';
+import 'chat_theme_preview_screen.dart';
 
 /// Shows the 7 default chat themes, plus the Wallpaper and Chat bubble
 /// customization tiles (moved here from the Appearance screen — both
@@ -31,6 +32,34 @@ class _DefaultChatThemeScreenState extends State<DefaultChatThemeScreen> {
 
   void _onChanged() {
     if (mounted) setState(() {});
+  }
+
+  void _openPreview(int index) {
+    final backgrounds = kDefaultChatThemes
+        .map((t) => PreviewBackground(color: t.wallpaper, bubbleColor: t.sentBubble))
+        .toList();
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ChatThemePreviewScreen(
+          backgrounds: backgrounds,
+          initialIndex: index,
+          initialBubbleColor: kDefaultChatThemes[index].sentBubble,
+          hintText: 'Swipe left or right to preview more themes ✨',
+          onApply: (bg, bubbleColor, dimLevel) {
+            final matchIndex = kDefaultChatThemes.indexWhere(
+              (t) => bg.color != null && t.wallpaper.toARGB32() == bg.color!.toARGB32(),
+            );
+            final matched = matchIndex != -1 ? kDefaultChatThemes[matchIndex] : kDefaultChatThemes[index];
+            _provider.setChatTheme(matched.id);
+            if (bubbleColor.toARGB32() != matched.sentBubble.toARGB32()) {
+              _provider.setCustomSentBubble(bubbleColor);
+            }
+            _provider.setWallpaperDimLevel(dimLevel);
+          },
+        ),
+      ),
+    );
   }
 
   @override
@@ -89,6 +118,7 @@ class _DefaultChatThemeScreenState extends State<DefaultChatThemeScreen> {
                   isSelected: isSelected,
                   textPrimary: textPrimary,
                   textSecondary: textSecondary,
+                  onTap: () => _openPreview(index),
                 );
               },
             ),
@@ -216,9 +246,10 @@ class _DefaultChatThemeScreenState extends State<DefaultChatThemeScreen> {
     required bool isSelected,
     required Color textPrimary,
     required Color textSecondary,
+    required VoidCallback onTap,
   }) {
     return GestureDetector(
-      onTap: () => _provider.setChatTheme(theme.id),
+      onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),

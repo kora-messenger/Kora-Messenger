@@ -3,6 +3,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../theme/kora_colors.dart';
 import '../../theme/chat_theme_provider.dart';
 import 'solid_color_screen.dart';
+import 'chat_theme_preview_screen.dart';
 
 /// Wallpaper picker — matches the classic "Choose from gallery / Set a
 /// color / Create with AI" menu followed by a grid of preset wallpaper
@@ -78,6 +79,25 @@ class _WallpaperScreenState extends State<WallpaperScreen> {
 
   Future<void> _resetToDefault() async {
     await _provider.setChatTheme(_provider.themeId);
+  }
+
+  void _openPreview(int index) {
+    final backgrounds = _presetWallpapers.map((p) => PreviewBackground(assetPath: p)).toList();
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ChatThemePreviewScreen(
+          backgrounds: backgrounds,
+          initialIndex: index,
+          initialBubbleColor: _provider.customSentBubble ?? _provider.activeTheme.sentBubble,
+          onApply: (bg, bubbleColor, dimLevel) {
+            if (bg.assetPath != null) _provider.setWallpaperAsset(bg.assetPath!);
+            _provider.setCustomSentBubble(bubbleColor);
+            _provider.setWallpaperDimLevel(dimLevel);
+          },
+        ),
+      ),
+    );
   }
 
   @override
@@ -165,7 +185,7 @@ class _WallpaperScreenState extends State<WallpaperScreen> {
                 final assetPath = _presetWallpapers[index];
                 final isSelected = _provider.wallpaperAssetPath == assetPath;
                 return GestureDetector(
-                  onTap: () => _provider.setWallpaperAsset(assetPath),
+                  onTap: () => _openPreview(index),
                   child: Stack(
                     children: [
                       ClipRRect(
