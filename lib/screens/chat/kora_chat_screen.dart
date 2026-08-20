@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
+import 'package:url_launcher/url_launcher.dart';
 import '../../models/chat_models.dart';
 import '../../models/message_model.dart';
 import '../../services/message_service.dart';
@@ -62,6 +63,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
   KoraMessage? _replyTarget;
   bool _isLoading = true;
   bool _isAiTyping = false;
+  bool _isBlocked = false;
   Timer? _statusTimer;
 
   bool get _isAiChat =>
@@ -98,9 +100,23 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
     // Mark all incoming messages as viewed — clears the Home unread badge.
     await _messageService.markChatViewed(widget.chatId);
     if (mounted) {
-      setState(() => _isLoading = false);
+      setState(() {
+        _isLoading = false;
+        _isBlocked = _messageService.isBlocked(widget.chatId);
+      });
       WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
     }
+  }
+
+  String _formatChatSize(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} kB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+
+  Future<void> _openBlockingInfo() async {
+    final uri = Uri.parse(KoraApi.blockingInfoUrl);
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   void _scrollToBottom() {
@@ -550,6 +566,345 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
     );
   }
 
+  // ── Clear chat ──────────────────────────────────────────────
+
+  void _showClearChatDialog() {
+    final brightness = Theme.of(context).brightness;
+    final surface = KoraColors.cardFor(brightness);
+    final textPrimary = KoraColors.textPrimaryFor(brightness);
+    final textSecondary = KoraColors.textSecondaryFor(brightness);
+    final border = KoraColors.borderFor(brightness);
+    final sizeLabel = _formatChatSize(_messageService.chatSizeBytes(widget.chatId));
+    bool alsoClearStarred = false;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => StatefulBuilder(
+        builder: (context, setDialogState) => Container(
+          decoration: BoxDecoration(
+            color: surface,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(20),
+              topRight: Radius.circular(20),
+            ),
+          ),
+          child: SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(8, 8, 8, 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: Icon(Icons.close, color: textPrimary),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                      Expanded(
+                        child: Text(
+                          'Clear chat',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: textPrimary, fontSize: 19, fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                      const SizedBox(width: 48),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Text(
+                      'All messages in this chat will be deleted. This cannot be undone.',
+                      style: TextStyle(color: textSecondary, fontSize: 15, height: 1.4),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Divider(color: border, height: 1),
+                  CheckboxListTile(
+                    value: alsoClearStarred,
+                    onChanged: (v) => setDialogState(() => alsoClearStarred = v ?? false),
+                    title: Text('Clear starred messages', style: TextStyle(color: textPrimary, fontSize: 15)),
+                    controlAffinity: ListTileControlAffinity.leading,
+                    activeColor: KoraColors.purple,
+                  ),
+                  const SizedBox(height: 8),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Colors.red, width: 1.2),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                        ),
+                        onPressed: () async {
+                          Navigator.pop(context);
+                          await _messageService.clearChat(
+                            widget.chatId,
+                            keepStarred: !alsoClearStarred,
+                          );
+                          _refreshMessages();
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Chat cleared'),
+                                backgroundColor: KoraColors.purple,
+                                behavior: SnackBarBehavior.floating,
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
+                          }
+                        },
+                        child: Text(
+                          'Clear chat ($sizeLabel)',
+                          style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w700, fontSize: 16),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Block ────────────────────────────────────────────────────
+
+  void _showBlockDialog() {
+    final brightness = Theme.of(context).brightness;
+    final textPrimary = KoraColors.textPrimaryFor(brightness);
+    final textSecondary = KoraColors.textSecondaryFor(brightness);
+    final surface = KoraColors.cardFor(brightness);
+    bool reportToKora = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => Dialog(
+          backgroundColor: surface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          insetPadding: const EdgeInsets.symmetric(horizontal: 28),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 28, 24, 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 54,
+                  height: 54,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.red, width: 2),
+                  ),
+                  child: const Icon(Icons.block, color: Colors.red, size: 26),
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  'Block ${widget.name}?',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: textPrimary, fontSize: 19, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  "This person won't be able to message or call you. They won't know you blocked or reported them.",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: textSecondary, fontSize: 14, height: 1.4),
+                ),
+                const SizedBox(height: 16),
+                InkWell(
+                  onTap: () => setDialogState(() => reportToKora = !reportToKora),
+                  borderRadius: BorderRadius.circular(10),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Checkbox(
+                          value: reportToKora,
+                          onChanged: (v) => setDialogState(() => reportToKora = v ?? false),
+                          activeColor: KoraColors.purple,
+                        ),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 12),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Report to Kora',
+                                  style: TextStyle(color: textPrimary, fontSize: 14, fontWeight: FontWeight.w600),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'The last 5 messages in this chat will be sent to Kora.',
+                                  style: TextStyle(color: textSecondary, fontSize: 12, height: 1.3),
+                                ),
+                                GestureDetector(
+                                  onTap: _openBlockingInfo,
+                                  child: const Padding(
+                                    padding: EdgeInsets.only(top: 4),
+                                    child: Text(
+                                      'Learn more',
+                                      style: TextStyle(color: KoraColors.purple, fontSize: 12, fontWeight: FontWeight.w700),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      child: const Text('Cancel', style: TextStyle(color: KoraColors.purple, fontWeight: FontWeight.w700, fontSize: 15)),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(dialogContext);
+                        _performBlock(reportToKora);
+                      },
+                      child: const Text('Block', style: TextStyle(color: KoraColors.purple, fontWeight: FontWeight.w700, fontSize: 15)),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _performBlock(bool reportToKora) async {
+    final brightness = Theme.of(context).brightness;
+    final surface = KoraColors.cardFor(brightness);
+    final textPrimary = KoraColors.textPrimaryFor(brightness);
+
+    // Loading dialog — "Please wait a moment" while we process the block
+    // (and, if selected, send the report to Kora).
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => Dialog(
+        backgroundColor: surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(
+                width: 32,
+                height: 32,
+                child: CircularProgressIndicator(color: KoraColors.purple, strokeWidth: 3),
+              ),
+              const SizedBox(height: 16),
+              Text('Please wait a moment...', style: TextStyle(color: textPrimary, fontSize: 15, fontWeight: FontWeight.w600)),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    await Future.delayed(const Duration(seconds: 5));
+    await _messageService.setBlocked(widget.chatId, true);
+
+    if (mounted) {
+      Navigator.pop(context); // dismiss loading dialog
+      setState(() => _isBlocked = true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(reportToKora
+              ? '${widget.name} has been blocked and reported.'
+              : '${widget.name} has been blocked.'),
+          backgroundColor: KoraColors.purple,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  Future<void> _unblock() async {
+    await _messageService.setBlocked(widget.chatId, false);
+    if (mounted) {
+      setState(() => _isBlocked = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${widget.name} has been unblocked.'),
+          backgroundColor: KoraColors.purple,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  Future<void> _deleteChat() async {
+    final brightness = Theme.of(context).brightness;
+    final surface = KoraColors.cardFor(brightness);
+    final textPrimary = KoraColors.textPrimaryFor(brightness);
+    final textSecondary = KoraColors.textSecondaryFor(brightness);
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        backgroundColor: surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Delete this chat?', style: TextStyle(color: textPrimary, fontSize: 18, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 10),
+              Text(
+                'This will permanently delete all messages in this chat. This cannot be undone.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: textSecondary, fontSize: 14, height: 1.4),
+              ),
+              const SizedBox(height: 18),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(dialogContext, false),
+                    child: const Text('Cancel', style: TextStyle(color: KoraColors.purple, fontWeight: FontWeight.w700)),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(dialogContext, true),
+                    child: const Text('Delete', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w700)),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (confirmed == true) {
+      await _messageService.deleteChat(widget.chatId);
+      if (mounted) Navigator.pop(context); // leave the chat screen
+    }
+  }
+
   void _showMuteDialog() {
     final brightness = Theme.of(context).brightness;
     final surface = KoraColors.cardFor(brightness);
@@ -677,9 +1032,11 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
                 KoraMenuOption(icon: Icons.palette_outlined, label: 'Chat theme', onTap: () {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const DefaultChatThemeScreen()));
                 }),
-                KoraMenuOption(icon: Icons.cleaning_services_outlined, label: 'Clear chat', onTap: () {}),
-                KoraMenuOption(icon: Icons.block, label: 'Block', onTap: () {}, color: Colors.red),
-                KoraMenuOption(icon: Icons.report_outlined, label: 'Report', onTap: () {}, color: Colors.red),
+                KoraMenuOption(icon: Icons.cleaning_services_outlined, label: 'Clear chat', onTap: () => _showClearChatDialog()),
+                if (!_isAiChat) ...[
+                  KoraMenuOption(icon: Icons.block, label: 'Block', onTap: () => _showBlockDialog(), color: Colors.red),
+                  KoraMenuOption(icon: Icons.report_outlined, label: 'Report', onTap: () => _showBlockDialog(), color: Colors.red),
+                ],
               ],
             ),
             // Message area
@@ -767,10 +1124,73 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
                 text: _replyTarget!.text,
                 onCancel: () => setState(() => _replyTarget = null),
               ),
-            // Composer
-            MessageComposer(
-              onSend: _sendMessage,
-              onSendVoice: _sendVoice,
+            // Composer or blocked-state bar
+            if (_isBlocked && !_isAiChat)
+              _buildBlockedBar()
+            else
+              MessageComposer(
+                onSend: _sendMessage,
+                onSendVoice: _sendVoice,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// The blocked-state bar shown at the bottom of a chat when the
+  /// user has blocked the person they're talking to. Mirrors WhatsApp's
+  /// pattern: a notice + "Unblock" and "Delete chat" buttons.
+  Widget _buildBlockedBar() {
+    final brightness = Theme.of(context).brightness;
+    final surface = KoraColors.cardFor(brightness);
+    final textPrimary = KoraColors.textPrimaryFor(brightness);
+    final textSecondary = KoraColors.textSecondaryFor(brightness);
+    final border = KoraColors.borderFor(brightness);
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+      decoration: BoxDecoration(
+        color: surface,
+        border: Border(top: BorderSide(color: border, width: 0.5)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'You blocked this person. Tap to unblock.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: textSecondary, fontSize: 13, height: 1.4),
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: KoraColors.purple.withValues(alpha: 0.5), width: 1.2),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                    ),
+                    onPressed: _unblock,
+                    child: const Text('Unblock', style: TextStyle(color: KoraColors.purple, fontWeight: FontWeight.w700, fontSize: 15)),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Colors.red, width: 1.2),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                    ),
+                    onPressed: _deleteChat,
+                    child: const Text('Delete chat', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w700, fontSize: 15)),
+                  ),
+                ),
+              ],
             ),
           ],
         ),

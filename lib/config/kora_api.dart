@@ -28,6 +28,10 @@ class KoraApi {
   static const String termsOfServiceUrl = '$legalBaseUrl/terms-of-service.html';
   static const String learnMoreUrl = '$legalBaseUrl/index.html';
 
+  /// Blocking / unblocking / reporting help page — linked from the
+  /// "Learn more" text in the Block confirmation dialog.
+  static const String blockingInfoUrl = '$legalBaseUrl/blocking-and-reporting.html';
+
   /// Generic POST to the auth endpoint
   static Future<Map<String, dynamic>> post(Map<String, dynamic> body) async {
     return postTo(authEndpoint, body);

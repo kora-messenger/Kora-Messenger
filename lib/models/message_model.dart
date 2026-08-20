@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'chat_models.dart';
 
 /// Message type — text, image, voice, file, system.
@@ -51,6 +52,11 @@ class KoraMessage {
   /// field is only meaningful for incoming messages.
   final bool isSeen;
 
+  /// Whether the user has starred this message. Currently only
+  /// affects the "Clear starred messages" option in the Clear Chat
+  /// dialog — starring itself isn't exposed in the UI yet.
+  final bool isStarred;
+
   const KoraMessage({
     required this.id,
     required this.text,
@@ -70,6 +76,7 @@ class KoraMessage {
     this.isAi = false,
     this.isWebSearch = false,
     this.isSeen = false,
+    this.isStarred = false,
   });
 
   KoraMessage copyWith({
@@ -91,6 +98,7 @@ class KoraMessage {
     bool? isAi,
     bool? isWebSearch,
     bool? isSeen,
+    bool? isStarred,
   }) {
     return KoraMessage(
       id: id ?? this.id,
@@ -111,6 +119,7 @@ class KoraMessage {
       isAi: isAi ?? this.isAi,
       isWebSearch: isWebSearch ?? this.isWebSearch,
       isSeen: isSeen ?? this.isSeen,
+      isStarred: isStarred ?? this.isStarred,
     );
   }
 
@@ -134,6 +143,7 @@ class KoraMessage {
     'isAi': isAi,
     'isWebSearch': isWebSearch,
     'isSeen': isSeen,
+    'isStarred': isStarred,
   };
 
   /// Deserialise from JSON.
@@ -164,7 +174,33 @@ class KoraMessage {
     isAi: j['isAi'] as bool? ?? false,
     isWebSearch: j['isWebSearch'] as bool? ?? false,
     isSeen: j['isSeen'] as bool? ?? true,
+    isStarred: j['isStarred'] as bool? ?? false,
   );
+
+  /// Estimated on-disk size of this message in bytes — used to show
+  /// "Clear chat (X kB)" in the Clear Chat dialog. Text is measured
+  /// exactly (UTF-8 byte length); media types use realistic average
+  /// sizes since real file attachments aren't wired up yet.
+  int get estimatedSizeBytes {
+    switch (type) {
+      case KoraMessageType.voice:
+        final parts = (voiceDuration ?? '0:00').split(':');
+        final mins = parts.length > 1 ? (int.tryParse(parts[0]) ?? 0) : 0;
+        final secs = int.tryParse(parts.length > 1 ? parts[1] : parts[0]) ?? 0;
+        final totalSecs = (mins * 60 + secs).clamp(1, 600);
+        return totalSecs * 2000; // ~2 KB/sec for a compressed voice note
+      case KoraMessageType.image:
+        return 180000; // ~180 KB average compressed photo
+      case KoraMessageType.file:
+        return attachmentName != null ? 350000 : 100000;
+      case KoraMessageType.system:
+      case KoraMessageType.action:
+      case KoraMessageType.issueList:
+        return 0;
+      case KoraMessageType.text:
+        return utf8.encode(text).length + 32; // text bytes + metadata overhead
+    }
+  }
 }
 
 /// A single tappable issue in a [KoraMessageType.issueList] message.

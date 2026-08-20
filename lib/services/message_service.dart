@@ -21,8 +21,11 @@ class MessageService {
   static const _kExpirySent = 'kora_expiry_sent';
   static const _kPremiumTrialStart = 'kora_premium_trial_start';
   static const _kPremiumTrialDays = 7;
+  static const _kBlockedPrefix = 'kora_blocked_';
 
   final Map<String, List<KoraMessage>> _cache = {};
+  final Set<String> _blockedChats = {};
+  bool _blockedLoaded = false;
 
   // ── Load / Save ────────────────────────────────────────────
 
@@ -64,6 +67,7 @@ class MessageService {
 
   /// Async load — fetches from SharedPreferences and populates cache.
   Future<List<KoraMessage>> loadMessages(String chatId) async {
+    await _ensureBlockedLoaded();
     if (_cache.containsKey(chatId)) return _cache[chatId]!;
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString('$_kPrefix$chatId');
@@ -315,10 +319,71 @@ class MessageService {
     _persist('kora_support');
   }
 
+  // ── Clear chat / Delete chat / Block ───────────────────────
+
+  /// Total estimated size (in bytes) of everything in [chatId] —
+  /// shown in the Clear Chat dialog as "Clear chat (X kB)".
+  int chatSizeBytes(String chatId) {
+    final messages = _cache[chatId];
+    if (messages == null) return 0;
+    return messages.fold(0, (sum, m) => sum + m.estimatedSizeBytes);
+  }
+
+  /// Clears messages in [chatId]. When [keepStarred] is true, starred
+  /// messages are preserved (mirrors the "Clear starred messages"
+  /// checkbox in the Clear Chat dialog — unchecked = keep starred).
+  Future<void> clearChat(String chatId, {bool keepStarred = true}) async {
+    final messages = _cache[chatId];
+    if (messages == null) return;
+    if (keepStarred) {
+      messages.removeWhere((m) => !m.isStarred);
+    } else {
+      messages.clear();
+    }
+    await _persist(chatId);
+  }
+
+  /// Fully deletes a chat's message history from disk and cache —
+  /// used by the "Delete chat" action on a blocked conversation.
+  Future<void> deleteChat(String chatId) async {
+    _cache.remove(chatId);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('$_kPrefix$chatId');
+  }
+
+  Future<void> _ensureBlockedLoaded() async {
+    if (_blockedLoaded) return;
+    final prefs = await SharedPreferences.getInstance();
+    final keys = prefs.getKeys().where((k) => k.startsWith(_kBlockedPrefix));
+    for (final k in keys) {
+      if (prefs.getBool(k) == true) {
+        _blockedChats.add(k.substring(_kBlockedPrefix.length));
+      }
+    }
+    _blockedLoaded = true;
+  }
+
+  /// Whether [chatId] is currently blocked. Call [loadMessages] (or
+  /// await init) at least once before relying on this synchronously.
+  bool isBlocked(String chatId) => _blockedChats.contains(chatId);
+
+  Future<void> setBlocked(String chatId, bool blocked) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (blocked) {
+      _blockedChats.add(chatId);
+      await prefs.setBool('$_kBlockedPrefix$chatId', true);
+    } else {
+      _blockedChats.remove(chatId);
+      await prefs.remove('$_kBlockedPrefix$chatId');
+    }
+  }
+
   /// Clears all messages (used on logout).
   Future<void> clearAll() async {
     final prefs = await SharedPreferences.getInstance();
-    final keys = prefs.getKeys().where((k) => k.startsWith(_kPrefix));
+    final keys = prefs.getKeys().where(
+      (k) => k.startsWith(_kPrefix) || k.startsWith(_kBlockedPrefix),
+    );
     for (final k in keys) {
       await prefs.remove(k);
     }
@@ -326,5 +391,7 @@ class MessageService {
     await prefs.remove(_kExpirySent);
     await prefs.remove(_kPremiumTrialStart);
     _cache.clear();
+    _blockedChats.clear();
+    _blockedLoaded = false;
   }
 }
