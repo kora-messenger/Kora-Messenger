@@ -22,8 +22,7 @@ class _ThemeCard {
     this.wallpaperAsset,
     this.sentBubble = KoraColors.purple,
     this.receivedBubble = Colors.white,
-    this.isAi = false,
-  });
+  }) : isAi = false;
 
   const _ThemeCard.ai()
       : id = 'create_with_ai',
