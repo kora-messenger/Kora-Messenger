@@ -1,11 +1,14 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 import '../../models/chat_models.dart';
 import '../../models/message_model.dart';
 import '../../services/message_service.dart';
 import '../../theme/kora_colors.dart';
 import '../../theme/chat_theme_provider.dart';
+import '../../config/kora_api.dart';
 import '../../widgets/kora_menu_sheet.dart';
 import 'chat_header.dart';
 import 'message_bubble.dart';
@@ -16,12 +19,15 @@ import 'chat_empty_state.dart';
 import 'translate_sheet.dart';
 import '../settings/default_chat_theme_screen.dart';
 import '../settings/wallpaper_screen.dart';
+import '../settings/premium_subscribe_sheet.dart';
 
 /// Kora's main conversation screen.
 /// Opens when a user taps any conversation from the Home/Chats list.
 /// Supports: text messages, voice messages, replies, reactions,
 /// translation, attachments (UI), message actions, chat menu, and
 /// both light/dark themes.
+///
+/// Kora Support and Kora AI chats have AI-powered responses.
 class KoraChatScreen extends StatefulWidget {
   final String chatId;
   final String name;
@@ -54,6 +60,11 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
   List<KoraMessage> _messages = [];
   final Map<String, GlobalKey> _rowKeys = {};
   KoraMessage? _replyTarget;
+  bool _isLoading = true;
+  bool _isAiTyping = false;
+
+  bool get _isAiChat =>
+      widget.chatId == 'kora_support' || widget.chatId == 'kora_ai';
 
   @override
   void initState() {
@@ -73,9 +84,12 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
     if (mounted) setState(() {});
   }
 
-  void _loadMessages() {
-    _messages = List.from(_messageService.getMessages(widget.chatId));
-    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+  Future<void> _loadMessages() async {
+    _messages = await _messageService.loadMessages(widget.chatId);
+    if (mounted) {
+      setState(() => _isLoading = false);
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+    }
   }
 
   void _scrollToBottom() {
@@ -88,8 +102,14 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
     }
   }
 
-  void _sendMessage(String text) {
-    _messageService.sendMessage(
+  void _refreshMessages() {
+    _messages = List.from(_messageService.getMessages(widget.chatId));
+    setState(() {});
+    _scrollToBottom();
+  }
+
+  Future<void> _sendMessage(String text) async {
+    await _messageService.sendMessage(
       widget.chatId,
       text,
       replyToId: _replyTarget?.id,
@@ -101,28 +121,72 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
       _replyTarget = null;
     });
     _scrollToBottom();
+
+    // If this is an AI chat, get an AI response
+    if (_isAiChat) {
+      await _getAiResponse(text);
+    }
   }
 
-  void _sendVoice(String duration) {
-    _messageService.sendVoiceMessage(widget.chatId, duration);
-    setState(() {
-      _messages = List.from(_messageService.getMessages(widget.chatId));
-    });
-    _scrollToBottom();
+  Future<void> _getAiResponse(String userMessage) async {
+    setState(() => _isAiTyping = true);
+
+    try {
+      final chatType = widget.chatId == 'kora_support' ? 'support' : 'ai';
+      final history = _messages
+          .where((m) => m.type != KoraMessageType.action)
+          .map((m) => {'text': m.text, 'isMe': m.isMe})
+          .toList();
+
+      final response = await http.post(
+        Uri.parse('${KoraApi.baseUrl}/koraAiChat'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'chatType': chatType,
+          'message': userMessage,
+          'history': history,
+        }),
+      ).timeout(const Duration(seconds: 30));
+
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final reply = data['reply'] as String? ??
+          "I'm here to help! Could you tell me more?";
+
+      await _messageService.addIncomingMessage(
+        widget.chatId,
+        reply,
+        isAi: true,
+      );
+    } catch (e) {
+      // Fallback response if the backend is unreachable
+      await _messageService.addIncomingMessage(
+        widget.chatId,
+        widget.chatId == 'kora_support'
+            ? "I'm here to help with any Kora-related questions! Could you tell me more about what you need?"
+            : "I'd be happy to help with that! Let me know a bit more about what you're looking for.",
+        isAi: true,
+      );
+    }
+
+    if (mounted) {
+      setState(() => _isAiTyping = false);
+      _refreshMessages();
+    }
   }
 
-  void _onReact(String messageId, String emoji) {
-    _messageService.toggleReaction(widget.chatId, messageId, emoji);
-    setState(() {
-      _messages = List.from(_messageService.getMessages(widget.chatId));
-    });
+  void _sendVoice(String duration) async {
+    await _messageService.sendVoiceMessage(widget.chatId, duration);
+    _refreshMessages();
   }
 
-  void _onDelete(String messageId) {
-    _messageService.deleteMessage(widget.chatId, messageId);
-    setState(() {
-      _messages = List.from(_messageService.getMessages(widget.chatId));
-    });
+  void _onReact(String messageId, String emoji) async {
+    await _messageService.toggleReaction(widget.chatId, messageId, emoji);
+    _refreshMessages();
+  }
+
+  void _onDelete(String messageId) async {
+    await _messageService.deleteMessage(widget.chatId, messageId);
+    _refreshMessages();
   }
 
   void _onCopy(String text) {
@@ -157,6 +221,17 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
     );
   }
 
+  void _onActionTap(KoraMessage message) {
+    if (message.actionType == 'subscribe_premium') {
+      showModalBottomSheet(
+        context: context,
+        backgroundColor: Colors.transparent,
+        isScrollControlled: true,
+        builder: (_) => const PremiumSubscribeSheet(),
+      );
+    }
+  }
+
   bool get _isEmpty => _messages.isEmpty;
 
   bool get _isOfficial =>
@@ -178,8 +253,8 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
               avatarAsset: widget.avatarAsset,
               avatarUrl: widget.avatarUrl,
               badge: widget.badge,
-              isOnline: widget.isOnline,
-              lastSeen: widget.lastSeen,
+              isOnline: _isAiChat ? true : widget.isOnline,
+              lastSeen: _isAiChat ? 'AI Assistant' : widget.lastSeen,
               onBack: () => Navigator.pop(context),
               onAvatarTap: () {},
               onVoiceCall: () {},
@@ -234,37 +309,45 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
                       ),
                     ),
                   Positioned.fill(
-                    child: _isEmpty
-                        ? ChatEmptyState(
-                            name: widget.name,
-                            isOfficial: _isOfficial,
-                          )
-                        : ListView.builder(
-                          controller: _scrollController,
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          itemCount: _messages.length,
-                          itemBuilder: (context, index) {
-                            final message = _messages[index];
-                            final rk = _rowKeys.putIfAbsent(message.id, () => GlobalKey());
+                    child: _isLoading
+                        ? const Center(child: CircularProgressIndicator(color: KoraColors.purple))
+                        : _isEmpty
+                            ? ChatEmptyState(
+                                name: widget.name,
+                                isOfficial: _isOfficial,
+                              )
+                            : ListView.builder(
+                                controller: _scrollController,
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                itemCount: _messages.length + (_isAiTyping ? 1 : 0),
+                                itemBuilder: (context, index) {
+                                  // Typing indicator at the end
+                                  if (_isAiTyping && index == _messages.length) {
+                                    return _buildTypingIndicator(context);
+                                  }
 
-                            final showDate = index == 0 ||
-                                !_isSameDay(_messages[index - 1].timestamp, message.timestamp);
+                                  final message = _messages[index];
+                                  final rk = _rowKeys.putIfAbsent(message.id, () => GlobalKey());
 
-                            return Column(
-                              children: [
-                                if (showDate) _buildDateSeparator(context, message.timestamp),
-                                Container(
-                                  key: rk,
-                                  child: MessageBubble(
-                                    key: ValueKey(message.id),
-                                    message: message,
-                                    onLongPress: () => _showMessageActions(rk, message),
-                                  ),
-                                ),
-                              ],
-                            );
-                          },
-                        ),
+                                  final showDate = index == 0 ||
+                                      !_isSameDay(_messages[index - 1].timestamp, message.timestamp);
+
+                                  return Column(
+                                    children: [
+                                      if (showDate) _buildDateSeparator(context, message.timestamp),
+                                      Container(
+                                        key: rk,
+                                        child: MessageBubble(
+                                          key: ValueKey(message.id),
+                                          message: message,
+                                          onLongPress: () => _showMessageActions(rk, message),
+                                          onActionTap: () => _onActionTap(message),
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              ),
                   ),
                 ],
               ),
@@ -280,6 +363,48 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
             MessageComposer(
               onSend: _sendMessage,
               onSendVoice: _sendVoice,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTypingIndicator(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
+    final textSecondary = KoraColors.textSecondaryFor(brightness);
+
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.only(left: 16, top: 4, bottom: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: KoraColors.cardFor(brightness),
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: brightness == Brightness.dark ? 0.2 : 0.04),
+              blurRadius: 4,
+              offset: const Offset(0, 1),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '${widget.name} is typing',
+              style: TextStyle(color: textSecondary, fontSize: 13, fontStyle: FontStyle.italic),
+            ),
+            const SizedBox(width: 8),
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: KoraColors.purple.withValues(alpha: 0.6),
+              ),
             ),
           ],
         ),

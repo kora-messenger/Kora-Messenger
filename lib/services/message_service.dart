@@ -1,133 +1,106 @@
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/message_model.dart';
 import '../models/chat_models.dart';
 
-/// Mock message data per conversation.
-/// Replace with real backend once messaging is wired up.
+/// Manages all Kora conversations with local persistence.
+///
+/// Messages are stored in SharedPreferences as JSON arrays keyed by
+/// chat ID. This replaces the old in-memory mock service — messages
+/// now survive app restarts.
+///
+/// Two special chats are always present:
+/// - kora_support: Kora Support AI — answers questions about Kora
+/// - kora_ai: Kora AI — answers any question, inside or outside Kora
 class MessageService {
   static final MessageService instance = MessageService._();
   MessageService._();
 
-  final Map<String, List<KoraMessage>> _messages = {};
+  static const _kPrefix = 'kora_msgs_';
+  static const _kWelcomeSent = 'kora_welcome_sent';
+  static const _kExpirySent = 'kora_expiry_sent';
+  static const _kPremiumTrialStart = 'kora_premium_trial_start';
+  static const _kPremiumTrialDays = 7;
 
-  /// Returns messages for a chat ID, seeding defaults if empty.
-  List<KoraMessage> getMessages(String chatId) {
-    if (_messages.containsKey(chatId)) return _messages[chatId]!;
+  final Map<String, List<KoraMessage>> _cache = {};
 
-    final now = DateTime.now();
-    List<KoraMessage> seeded;
+  // ── Load / Save ────────────────────────────────────────────
 
-    switch (chatId) {
-      case 'kora_support':
-        seeded = [
-          KoraMessage(
-            id: 's1',
-            text: 'Welcome to Kora Messenger! 👋',
-            timestamp: now.subtract(const Duration(minutes: 30)),
-            isMe: false,
-            status: MessageStatus.none,
-          ),
-          KoraMessage(
-            id: 's2',
-            text: 'I\'m here to help with anything you need — setting up your profile, finding contacts, or troubleshooting.',
-            timestamp: now.subtract(const Duration(minutes: 29)),
-            isMe: false,
-            status: MessageStatus.none,
-          ),
-          KoraMessage(
-            id: 's3',
-            text: 'Thanks! Excited to start using Kora.',
-            timestamp: now.subtract(const Duration(minutes: 28)),
-            isMe: true,
-            status: MessageStatus.read,
-          ),
-          KoraMessage(
-            id: 's4',
-            text: 'That\'s great to hear! Let us know if you have any questions. You can also check the Help section in Settings.',
-            timestamp: now.subtract(const Duration(minutes: 27)),
-            isMe: false,
-            status: MessageStatus.none,
-          ),
-        ];
-        break;
+  Future<void> init() async {
+    final prefs = await SharedPreferences.getInstance();
+    final welcomeSent = prefs.getBool(_kWelcomeSent) ?? false;
+    final expirySent = prefs.getBool(_kExpirySent) ?? false;
 
-      case 'kora_ai':
-        seeded = [
-          KoraMessage(
-            id: 'a1',
-            text: 'Hi! I\'m Kora AI — your built-in assistant. Ask me anything.',
-            timestamp: now.subtract(const Duration(hours: 2)),
-            isMe: false,
-            status: MessageStatus.none,
-          ),
-          KoraMessage(
-            id: 'a2',
-            text: 'I can help you plan, write, translate, summarize, or just chat.',
-            timestamp: now.subtract(const Duration(hours: 2)),
-            isMe: false,
-            status: MessageStatus.none,
-          ),
-          KoraMessage(
-            id: 'a3',
-            text: 'Can you translate "Good morning" to French?',
-            timestamp: now.subtract(const Duration(hours: 1, minutes: 50)),
-            isMe: true,
-            status: MessageStatus.read,
-          ),
-          KoraMessage(
-            id: 'a4',
-            text: 'Of course! "Good morning" in French is "Bonjour" 🌅',
-            timestamp: now.subtract(const Duration(hours: 1, minutes: 49)),
-            isMe: false,
-            status: MessageStatus.none,
-          ),
-        ];
-        break;
-
-      case 'c1': // Amara Chukwu
-        seeded = [
-          KoraMessage(
-            id: 'm1',
-            text: 'Hey! Are we still on for tomorrow?',
-            timestamp: now.subtract(const Duration(minutes: 25)),
-            isMe: false,
-            status: MessageStatus.none,
-          ),
-          KoraMessage(
-            id: 'm2',
-            text: 'Yes, absolutely. Same time?',
-            timestamp: now.subtract(const Duration(minutes: 22)),
-            isMe: true,
-            status: MessageStatus.read,
-          ),
-          KoraMessage(
-            id: 'm3',
-            text: 'Perfect. I\'ll send the location.',
-            timestamp: now.subtract(const Duration(minutes: 20)),
-            isMe: false,
-            status: MessageStatus.none,
-          ),
-          KoraMessage(
-            id: 'm4',
-            text: 'Sounds great, see you then!',
-            timestamp: now.subtract(const Duration(minutes: 18)),
-            isMe: false,
-            status: MessageStatus.none,
-            reaction: '❤️',
-          ),
-        ];
-        break;
-
-      default:
-        seeded = [];
+    if (!welcomeSent) {
+      _seedWelcomeMessage();
+      await prefs.setBool(_kWelcomeSent, true);
+      await prefs.setString(
+        _kPremiumTrialStart,
+        DateTime.now().toIso8601String(),
+      );
     }
 
-    _messages[chatId] = seeded;
-    return seeded;
+    // Check if the 7-day trial has expired (and we haven't sent the expiry message yet)
+    if (!expirySent) {
+      final startStr = prefs.getString(_kPremiumTrialStart);
+      if (startStr != null) {
+        final start = DateTime.parse(startStr);
+        final expiry = start.add(const Duration(days: _kPremiumTrialDays));
+        if (DateTime.now().isAfter(expiry)) {
+          _seedExpiryMessage();
+          await prefs.setBool(_kExpirySent, true);
+          // Revoke premium
+          await prefs.setBool('kora_is_premium', false);
+        }
+      }
+    }
   }
 
-  /// Send a new text message.
-  void sendMessage(String chatId, String text, {String? replyToId, String? replyToText, String? replyToName}) {
-    final messages = _messages.putIfAbsent(chatId, () => []);
+  /// Returns messages for a chat, loading from disk if not cached.
+  List<KoraMessage> getMessages(String chatId) {
+    if (_cache.containsKey(chatId)) return _cache[chatId]!;
+    return []; // will be loaded async via loadMessages
+  }
+
+  /// Async load — fetches from SharedPreferences and populates cache.
+  Future<List<KoraMessage>> loadMessages(String chatId) async {
+    if (_cache.containsKey(chatId)) return _cache[chatId]!;
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString('$_kPrefix$chatId');
+    if (raw != null && raw.isNotEmpty) {
+      try {
+        final list = jsonDecode(raw) as List;
+        _cache[chatId] = list
+            .map((e) => KoraMessage.fromJson(e as Map<String, dynamic>))
+            .toList();
+      } catch (_) {
+        _cache[chatId] = [];
+      }
+    } else {
+      _cache[chatId] = [];
+    }
+    return _cache[chatId]!;
+  }
+
+  Future<void> _persist(String chatId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final msgs = _cache[chatId] ?? [];
+    await prefs.setString(
+      '$_kPrefix$chatId',
+      jsonEncode(msgs.map((m) => m.toJson()).toList()),
+    );
+  }
+
+  // ── Send / React / Delete ─────────────────────────────────
+
+  Future<void> sendMessage(
+    String chatId,
+    String text, {
+    String? replyToId,
+    String? replyToText,
+    String? replyToName,
+  }) async {
+    final messages = _cache.putIfAbsent(chatId, () []);
     messages.add(KoraMessage(
       id: 'msg_${DateTime.now().millisecondsSinceEpoch}',
       text: text,
@@ -138,11 +111,35 @@ class MessageService {
       replyToText: replyToText,
       replyToName: replyToName,
     ));
+    await _persist(chatId);
   }
 
-  /// Send a voice message (mock).
-  void sendVoiceMessage(String chatId, String duration) {
-    final messages = _messages.putIfAbsent(chatId, () => []);
+  /// Adds an incoming message (used for AI replies).
+  Future<void> addIncomingMessage(
+    String chatId,
+    String text, {
+    bool isAi = false,
+    String? actionLabel,
+    String? actionType,
+    KoraMessageType type = KoraMessageType.text,
+  }) async {
+    final messages = _cache.putIfAbsent(chatId, () []);
+    messages.add(KoraMessage(
+      id: 'in_${DateTime.now().millisecondsSinceEpoch}',
+      text: text,
+      timestamp: DateTime.now(),
+      isMe: false,
+      status: MessageStatus.none,
+      isAi: isAi,
+      type: type,
+      actionLabel: actionLabel,
+      actionType: actionType,
+    ));
+    await _persist(chatId);
+  }
+
+  Future<void> sendVoiceMessage(String chatId, String duration) async {
+    final messages = _cache.putIfAbsent(chatId, () []);
     messages.add(KoraMessage(
       id: 'voice_${DateTime.now().millisecondsSinceEpoch}',
       text: '',
@@ -152,33 +149,91 @@ class MessageService {
       status: MessageStatus.sent,
       voiceDuration: duration,
     ));
+    await _persist(chatId);
   }
 
-  /// Add a reaction to a message.
-  void toggleReaction(String chatId, String messageId, String emoji) {
-    final messages = _messages[chatId];
+  Future<void> toggleReaction(String chatId, String messageId, String emoji) async {
+    final messages = _cache[chatId];
     if (messages == null) return;
     final idx = messages.indexWhere((m) => m.id == messageId);
     if (idx == -1) return;
     final msg = messages[idx];
     messages[idx] = msg.copyWith(reaction: msg.reaction == emoji ? null : emoji);
+    await _persist(chatId);
   }
 
-  /// Delete a message.
-  void deleteMessage(String chatId, String messageId) {
-    final messages = _messages[chatId];
+  Future<void> deleteMessage(String chatId, String messageId) async {
+    final messages = _cache[chatId];
     if (messages == null) return;
     messages.removeWhere((m) => m.id == messageId);
+    await _persist(chatId);
   }
 
-  /// Mark all outgoing messages as read (mock — when the other person "reads").
-  void markAsRead(String chatId) {
-    final messages = _messages[chatId];
+  Future<void> markAsRead(String chatId) async {
+    final messages = _cache[chatId];
     if (messages == null) return;
+    bool changed = false;
     for (int i = 0; i < messages.length; i++) {
       if (messages[i].isMe && messages[i].status != MessageStatus.read) {
         messages[i] = messages[i].copyWith(status: MessageStatus.read);
+        changed = true;
       }
     }
+    if (changed) await _persist(chatId);
+  }
+
+  // ── Welcome / Expiry messages ──────────────────────────────
+
+  void _seedWelcomeMessage() {
+    final now = DateTime.now();
+    _cache['kora_support'] = [
+      KoraMessage(
+        id: 'welcome_1',
+        text: 'Welcome to Kora Messenger! 🎉\n\n'
+            'Congratulations — you\'ve been given 7 days of Kora Premium for free!\n\n'
+            'With Premium you get: custom app icons, premium wallpapers, '
+            'custom chat bubbles, animated emoji, real-time translation, '
+            'infinite reactions, faster download speeds, a profile badge, '
+            'priority support, and no ads.\n\n'
+            'Your free Premium trial will expire in 7 days. '
+            'Enjoy! ✨',
+        timestamp: now,
+        isMe: false,
+        isAi: true,
+        status: MessageStatus.none,
+      ),
+    ];
+    _persist('kora_support');
+  }
+
+  void _seedExpiryMessage() {
+    final messages = _cache.putIfAbsent('kora_support', () []);
+    messages.add(KoraMessage(
+      id: 'expiry_1',
+      text: 'Your 7-day Kora Premium subscription has expired. 😔\n\n'
+          'But don\'t worry — you can re-activate all your Premium features '
+          'anytime by subscribing below.',
+      timestamp: DateTime.now(),
+      isMe: false,
+      isAi: true,
+      type: KoraMessageType.action,
+      actionLabel: 'Subscribe to Kora Premium',
+      actionType: 'subscribe_premium',
+      status: MessageStatus.none,
+    ));
+    _persist('kora_support');
+  }
+
+  /// Clears all messages (used on logout).
+  Future<void> clearAll() async {
+    final prefs = await SharedPreferences.getInstance();
+    final keys = prefs.getKeys().where((k) => k.startsWith(_kPrefix));
+    for (final k in keys) {
+      await prefs.remove(k);
+    }
+    await prefs.remove(_kWelcomeSent);
+    await prefs.remove(_kExpirySent);
+    await prefs.remove(_kPremiumTrialStart);
+    _cache.clear();
   }
 }

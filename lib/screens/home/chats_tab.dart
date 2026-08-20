@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/chat_models.dart';
 import '../../services/chat_service.dart';
+import '../../services/message_service.dart';
 import '../../theme/kora_colors.dart';
 import '../../widgets/chat_list_item.dart';
 import '../../widgets/kora_empty_state.dart';
@@ -31,7 +32,17 @@ class _ChatsTabState extends State<ChatsTab> {
   @override
   void initState() {
     super.initState();
-    _chats = ChatService.instance.getChats();
+    _initMessages();
+  }
+
+  Future<void> _initMessages() async {
+    await MessageService.instance.init();
+    // Load messages for all known chats so ChatService can build previews
+    await MessageService.instance.loadMessages('kora_support');
+    await MessageService.instance.loadMessages('kora_ai');
+    if (mounted) {
+      setState(() => _chats = ChatService.instance.getChats());
+    }
   }
 
   @override

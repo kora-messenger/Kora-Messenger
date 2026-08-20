@@ -13,12 +13,14 @@ class MessageBubble extends StatelessWidget {
   final KoraMessage message;
   final VoidCallback? onLongPress;
   final VoidCallback? onReplyTap;
+  final VoidCallback? onActionTap;
 
   const MessageBubble({
     super.key,
     required this.message,
     this.onLongPress,
     this.onReplyTap,
+    this.onActionTap,
   });
 
   @override
@@ -112,6 +114,10 @@ class MessageBubble extends StatelessWidget {
     Color receivedText,
     Color textSecondary,
   ) {
+    if (message.type == KoraMessageType.action) {
+      return _buildActionContent(context, isMe, sentText, receivedText, textSecondary);
+    }
+
     if (message.type == KoraMessageType.voice) {
       return _buildVoiceContent(isMe, sentText, receivedText, textSecondary);
     }
@@ -190,6 +196,68 @@ class MessageBubble extends StatelessWidget {
               _buildStatusIcon(message.status, isMe),
             ],
           ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionContent(
+    BuildContext context,
+    bool isMe,
+    Color sentText,
+    Color receivedText,
+    Color textSecondary,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          message.text,
+          style: TextStyle(
+            color: isMe ? sentText : receivedText,
+            fontSize: 15,
+            height: 1.35,
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (message.actionLabel != null)
+          GestureDetector(
+            onTap: onActionTap,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                gradient: KoraColors.brandGradient,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: KoraColors.purple.withValues(alpha: 0.35),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Center(
+                child: Text(
+                  message.actionLabel!,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        const SizedBox(height: 4),
+        Text(
+          _formatTime(message.timestamp),
+          style: TextStyle(
+            color: isMe ? Colors.white.withValues(alpha: 0.65) : textSecondary,
+            fontSize: 10.5,
+            fontWeight: FontWeight.w500,
+          ),
         ),
       ],
     );
