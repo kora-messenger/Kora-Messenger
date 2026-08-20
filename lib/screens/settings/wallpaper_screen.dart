@@ -26,6 +26,14 @@ const List<String> _presetWallpapers = [
   'assets/wallpapers/blue_pink_waves.jpg',
   'assets/wallpapers/terracotta_shapes.jpg',
   'assets/wallpapers/rose_petals.jpg',
+  'assets/wallpapers/butterfly_flower.jpg',
+  'assets/wallpapers/pink_tulip.jpg',
+  'assets/wallpapers/red_dahlia.jpg',
+  'assets/wallpapers/rainbow_tulip_splash.jpg',
+  'assets/wallpapers/glowing_dress_woman.jpg',
+  'assets/wallpapers/autumn_leaves.jpg',
+  'assets/wallpapers/colorful_3d_balls.jpg',
+  'assets/wallpapers/black_z_gradient.jpg',
 ];
 
 class _WallpaperScreenState extends State<WallpaperScreen> {
