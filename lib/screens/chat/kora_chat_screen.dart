@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
@@ -650,14 +651,18 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
                           );
                           _refreshMessages();
                           if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Chat cleared'),
-                                backgroundColor: KoraColors.purple,
-                                behavior: SnackBarBehavior.floating,
-                                duration: Duration(seconds: 2),
-                              ),
-                            );
+                            SchedulerBinding.instance.addPostFrameCallback((_) {
+                              if (mounted) {
+                                ScaffoldMessenger.of(this.context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Chat cleared'),
+                                    backgroundColor: KoraColors.purple,
+                                    behavior: SnackBarBehavior.floating,
+                                    duration: Duration(seconds: 2),
+                                  ),
+                                );
+                              }
+                            });
                           }
                         },
                         child: Text(
