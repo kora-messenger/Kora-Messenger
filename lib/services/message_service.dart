@@ -145,6 +145,8 @@ class MessageService {
     String? actionLabel,
     String? actionType,
     KoraMessageType type = KoraMessageType.text,
+    List<IssueOption>? issueOptions,
+    bool isWebSearch = false,
   }) async {
     final messages = _cache.putIfAbsent(chatId, () => <KoraMessage>[]);
     messages.add(KoraMessage(
@@ -157,7 +159,24 @@ class MessageService {
       type: type,
       actionLabel: actionLabel,
       actionType: actionType,
+      issueOptions: issueOptions,
+      isWebSearch: isWebSearch,
       isSeen: false, // unread until the recipient opens the chat
+    ));
+    await _persist(chatId);
+  }
+
+  /// Sends an outgoing message as the user (used when they tap an issue
+  /// from the support issue list — the issue text appears as if the user
+  /// typed it, then the AI responds with guided troubleshooting).
+  Future<void> sendUserMessage(String chatId, String text) async {
+    final messages = _cache.putIfAbsent(chatId, () => <KoraMessage>[]);
+    messages.add(KoraMessage(
+      id: 'msg_${DateTime.now().millisecondsSinceEpoch}',
+      text: text,
+      timestamp: DateTime.now(),
+      isMe: true,
+      status: MessageStatus.sent,
     ));
     await _persist(chatId);
   }

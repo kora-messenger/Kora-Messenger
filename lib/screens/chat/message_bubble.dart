@@ -14,6 +14,7 @@ class MessageBubble extends StatelessWidget {
   final VoidCallback? onLongPress;
   final VoidCallback? onReplyTap;
   final VoidCallback? onActionTap;
+  final void Function(IssueOption)? onIssueTap;
 
   const MessageBubble({
     super.key,
@@ -21,6 +22,7 @@ class MessageBubble extends StatelessWidget {
     this.onLongPress,
     this.onReplyTap,
     this.onActionTap,
+    this.onIssueTap,
   });
 
   @override
@@ -114,6 +116,10 @@ class MessageBubble extends StatelessWidget {
     Color receivedText,
     Color textSecondary,
   ) {
+    if (message.type == KoraMessageType.issueList) {
+      return _buildIssueListContent(context, isMe, sentText, receivedText, textSecondary);
+    }
+
     if (message.type == KoraMessageType.action) {
       return _buildActionContent(context, isMe, sentText, receivedText, textSecondary);
     }
@@ -178,6 +184,11 @@ class MessageBubble extends StatelessWidget {
             height: 1.35,
           ),
         ),
+        // Web search badge
+        if (message.isWebSearch) ...[
+          const SizedBox(height: 6),
+          _buildWebSearchBadge(isMe),
+        ],
         const SizedBox(height: 3),
         // Timestamp + status
         Row(
@@ -296,6 +307,106 @@ class MessageBubble extends StatelessWidget {
             color: durationColor,
             fontSize: 11.5,
             fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildIssueListContent(
+    BuildContext context,
+    bool isMe,
+    Color sentText,
+    Color receivedText,
+    Color textSecondary,
+  ) {
+    final brightness = Theme.of(context).brightness;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Intro text
+        Text(
+          message.text,
+          style: TextStyle(
+            color: receivedText,
+            fontSize: 14,
+            height: 1.35,
+          ),
+        ),
+        const SizedBox(height: 10),
+        // Issue list
+        if (message.issueOptions != null)
+          ...message.issueOptions!.map((issue) => _buildIssueTile(issue, brightness)),
+        const SizedBox(height: 4),
+        // Timestamp
+        Text(
+          _formatTime(message.timestamp),
+          style: TextStyle(
+            color: textSecondary,
+            fontSize: 10.5,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildIssueTile(IssueOption issue, Brightness brightness) {
+    return GestureDetector(
+      onTap: onIssueTap != null ? () => onIssueTap!(issue) : null,
+      child: Container(
+        width: double.infinity,
+        margin: const EdgeInsets.only(bottom: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: KoraColors.purple.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: KoraColors.purple.withValues(alpha: 0.2),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                issue.label,
+                style: TextStyle(
+                  color: KoraColors.purple,
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            Icon(
+              Icons.chevron_right,
+              color: KoraColors.purple.withValues(alpha: 0.5),
+              size: 18,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWebSearchBadge(bool isMe) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          Icons.travel_explore,
+          size: 11,
+          color: isMe ? Colors.white.withValues(alpha: 0.6) : KoraColors.purple.withValues(alpha: 0.7),
+        ),
+        const SizedBox(width: 3),
+        Text(
+          'Searched the web',
+          style: TextStyle(
+            color: isMe ? Colors.white.withValues(alpha: 0.55) : KoraColors.purple.withValues(alpha: 0.6),
+            fontSize: 10,
+            fontWeight: FontWeight.w500,
+            fontStyle: FontStyle.italic,
           ),
         ),
       ],

@@ -146,7 +146,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
     try {
       final chatType = widget.chatId == 'kora_support' ? 'support' : 'ai';
       final history = _messages
-          .where((m) => m.type != KoraMessageType.action)
+          .where((m) => m.type != KoraMessageType.action && m.type != KoraMessageType.issueList)
           .map((m) => {'text': m.text, 'isMe': m.isMe})
           .toList();
 
@@ -158,17 +158,48 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
           'message': userMessage,
           'history': history,
         }),
-      ).timeout(const Duration(seconds: 30));
+      ).timeout(const Duration(seconds: 45));
 
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       final reply = data['reply'] as String? ??
           "I'm here to help! Could you tell me more?";
+      final isWebSearch = data['isWebSearch'] as bool? ?? false;
+      final issueList = data['issueList'] as List?;
+      final actionLabel = data['actionLabel'] as String?;
+      final actionType = data['actionType'] as String?;
 
-      await _messageService.addIncomingMessage(
-        widget.chatId,
-        reply,
-        isAi: true,
-      );
+      // If the AI returned an issue list, show it as an issueList message
+      if (issueList != null && issueList.isNotEmpty) {
+        final issues = issueList
+            .map((e) => IssueOption(
+              id: e['id'] as String,
+              label: e['label'] as String,
+            ))
+            .toList();
+        await _messageService.addIncomingMessage(
+          widget.chatId,
+          reply,
+          isAi: true,
+          type: KoraMessageType.issueList,
+          issueOptions: issues,
+        );
+      } else if (actionLabel != null && actionType != null) {
+        // Guided response with an action button (e.g. "Contact Live Support")
+        await _messageService.addIncomingMessage(
+          widget.chatId,
+          reply,
+          isAi: true,
+          actionLabel: actionLabel,
+          actionType: actionType,
+        );
+      } else {
+        await _messageService.addIncomingMessage(
+          widget.chatId,
+          reply,
+          isAi: true,
+          isWebSearch: isWebSearch,
+        );
+      }
     } catch (e) {
       // Fallback response if the backend is unreachable
       await _messageService.addIncomingMessage(
@@ -184,6 +215,21 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
       setState(() => _isAiTyping = false);
       _refreshMessages();
     }
+  }
+
+  /// Called when the user taps an issue from the support issue list.
+  /// Sends the issue as a user message, then gets AI-guided troubleshooting.
+  Future<void> _onIssueSelected(IssueOption issue) async {
+    // Send the issue label as a user message
+    await _messageService.sendUserMessage(widget.chatId, issue.label);
+    setState(() {
+      _messages = List.from(_messageService.getMessages(widget.chatId));
+    });
+    _scrollToBottom();
+
+    // Get AI guidance using the [ISSUE] prefix so the backend knows to
+    // return pre-written step-by-step troubleshooting instructions.
+    await _getAiResponse('[ISSUE]${issue.id}');
   }
 
   void _sendVoice(String duration) async {
@@ -233,6 +279,20 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
     );
   }
 
+  void _openCallScreen({required bool isVideo}) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => _CallScreen(
+          name: widget.name,
+          isVideo: isVideo,
+          avatarAsset: widget.avatarAsset,
+          avatarUrl: widget.avatarUrl,
+        ),
+      ),
+    );
+  }
+
   void _onActionTap(KoraMessage message) {
     if (message.actionType == 'subscribe_premium') {
       showModalBottomSheet(
@@ -241,7 +301,339 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
         isScrollControlled: true,
         builder: (_) => const PremiumSubscribeSheet(),
       );
+    } else if (message.actionType == 'contact_support') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Live Support will be available soon. For now, email support@koramessenger.com'),
+          backgroundColor: KoraColors.purple,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
+        ),
+      );
     }
+  }
+
+  void _showContactInfo() {
+    final brightness = Theme.of(context).brightness;
+    final textPrimary = KoraColors.textPrimaryFor(brightness);
+    final textSecondary = KoraColors.textSecondaryFor(brightness);
+    final surface = KoraColors.cardFor(brightness);
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => Container(
+        height: MediaQuery.of(context).size.height * 0.85,
+        decoration: BoxDecoration(
+          color: surface,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+          ),
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: 8),
+            Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: KoraColors.borderFor(brightness),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            // Avatar
+              Container(
+                width: 90, height: 90,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: KoraColors.brandGradient,
+                ),
+                child: Center(
+                  child: Text(
+                    widget.name.isNotEmpty ? widget.name[0].toUpperCase() : '?',
+                    style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+            const SizedBox(height: 14),
+            // Name
+            Text(
+              widget.name,
+              style: TextStyle(color: textPrimary, fontSize: 22, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              widget.isOnline ? 'online' : (widget.lastSeen ?? 'last seen recently'),
+              style: TextStyle(color: KoraColors.purple, fontSize: 13),
+            ),
+            const SizedBox(height: 24),
+            Divider(color: KoraColors.borderFor(brightness), height: 1),
+            // Info tiles
+            _contactInfoTile(Icons.info_outline, 'About', 'Hey there! I am using Kora Messenger.', surface, textPrimary, textSecondary),
+            _contactInfoTile(Icons.phone_outlined, 'Phone', '+123 456 7890', surface, textPrimary, textSecondary),
+            _contactInfoTile(Icons.alternate_email, 'Kora ID', '@${widget.name.toLowerCase().replaceAll(' ', '_')}', surface, textPrimary, textSecondary),
+            const Spacer(),
+            // Action buttons
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextButton.icon(
+                        onPressed: () => Navigator.pop(context),
+                        icon: Icon(Icons.block, color: Colors.red, size: 18),
+                        label: const Text('Block', style: TextStyle(color: Colors.red)),
+                      ),
+                    ),
+                    Expanded(
+                      child: TextButton.icon(
+                        onPressed: () => Navigator.pop(context),
+                        icon: Icon(Icons.report_outlined, color: Colors.red, size: 18),
+                        label: const Text('Report', style: TextStyle(color: Colors.red)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _contactInfoTile(IconData icon, String label, String value, Color surface, Color textPrimary, Color textSecondary) {
+    return ListTile(
+      leading: Icon(icon, color: KoraColors.purple, size: 22),
+      title: Text(label, style: TextStyle(color: textSecondary, fontSize: 13)),
+      subtitle: Text(value, style: TextStyle(color: textPrimary, fontSize: 15, fontWeight: FontWeight.w500)),
+    );
+  }
+
+  void _showChatSearch() {
+    final brightness = Theme.of(context).brightness;
+    final textPrimary = KoraColors.textPrimaryFor(brightness);
+    final textSecondary = KoraColors.textSecondaryFor(brightness);
+    final surface = KoraColors.cardFor(brightness);
+    final border = KoraColors.borderFor(brightness);
+
+    final searchController = TextEditingController();
+    List<KoraMessage> searchResults = [];
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => StatefulBuilder(
+        builder: (context, setSheetState) {
+          void doSearch(String query) {
+            if (query.isEmpty) {
+              searchResults = [];
+            } else {
+              searchResults = _messages.where((m) {
+                final lower = query.toLowerCase();
+                return m.text.toLowerCase().contains(lower);
+              }).toList();
+            }
+            setSheetState(() {});
+          }
+
+          return Container(
+            height: MediaQuery.of(context).size.height * 0.9,
+            decoration: BoxDecoration(
+              color: surface,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(20),
+                topRight: Radius.circular(20),
+              ),
+            ),
+            child: Column(
+              children: [
+                const SizedBox(height: 8),
+                Container(
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(
+                    color: border,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                // Search bar
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: searchController,
+                          autofocus: true,
+                          onChanged: doSearch,
+                          decoration: InputDecoration(
+                            hintText: 'Search messages by date or text...',
+                            hintStyle: TextStyle(color: textSecondary, fontSize: 14),
+                            prefixIcon: Icon(Icons.search, color: textSecondary, size: 20),
+                            filled: true,
+                            fillColor: KoraColors.surfaceFor(brightness),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          ),
+                          style: TextStyle(color: textPrimary, fontSize: 14),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: Text('Cancel', style: TextStyle(color: KoraColors.purple, fontSize: 14, fontWeight: FontWeight.w500)),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                // Date hint
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Tip: Try searching a date like "20/8" or a keyword',
+                      style: TextStyle(color: textSecondary, fontSize: 12),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                // Search results
+                Expanded(
+                  child: searchResults.isEmpty
+                      ? Center(
+                          child: Text(
+                            searchController.text.isEmpty ? 'Start typing to search' : 'No messages found',
+                            style: TextStyle(color: textSecondary, fontSize: 14),
+                          ),
+                        )
+                      : ListView.builder(
+                          itemCount: searchResults.length,
+                          itemBuilder: (context, index) {
+                            final msg = searchResults[index];
+                            return ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: msg.isMe ? KoraColors.purple : surface,
+                                child: Icon(
+                                  msg.isMe ? Icons.arrow_upward : Icons.arrow_downward,
+                                  color: msg.isMe ? Colors.white : textPrimary,
+                                  size: 18,
+                                ),
+                              ),
+                              title: Text(
+                                msg.text,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(color: textPrimary, fontSize: 14),
+                              ),
+                              subtitle: Text(
+                                '${msg.isMe ? 'You' : widget.name} • ${msg.timestamp.day}/${msg.timestamp.month}/${msg.timestamp.year}',
+                                style: TextStyle(color: textSecondary, fontSize: 12),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _showMuteDialog() {
+    final brightness = Theme.of(context).brightness;
+    final surface = KoraColors.cardFor(brightness);
+    final textPrimary = KoraColors.textPrimaryFor(brightness);
+    final textSecondary = KoraColors.textSecondaryFor(brightness);
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        decoration: BoxDecoration(
+          color: surface,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 8),
+              Container(
+                width: 40, height: 4,
+                decoration: BoxDecoration(
+                  color: KoraColors.borderFor(brightness),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    Icon(Icons.notifications_off, color: KoraColors.purple, size: 22),
+                    const SizedBox(width: 8),
+                    Text('Mute notifications', style: TextStyle(color: textPrimary, fontSize: 18, fontWeight: FontWeight.w700)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              _muteOption('8 hours', surface, textPrimary, textSecondary),
+              _muteOption('1 week', surface, textPrimary, textSecondary),
+              _muteOption('Always', surface, textPrimary, textSecondary),
+              ListTile(
+                leading: Icon(Icons.notifications, color: KoraColors.purple, size: 22),
+                title: Text('Unmute', style: TextStyle(color: textPrimary, fontSize: 15)),
+                onTap: () {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Notifications unmuted for ${widget.name}'),
+                      backgroundColor: KoraColors.purple,
+                      behavior: SnackBarBehavior.floating,
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _muteOption(String duration, Color surface, Color textPrimary, Color textSecondary) {
+    return ListTile(
+      leading: Icon(Icons.notifications_off_outlined, color: KoraColors.purple, size: 22),
+      title: Text(duration, style: TextStyle(color: textPrimary, fontSize: 15)),
+      onTap: () {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Muted ${widget.name} for $duration'),
+            backgroundColor: KoraColors.purple,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      },
+    );
   }
 
   bool get _isEmpty => _messages.isEmpty;
@@ -276,18 +668,15 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
               lastSeen: _isAiChat ? 'AI Assistant' : widget.lastSeen,
               onBack: () => Navigator.pop(context),
               onAvatarTap: () {},
-              onVoiceCall: () {},
-              onVideoCall: () {},
+              onVoiceCall: () => _openCallScreen(isVideo: false),
+              onVideoCall: () => _openCallScreen(isVideo: true),
               menuOptions: [
-                KoraMenuOption(icon: Icons.person_outline, label: 'Contact info', onTap: () {}),
-                KoraMenuOption(icon: Icons.search, label: 'Search', onTap: () {}),
+                KoraMenuOption(icon: Icons.person_outline, label: 'Contact info', onTap: () => _showContactInfo()),
+                KoraMenuOption(icon: Icons.search, label: 'Search', onTap: () => _showChatSearch()),
                 KoraMenuOption(icon: Icons.photo_library_outlined, label: 'Media & files', onTap: () {}),
-                KoraMenuOption(icon: Icons.notifications_outlined, label: 'Mute notifications', onTap: () {}),
+                KoraMenuOption(icon: Icons.notifications_outlined, label: 'Mute notifications', onTap: () => _showMuteDialog()),
                 KoraMenuOption(icon: Icons.palette_outlined, label: 'Chat theme', onTap: () {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const DefaultChatThemeScreen()));
-                }),
-                KoraMenuOption(icon: Icons.image_outlined, label: 'Wallpaper', onTap: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const WallpaperScreen()));
                 }),
                 KoraMenuOption(icon: Icons.cleaning_services_outlined, label: 'Clear chat', onTap: () {}),
                 KoraMenuOption(icon: Icons.block, label: 'Block', onTap: () {}, color: Colors.red),
@@ -361,6 +750,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
                                           message: message,
                                           onLongPress: () => _showMessageActions(rk, message),
                                           onActionTap: () => _onActionTap(message),
+                                          onIssueTap: (issue) => _onIssueSelected(issue),
                                         ),
                                       ),
                                     ],
@@ -476,5 +866,187 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
 
   bool _isSameDay(DateTime a, DateTime b) {
     return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+}
+
+/// Kora's call screen — opened when user taps voice/video call.
+/// Shows a full-screen gradient with the contact's info, call timer,
+/// and mute/speaker/end buttons. This is a UI placeholder — actual
+/// VoIP functionality will require a signaling backend.
+class _CallScreen extends StatefulWidget {
+  final String name;
+  final bool isVideo;
+  final String? avatarAsset;
+  final String? avatarUrl;
+
+  const _CallScreen({
+    required this.name,
+    required this.isVideo,
+    this.avatarAsset,
+    this.avatarUrl,
+  });
+
+  @override
+  State<_CallScreen> createState() => _CallScreenState();
+}
+
+class _CallScreenState extends State<_CallScreen> {
+  int _seconds = 0;
+  bool _isMuted = false;
+  bool _isSpeakerOn = true;
+  late Timer _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() => _seconds++);
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
+  }
+
+  String get _duration {
+    final m = (_seconds ~/ 60).toString().padLeft(2, '0');
+    final s = (_seconds % 60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFF1A0D2E),
+              Color(0xFF0D1B2A),
+              Colors.black,
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              const Spacer(flex: 2),
+              // Call type icon
+              Icon(
+                widget.isVideo ? Icons.videocam : Icons.call,
+                color: KoraColors.purple.withValues(alpha: 0.6),
+                size: 32,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                widget.isVideo ? 'Video call' : 'Voice call',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.5),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 20),
+              // Avatar
+              Container(
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: KoraColors.brandGradient,
+                  boxShadow: [
+                    BoxShadow(
+                      color: KoraColors.purple.withValues(alpha: 0.4),
+                      blurRadius: 30,
+                      spreadRadius: 5,
+                    ),
+                  ],
+                ),
+                child: Center(
+                  child: Text(
+                    widget.name.isNotEmpty ? widget.name[0].toUpperCase() : '?',
+                    style: const TextStyle(color: Colors.white, fontSize: 48, fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              // Name
+              Text(
+                widget.name,
+                style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 6),
+              // Duration
+              Text(
+                _seconds < 3 ? 'Calling…' : _duration,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.6),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const Spacer(flex: 3),
+              // Control buttons
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 40),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    // Mute
+                    GestureDetector(
+                      onTap: () => setState(() => _isMuted = !_isMuted),
+                      child: Container(
+                        width: 56, height: 56,
+                        decoration: BoxDecoration(
+                          color: _isMuted ? Colors.white : Colors.white.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          _isMuted ? Icons.mic_off : Icons.mic,
+                          color: _isMuted ? Colors.black : Colors.white,
+                          size: 24,
+                        ),
+                      ),
+                    ),
+                    // End call
+                    GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Container(
+                        width: 64, height: 64,
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.call_end, color: Colors.white, size: 28),
+                      ),
+                    ),
+                    // Speaker
+                    GestureDetector(
+                      onTap: () => setState(() => _isSpeakerOn = !_isSpeakerOn),
+                      child: Container(
+                        width: 56, height: 56,
+                        decoration: BoxDecoration(
+                          color: _isSpeakerOn ? Colors.white : Colors.white.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.volume_up,
+                          color: _isSpeakerOn ? Colors.black : Colors.white,
+                          size: 24,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
