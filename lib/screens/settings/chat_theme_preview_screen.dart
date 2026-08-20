@@ -104,9 +104,9 @@ class _ChatThemePreviewScreenState extends State<ChatThemePreviewScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final chromeColor = Colors.white;
-    final chromeShadow = [
-      Shadow(color: Colors.black.withValues(alpha: 0.35), blurRadius: 6, offset: const Offset(0, 1)),
+    const chromeColor = Colors.white;
+    const chromeShadow = [
+      Shadow(color: Color(0x59000000), blurRadius: 6, offset: Offset(0, 1)),
     ];
 
     return Scaffold(
