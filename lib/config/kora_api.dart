@@ -20,6 +20,20 @@ class KoraApi {
   /// Future: 'https://api.koramessenger.com/crash-report' (or your domain)
   static const String crashReportEndpoint = '$baseUrl/koraCrashReport';
 
+  /// Kora AI Server base URL.
+  /// Temporary: local dev server for testing.
+  /// Future: 'https://ai.koramessenger.com' (or your domain)
+  static const String aiServerUrl = 'http://10.0.2.2:5000';
+
+  /// Kora AI endpoints
+  static const String aiChatEndpoint = '$aiServerUrl/api/ai/chat';
+  static const String aiSupportEndpoint = '$aiServerUrl/api/ai/support';
+  static const String aiHealthEndpoint = '$aiServerUrl/api/ai/health';
+
+  /// Auth token for the AI server.
+  /// Must match KORA_AUTH_TOKEN in the server's .env file.
+  static const String aiAuthToken = 'kora-ai-server-token';
+
   /// Legal documents — hosted on GitHub Pages.
   /// When you get your .com domain, change these to e.g.
   /// 'https://koramessenger.com/privacy-policy'
@@ -49,6 +63,24 @@ class KoraApi {
           body: jsonEncode(body),
         )
         .timeout(const Duration(seconds: 15));
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  /// POST to a Kora AI endpoint (includes Bearer auth)
+  static Future<Map<String, dynamic>> postToAi(
+    String endpoint,
+    Map<String, dynamic> body,
+  ) async {
+    final response = await http
+        .post(
+          Uri.parse(endpoint),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $aiAuthToken',
+          },
+          body: jsonEncode(body),
+        )
+        .timeout(const Duration(seconds: 120));
     return jsonDecode(response.body) as Map<String, dynamic>;
   }
 }

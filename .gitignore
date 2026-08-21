@@ -24,3 +24,9 @@ android/key.properties
 
 # macOS
 .DS_Store
+
+# Python / Backend
+backend/.env
+backend/__pycache__/
+backend/*.pyc
+backend/kora_ai_images/

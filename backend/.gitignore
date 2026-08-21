@@ -1,0 +1,4 @@
+.env
+__pycache__/
+*.pyc
+kora_ai_images/
