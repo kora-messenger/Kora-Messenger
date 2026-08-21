@@ -9,6 +9,8 @@ import '../../services/call_stt_service.dart';
 import '../../models/chat_models.dart';
 import '../../services/translation_service.dart';
 import 'call_translation_sheet.dart';
+import '../settings/premium_subscribe_sheet.dart';
+import '../../theme/chat_theme_provider.dart';
 
 /// Real call screen for Kora Messenger.
 ///
@@ -189,7 +191,7 @@ class _CallScreenState extends State<CallScreen> {
     if (_translationOn) {
       _startCallTranslation();
       _translationSheetOpen = true;
-      CallTranslationSheet.show(context, isInCall: true).then((_) {
+      _showCallTranslation(context, isInCall: true).then((_) {
         _translationSheetOpen = false;
       });
     } else {
@@ -325,6 +327,19 @@ class _CallScreenState extends State<CallScreen> {
   }
 
   @override
+  static Future<void> _showCallTranslation(BuildContext context, {bool isInCall = false}) {
+    if (!ChatThemeProvider.instance.isPremium) {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (context) => const PremiumSubscribeSheet(),
+      );
+      return;
+    }
+    return CallTranslationSheet.show(context, isInCall: isInCall);
+  }
+
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: KoraColors.darkSurface,

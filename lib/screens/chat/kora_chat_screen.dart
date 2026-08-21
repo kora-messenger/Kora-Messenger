@@ -362,7 +362,20 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
   }
 
   void _onTranslate(String text) {
+    if (!ChatThemeProvider.instance.isPremium) {
+      _showPremiumSheetForTranslation();
+      return;
+    }
     TranslateSheet.show(context, text);
+  }
+
+  void _showPremiumSheetForTranslation() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const PremiumSubscribeSheet(),
+    );
   }
 
   void _showMessageActions(GlobalKey key, KoraMessage message) {
@@ -376,14 +389,14 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
       onCopy: () => _onCopy(message.text),
       onForward: () {},
       onTranslate: () => _onTranslate(message.text),
-      onTranscribeVoice: message.type == KoraMessageType.voice
+      onTranscribeVoice: message.type == KoraMessageType.voice && ChatThemeProvider.instance.isPremium
           ? () => VoiceTranslationSheet.show(
               context,
               voiceDuration: message.voiceDuration ?? '0:05',
               autoTranslate: false,
             )
           : null,
-      onTranslateVoice: message.type == KoraMessageType.voice
+      onTranslateVoice: message.type == KoraMessageType.voice && ChatThemeProvider.instance.isPremium
           ? () => VoiceTranslationSheet.show(
               context,
               voiceDuration: message.voiceDuration ?? '0:05',

@@ -5,6 +5,8 @@ import '../../models/chat_models.dart';
 import '../../theme/kora_colors.dart';
 import '../../widgets/kora_waveform.dart';
 import 'voice_translation_sheet.dart';
+import '../../theme/chat_theme_provider.dart';
+import '../settings/premium_subscribe_sheet.dart';
 import '../../services/audio_playback_service.dart';
 import 'package:just_audio/just_audio.dart';
 
@@ -21,6 +23,27 @@ import 'package:just_audio/just_audio.dart';
 class VoiceMessageBubble extends StatefulWidget {
   final KoraMessage message;
   final VoidCallback? onTranslate;
+
+  bool get _isPremium => ChatThemeProvider.instance.isPremium;
+
+  void _showVoiceTranslation(BuildContext context, {required String voiceDuration, required bool autoTranslate, String? voiceId, String? transcript}) {
+    if (!_isPremium) {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (context) => const PremiumSubscribeSheet(),
+      );
+      return;
+    }
+    VoiceTranslationSheet.show(
+      context,
+      voiceDuration: voiceDuration,
+      autoTranslate: autoTranslate,
+      voiceId: voiceId,
+      transcript: transcript,
+    );
+  }
 
   const VoiceMessageBubble({
     super.key,
@@ -216,7 +239,7 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
           children: [
             GestureDetector(
               onTap: () {
-                VoiceTranslationSheet.show(
+                _showVoiceTranslation(
                   context,
                   voiceDuration: widget.message.voiceDuration ?? '0:05',
                   autoTranslate: false,
@@ -247,7 +270,7 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
             const SizedBox(width: 12),
             GestureDetector(
               onTap: () {
-                VoiceTranslationSheet.show(
+                _showVoiceTranslation(
                   context,
                   voiceDuration: widget.message.voiceDuration ?? '0:05',
                   autoTranslate: true,

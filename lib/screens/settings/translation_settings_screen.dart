@@ -3,6 +3,8 @@ import '../../theme/kora_colors.dart';
 import '../../services/translation_service.dart';
 import '../../models/translation_models.dart';
 import '../chat/language_picker_screen.dart';
+import 'premium_subscribe_sheet.dart';
+import '../../theme/chat_theme_provider.dart';
 
 /// Kora's Translation settings — accessible from Settings > Translation.
 ///
@@ -25,6 +27,7 @@ class TranslationSettingsScreen extends StatefulWidget {
 
 class _TranslationSettingsScreenState extends State<TranslationSettingsScreen> {
   final _service = TranslationService.instance;
+  bool _isLoadingPremium = false;
   late AutoTranslateMode _autoMode;
   late bool _translateVoice;
   late bool _showOriginal;
@@ -45,6 +48,20 @@ class _TranslationSettingsScreenState extends State<TranslationSettingsScreen> {
     });
   }
 
+  Future<void> _showPremiumSheet() async {
+    if (_isLoadingPremium) return;
+    setState(() => _isLoadingPremium = true);
+    await Future.delayed(const Duration(milliseconds: 100));
+    if (!mounted) return;
+    setState(() => _isLoadingPremium = false);
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const PremiumSubscribeSheet(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final brightness = Theme.of(context).brightness;
@@ -56,6 +73,7 @@ class _TranslationSettingsScreenState extends State<TranslationSettingsScreen> {
     final border = KoraColors.borderFor(brightness);
 
     final preferred = _service.preferredLanguage;
+    final isPremium = ChatThemeProvider.instance.isPremium;
 
     return Scaffold(
       backgroundColor: bg,
@@ -75,7 +93,8 @@ class _TranslationSettingsScreenState extends State<TranslationSettingsScreen> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: ListView(
+      body: isPremium
+          ? ListView(
         padding: const EdgeInsets.symmetric(vertical: 8),
         children: [
           // ── PREFERRED LANGUAGE ──
@@ -276,6 +295,50 @@ class _TranslationSettingsScreenState extends State<TranslationSettingsScreen> {
           ),
           const SizedBox(height: 32),
         ],
+      )
+          : _buildPremiumLock(card, border, textPrimary, textSecondary),
+    );
+  }
+
+  Widget _buildPremiumLock(Color card, Color border, Color textPrimary, Color textSecondary) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.translate_rounded, color: KoraColors.purple, size: 48),
+            const SizedBox(height: 16),
+            const Text(
+              'Real-Time Translation is a Kora Premium feature',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: KoraColors.purple, fontSize: 16, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Translate messages, voice notes, and live calls in real-time. Upgrade to unlock all translation features.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: textSecondary, fontSize: 13, height: 1.5),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: KoraColors.purple,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                icon: _isLoadingPremium
+                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Icon(Icons.workspace_premium, size: 20),
+                label: Text(_isLoadingPremium ? 'Loading...' : 'Get Kora Premium'),
+                onPressed: _isLoadingPremium ? null : _showPremiumSheet,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
