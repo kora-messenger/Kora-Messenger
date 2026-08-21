@@ -3,12 +3,15 @@ import 'package:flutter/gestures.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../theme/kora_colors.dart';
 import '../../config/kora_api.dart';
+import '../../config/subscription_pricing.dart';
+import '../../services/pricing_service.dart';
 
 /// Premium subscription bottom sheet.
 ///
-/// Shows all Premium benefits, legal text with clickable links
-/// (Terms of Service, Privacy Policy, Learn more — all show "coming soon"),
-/// and a "Subscribe and pay" button that opens the billing screen.
+/// Shows all Premium benefits, a monthly/yearly plan toggle with
+/// location-based pricing, legal text with clickable links, and a
+/// "Subscribe and pay" button that opens the billing screen with
+/// the selected plan.
 class PremiumSubscribeSheet extends StatefulWidget {
   const PremiumSubscribeSheet({super.key});
 
@@ -17,14 +20,33 @@ class PremiumSubscribeSheet extends StatefulWidget {
 }
 
 class _PremiumSubscribeSheetState extends State<PremiumSubscribeSheet> {
+  SubscriptionPlan _selectedPlan = SubscriptionPlan.yearly;
+  RegionalPrice? _price;
+  bool _loadingPrice = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPrice();
+  }
+
+  Future<void> _loadPrice() async {
+    final price = await PricingService.getRegionalPrice();
+    if (mounted) {
+      setState(() {
+        _price = price;
+        _loadingPrice = false;
+      });
+    }
+  }
+
   Future<void> _launchLegalUrl(String url) async {
     final uri = Uri.parse(url);
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   void _onSubscribe() {
-    // Return true to signal the parent to navigate to billing
-    Navigator.pop(context, true);
+    Navigator.pop(context, _selectedPlan);
   }
 
   @override
@@ -83,7 +105,11 @@ class _PremiumSubscribeSheetState extends State<PremiumSubscribeSheet> {
                   'Unlock the full Kora experience',
                   style: TextStyle(color: Color(0xFFA0A0B8), fontSize: 14),
                 ),
-                const SizedBox(height: 28),
+                const SizedBox(height: 24),
+
+                // ── Plan toggle ──
+                _buildPlanToggle(),
+                const SizedBox(height: 24),
 
                 // ── Benefits list ──
                 _benefitRow(Icons.palette_outlined, 'Custom app icons', 'Choose from 10 exclusive Kora app icons'),
@@ -120,10 +146,6 @@ class _PremiumSubscribeSheetState extends State<PremiumSubscribeSheet> {
                 const SizedBox(height: 28),
 
                 // ── Legal text ──
-                // Paragraph 1: "By continuing, you agree to Kora Terms of Service"
-                // Paragraph 2: "and Privacy Policy."
-                // Paragraph 3: "This Kora subscription renews until"
-                // Paragraph 4: "canceled. Learn more"
                 RichText(
                   textAlign: TextAlign.center,
                   text: TextSpan(
@@ -144,12 +166,12 @@ class _PremiumSubscribeSheetState extends State<PremiumSubscribeSheet> {
                 ),
                 const SizedBox(height: 24),
 
-                // ── Subscribe and pay button ──
+                // ── Subscribe button ──
                 SizedBox(
                   width: double.infinity,
                   height: 54,
                   child: GestureDetector(
-                    onTap: _onSubscribe,
+                    onTap: _loadingPrice ? null : _onSubscribe,
                     child: Container(
                       decoration: BoxDecoration(
                         gradient: KoraColors.brandGradient,
@@ -163,9 +185,20 @@ class _PremiumSubscribeSheetState extends State<PremiumSubscribeSheet> {
                         ],
                       ),
                       child: Center(
-                        child: const Text(
-                                'Subscribe and pay',
-                                style: TextStyle(
+                        child: _loadingPrice
+                            ? const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2.5,
+                                ),
+                              )
+                            : Text(
+                                _price != null
+                                    ? 'Subscribe for ${_price!.priceForPlan(_selectedPlan)}'
+                                    : 'Subscribe and pay',
+                                style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 16,
                                   fontWeight: FontWeight.w700,
@@ -179,6 +212,143 @@ class _PremiumSubscribeSheetState extends State<PremiumSubscribeSheet> {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  /// Plan selection toggle — Monthly vs Yearly with prices.
+  Widget _buildPlanToggle() {
+    if (_loadingPrice || _price == null) {
+      return Container(
+        height: 88,
+        alignment: Alignment.center,
+        child: const SizedBox(
+          width: 24,
+          height: 24,
+          child: CircularProgressIndicator(color: KoraColors.purple, strokeWidth: 2.5),
+        ),
+      );
+    }
+
+    return Row(
+      children: [
+        Expanded(
+          child: _planCard(
+            plan: SubscriptionPlan.monthly,
+            title: 'Monthly',
+            priceText: _price!.priceForPlan(SubscriptionPlan.monthly),
+            period: '/month',
+            badge: null,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _planCard(
+            plan: SubscriptionPlan.yearly,
+            title: 'Yearly',
+            priceText: _price!.priceForPlan(SubscriptionPlan.yearly),
+            period: '/year',
+            badge: 'Save ${_price!.yearlySavingsPercent}%',
+            subtitle: '${_price!.yearlyPerMonth()}/month',
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _planCard({
+    required SubscriptionPlan plan,
+    required String title,
+    required String priceText,
+    required String period,
+    String? badge,
+    String? subtitle,
+  }) {
+    final isSelected = _selectedPlan == plan;
+    final borderColor = isSelected ? KoraColors.purple : const Color(0xFF2A2A3A);
+    final bgColor = isSelected ? KoraColors.purple.withValues(alpha: 0.08) : Colors.transparent;
+
+    return GestureDetector(
+      onTap: () => setState(() => _selectedPlan = plan),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: borderColor, width: isSelected ? 2 : 1.5),
+        ),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: isSelected ? Colors.white : const Color(0xFFA0A0B8),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (badge != null) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                    decoration: BoxDecoration(
+                      gradient: KoraColors.brandGradient,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      badge,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Text(
+                  priceText,
+                  style: TextStyle(
+                    color: isSelected ? Colors.white : const Color(0xFFE0E0F0),
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                const SizedBox(width: 2),
+                Text(
+                  period,
+                  style: TextStyle(
+                    color: const Color(0xFFA0A0B8),
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+            if (subtitle != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  color: isSelected ? KoraColors.purple.withValues(alpha: 0.9) : const Color(0xFF6B6B80),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ],
         ),
       ),
     );
@@ -225,7 +395,6 @@ class _PremiumSubscribeSheetState extends State<PremiumSubscribeSheet> {
     );
   }
 
-  /// Creates a clickable TextSpan that opens the corresponding legal page.
   TextSpan _linkSpan(String text) {
     final String url;
     switch (text) {

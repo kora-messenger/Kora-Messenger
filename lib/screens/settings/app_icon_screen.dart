@@ -3,6 +3,7 @@ import '../../theme/kora_colors.dart';
 import '../../theme/chat_theme_provider.dart';
 import 'premium_subscribe_sheet.dart';
 import 'billing_screen.dart';
+import '../../config/subscription_pricing.dart';
 import '../../services/app_icon_switcher.dart';
 
 /// A single Kora app icon option. Every icon is a real asset image now —
@@ -163,7 +164,7 @@ class _AppIconScreenState extends State<AppIconScreen> {
     if (!mounted) return;
     setState(() => _isLoadingPremiumSheet = false);
 
-    final result = await showModalBottomSheet<bool>(
+    final result = await showModalBottomSheet<SubscriptionPlan>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -171,10 +172,10 @@ class _AppIconScreenState extends State<AppIconScreen> {
       builder: (context) => const PremiumSubscribeSheet(),
     );
 
-    if (result == true && mounted) {
+    if (result != null && mounted) {
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => const BillingScreen()),
+        MaterialPageRoute(builder: (_) => BillingScreen(selectedPlan: result)),
       );
     }
   }

@@ -3,6 +3,7 @@ import '../../theme/kora_colors.dart';
 import '../../theme/chat_theme_provider.dart';
 import 'premium_subscribe_sheet.dart';
 import 'billing_screen.dart';
+import '../../config/subscription_pricing.dart';
 
 /// App theme picker — 20 colors. Premium only.
 /// Normal users see "This feature isn't available to you" dialog.
@@ -42,7 +43,7 @@ class _AppThemeScreenState extends State<AppThemeScreen> {
     if (!mounted) return;
     setState(() => _isLoadingPremium = false);
 
-    final result = await showModalBottomSheet<bool>(
+    final result = await showModalBottomSheet<SubscriptionPlan>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -50,10 +51,10 @@ class _AppThemeScreenState extends State<AppThemeScreen> {
       builder: (context) => const PremiumSubscribeSheet(),
     );
 
-    if (result == true && mounted) {
+    if (result != null && mounted) {
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => const BillingScreen()),
+        MaterialPageRoute(builder: (_) => BillingScreen(selectedPlan: result)),
       );
     }
   }

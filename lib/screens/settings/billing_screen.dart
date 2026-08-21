@@ -1,13 +1,20 @@
 import 'package:flutter/material.dart';
 import '../../theme/kora_colors.dart';
+import '../../config/subscription_pricing.dart';
+import '../../services/pricing_service.dart';
 
 /// Billing / payment method screen.
 ///
-/// Shown when the user taps "Subscribe and pay" from the Premium sheet.
-/// Price will be configured later — for now it shows the UI scaffold
-/// with a placeholder price and payment method selection.
+/// Shown when the user taps "Subscribe" from the Premium sheet.
+/// Displays the selected plan summary with the correct regional price
+/// and payment method selection.
 class BillingScreen extends StatefulWidget {
-  const BillingScreen({super.key});
+  final SubscriptionPlan selectedPlan;
+
+  const BillingScreen({
+    super.key,
+    required this.selectedPlan,
+  });
 
   @override
   State<BillingScreen> createState() => _BillingScreenState();
@@ -15,12 +22,31 @@ class BillingScreen extends StatefulWidget {
 
 class _BillingScreenState extends State<BillingScreen> {
   int _selectedMethod = 0;
+  RegionalPrice? _price;
+  bool _loadingPrice = true;
+  bool _processing = false;
 
   static const List<_PaymentMethod> _methods = [
     _PaymentMethod(icon: Icons.credit_card, name: 'Credit / Debit Card', subtitle: 'Visa, Mastercard, Amex'),
     _PaymentMethod(icon: Icons.account_balance_wallet_outlined, name: 'Google Pay', subtitle: 'Pay with your Google account'),
     _PaymentMethod(icon: Icons.phone_android, name: 'Carrier Billing', subtitle: 'Charge to your phone bill'),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPrice();
+  }
+
+  Future<void> _loadPrice() async {
+    final price = await PricingService.getRegionalPrice();
+    if (mounted) {
+      setState(() {
+        _price = price;
+        _loadingPrice = false;
+      });
+    }
+  }
 
   void _showComingSoon(String title) {
     showDialog(
@@ -44,6 +70,14 @@ class _BillingScreenState extends State<BillingScreen> {
         ],
       ),
     );
+  }
+
+  String get _planTitle {
+    return widget.selectedPlan == SubscriptionPlan.monthly ? 'Monthly' : 'Yearly';
+  }
+
+  String get _billingPeriod {
+    return widget.selectedPlan == SubscriptionPlan.monthly ? 'Billed monthly' : 'Billed yearly';
   }
 
   @override
@@ -80,55 +114,82 @@ class _BillingScreenState extends State<BillingScreen> {
                 decoration: BoxDecoration(
                   color: KoraColors.darkCard,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFF2E2E42), width: 0.5),
+                  border: Border.all(
+                    color: KoraColors.purple.withValues(alpha: 0.25),
+                    width: 1.5,
+                  ),
                 ),
-                child: Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        gradient: KoraColors.brandGradient,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(Icons.workspace_premium, color: Colors.white, size: 26),
-                    ),
-                    const SizedBox(width: 16),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            gradient: KoraColors.brandGradient,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(Icons.workspace_premium, color: Colors.white, size: 24),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Kora Premium — $_planTitle',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                _billingPeriod,
+                                style: const TextStyle(color: Color(0xFFA0A0B8), fontSize: 13),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (_price != null)
                           Text(
-                            'Kora Premium',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
+                            _price!.priceForPlan(widget.selectedPlan),
+                            style: const TextStyle(
+                              color: KoraColors.purple,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
                             ),
                           ),
-                          SizedBox(height: 2),
-                          Text(
-                            'Price coming soon',
-                            style: TextStyle(color: Color(0xFFA0A0B8), fontSize: 13),
-                          ),
-                        ],
-                      ),
+                      ],
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: KoraColors.purple.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Text(
-                        'Premium',
-                        style: TextStyle(
-                          color: KoraColors.purple,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
+                    if (_price != null && widget.selectedPlan == SubscriptionPlan.yearly) ...[
+                      const SizedBox(height: 14),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: KoraColors.purple.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.savings_outlined, color: KoraColors.purple, size: 16),
+                            const SizedBox(width: 6),
+                            Text(
+                              'You save ${_price!.yearlySavingsPercent}% with yearly',
+                              style: const TextStyle(
+                                color: KoraColors.purple,
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
@@ -136,83 +197,79 @@ class _BillingScreenState extends State<BillingScreen> {
 
               // ── Payment methods ──
               const Text(
-                'SELECT PAYMENT METHOD',
+                'Select payment method',
                 style: TextStyle(
-                  color: Color(0xFF6B6B80),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.5,
+                  color: Color(0xFFA0A0B8),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
 
-              ...List.generate(_methods.length, (index) {
-                final method = _methods[index];
-                final isSelected = index == _selectedMethod;
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: GestureDetector(
-                    onTap: () => setState(() => _selectedMethod = index),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                      decoration: BoxDecoration(
-                        color: KoraColors.darkCard,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: isSelected ? KoraColors.purple : const Color(0xFF2E2E42),
-                          width: isSelected ? 2 : 0.5,
-                        ),
+              ...List.generate(_methods.length, (i) {
+                final method = _methods[i];
+                final isSelected = _selectedMethod == i;
+                return GestureDetector(
+                  onTap: () => setState(() => _selectedMethod = i),
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: KoraColors.darkCard,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: isSelected ? KoraColors.purple : const Color(0xFF2A2A3A),
+                        width: isSelected ? 2 : 1,
                       ),
-                      child: Row(
-                        children: [
-                          Icon(method.icon, color: isSelected ? KoraColors.purple : const Color(0xFFA0A0B8), size: 24),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  method.name,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 14.5,
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(method.icon, color: isSelected ? KoraColors.purple : const Color(0xFFA0A0B8), size: 26),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                method.name,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14.5,
+                                  fontWeight: FontWeight.w600,
                                 ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  method.subtitle,
-                                  style: const TextStyle(color: Color(0xFFA0A0B8), fontSize: 12),
-                                ),
-                              ],
-                            ),
-                          ),
-                          // Radio indicator
-                          Container(
-                            width: 22,
-                            height: 22,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: isSelected ? KoraColors.purple : const Color(0xFF4A4A5E),
-                                width: 2,
                               ),
-                            ),
-                            child: isSelected
-                                ? Center(
-                                    child: Container(
-                                      width: 10,
-                                      height: 10,
-                                      decoration: const BoxDecoration(
-                                        color: KoraColors.purple,
-                                        shape: BoxShape.circle,
-                                      ),
-                                    ),
-                                  )
-                                : null,
+                              const SizedBox(height: 2),
+                              Text(
+                                method.subtitle,
+                                style: const TextStyle(color: Color(0xFFA0A0B8), fontSize: 12),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
+                        ),
+                        Container(
+                          width: 22,
+                          height: 22,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: isSelected ? KoraColors.purple : const Color(0xFF4A4A5E),
+                              width: 2,
+                            ),
+                          ),
+                          child: isSelected
+                              ? Center(
+                                  child: Container(
+                                    width: 10,
+                                    height: 10,
+                                    decoration: const BoxDecoration(
+                                      color: KoraColors.purple,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                )
+                              : null,
+                        ),
+                      ],
                     ),
                   ),
                 );
@@ -225,7 +282,11 @@ class _BillingScreenState extends State<BillingScreen> {
                 width: double.infinity,
                 height: 54,
                 child: GestureDetector(
-                  onTap: () => _showComingSoon('Payment'),
+                  onTap: _loadingPrice
+                      ? null
+                      : () {
+                          _showComingSoon('Payment');
+                        },
                   child: Container(
                     decoration: BoxDecoration(
                       gradient: KoraColors.brandGradient,
@@ -238,15 +299,26 @@ class _BillingScreenState extends State<BillingScreen> {
                         ),
                       ],
                     ),
-                    child: const Center(
-                      child: Text(
-                        'Pay & Subscribe',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
+                    child: Center(
+                      child: _loadingPrice
+                          ? const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2.5,
+                              ),
+                            )
+                          : Text(
+                              _price != null
+                                  ? 'Pay ${_price!.priceForPlan(widget.selectedPlan)} & Subscribe'
+                                  : 'Pay & Subscribe',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                     ),
                   ),
                 ),

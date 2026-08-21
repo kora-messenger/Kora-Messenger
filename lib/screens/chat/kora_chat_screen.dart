@@ -395,14 +395,20 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
     });
   }
 
-  void _onActionTap(KoraMessage message) {
+  Future<void> _onActionTap(KoraMessage message) async {
     if (message.actionType == 'subscribe_premium') {
-      showModalBottomSheet(
+      final plan = await showModalBottomSheet<SubscriptionPlan>(
         context: context,
         backgroundColor: Colors.transparent,
         isScrollControlled: true,
         builder: (_) => const PremiumSubscribeSheet(),
       );
+      if (plan != null && mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => BillingScreen(selectedPlan: plan)),
+        );
+      }
     } else if (message.actionType == 'contact_support') {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

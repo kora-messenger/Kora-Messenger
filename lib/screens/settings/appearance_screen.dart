@@ -7,6 +7,7 @@ import 'app_theme_screen.dart';
 import 'app_icon_screen.dart';
 import 'premium_subscribe_sheet.dart';
 import 'billing_screen.dart';
+import '../../config/subscription_pricing.dart';
 
 /// Appearance settings — entry point for chat theme, app icon, and
 /// app theme. Wallpaper and chat bubble color now live inside the
@@ -47,7 +48,7 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
     if (!mounted) return;
     setState(() => _isLoadingPremium = false);
 
-    final result = await showModalBottomSheet<bool>(
+    final result = await showModalBottomSheet<SubscriptionPlan>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -55,10 +56,10 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
       builder: (context) => const PremiumSubscribeSheet(),
     );
 
-    if (result == true && mounted) {
+    if (result != null && mounted) {
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => const BillingScreen()),
+        MaterialPageRoute(builder: (_) => BillingScreen(selectedPlan: result)),
       );
     }
   }
