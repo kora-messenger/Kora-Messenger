@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/message_model.dart';
 import '../models/chat_models.dart';
 import 'message_service.dart';
 import 'connectivity_service.dart';
