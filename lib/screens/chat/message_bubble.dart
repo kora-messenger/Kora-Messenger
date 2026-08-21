@@ -127,7 +127,7 @@ class MessageBubble extends StatelessWidget {
     }
 
     if (message.type == KoraMessageType.voice) {
-      return _buildVoiceContent(isMe, sentText, receivedText, textSecondary);
+      return _buildVoiceContent(context, isMe, sentText, receivedText, textSecondary);
     }
 
     return Column(
@@ -277,6 +277,7 @@ class MessageBubble extends StatelessWidget {
   }
 
   Widget _buildVoiceContent(
+    BuildContext context,
     bool isMe,
     Color sentText,
     Color receivedText,

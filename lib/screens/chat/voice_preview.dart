@@ -30,12 +30,9 @@ class _VoicePreviewBarState extends State<VoicePreviewBar>
   bool _isPlaying = false;
   double _progress = 0.0;
   late AnimationController _slideController;
-  late List<double> _waveformData;
-
   @override
   void initState() {
     super.initState();
-    _waveformData = generateWaveformData(44);
     _slideController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),

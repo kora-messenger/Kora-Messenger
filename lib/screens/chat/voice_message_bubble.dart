@@ -30,15 +30,9 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
     with SingleTickerProviderStateMixin {
   bool _isPlaying = false;
   double _progress = 0.0;
-  late List<double> _waveformData;
-
   @override
   void initState() {
     super.initState();
-    // Seed waveform from message id so each message has a unique but
-    // consistent waveform shape.
-    final seed = widget.message.id.hashCode;
-    _waveformData = generateWaveformData(36, seed: seed);
   }
 
   void _togglePlay() {
