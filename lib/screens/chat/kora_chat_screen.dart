@@ -955,7 +955,43 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
       resizeToAvoidBottomInset: false,
       backgroundColor: theme.wallpaper,
       body: SafeArea(
-        child: Column(
+        child: Stack(
+          children: [
+            // ── Fixed full-screen wallpaper layer ──
+            // Sits behind everything at a constant size so it never
+            // rescales/shifts when the keyboard opens or closes —
+            // only the AnimatedPadding around the composer should move.
+            Positioned.fill(
+              child: Container(
+                decoration: hasWallpaper
+                    ? BoxDecoration(
+                        image: DecorationImage(
+                          image: AssetImage(wallpaperAssetPath),
+                          fit: BoxFit.cover,
+                          onError: (_, __) {},
+                        ),
+                      )
+                    : hasWallpaperImage
+                        ? BoxDecoration(
+                            image: DecorationImage(
+                              image: FileImage(File(_themeProvider.wallpaperImagePath!)),
+                              fit: BoxFit.cover,
+                              onError: (_, __) {},
+                            ),
+                          )
+                        : null,
+              ),
+            ),
+            if ((hasWallpaper || hasWallpaperImage) && _themeProvider.wallpaperDimLevel > 0)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: Container(
+                    color: Colors.black.withValues(alpha: _themeProvider.wallpaperDimLevel * 0.75),
+                  ),
+                ),
+              ),
+            // ── Foreground content ──
+            Column(
           children: [
             // When searching, show the inline search bar instead of the chat header.
             if (_showSearch)
@@ -987,41 +1023,14 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
                 ],
               ],
             ),
-            // Message area (or search results when searching)
+            // Message area (or search results when searching).
+            // Wallpaper now lives in the fixed background layer above,
+            // so this area stays transparent and never rescales it.
             Expanded(
               child: _showSearch
                 ? _buildSearchResults()
                 : Stack(
                 children: [
-                  Positioned.fill(
-                    child: Container(
-                      decoration: hasWallpaper
-                          ? BoxDecoration(
-                              image: DecorationImage(
-                                image: AssetImage(wallpaperAssetPath),
-                                fit: BoxFit.cover,
-                                onError: (_, __) {},
-                              ),
-                            )
-                          : hasWallpaperImage
-                              ? BoxDecoration(
-                                  image: DecorationImage(
-                                    image: FileImage(File(_themeProvider.wallpaperImagePath!)),
-                                    fit: BoxFit.cover,
-                                    onError: (_, __) {},
-                                  ),
-                                )
-                              : null,
-                    ),
-                  ),
-                  if ((hasWallpaper || hasWallpaperImage) && _themeProvider.wallpaperDimLevel > 0)
-                    Positioned.fill(
-                      child: IgnorePointer(
-                        child: Container(
-                          color: Colors.black.withValues(alpha: _themeProvider.wallpaperDimLevel * 0.75),
-                        ),
-                      ),
-                    ),
                   Positioned.fill(
                     child: _isLoading
                         ? const Center(child: CircularProgressIndicator(color: KoraColors.purple))
@@ -1086,6 +1095,8 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
                         onSendVoice: _sendVoice,
                       ),
               ),
+          ],
+        ),
           ],
         ),
       ),
