@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/message_model.dart';
 import '../models/chat_models.dart';
+import 'connectivity_service.dart';
+import 'offline_voice_sync.dart';
 
 /// Manages all Kora conversations with local persistence.
 ///
@@ -214,18 +216,55 @@ class MessageService {
   Future<void> sendVoiceMessage(String chatId, String duration) async {
     final messages = _cache.putIfAbsent(chatId, () => <KoraMessage>[]);
     final msgId = 'voice_${DateTime.now().millisecondsSinceEpoch}';
+
+    // Check connectivity — if offline, save as pending and enqueue for sync
+    final isOnline = ConnectivityService.instance.isOnline;
+
+    final status = isOnline ? MessageStatus.sent : MessageStatus.pendingOffline;
+
     messages.add(KoraMessage(
       id: msgId,
       text: '',
       timestamp: DateTime.now(),
       isMe: true,
       type: KoraMessageType.voice,
-      status: MessageStatus.sent,
+      status: status,
       voiceDuration: duration,
     ));
     await _persist(chatId);
 
-    // Auto-progress voice messages too
+    if (!isOnline) {
+      // Enqueue for automatic sync when network returns
+      await OfflineVoiceSyncService.instance.enqueue(
+        chatId: chatId,
+        messageId: msgId,
+        duration: duration,
+      );
+      return; // Don't schedule sent → delivered → read progression
+    }
+
+    // Online — auto-progress voice messages: sent → delivered → read
+    _scheduleVoiceStatusProgress(chatId, msgId);
+  }
+
+  /// Transitions a message's status. Used by [OfflineVoiceSyncService]
+  /// when a pending offline voice note finishes uploading.
+  Future<void> updateMessageStatus(
+    String chatId,
+    String messageId,
+    MessageStatus newStatus,
+  ) async {
+    final msgs = _cache[chatId];
+    if (msgs == null) return;
+    final idx = msgs.indexWhere((m) => m.id == messageId);
+    if (idx == -1) return;
+    msgs[idx] = msgs[idx].copyWith(status: newStatus);
+    await _persist(chatId);
+  }
+
+  /// Schedules the sent → delivered → read progression for a voice
+  /// message that was sent while online.
+  void _scheduleVoiceStatusProgress(String chatId, String msgId) {
     Future.delayed(const Duration(milliseconds: 1500), () async {
       final msgs = _cache[chatId];
       if (msgs == null) return;
@@ -262,6 +301,8 @@ class MessageService {
     if (messages == null) return;
     messages.removeWhere((m) => m.id == messageId);
     await _persist(chatId);
+    // Also remove from offline sync queue if present
+    await OfflineVoiceSyncService.instance.removePending(chatId, messageId);
   }
 
   Future<void> markAsRead(String chatId) async {

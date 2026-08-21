@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../models/chat_models.dart';
 import '../../models/message_model.dart';
 import '../../services/message_service.dart';
+import '../../services/offline_voice_sync.dart';
 import '../../theme/kora_colors.dart';
 import '../../theme/chat_theme_provider.dart';
 import '../../config/kora_api.dart';
@@ -69,6 +70,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
   bool _isAiTyping = false;
   bool _isBlocked = false;
   Timer? _statusTimer;
+  StreamSubscription<String>? _syncSub;
 
   // New-messages indicator (down arrow with count)
   bool _isAtBottom = true;
@@ -89,6 +91,13 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
     _themeProvider.addListener(_onThemeChanged);
     _loadMessages();
     _scrollController.addListener(_onScrollChanged);
+    // Listen for offline voice sync events — when a pending note
+    // transitions to sent, refresh the message list.
+    _syncSub = OfflineVoiceSyncService.instance.syncStream.listen((chatId) {
+      if (chatId == widget.chatId && mounted) {
+        _refreshMessages();
+      }
+    });
     // Refresh every 500ms to pick up status changes (sent → delivered → read)
     // and mark any newly-arrived incoming messages as viewed while open.
     _statusTimer = Timer.periodic(const Duration(seconds: 2), (_) {
@@ -102,6 +111,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
   void dispose() {
     _searchController.dispose();
     _statusTimer?.cancel();
+    _syncSub?.cancel();
     _themeProvider.removeListener(_onThemeChanged);
     _scrollController.dispose();
     super.dispose();

@@ -283,14 +283,46 @@ class MessageBubble extends StatelessWidget {
     Color receivedText,
     Color textSecondary,
   ) {
-    return VoiceMessageBubble(
-      message: message,
-      onTranslate: () {
-        showVoiceTranslationSheet(
-          context,
-          voiceDuration: message.voiceDuration ?? '0:05',
-        );
-      },
+    final isPendingOffline = message.status == MessageStatus.pendingOffline;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        VoiceMessageBubble(
+          message: message,
+          onTranslate: isPendingOffline
+              ? null
+              : () {
+                  showVoiceTranslationSheet(
+                    context,
+                    voiceDuration: message.voiceDuration ?? '0:05',
+                  );
+                },
+        ),
+        const SizedBox(height: 4),
+        // Timestamp + status indicator
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              _formatTime(message.timestamp),
+              style: TextStyle(
+                color: isMe
+                    ? Colors.white.withValues(alpha: 0.65)
+                    : textSecondary,
+                fontSize: 10.5,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            if (isMe && !isPendingOffline &&
+                message.status != MessageStatus.none) ...[
+              const SizedBox(width: 4),
+              _buildStatusIcon(message.status, isMe),
+            ],
+          ],
+        ),
+      ],
     );
   }
 
@@ -424,6 +456,14 @@ class MessageBubble extends StatelessWidget {
 
   Widget _buildStatusIcon(MessageStatus status, bool isMe) {
     switch (status) {
+      case MessageStatus.pendingOffline:
+        return Icon(
+          Icons.cloud_off_rounded,
+          size: 13,
+          color: isMe
+              ? Colors.white.withValues(alpha: 0.5)
+              : const Color(0xFF9A9AB0),
+        );
       case MessageStatus.sent:
         return Icon(Icons.check, size: 14, color: isMe ? Colors.white.withValues(alpha: 0.55) : const Color(0xFF9A9AB0));
       case MessageStatus.delivered:

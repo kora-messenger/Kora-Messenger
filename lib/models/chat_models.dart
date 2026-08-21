@@ -11,6 +11,7 @@ enum KoraBadgeType {
 /// Delivery/read status shown on the sender's own outgoing messages.
 enum MessageStatus {
   none, // incoming message, or draft
+  pendingOffline, // recorded locally, waiting for network to upload
   sent, // single check
   delivered, // double check
   read, // double check, purple

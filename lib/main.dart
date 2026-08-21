@@ -9,6 +9,9 @@ import 'services/session_manager.dart';
 import 'services/notification_service.dart';
 import 'services/data_saver_service.dart';
 import 'services/crash_logger.dart';
+import 'services/connectivity_service.dart';
+import 'services/offline_voice_sync.dart';
+import 'services/message_service.dart';
 import 'theme/chat_theme_provider.dart';
 
 void main() {
@@ -24,6 +27,11 @@ void main() {
 
     // Cap in-memory image cache to reduce memory + data usage.
     DataSaverService.tuneImageCache();
+
+    // Initialize connectivity monitoring and offline voice sync.
+    ConnectivityService.instance.init();
+    await MessageService.instance.init();
+    await OfflineVoiceSyncService.instance.init();
 
     runApp(const KoraMessengerApp());
   }, (error, stackTrace) {

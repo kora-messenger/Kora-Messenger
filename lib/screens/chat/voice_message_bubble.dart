@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/message_model.dart';
+import '../../models/chat_models.dart';
 import '../../theme/kora_colors.dart';
 import '../../widgets/kora_waveform.dart';
 
@@ -7,6 +8,10 @@ import '../../widgets/kora_waveform.dart';
 ///
 /// Shows: play/pause button, waveform with playback progress, duration,
 /// and a Translate / Transcribe action that opens the translation sheet.
+///
+/// When a voice note is pending offline upload ([MessageStatus.pendingOffline]),
+/// the play button is replaced with a download/sync arrow icon, the waveform
+/// is dimmed, and a subtle "Waiting for network" indicator is shown.
 ///
 /// Playback is simulated (no real audio yet) — a timer advances the
 /// waveform progress. The structure is ready for real audio integration.
@@ -30,12 +35,30 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
     with SingleTickerProviderStateMixin {
   bool _isPlaying = false;
   double _progress = 0.0;
+
+  /// Sync arrow rotation animation — spins while uploading.
+  late AnimationController _syncSpinController;
+
   @override
   void initState() {
     super.initState();
+    _syncSpinController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
   }
 
+  @override
+  void dispose() {
+    _syncSpinController.dispose();
+    super.dispose();
+  }
+
+  bool get _isPendingOffline =>
+      widget.message.status == MessageStatus.pendingOffline;
+
   void _togglePlay() {
+    if (_isPendingOffline) return; // No playback while pending
     setState(() => _isPlaying = !_isPlaying);
     if (_isPlaying) _simulatePlayback();
   }
@@ -83,6 +106,11 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
     final isMe = widget.message.isMe;
     final brightness = Theme.of(context).brightness;
     final textSecondary = KoraColors.textSecondaryFor(brightness);
+
+    // If the voice note is pending offline upload, show the sync state
+    if (_isPendingOffline) {
+      return _buildPendingOfflineView(isMe, brightness);
+    }
 
     final iconColor = isMe ? Colors.white : KoraColors.purple;
     final playedColor = isMe ? Colors.white : KoraColors.purple;
@@ -172,6 +200,100 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
               ],
             ),
           ),
+      ],
+    );
+  }
+
+  /// Builds the pending offline view — shows a sync/download arrow
+  /// instead of the play button, with a dimmed waveform and a
+  /// "Waiting for network" indicator.
+  Widget _buildPendingOfflineView(bool isMe, Brightness brightness) {
+    final textSecondary = KoraColors.textSecondaryFor(brightness);
+    final textMuted = KoraColors.textMutedFor(brightness);
+
+    final iconColor = isMe ? Colors.white.withValues(alpha: 0.8) : KoraColors.purple;
+    final waveformColor = isMe
+        ? Colors.white.withValues(alpha: 0.18)
+        : KoraColors.purple.withValues(alpha: 0.15);
+    final durationColor = isMe ? Colors.white.withValues(alpha: 0.5) : textMuted;
+    final labelColor = isMe ? Colors.white.withValues(alpha: 0.55) : textSecondary;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // ── Sync / Download arrow (replaces play button) ──
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: isMe
+                    ? Colors.white.withValues(alpha: 0.12)
+                    : KoraColors.purple.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.arrow_downward_rounded,
+                color: iconColor,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 8),
+            // ── Dimmed waveform ──
+            Flexible(
+              child: SizedBox(
+                width: 140,
+                height: 30,
+                child: KoraWaveform(
+                  isLive: false,
+                  progress: 0,
+                  barCount: 30,
+                  height: 30,
+                  barWidth: 2.5,
+                  barGap: 2.5,
+                  playedColor: waveformColor,
+                  unplayedColor: waveformColor,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            // ── Duration ──
+            Text(
+              _totalDuration,
+              style: TextStyle(
+                color: durationColor,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        // ── "Waiting for network" indicator ──
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.cloud_off_rounded,
+              size: 12,
+              color: labelColor,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              'Waiting for network',
+              style: TextStyle(
+                color: labelColor,
+                fontSize: 10.5,
+                fontWeight: FontWeight.w500,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ),
       ],
     );
   }
