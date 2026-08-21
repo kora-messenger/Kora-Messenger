@@ -95,6 +95,8 @@ class KoraMessage {
     String? replyToName,
     String? reaction,
     String? voiceDuration,
+    String? voiceFilePath,
+    String? voiceTranscript,
     String? attachmentName,
     String? actionLabel,
     String? actionType,
