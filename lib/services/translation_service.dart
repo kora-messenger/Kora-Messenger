@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/translation_models.dart';
-import '../config/kora_api.dart';
 
 /// Central translation service for Kora Messenger.
 ///
@@ -19,8 +18,8 @@ class TranslationService {
   TranslationService._();
 
   // ── Config ──────────────────────────────────────────────────
-  /// Future translation endpoint — currently unused (simulated).
-      '${KoraApi.baseUrl}/koraTranslate';
+  // Future translation endpoint — will be connected when backend is live.
+  // Currently all translation is simulated locally.
 
   // ── Keys ───────────────────────────────────────────────────
   static const _kPreferredLang = 'kora_translation_pref_lang';
