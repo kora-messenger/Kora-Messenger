@@ -81,9 +81,12 @@ class CallSttService {
     _isListening = true;
 
     await _speech.listen(
-      localeId: _currentLocale,
-      listenMode: stt.ListenMode.dictation,
-      partialResults: true,
+      SpeechListenOptions(
+        localeId: _currentLocale,
+        listenMode: stt.ListenMode.dictation,
+        partialResults: true,
+        autoPunctuation: true,
+      ),
       onResult: (result) {
         onTranscript?.call(result.recognizedWords, result.finalResult);
       },
@@ -97,9 +100,12 @@ class CallSttService {
 
     try {
       await _speech.listen(
-        localeId: _currentLocale,
-        listenMode: stt.ListenMode.dictation,
-        partialResults: true,
+        SpeechListenOptions(
+          localeId: _currentLocale,
+          listenMode: stt.ListenMode.dictation,
+          partialResults: true,
+          autoPunctuation: true,
+        ),
         onResult: (result) {
           onTranscript?.call(result.recognizedWords, result.finalResult);
         },
