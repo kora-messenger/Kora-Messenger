@@ -226,11 +226,23 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
           'message': userMessage,
           'history': history,
         }),
-      ).timeout(const Duration(seconds: 45));
+      ).timeout(const Duration(seconds: 120));
+
+      // Log HTTP status if not 200
+      if (response.statusCode != 200) {
+        debugPrint('[Kora AI] HTTP ${response.statusCode} — ${response.body.substring(0, (response.body.length > 300 ? 300 : response.body.length))}');
+      }
 
       final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final success = data['success'] as bool? ?? true;
       final reply = data['reply'] as String? ??
           "I'm here to help! Could you tell me more?";
+
+      // Log the actual error for developers when the AI request fails
+      if (!success) {
+        final errorDetail = data['error'] as String? ?? 'Unknown error';
+        debugPrint('[Kora AI] Request failed — chatType=$chatType, error=$errorDetail');
+      }
       final isWebSearch = data['isWebSearch'] as bool? ?? false;
       final issueList = data['issueList'] as List?;
       final actionLabel = data['actionLabel'] as String?;

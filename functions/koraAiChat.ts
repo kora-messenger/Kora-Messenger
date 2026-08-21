@@ -1,8 +1,16 @@
-// Kora AI Chat — v5 (OpenAI gpt-5.4-mini, free for all users)
+// Kora AI Chat — v6 (OpenRouter, no mock responses)
+// Uses OPENROUTER_API_KEY and OPENROUTER_MODEL from environment.
+// All responses are real AI-generated — no hardcoded fallbacks.
+
 function jsonResponse(data: any, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    },
   });
 }
 
@@ -98,53 +106,7 @@ Tone: Be professional, articulate, and thoughtful. Structure your responses clea
 
 You are free for all Kora Messenger users — no Premium required. Be the best assistant you can be.`;
 
-interface FallbackEntry { keywords: string[]; response: string; }
-
-const SUPPORT_FALLBACKS: FallbackEntry[] = [
-  { keywords: ['premium','subscribe','subscription','upgrade','pay','billing'], response: '**Kora Premium** includes:\n• Custom app icons\n• Premium wallpapers\n• Custom chat bubble colors\n• Animated emoji\n• Real-time message translation\n• Infinite reactions\n• Faster download speeds\n• Profile badge (blue)\n• Priority support\n• No ads\n\nNew users get **7 days free**! After that, subscribe via Settings > Premium. Cancel anytime. 💜' },
-  { keywords: ['password','reset','forgot'], response: '**Reset your password:**\n1. Tap "Forgot password?" on the login screen\n2. Enter your email address\n3. Check your email for a verification code\n4. Enter the code (auto-verifies on the last digit)\n5. Set your new password → you\'ll be redirected to login\n\nIf you don\'t receive the code, check your spam folder. 🔐' },
-  { keywords: ['passkey','biometric','fingerprint','face id'], response: '**Passkeys** let you log in with your fingerprint or Face ID instead of a password.\n\n**Set up:** Settings > Security > Passkeys\n\nPasskeys are tied to specific devices, so you\'ll need to set them up on each device you want to use. 🔐' },
-  { keywords: ['group','new group'], response: '**Create a group:**\n1. Home screen > 3-dot menu (top right) > New Group\n2. Select contacts from your list\n3. Search by Name, Kora ID, or @Username\n4. Name the group and optionally set a group photo\n\nGroups support text, voice messages, images, and file sharing. 👥' },
-  { keywords: ['channel','community'], response: '**Create a community:**\n1. Home screen > 3-dot menu > New Channel\n2. Set a profile image (optional)\n3. Enter the community name\n4. Add a description (optional)\n5. Tap continue to preview\n6. Confirm to create\n\nCommunities start with a default General group. Other users can add their own groups. Any community you create appears on your home screen. 📢' },
-  { keywords: ['wallpaper','background'], response: '**Chat wallpapers:**\nChat > 3-dot menu > Chat theme > Wallpaper\n\nOptions:\n• 18 preset wallpapers\n• Solid colors\n• Gallery photos\n• Dimming slider (persists to the active chat)\n\nCustom wallpapers are a Premium feature. 🖼️' },
-  { keywords: ['theme','bubble color'], response: '**Chat themes:**\nChat > 3-dot menu > Chat theme\n\nOptions:\n• Preset themes\n• Custom bubble color (20 options)\n\nCustom bubble colors are a Premium feature. ✨' },
-  { keywords: ['app icon'], response: '**App icons:**\nSettings > Appearance > App Icon\n\n• Default circular icon (free)\n• 2 premium icons (Premium only)\n• 3-dot menu to reset to default\n\nAll users can view icons, but only Premium subscribers can apply premium ones. 🎨' },
-  { keywords: ['avatar','profile picture'], response: '**Change your avatar:**\nSettings > Profile > tap your avatar\n\nChoose from your gallery or take a new photo with your camera. 📸' },
-  { keywords: ['qr','scan'], response: '**QR codes:**\n• Generate yours: Settings > QR Code\n• Scan others: Contacts > New Contact > Scan QR\n\nShare your QR code so others can add you instantly. 📱' },
-  { keywords: ['verify','verification','code','otp'], response: '**Verification codes:**\n• Sent to your registered email\n• Auto-verify on the last digit — no submit button\n• Auto-fill from clipboard if a code is detected\n\nIf you don\'t receive a code, check your spam folder and wait about 60 seconds. ✅' },
-  { keywords: ['trusted device','device'], response: '**Trusted devices** skip email verification on login.\n\n• A device must be used for **30+ days** before it can be trusted\n• Manage in Settings > Security > Trusted Devices\n• You can revoke trusted status anytime\n\nThis keeps your account secure while reducing friction on devices you use regularly. 🔒' },
-  { keywords: ['block','report'], response: '**Block or report a user:**\nChat > 3-dot menu > Block or Report\n\n• Blocking prevents the user from sending you further messages\n• You can also report inappropriate behavior\n• "Learn more" links to our blocking & reporting policy\n\nTo unblock: open the chat > 3-dot menu > Unblock. 🚫' },
-  { keywords: ['mute','notifications'], response: '**Mute notifications:**\nChat > 3-dot menu > Mute notifications\n\nMuted chats won\'t send push notifications, but you\'ll still see new messages when you open the app. 🔕' },
-  { keywords: ['delete','clear'], response: '**Clear or delete:**\n• Clear chat: Chat > 3-dot menu > Clear chat (removes all messages, optionally including starred)\n• Delete message: Long-press a message > Delete\n\nClearing removes messages from your device only. 🗑️' },
-  { keywords: ['translate','translation'], response: '**Message translation** is a Premium feature.\n\nLong-press any message > Translate to see it in your language. Real-time translation supports multiple languages. 🌍' },
-  { keywords: ['badge','verified'], response: '**Kora badges:**\n• 💜 Purple scalloped = Official Kora account (e.g., Kora AI, Kora Support)\n• 💙 Blue scalloped = Premium subscriber\n\nBadges appear next to the user\'s name in chats and profiles. ✨' },
-  { keywords: ['crash','bug','error','broken','problem'], response: '**Troubleshooting:**\n1. Force close the app and reopen it\n2. Check for updates in your app store\n3. Restart your device\n4. If the issue persists, email support@koramessenger.com\n\nCrash reports are sent automatically to our development team. 🙏' },
-  { keywords: ['logout','sign out'], response: '**Log out:**\nSettings > Account > Log out\n\nYou\'ll need to sign back in to access your chats. 👋' },
-  { keywords: ['hello','hi','hey','help'], response: 'Hi! 👋 I\'m Kora Support. I can help with:\n• Account & login issues\n• Passkeys & security\n• Groups & communities\n• Wallpapers & themes\n• Premium features\n• Troubleshooting\n\nWhat can I help you with?' },
-  { keywords: ['free','trial','expired'], response: '**Premium free trial:**\n• 7 days free for new users\n• After the trial, subscribe via Settings > Premium\n• Cancel anytime\n• Owner accounts get Premium free forever 💜' },
-  { keywords: ['ai','kora ai','smart'], response: '**Kora AI** is a free general-purpose assistant in Kora Messenger — ask it anything! 🤖\n\nI (Kora Support) handle Kora-specific questions. Kora AI handles general knowledge, writing, coding, and more.\n\nBoth are free for all users.' },
-];
-
-const AI_FALLBACKS: FallbackEntry[] = [
-  { keywords: ['hello','hi','hey'], response: 'Hello! 👋 I\'m Kora AI. I can help with general questions, writing, coding, analysis, and more. What\'s on your mind?' },
-  { keywords: ['who are you','what are you'], response: 'I\'m Kora AI — an intelligent assistant built into Kora Messenger. I can help with general knowledge, writing, coding, math, and much more. Think of me like ChatGPT or Gemini, built right into your messaging app. 🤖' },
-  { keywords: ['kora','messenger'], response: 'Kora Messenger is a modern messaging app with a purple-to-blue gradient design. For questions about Kora features (account, settings, groups, etc.), try Kora Support — they\'re the experts on the app! 💜' },
-  { keywords: ['thank'], response: 'You\'re welcome! 😊 Feel free to ask me anything else.' },
-];
-
-function findFallback(entries: FallbackEntry[], message: string): string | null {
-  const lower = message.toLowerCase();
-  let bestMatch: FallbackEntry | null = null;
-  let bestScore = 0;
-  for (const entry of entries) {
-    let score = 0;
-    for (const kw of entry.keywords) if (lower.includes(kw)) score += kw.length;
-    if (score > bestScore) { bestScore = score; bestMatch = entry; }
-  }
-  return bestScore > 0 ? bestMatch.response : null;
-}
-
-/// Clean the API key in case it was stored with a wrapper like api_key="sk-..."
+/// Clean the API key in case it was stored with a wrapper
 function cleanApiKey(raw: string): string {
   let key = raw.trim();
   if (key.startsWith('api_key=')) {
@@ -156,90 +118,120 @@ function cleanApiKey(raw: string): string {
   return key.trim();
 }
 
-/// Calls OpenAI Responses API (gpt-5.4-mini)
-async function callOpenAI(systemPrompt: string, message: string, history: any[]): Promise<string | null> {
-  const apiKey = cleanApiKey(Deno.env.get('OPENAI_API_KEY') || '');
-  if (!apiKey || apiKey.length < 10) return null;
+/// Calls OpenRouter Chat Completions API.
+/// Returns the AI text, or throws with the actual error for logging.
+async function callOpenRouter(
+  systemPrompt: string,
+  message: string,
+  history: any[],
+): Promise<string> {
+  const apiKey = cleanApiKey(Deno.env.get('OPENROUTER_API_KEY') || '');
+  if (!apiKey || apiKey.length < 10) {
+    throw new Error('OPENROUTER_API_KEY is missing or too short');
+  }
 
-  // Build conversation input from recent history (last 10 messages)
-  const input: any[] = [];
+  const model = Deno.env.get('OPENROUTER_MODEL') || 'openai/gpt-4o';
+
+  // Build messages array from history + new message
+  const messages: any[] = [
+    { role: 'system', content: systemPrompt },
+  ];
+
+  // Add conversation history (last 10 messages)
   for (const m of (history || []).slice(-10).filter((m: any) => m.text && m.text.trim() !== '')) {
-    input.push({
+    messages.push({
       role: m.isMe ? 'user' : 'assistant',
-      content: [{ type: 'input_text', text: m.text }],
+      content: m.text,
     });
   }
-  input.push({
+
+  // Add the current user message
+  messages.push({
     role: 'user',
-    content: [{ type: 'input_text', text: message }],
+    content: message,
   });
 
-  const response = await fetch('https://api.openai.com/v1/responses', {
+  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`,
+      'X-Title': 'Kora Messenger',
     },
     body: JSON.stringify({
-      model: 'gpt-5.4-mini',
-      instructions: systemPrompt,
-      input,
-      store: false,
+      model,
+      messages,
+      temperature: 0.7,
+      max_tokens: 2000,
     }),
   });
 
   if (!response.ok) {
     const errBody = await response.text().catch(() => '');
-    console.error(`OpenAI API error: ${response.status} ${response.statusText} — ${errBody.slice(0, 200)}`);
-    return null;
+    const statusInfo = `${response.status} ${response.statusText}`;
+    console.error(`[Kora AI] OpenRouter API error: ${statusInfo} — ${errBody.slice(0, 500)}`);
+    throw new Error(`OpenRouter ${statusInfo}: ${errBody.slice(0, 200)}`);
   }
 
   const data = await response.json();
-  // The Responses API returns output_text directly
-  const text = data.output_text;
-  if (text && typeof text === 'string' && text.trim()) return text.trim();
 
-  // Fallback: extract from output array
-  if (data.output && Array.isArray(data.output)) {
-    for (const item of data.output) {
-      if (item.type === 'message' && item.content && Array.isArray(item.content)) {
-        for (const c of item.content) {
-          if (c.type === 'output_text' && c.text) return c.text.trim();
-        }
-      }
+  // Standard OpenAI-compatible response format
+  if (data.choices && Array.isArray(data.choices) && data.choices.length > 0) {
+    const content = data.choices[0].message?.content;
+    if (content && typeof content === 'string' && content.trim()) {
+      return content.trim();
     }
   }
 
-  return null;
+  console.error('[Kora AI] Unexpected response structure:', JSON.stringify(data).slice(0, 500));
+  throw new Error('OpenRouter returned an unexpected response structure');
 }
 
 Deno.serve(async (req: Request) => {
+  // CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' } });
+    return new Response(null, {
+      status: 204,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+      },
+    });
   }
+
   let body: any;
-  try { body = await req.json(); }
-  catch { return jsonResponse({ success: false, error: 'Invalid JSON body' }, 400); }
+  try {
+    body = await req.json();
+  } catch {
+    return jsonResponse({ success: false, error: 'Invalid JSON body' }, 400);
+  }
+
   const { chatType, message, history } = body;
-  if (!message || message.trim() === '') return jsonResponse({ success: false, error: 'Message is required' }, 400);
+  if (!message || message.trim() === '') {
+    return jsonResponse({ success: false, error: 'Message is required' }, 400);
+  }
+
   const isSupport = chatType === 'support';
   const systemPrompt = isSupport ? SUPPORT_PROMPT : AI_PROMPT;
   const hist = history || [];
 
-  // OpenAI gpt-5.4-mini for all users (free)
   try {
-    const reply = await callOpenAI(systemPrompt, message, hist);
-    if (reply && reply.trim()) return jsonResponse({ success: true, reply: reply.trim() });
+    const reply = await callOpenRouter(systemPrompt, message, hist);
+    return jsonResponse({ success: true, reply });
   } catch (e) {
-    console.error('OpenAI call failed:', e);
-  }
+    // Log the REAL error for developers
+    const errorDetail = e instanceof Error ? e.message : String(e);
+    console.error(`[Kora AI] Request failed — chatType=${chatType}, model=${Deno.env.get('OPENROUTER_MODEL') || 'openai/gpt-4o'}, error=${errorDetail}`);
 
-  // Knowledge-based fallback (only if OpenAI fails)
-  const fallbacks = isSupport ? SUPPORT_FALLBACKS : AI_FALLBACKS;
-  const match = findFallback(fallbacks, message);
-  if (match) return jsonResponse({ success: true, reply: match, isFallback: true });
-  if (isSupport) {
-    return jsonResponse({ success: true, reply: "I'd love to help! You can ask me about: account & login, passkeys & security, groups & communities, wallpapers & themes, premium features, troubleshooting, and more.", isFallback: true });
+    // Return a friendly message to the user, but include the real error
+    // so the app can log/display it during development.
+    return jsonResponse({
+      success: false,
+      error: errorDetail,
+      reply: isSupport
+        ? "I'm having trouble connecting right now. Please try again in a moment! 🔧"
+        : "I'm having trouble connecting right now. Please try again in a moment! 🤖",
+    });
   }
-  return jsonResponse({ success: true, reply: "I'm having trouble connecting right now. Please try again in a moment! 🤖", isFallback: true });
 });
