@@ -65,3 +65,7 @@ flutter:
     - assets/wallpapers/colorful_3d_balls.jpg
     - assets/wallpapers/black_z_gradient.jpg
     - assets/wallpapers/kora_default_doodle_milk.png
+
+dependency_overrides:
+  # Fix record_linux incompatibility with record_platform_interface 1.6.0
+  record_linux: ^0.7.3
