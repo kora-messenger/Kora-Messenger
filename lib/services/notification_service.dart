@@ -50,7 +50,7 @@ class KoraNotificationService {
     if (androidPlugin == null) return;
 
     // Messages channel
-    await androidPlugin.createAndroidNotificationChannel(
+    await androidPlugin.createNotificationChannel(
       const AndroidNotificationChannel(
         _kMessageChannel,
         'Messages',
@@ -63,7 +63,7 @@ class KoraNotificationService {
     );
 
     // Calls channel
-    await androidPlugin.createAndroidNotificationChannel(
+    await androidPlugin.createNotificationChannel(
       const AndroidNotificationChannel(
         _kCallChannel,
         'Calls',
@@ -76,7 +76,7 @@ class KoraNotificationService {
     );
 
     // General channel
-    await androidPlugin.createAndroidNotificationChannel(
+    await androidPlugin.createNotificationChannel(
       const AndroidNotificationChannel(
         _kGeneralChannel,
         'General',
@@ -94,31 +94,30 @@ class KoraNotificationService {
   }) async {
     if (!_initialized) await init();
 
-    const androidDetails = AndroidNotificationDetails(
+    final androidDetails = AndroidNotificationDetails(
       _kMessageChannel,
       'Messages',
       channelDescription: 'New message notifications',
       icon: '@drawable/kora_notification_icon',
-      largeIcon: '@mipmap/ic_launcher',
       priority: Priority.high,
       importance: Importance.high,
       category: AndroidNotificationCategory.message,
       enableVibration: true,
       enableLights: true,
       styleInformation: MessagingStyleInformation(
-        personName: senderName,
+        Person(name: senderName, key: chatId),
         conversationTitle: senderName,
         messages: [
           Message(
             message,
             DateTime.now(),
-            Person(name: senderName),
+            Person(name: senderName, key: chatId),
           ),
         ],
       ),
     );
 
-    const notifDetails = NotificationDetails(android: androidDetails);
+    final notifDetails = NotificationDetails(android: androidDetails);
 
     // Use a hash of the chatId as the notification ID so each chat
     // gets its own notification slot.
@@ -145,7 +144,6 @@ class KoraNotificationService {
       'Calls',
       channelDescription: 'Incoming and missed call notifications',
       icon: '@drawable/kora_notification_icon',
-      largeIcon: '@mipmap/ic_launcher',
       priority: Priority.max,
       importance: Importance.max,
       category: AndroidNotificationCategory.call,
@@ -175,7 +173,6 @@ class KoraNotificationService {
       'Calls',
       channelDescription: 'Incoming and missed call notifications',
       icon: '@drawable/kora_notification_icon',
-      largeIcon: '@mipmap/ic_launcher',
       priority: Priority.high,
       importance: Importance.high,
       category: AndroidNotificationCategory.call,
