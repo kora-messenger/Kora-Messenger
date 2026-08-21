@@ -24,7 +24,6 @@ class _BillingScreenState extends State<BillingScreen> {
   int _selectedMethod = 0;
   RegionalPrice? _price;
   bool _loadingPrice = true;
-  bool _processing = false;
 
   static const List<_PaymentMethod> _methods = [
     _PaymentMethod(icon: Icons.credit_card, name: 'Credit / Debit Card', subtitle: 'Visa, Mastercard, Amex'),

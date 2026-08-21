@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:ui';
 import 'package:http/http.dart' as http;
-import 'subscription_pricing.dart';
+import '../config/subscription_pricing.dart';
 
 /// Detects the user's country and returns the correct regional pricing.
 ///
