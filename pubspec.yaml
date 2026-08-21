@@ -23,7 +23,7 @@ dependencies:
   flutter_local_notifications: ^18.0.1
   mobile_scanner: ^5.2.3
   connectivity_plus: ^6.1.0
-  record: ^4.4.4
+  flutter_sound: ^9.16.3
   just_audio: ^0.9.39
   speech_to_text: ^7.0.0
   flutter_webrtc: ^0.12.0
