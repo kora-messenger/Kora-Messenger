@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import '../../theme/kora_colors.dart';
+import '../../models/call_log.dart';
 import '../../services/webrtc_call_service.dart';
 import '../../services/call_service.dart';
 import '../../models/chat_models.dart';
@@ -192,7 +193,7 @@ class _CallScreenState extends State<CallScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: KoraColors.darkBackground,
+      backgroundColor: KoraColors.darkSurface,
       body: SafeArea(
         child: widget.isVideoCall && _remoteRenderer != null
             ? _buildVideoCallView()

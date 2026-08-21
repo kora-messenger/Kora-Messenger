@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../theme/kora_colors.dart';
 import '../../widgets/kora_waveform.dart';
 import '../../services/audio_playback_service.dart';
+import 'package:just_audio/just_audio.dart';
 
 /// Kora's voice preview bar — shown after recording, before sending.
 ///

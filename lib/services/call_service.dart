@@ -65,7 +65,7 @@ class CallService {
       id: 'call_${DateTime.now().millisecondsSinceEpoch}',
       contactName: contactName,
       avatarUrl: avatarUrl,
-      badge: badge,
+      badge: badge ?? KoraBadgeType.none,
       type: type,
       status: CallStatus.outgoing,
       timestamp: DateTime.now(),
@@ -86,7 +86,7 @@ class CallService {
       id: 'call_${DateTime.now().millisecondsSinceEpoch}',
       contactName: contactName,
       avatarUrl: avatarUrl,
-      badge: badge,
+      badge: badge ?? KoraBadgeType.none,
       type: type,
       status: missed ? CallStatus.missed : CallStatus.incoming,
       timestamp: DateTime.now(),
@@ -105,7 +105,7 @@ class CallService {
       contactName: contactName,
       type: type,
       avatarUrl: avatarUrl,
-      badge: badge,
+      badge: badge ?? KoraBadgeType.none,
       missed: true,
     );
   }

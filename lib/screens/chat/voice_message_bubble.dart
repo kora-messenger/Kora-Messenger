@@ -6,6 +6,7 @@ import '../../theme/kora_colors.dart';
 import '../../widgets/kora_waveform.dart';
 import 'voice_translation_sheet.dart';
 import '../../services/audio_playback_service.dart';
+import 'package:just_audio/just_audio.dart';
 
 /// Kora's voice message bubble — used inside MessageBubble for voice messages.
 ///
