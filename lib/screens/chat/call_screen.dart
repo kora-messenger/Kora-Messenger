@@ -326,7 +326,6 @@ class _CallScreenState extends State<CallScreen> {
     super.dispose();
   }
 
-  @override
   static Future<void> _showCallTranslation(BuildContext context, {bool isInCall = false}) {
     if (!ChatThemeProvider.instance.isPremium) {
       return showModalBottomSheet(
@@ -339,6 +338,7 @@ class _CallScreenState extends State<CallScreen> {
     return CallTranslationSheet.show(context, isInCall: isInCall);
   }
 
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: KoraColors.darkSurface,
