@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../theme/kora_colors.dart';
 import '../../widgets/kora_avatar.dart';
+import '../../widgets/kora_badge.dart';
+import '../../models/chat_models.dart';
+import '../../theme/chat_theme_provider.dart';
 import '../../services/session_manager.dart';
 import '../settings/appearance_screen.dart';
 import '../settings/account_screen.dart';
@@ -19,6 +22,7 @@ class ProfileTab extends StatefulWidget {
 class _ProfileTabState extends State<ProfileTab> {
   Map<String, dynamic>? _session;
   bool _loading = true;
+  bool _isPremium = false;
 
   @override
   void initState() {
@@ -31,8 +35,27 @@ class _ProfileTabState extends State<ProfileTab> {
     if (mounted) {
       setState(() {
         _session = session;
+        _isPremium = ChatThemeProvider.instance.isPremium;
         _loading = false;
       });
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    ChatThemeProvider.instance.addListener(_onPremiumChanged);
+  }
+
+  @override
+  void dispose() {
+    ChatThemeProvider.instance.removeListener(_onPremiumChanged);
+    super.dispose();
+  }
+
+  void _onPremiumChanged() {
+    if (mounted) {
+      setState(() => _isPremium = ChatThemeProvider.instance.isPremium);
     }
   }
 
@@ -90,8 +113,10 @@ class _ProfileTabState extends State<ProfileTab> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                fullName,
+                              KoraNameWithBadge(
+                                name: fullName,
+                                badge: _isPremium ? KoraBadgeType.premiumBlue : KoraBadgeType.none,
+                                badgeSize: 18,
                                 style: TextStyle(
                                   color: textPrimary,
                                   fontSize: 17,
@@ -131,7 +156,13 @@ class _ProfileTabState extends State<ProfileTab> {
             ),
             const SizedBox(height: 20),
             _sectionLabel('KORA', textMuted),
-            _tile(context, Icons.workspace_premium_outlined, 'Kora Premium', 'Unlock premium features'),
+            _tile(
+              context,
+              Icons.workspace_premium,
+              'Kora Premium',
+              _isPremium ? 'Premium active' : 'Unlock premium features',
+              iconColor: _isPremium ? KoraColors.purple : null,
+            ),
             _tile(context, Icons.support_agent_outlined, 'Kora Support', 'Get help from the Kora team'),
             _tile(context, Icons.info_outline, 'About Kora', 'App version, terms & privacy'),
             const SizedBox(height: 20),

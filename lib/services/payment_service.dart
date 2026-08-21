@@ -5,6 +5,7 @@ import '../config/kora_api.dart';
 import '../config/subscription_pricing.dart';
 import 'pricing_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../theme/chat_theme_provider.dart';
 
 /// Handles all payment processing for Kora Premium subscriptions.
 ///
@@ -163,6 +164,9 @@ class PaymentService {
     await prefs.setInt('premium_expiry', expiry);
     await prefs.setString('premium_payment_ref', reference);
     await prefs.setString('premium_activated_at', now.toString());
+
+    // Sync ChatThemeProvider so all premium-gated screens update immediately
+    ChatThemeProvider.instance.markPremium();
   }
 
   /// Check if the user has active premium.
@@ -190,8 +194,12 @@ class PaymentService {
   /// Check if the owner override is active (permanent premium without payment).
   static Future<bool> isOwnerOverride(String email) async {
     // The owner's email gets permanent premium
-    const ownerEmail = 'ijeziegoodluck@gmail.com';
-    if (email.toLowerCase() == ownerEmail) {
+    const ownerEmails = {
+      'goodluckijezie9@gmail.com',
+      'ijeziegoodluck7@gmail.com',
+      'ijeziegoodluck4@gmail.com',
+    };
+    if (ownerEmails.contains(email.toLowerCase())) {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('is_premium', true);
       await prefs.setString('premium_plan', 'owner');

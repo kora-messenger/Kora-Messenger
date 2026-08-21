@@ -215,6 +215,24 @@ class ChatThemeProvider extends ChangeNotifier {
   bool get isPremium => _isPremium;
   int get appIconIndex => _appIconIndex;
 
+  /// Called after a successful payment to activate premium across the app.
+  /// Updates the in-memory state, persists it, and notifies all listeners
+  /// so every premium-gated screen reacts immediately.
+  Future<void> markPremium() async {
+    _isPremium = true;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_kIsPremium, true);
+    notifyListeners();
+  }
+
+  /// Called when premium expires or is revoked.
+  Future<void> revokePremium() async {
+    _isPremium = false;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_kIsPremium, false);
+    notifyListeners();
+  }
+
   ChatThemePreset get activeTheme {
     final preset = kDefaultChatThemes.firstWhere(
       (t) => t.id == _themeId,
