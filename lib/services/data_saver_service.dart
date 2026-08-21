@@ -1,6 +1,5 @@
 import 'package:flutter/painting.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 
 /// Data Saver service for Kora Messenger.
 ///

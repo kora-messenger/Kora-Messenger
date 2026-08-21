@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../services/data_saver_service.dart';
 import '../theme/kora_colors.dart';
 
 /// Reusable circular avatar for Kora — shows an asset image, a cached
