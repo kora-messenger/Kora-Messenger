@@ -1,12 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../theme/kora_colors.dart';
 import 'attachment_sheet.dart';
 import 'voice_recorder.dart';
+import 'voice_preview.dart';
 
 /// Kora's message composer — the bottom input bar.
-/// Has: text input, emoji button, attachment button, voice/send toggle.
-/// When empty: shows mic icon. When text present: shows send icon.
-/// When recording: replaced by VoiceRecorderBar.
+///
+/// States:
+/// - **Idle** → text input + mic button (when empty) or send button (when typing)
+/// - **Recording** → live waveform, timer, delete, send
+/// - **Preview** → play/pause, waveform, duration, delete, send
+///
+/// Mic button requests microphone permission with a clear explanation
+/// before recording. If denied, shows a message explaining how to enable
+/// it from device settings.
 class MessageComposer extends StatefulWidget {
   final Function(String) onSend;
   final Function(String) onSendVoice;
@@ -23,11 +31,14 @@ class MessageComposer extends StatefulWidget {
   State<MessageComposer> createState() => _MessageComposerState();
 }
 
+enum _ComposerState { idle, recording, preview }
+
 class _MessageComposerState extends State<MessageComposer> {
   final _controller = TextEditingController();
   final _focusNode = FocusNode();
   bool _hasText = false;
-  bool _isRecording = false;
+  _ComposerState _state = _ComposerState.idle;
+  String _recordedDuration = '0:00';
 
   @override
   void initState() {
@@ -53,17 +64,135 @@ class _MessageComposerState extends State<MessageComposer> {
     setState(() => _hasText = false);
   }
 
+  // ── Recording flow ──
+
+  Future<void> _onMicTap() async {
+    // Check mic permission
+    final status = await Permission.microphone.status;
+
+    if (status.isGranted) {
+      _startRecording();
+    } else if (status.isDenied || status.isRestricted) {
+      // Show explanation dialog, then request
+      final shouldRequest = await _showPermissionDialog();
+      if (shouldRequest) {
+        final result = await Permission.microphone.request();
+        if (result.isGranted) {
+          _startRecording();
+        } else if (result.isPermanentlyDenied) {
+          if (mounted) _showSettingsPrompt();
+        }
+      }
+    } else if (status.isPermanentlyDenied) {
+      if (mounted) _showSettingsPrompt();
+    }
+  }
+
+  Future<bool> _showPermissionDialog() async {
+    final brightness = Theme.of(context).brightness;
+    return await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: KoraColors.cardFor(brightness),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.mic_rounded, color: KoraColors.purple, size: 24),
+            const SizedBox(width: 8),
+            Text(
+              'Microphone Access',
+              style: TextStyle(
+                color: KoraColors.textPrimaryFor(brightness),
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'Kora needs access to your microphone to record voice notes. '
+          'Your recordings are only shared with the people you message.',
+          style: TextStyle(
+            color: KoraColors.textSecondaryFor(brightness),
+            fontSize: 14,
+            height: 1.5,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(
+              'Not now',
+              style: TextStyle(color: KoraColors.textMutedFor(brightness)),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(
+              backgroundColor: KoraColors.purple,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Allow', style: TextStyle(fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    ) ?? false;
+  }
+
+  void _showSettingsPrompt() {
+    final brightness = Theme.of(context).brightness;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.settings, color: KoraColors.purple, size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Microphone access is blocked. Enable it in Settings to record voice notes.',
+                style: TextStyle(
+                  color: KoraColors.textPrimaryFor(brightness),
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: KoraColors.cardFor(brightness),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 4),
+        action: SnackBarAction(
+          label: 'Settings',
+          textColor: KoraColors.purple,
+          onPressed: () => openAppSettings(),
+        ),
+      ),
+    );
+  }
+
   void _startRecording() {
-    setState(() => _isRecording = true);
+    setState(() => _state = _ComposerState.recording);
   }
 
   void _cancelRecording() {
-    setState(() => _isRecording = false);
+    setState(() => _state = _ComposerState.idle);
   }
 
-  void _sendVoice(String duration) {
-    setState(() => _isRecording = false);
-    widget.onSendVoice(duration);
+  void _stopRecording(String duration) {
+    setState(() {
+      _recordedDuration = duration;
+      _state = _ComposerState.preview;
+    });
+  }
+
+  void _discardPreview() {
+    setState(() => _state = _ComposerState.idle);
+  }
+
+  void _sendVoice() {
+    setState(() => _state = _ComposerState.idle);
+    widget.onSendVoice(_recordedDuration);
   }
 
   void _openAttachments() {
@@ -115,19 +244,36 @@ class _MessageComposerState extends State<MessageComposer> {
     final textMuted = KoraColors.textMutedFor(brightness);
     final border = KoraColors.borderFor(brightness);
 
-    if (_isRecording) {
+    // ── Recording state ──
+    if (_state == _ComposerState.recording) {
       return SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
+          padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
           child: VoiceRecorderBar(
             onCancel: _cancelRecording,
-            onSend: () => _sendVoice('0:05'),
+            onSend: _stopRecording,
           ),
         ),
       );
     }
 
+    // ── Preview state ──
+    if (_state == _ComposerState.preview) {
+      return SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
+          child: VoicePreviewBar(
+            duration: _recordedDuration,
+            onDiscard: _discardPreview,
+            onSend: _sendVoice,
+          ),
+        ),
+      );
+    }
+
+    // ── Idle / typing state ──
     return SafeArea(
       top: false,
       child: Container(
@@ -193,10 +339,10 @@ class _MessageComposerState extends State<MessageComposer> {
               const SizedBox(width: 4),
               // Send or Mic button
               GestureDetector(
-                onTap: _hasText ? _send : _startRecording,
-                onLongPress: _hasText ? null : _startRecording,
+                onTap: _hasText ? _send : _onMicTap,
                 child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
+                  duration: const Duration(milliseconds: 250),
+                  curve: Curves.easeInOut,
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
@@ -207,10 +353,14 @@ class _MessageComposerState extends State<MessageComposer> {
                         ? null
                         : Border.all(color: textMuted.withValues(alpha: 0.3), width: 1),
                   ),
-                  child: Icon(
-                    _hasText ? Icons.send : Icons.mic,
-                    color: _hasText ? Colors.white : textMuted,
-                    size: 22,
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    child: Icon(
+                      _hasText ? Icons.send : Icons.mic_rounded,
+                      key: ValueKey(_hasText),
+                      color: _hasText ? Colors.white : textMuted,
+                      size: 22,
+                    ),
                   ),
                 ),
               ),
@@ -220,5 +370,4 @@ class _MessageComposerState extends State<MessageComposer> {
       ),
     );
   }
-
 }

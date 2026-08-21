@@ -3,6 +3,8 @@ import '../../models/message_model.dart';
 import '../../models/chat_models.dart';
 import '../../theme/kora_colors.dart';
 import '../../theme/chat_theme_provider.dart';
+import 'voice_message_bubble.dart';
+import 'voice_translation_sheet.dart';
 
 /// Kora's message bubble — distinct for sent vs received.
 /// Sent: gradient-tinted purple/blue with white text.
@@ -280,36 +282,14 @@ class MessageBubble extends StatelessWidget {
     Color receivedText,
     Color textSecondary,
   ) {
-    final iconColor = isMe ? Colors.white : KoraColors.purple;
-    final durationColor = isMe ? Colors.white.withValues(alpha: 0.7) : textSecondary;
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(Icons.play_circle_fill, color: iconColor, size: 30),
-        const SizedBox(width: 6),
-        // Waveform placeholder
-        Flexible(
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 120),
-            height: 28,
-            child: CustomPaint(
-              painter: _WaveformPainter(
-                color: isMe ? Colors.white.withValues(alpha: 0.5) : KoraColors.purple.withValues(alpha: 0.4),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 6),
-        Text(
-          message.voiceDuration ?? '0:00',
-          style: TextStyle(
-            color: durationColor,
-            fontSize: 11.5,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
+    return VoiceMessageBubble(
+      message: message,
+      onTranslate: () {
+        showVoiceTranslationSheet(
+          context,
+          voiceDuration: message.voiceDuration ?? '0:05',
+        );
+      },
     );
   }
 
@@ -462,42 +442,3 @@ class MessageBubble extends StatelessWidget {
   }
 }
 
-/// Simple waveform painter for voice messages.
-class _WaveformPainter extends CustomPainter {
-  final Color color;
-  _WaveformPainter({required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
-
-    const barWidth = 2.5;
-    const gap = 3.0;
-    final bars = (size.width / (barWidth + gap)).floor();
-    final center = size.height / 2;
-
-    // Pseudo-random heights for waveform look
-    final heights = [
-      0.3, 0.5, 0.7, 0.9, 0.6, 0.4, 0.8, 0.5, 0.7, 0.3,
-      0.6, 0.9, 0.5, 0.4, 0.7, 0.8, 0.3, 0.5, 0.6, 0.9,
-    ];
-
-    for (int i = 0; i < bars; i++) {
-      final h = heights[i % heights.length] * size.height * 0.8;
-      final x = i * (barWidth + gap);
-      final y = center - h / 2;
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTWH(x.toDouble(), y, barWidth, h),
-          const Radius.circular(1.5),
-        ),
-        paint,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}

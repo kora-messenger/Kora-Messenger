@@ -70,6 +70,10 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
   bool _isBlocked = false;
   Timer? _statusTimer;
 
+  // New-messages indicator (down arrow with count)
+  bool _isAtBottom = true;
+  int _newMessagesCount = 0;
+
   // Inline chat search
   bool _showSearch = false;
   final _searchController = TextEditingController();
@@ -84,6 +88,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
     super.initState();
     _themeProvider.addListener(_onThemeChanged);
     _loadMessages();
+    _scrollController.addListener(_onScrollChanged);
     // Refresh every 500ms to pick up status changes (sent → delivered → read)
     // and mark any newly-arrived incoming messages as viewed while open.
     _statusTimer = Timer.periodic(const Duration(seconds: 2), (_) {
@@ -130,6 +135,20 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
+  void _onScrollChanged() {
+    if (!_scrollController.hasClients) return;
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    final currentScroll = _scrollController.position.pixels;
+    // Consider "at bottom" if within 80px of the end
+    final atBottom = (maxScroll - currentScroll) < 80;
+    if (atBottom != _isAtBottom) {
+      setState(() {
+        _isAtBottom = atBottom;
+        if (atBottom) _newMessagesCount = 0;
+      });
+    }
+  }
+
   void _scrollToBottom() {
     if (_scrollController.hasClients) {
       _scrollController.animateTo(
@@ -138,10 +157,19 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
         curve: Curves.easeOut,
       );
     }
+    setState(() {
+      _isAtBottom = true;
+      _newMessagesCount = 0;
+    });
   }
 
   void _refreshMessages() {
-    _messages = List.from(_messageService.getMessages(widget.chatId));
+    final newMsgs = _messageService.getMessages(widget.chatId);
+    // Count new messages that arrived while the user is scrolled up
+    if (!_isAtBottom && newMsgs.length > _messages.length) {
+      _newMessagesCount += newMsgs.length - _messages.length;
+    }
+    _messages = List.from(newMsgs);
     setState(() {});
     // Do NOT scroll here — this is called by the periodic timer every 500ms.
     // Scrolling here prevents the user from scrolling up to read older messages.
@@ -261,7 +289,10 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
 
   void _sendVoice(String duration) async {
     await _messageService.sendVoiceMessage(widget.chatId, duration);
-    _refreshMessages();
+    setState(() {
+      _messages = List.from(_messageService.getMessages(widget.chatId));
+    });
+    _scrollToBottom();
   }
 
   void _onReact(String messageId, String emoji) async {
@@ -1073,6 +1104,68 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
                                 },
                               ),
                   ),
+                  // ── New-messages indicator ──
+                  // Shows a down-arrow with count when new messages arrive
+                  // while the user has scrolled up to read older messages.
+                  if (!_showSearch && !_isAtBottom && _newMessagesCount > 0)
+                    Positioned(
+                      bottom: 10,
+                      left: 0,
+                      right: 0,
+                      child: Center(
+                        child: GestureDetector(
+                          onTap: _scrollToBottom,
+                          child: AnimatedScale(
+                            scale: 1.0,
+                            duration: const Duration(milliseconds: 200),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: KoraColors.cardFor(Theme.of(context).brightness),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: KoraColors.borderFor(Theme.of(context).brightness),
+                                  width: 0.5,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.15),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      gradient: KoraColors.brandGradient,
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Text(
+                                      '$_newMessagesCount',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Icon(
+                                    Icons.keyboard_arrow_down_rounded,
+                                    color: KoraColors.textSecondaryFor(Theme.of(context).brightness),
+                                    size: 22,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
