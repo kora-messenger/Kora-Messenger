@@ -4,6 +4,7 @@ import '../../theme/chat_theme_provider.dart';
 import 'premium_subscribe_sheet.dart';
 import 'billing_screen.dart';
 import '../../config/subscription_pricing.dart';
+import '../../services/session_manager.dart';
 
 /// App theme picker — 20 colors. Premium only.
 /// Normal users see "This feature isn't available to you" dialog.
@@ -16,15 +17,28 @@ class AppThemeScreen extends StatefulWidget {
 }
 
 class _AppThemeScreenState extends State<AppThemeScreen> {
+  String? _userEmail;
+
   final _provider = ChatThemeProvider.instance;
 
   @override
   void initState() {
     super.initState();
+    _loadEmail();
     _provider.addListener(_onChanged);
   }
 
-  @override
+  
+  Future<void> _loadEmail() async {
+    final session = await SessionManager.instance.loadSession();
+    if (session != null && mounted) {
+      setState(() {
+        _userEmail = session['email']?.toString() ?? '';
+      });
+    }
+  }
+
+@override
   void dispose() {
     _provider.removeListener(_onChanged);
     super.dispose();
@@ -54,7 +68,7 @@ class _AppThemeScreenState extends State<AppThemeScreen> {
     if (result != null && mounted) {
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => BillingScreen(selectedPlan: result)),
+        MaterialPageRoute(builder: (_) => BillingScreen(selectedPlan: result, userEmail: _userEmail ?? '')),
       );
     }
   }

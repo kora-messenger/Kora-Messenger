@@ -28,6 +28,7 @@ import '../settings/default_chat_theme_screen.dart';
 import '../settings/premium_subscribe_sheet.dart';
 import '../settings/billing_screen.dart';
 import '../../config/subscription_pricing.dart';
+import '../services/session_manager.dart';
 
 /// Kora's main conversation screen.
 /// Opens when a user taps any conversation from the Home/Chats list.
@@ -61,6 +62,8 @@ class KoraChatScreen extends StatefulWidget {
 }
 
 class _KoraChatScreenState extends State<KoraChatScreen> {
+  String? _userEmail;
+
   final _scrollController = ScrollController();
   final _messageService = MessageService.instance;
   final _themeProvider = ChatThemeProvider.instance;
@@ -90,6 +93,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
   @override
   void initState() {
     super.initState();
+    _loadEmail();
     _themeProvider.addListener(_onThemeChanged);
     _loadMessages();
     _scrollController.addListener(_onScrollChanged);
@@ -109,7 +113,17 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
     });
   }
 
-  @override
+  
+  Future<void> _loadEmail() async {
+    final session = await SessionManager.instance.loadSession();
+    if (session != null && mounted) {
+      setState(() {
+        _userEmail = session['email']?.toString() ?? '';
+      });
+    }
+  }
+
+@override
   void dispose() {
     _searchController.dispose();
     _statusTimer?.cancel();
@@ -408,7 +422,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
       if (plan != null && mounted) {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => BillingScreen(selectedPlan: plan)),
+          MaterialPageRoute(builder: (_) => BillingScreen(selectedPlan: plan, userEmail: _userEmail ?? '')),
         );
       }
     } else if (message.actionType == 'contact_support') {

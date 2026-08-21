@@ -1,19 +1,24 @@
 import 'package:flutter/material.dart';
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import '../../theme/kora_colors.dart';
 import '../../config/subscription_pricing.dart';
 import '../../services/pricing_service.dart';
+import '../../services/payment_service.dart';
 
 /// Billing / payment method screen.
 ///
 /// Shown when the user taps "Subscribe" from the Premium sheet.
 /// Displays the selected plan summary with the correct regional price
-/// and payment method selection.
+/// and processes real payments via Paystack, Google Pay, or Apple Pay.
 class BillingScreen extends StatefulWidget {
   final SubscriptionPlan selectedPlan;
+  final String userEmail;
 
   const BillingScreen({
     super.key,
     required this.selectedPlan,
+    required this.userEmail,
   });
 
   @override
@@ -24,17 +29,48 @@ class _BillingScreenState extends State<BillingScreen> {
   int _selectedMethod = 0;
   RegionalPrice? _price;
   bool _loadingPrice = true;
+  bool _processing = false;
 
-  static const List<_PaymentMethod> _methods = [
-    _PaymentMethod(icon: Icons.credit_card, name: 'Credit / Debit Card', subtitle: 'Visa, Mastercard, Amex'),
-    _PaymentMethod(icon: Icons.account_balance_wallet_outlined, name: 'Google Pay', subtitle: 'Pay with your Google account'),
-    _PaymentMethod(icon: Icons.phone_android, name: 'Carrier Billing', subtitle: 'Charge to your phone bill'),
-  ];
+  late final List<_PaymentMethod> _methods;
 
   @override
   void initState() {
     super.initState();
+    _methods = _buildPaymentMethods();
     _loadPrice();
+  }
+
+  List<_PaymentMethod> _buildPaymentMethods() {
+    final methods = <_PaymentMethod>[
+      const _PaymentMethod(
+        icon: Icons.credit_card,
+        name: 'Card / Bank / USSD',
+        subtitle: 'Visa, Mastercard, Verve, bank transfer',
+        type: PaymentMethod.paystack,
+      ),
+    ];
+
+    // Show Google Pay only on Android
+    if (!kIsWeb && Platform.isAndroid) {
+      methods.add(const _PaymentMethod(
+        icon: Icons.account_balance_wallet_outlined,
+        name: 'Google Pay',
+        subtitle: 'Pay with your Google account',
+        type: PaymentMethod.googlePay,
+      ));
+    }
+
+    // Show Apple Pay only on iOS
+    if (!kIsWeb && Platform.isIOS) {
+      methods.add(const _PaymentMethod(
+        icon: Icons.apple,
+        name: 'Apple Pay',
+        subtitle: 'Pay with Face ID or Touch ID',
+        type: PaymentMethod.applePay,
+      ));
+    }
+
+    return methods;
   }
 
   Future<void> _loadPrice() async {
@@ -47,36 +83,99 @@ class _BillingScreenState extends State<BillingScreen> {
     }
   }
 
-  void _showComingSoon(String title) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: KoraColors.darkCard,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          title,
-          style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
-        ),
-        content: Text(
-          '$title is coming soon. Stay tuned!',
-          style: const TextStyle(color: Color(0xFFA0A0B8), fontSize: 14),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK', style: TextStyle(color: KoraColors.purple, fontWeight: FontWeight.w600)),
-          ),
-        ],
-      ),
-    );
-  }
-
   String get _planTitle {
     return widget.selectedPlan == SubscriptionPlan.monthly ? 'Monthly' : 'Yearly';
   }
 
   String get _billingPeriod {
     return widget.selectedPlan == SubscriptionPlan.monthly ? 'Billed monthly' : 'Billed yearly';
+  }
+
+  Future<void> _processPayment() async {
+    if (_processing || _price == null) return;
+
+    setState(() => _processing = true);
+
+    final method = _methods[_selectedMethod].type;
+
+    final result = await PaymentService.processPayment(
+      context: context,
+      email: widget.userEmail,
+      plan: widget.selectedPlan,
+      method: method,
+    );
+
+    if (!mounted) return;
+
+    setState(() => _processing = false);
+
+    if (result.success) {
+      // Show success dialog
+      _showResult(
+        title: 'Premium Activated! 🎉',
+        message: result.message,
+        isSuccess: true,
+      );
+    } else {
+      _showResult(
+        title: 'Payment Failed',
+        message: result.message,
+        isSuccess: false,
+      );
+    }
+  }
+
+  void _showResult({
+    required String title,
+    required String message,
+    required bool isSuccess,
+  }) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: KoraColors.darkCard,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(
+              isSuccess ? Icons.check_circle : Icons.error_outline,
+              color: isSuccess ? const Color(0xFF00D67E) : Colors.red,
+              size: 28,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          message,
+          style: const TextStyle(color: Color(0xFFA0A0B8), fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              if (isSuccess) {
+                // Pop back to the previous screen after successful payment
+                Navigator.of(context).popUntil((route) => route.isFirst);
+              }
+            },
+            child: Text(
+              isSuccess ? 'Done' : 'Try Again',
+              style: TextStyle(
+                color: isSuccess ? KoraColors.purple : Colors.red,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -209,7 +308,7 @@ class _BillingScreenState extends State<BillingScreen> {
                 final method = _methods[i];
                 final isSelected = _selectedMethod == i;
                 return GestureDetector(
-                  onTap: () => setState(() => _selectedMethod = i),
+                  onTap: _processing ? null : () => setState(() => _selectedMethod = i),
                   child: Container(
                     margin: const EdgeInsets.only(bottom: 12),
                     padding: const EdgeInsets.all(16),
@@ -276,16 +375,31 @@ class _BillingScreenState extends State<BillingScreen> {
 
               const Spacer(),
 
+              // ── Secure payment note ──
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.lock_outline, color: Color(0xFF6B6B80), size: 14),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Secured by Paystack • 256-bit SSL encryption',
+                      style: TextStyle(
+                        color: const Color(0xFF6B6B80).withValues(alpha: 0.7),
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
               // ── Pay button ──
               SizedBox(
                 width: double.infinity,
                 height: 54,
                 child: GestureDetector(
-                  onTap: _loadingPrice
-                      ? null
-                      : () {
-                          _showComingSoon('Payment');
-                        },
+                  onTap: _loadingPrice || _processing ? null : _processPayment,
                   child: Container(
                     decoration: BoxDecoration(
                       gradient: KoraColors.brandGradient,
@@ -299,7 +413,7 @@ class _BillingScreenState extends State<BillingScreen> {
                       ],
                     ),
                     child: Center(
-                      child: _loadingPrice
+                      child: _loadingPrice || _processing
                           ? const SizedBox(
                               width: 24,
                               height: 24,
@@ -335,5 +449,11 @@ class _PaymentMethod {
   final IconData icon;
   final String name;
   final String subtitle;
-  const _PaymentMethod({required this.icon, required this.name, required this.subtitle});
+  final PaymentMethod type;
+  const _PaymentMethod({
+    required this.icon,
+    required this.name,
+    required this.subtitle,
+    required this.type,
+  });
 }

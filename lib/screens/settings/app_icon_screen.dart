@@ -5,6 +5,7 @@ import 'premium_subscribe_sheet.dart';
 import 'billing_screen.dart';
 import '../../config/subscription_pricing.dart';
 import '../../services/app_icon_switcher.dart';
+import '../../services/session_manager.dart';
 
 /// A single Kora app icon option. Every icon is a real asset image now —
 /// no gradient/letter placeholders. `isPremiumIcon` gates selection;
@@ -54,6 +55,8 @@ class AppIconScreen extends StatefulWidget {
 }
 
 class _AppIconScreenState extends State<AppIconScreen> {
+  String? _userEmail;
+
   final _provider = ChatThemeProvider.instance;
   int _selectedIcon = 0;
   bool _isApplying = false;
@@ -62,11 +65,22 @@ class _AppIconScreenState extends State<AppIconScreen> {
   @override
   void initState() {
     super.initState();
+    _loadEmail();
     _selectedIcon = _provider.appIconIndex;
     _provider.addListener(_onChanged);
   }
 
-  @override
+  
+  Future<void> _loadEmail() async {
+    final session = await SessionManager.instance.loadSession();
+    if (session != null && mounted) {
+      setState(() {
+        _userEmail = session['email']?.toString() ?? '';
+      });
+    }
+  }
+
+@override
   void dispose() {
     _provider.removeListener(_onChanged);
     super.dispose();
@@ -175,7 +189,7 @@ class _AppIconScreenState extends State<AppIconScreen> {
     if (result != null && mounted) {
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => BillingScreen(selectedPlan: result)),
+        MaterialPageRoute(builder: (_) => BillingScreen(selectedPlan: result, userEmail: _userEmail ?? '')),
       );
     }
   }

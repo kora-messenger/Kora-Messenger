@@ -30,6 +30,16 @@ class KoraApi {
   /// Future: 'https://api.koramessenger.com/crash-report' (or your domain)
   static const String crashReportEndpoint = '$baseUrl/koraCrashReport';
 
+  /// Payment endpoint — initialize Paystack transactions.
+  /// Temporary: Base44 backend function.
+  /// Future: 'https://api.koramessenger.com/payment/init' (or your domain)
+  static const String paymentInitEndpoint = '$baseUrl/koraInitPayment';
+
+  /// Payment verification endpoint — verify Paystack transactions.
+  /// Temporary: Base44 backend function.
+  /// Future: 'https://api.koramessenger.com/payment/verify' (or your domain)
+  static const String paymentVerifyEndpoint = '$baseUrl/koraVerifyPayment';
+
   /// Kora AI Server base URL.
   /// Temporary: local dev server for testing.
   /// Future: 'https://ai.koramessenger.com' (or your domain)
