@@ -129,20 +129,27 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
               else
                 const SizedBox(height: 12),
               ...PrivacyVisibility.values.map((v) {
-                return RadioListTile<PrivacyVisibility>(
-                  value: v,
-                  groupValue: current,
-                  activeColor: KoraColors.purple,
+                final isSelected = v == current;
+                return ListTile(
+                  onTap: () {
+                    onSelected(v);
+                    Navigator.pop(context);
+                  },
+                  leading: Icon(
+                    isSelected
+                        ? Icons.radio_button_checked
+                        : Icons.radio_button_unchecked,
+                    color: isSelected ? KoraColors.purple : textSecondary,
+                    size: 22,
+                  ),
                   title: Text(
                     v.label,
-                    style: TextStyle(color: textPrimary, fontSize: 15),
+                    style: TextStyle(
+                      color: textPrimary,
+                      fontSize: 15,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                    ),
                   ),
-                  onChanged: (selected) {
-                    if (selected != null) {
-                      onSelected(selected);
-                      Navigator.pop(context);
-                    }
-                  },
                 );
               }),
               const SizedBox(height: 12),
