@@ -12,12 +12,18 @@ subprojects {
 }
 subprojects {
     project.evaluationDependsOn(":app")
-    afterEvaluate {
-        if (project.hasProperty("android")) {
-            def namespace = project.android.namespace
-            if (namespace == null || namespace.isEmpty()) {
-                project.android.namespace = project.group.toString() + "." + project.name.toString().replace("-", "_").replace(":", "_")
-            }
+}
+// Fix for plugins that don't specify a namespace (required by AGP 8+)
+// Must be in a separate block to avoid afterEvaluate conflicts
+subprojects {
+    plugins.withId("com.android.library") {
+        if (android.namespace == null || android.namespace.isEmpty()) {
+            android.namespace = project.group.toString() + "." + project.name.toString().replace("-", "_").replace(":", "_")
+        }
+    }
+    plugins.withId("com.android.application") {
+        if (android.namespace == null || android.namespace.isEmpty()) {
+            android.namespace = project.group.toString() + "." + project.name.toString().replace("-", "_").replace(":", "_")
         }
     }
 }
