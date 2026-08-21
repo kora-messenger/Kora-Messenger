@@ -21,8 +21,13 @@ class CallTranslationSheet extends StatefulWidget {
     this.isInCall = false,
   });
 
-  static void show(BuildContext context, {bool isInCall = false}) {
-    showModalBottomSheet(
+  /// Shows the translation sheet as a modal bottom sheet ABOVE whatever
+  /// screen called it (e.g. the active CallScreen) without navigating
+  /// away from or rebuilding that screen. Returns the sheet's close
+  /// [Future] so callers (like CallScreen) can know when it's dismissed —
+  /// e.g. to make sure it's closed cleanly if the call ends while open.
+  static Future<void> show(BuildContext context, {bool isInCall = false}) {
+    return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -370,11 +375,18 @@ class _CallTranslationSheetState extends State<CallTranslationSheet> {
 class LiveCaptionsOverlay extends StatefulWidget {
   final String speakerName;
   final double fontSize;
+  /// Stream of incoming captions from the remote peer (via WebRTC data channel).
+  /// Each event is a (text, isFinal) pair.
+  final Stream<(String, bool)>? captionStream;
+  /// Stream of the local user's own captions (for display on their own device).
+  final Stream<(String, bool)>? localCaptionStream;
 
   const LiveCaptionsOverlay({
     super.key,
     required this.speakerName,
     this.fontSize = 14,
+    this.captionStream,
+    this.localCaptionStream,
   });
 
   @override
@@ -386,6 +398,9 @@ class _LiveCaptionsOverlayState extends State<LiveCaptionsOverlay>
   String _originalText = '';
   String _translatedText = '';
   late AnimationController _fadeController;
+  StreamSubscription<(String, bool)>? _remoteSub;
+  StreamSubscription<(String, bool)>? _localSub;
+  Timer? _clearTimer;
 
   @override
   void initState() {
@@ -396,41 +411,71 @@ class _LiveCaptionsOverlayState extends State<LiveCaptionsOverlay>
     );
     _fadeController.forward();
     _showWaitingMessage();
+
+    // Subscribe to remote captions (from the other peer via data channel)
+    if (widget.captionStream != null) {
+      _remoteSub = widget.captionStream!.listen((data) {
+        final (text, isFinal) = data;
+        if (text.isNotEmpty) {
+          _onRemoteCaption(text, isFinal);
+        }
+      });
+    }
+
+    // Subscribe to local captions (the user's own speech, for their reference)
+    if (widget.localCaptionStream != null) {
+      _localSub = widget.localCaptionStream!.listen((data) {
+        final (text, isFinal) = data;
+        if (text.isNotEmpty && mounted) {
+          setState(() => _originalText = text);
+          _resetClearTimer();
+        }
+      });
+    }
   }
 
-  /// Shows a message that real-time captions will appear here
-  /// once the other person speaks. In production, this would
-  /// receive real-time STT data from the WebRTC audio stream and
-  /// translate it via [TranslationService].
   void _showWaitingMessage() {
     if (!mounted) return;
     setState(() {
       _originalText = 'Listening…';
-      _translatedText = 'Real-time captions will appear here when the other person speaks.';
+      _translatedText = '';
     });
   }
 
-  /// Called externally to add a new caption (from real-time STT).
-  /// Translates the text and updates the display.
-  Future<void> addCaption(String text) async {
+  /// Handle incoming remote caption — translate and display.
+  void _onRemoteCaption(String text, bool isFinal) {
     if (!mounted) return;
     setState(() => _originalText = text);
+    _resetClearTimer();
 
-    final result = await TranslationService.instance.translate(
-      text,
-      TranslationService.instance.preferredLanguageCode,
-    );
-    if (mounted) {
-      setState(() {
-        _translatedText = result.translatedText;
+    if (isFinal) {
+      // Translate the final utterance
+      TranslationService.instance
+          .translate(text, TranslationService.instance.preferredLanguageCode)
+          .then((result) {
+        if (mounted) {
+          setState(() => _translatedText = result.translatedText);
+          _fadeController.reset();
+          _fadeController.forward();
+        }
       });
-      _fadeController.reset();
-      _fadeController.forward();
     }
+  }
+
+  /// Auto-clear captions after 5 seconds of silence so the overlay
+  /// doesn't show stale text indefinitely.
+  void _resetClearTimer() {
+    _clearTimer?.cancel();
+    _clearTimer = Timer(const Duration(seconds: 5), () {
+      if (mounted) _showWaitingMessage();
+    });
   }
 
   @override
   void dispose() {
+    _remoteSub?.cancel();
+    _localSub?.cancel();
+    _clearTimer?.cancel();
     _fadeController.dispose();
     super.dispose();
   }

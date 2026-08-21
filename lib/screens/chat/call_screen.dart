@@ -5,7 +5,10 @@ import '../../theme/kora_colors.dart';
 import '../../models/call_log.dart';
 import '../../services/webrtc_call_service.dart';
 import '../../services/call_service.dart';
+import '../../services/call_stt_service.dart';
 import '../../models/chat_models.dart';
+import '../../services/translation_service.dart';
+import 'call_translation_sheet.dart';
 
 /// Real call screen for Kora Messenger.
 ///
@@ -47,7 +50,20 @@ class _CallScreenState extends State<CallScreen> {
   bool _isMuted = false;
   bool _isSpeakerOn = true;
   bool _isCameraOn = true;
+  // Call translation feature — behaves as an overlay/bottom sheet over
+  // this call screen. Opening/closing it never touches WebRTC state,
+  // navigator stack position, or any of the call controls above —
+  // the CallScreen route stays mounted underneath the modal sheet route
+  // the whole time, so the call itself is never affected.
+  bool _translationOn = false;
+  bool _captionsOn = true;
+  bool _translationSheetOpen = false;
   DateTime? _callStartTime;
+
+  // Call translation: STT + data channel caption streams
+  final _sttService = CallSttService.instance;
+  StreamController<(String, bool)>? _remoteCaptionStream;
+  StreamController<(String, bool)>? _localCaptionStream;
   RTCVideoRenderer? _remoteRenderer;
   RTCVideoRenderer? _localRenderer;
 
@@ -161,6 +177,115 @@ class _CallScreenState extends State<CallScreen> {
     setState(() => _isCameraOn = !_isCameraOn);
   }
 
+  /// Toggles the in-call translation feature.
+  ///
+  /// This ONLY opens/closes a [showModalBottomSheet] overlay on top of
+  /// the current call route — it never navigates away from, pops, or
+  /// rebuilds this [CallScreen]. The call (WebRTC connection, mute state,
+  /// camera state, speaker routing, timer) is completely untouched by
+  /// opening or closing the translation sheet.
+  void _toggleTranslation() {
+    setState(() => _translationOn = !_translationOn);
+    if (_translationOn) {
+      _startCallTranslation();
+      _translationSheetOpen = true;
+      CallTranslationSheet.show(context, isInCall: true).then((_) {
+        _translationSheetOpen = false;
+      });
+    } else {
+      _stopCallTranslation();
+    }
+  }
+
+  /// Starts real-time call translation:
+  /// 1. Set up stream controllers for caption overlays
+  /// 2. Wire the WebRTC data channel to receive remote captions
+  /// 3. Start on-device STT to transcribe local speech
+  /// 4. Send local transcripts via the data channel to the remote peer
+  void _startCallTranslation() {
+    // Create caption stream controllers
+    _remoteCaptionStream = StreamController<(String, bool)>.broadcast();
+    _localCaptionStream = StreamController<(String, bool)>.broadcast();
+
+    // Wire incoming remote captions from the data channel
+    _webrtcService.onRemoteCaption = (text, isFinal) {
+      _remoteCaptionStream?.add((text, isFinal));
+    };
+
+    // Configure STT locale based on the user's preferred language
+    final langCode = TranslationService.instance.preferredLanguageCode;
+    _sttService.setLocale(_localeFromCode(langCode));
+
+    // Wire local STT transcripts:
+    // a) Feed to local caption stream (user sees their own speech)
+    // b) Send to remote peer via the data channel
+    _sttService.onTranscript = (text, isFinal) {
+      _localCaptionStream?.add((text, isFinal));
+      _webrtcService.sendCaption(text, isFinal);
+    };
+
+    _sttService.onError = (error) {
+      debugPrint('[CallTranslation] STT error: $error');
+    };
+
+    // Start listening — this runs in parallel with the WebRTC
+    // audio stream and does not interfere with the call audio.
+    _sttService.start();
+  }
+
+  /// Stops call translation: cancels STT, closes stream controllers,
+  /// and disconnects the data channel callback.
+  void _stopCallTranslation() {
+    _sttService.stop();
+    _sttService.onTranscript = null;
+    _sttService.onError = null;
+    _webrtcService.onRemoteCaption = null;
+    _remoteCaptionStream?.close();
+    _remoteCaptionStream = null;
+    _localCaptionStream?.close();
+    _localCaptionStream = null;
+  }
+
+  /// Maps a Kora translation language code to a speech_to_text locale ID.
+  /// Falls back to en-US if no exact match is found.
+  String _localeFromCode(String code) {
+    final mapping = <String, String>{
+      'en': 'en-US',
+      'es': 'es-ES',
+      'fr': 'fr-FR',
+      'de': 'de-DE',
+      'it': 'it-IT',
+      'pt': 'pt-PT',
+      'pt-BR': 'pt-BR',
+      'ru': 'ru-RU',
+      'pl': 'pl-PL',
+      'tr': 'tr-TR',
+      'ar': 'ar-SA',
+      'hi': 'hi-IN',
+      'ja': 'ja-JP',
+      'ko': 'ko-KR',
+      'zh': 'zh-CN',
+      'zh-TW': 'zh-TW',
+      'nl': 'nl-NL',
+      'sv': 'sv-SE',
+      'da': 'da-DK',
+      'fi': 'fi-FI',
+      'no': 'nb-NO',
+      'el': 'el-GR',
+      'cs': 'cs-CZ',
+      'uk': 'uk-UA',
+      'th': 'th-TH',
+      'vi': 'vi-VN',
+      'id': 'id-ID',
+      'ms': 'ms-MY',
+      'sw': 'sw-KE',
+      'he': 'he-IL',
+      'ro': 'ro-RO',
+      'hu': 'hu-HU',
+    };
+    return mapping[code] ?? 'en-US';
+  }
+
   void _endCall() async {
     _timer?.cancel();
 
@@ -179,11 +304,20 @@ class _CallScreenState extends State<CallScreen> {
       durationSeconds: duration,
     );
 
-    if (mounted) Navigator.pop(context);
+    // Stop call translation (STT + data channel) before ending
+    _stopCallTranslation();
+
+    if (mounted) {
+      if (_translationSheetOpen && Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+      Navigator.pop(context);
+    }
   }
 
   @override
   void dispose() {
+    _stopCallTranslation();
     _timer?.cancel();
     _remoteRenderer?.dispose();
     _localRenderer?.dispose();
@@ -195,9 +329,84 @@ class _CallScreenState extends State<CallScreen> {
     return Scaffold(
       backgroundColor: KoraColors.darkSurface,
       body: SafeArea(
-        child: widget.isVideoCall && _remoteRenderer != null
-            ? _buildVideoCallView()
-            : _buildVoiceCallView(),
+        // The base call view (voice or video) is always the bottom layer
+        // of this Stack and is NEVER rebuilt, replaced, or unmounted when
+        // translation opens/closes — only the overlay on top changes.
+        // StackFit.expand keeps it filling the screen exactly like before
+        // (needed for the Spacer widgets inside _buildVoiceCallView).
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            widget.isVideoCall && _remoteRenderer != null
+                ? _buildVideoCallView()
+                : _buildVoiceCallView(),
+            if (_translationOn) _buildTranslationOverlay(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Floating translation indicator + live captions, rendered above the
+  /// call view but below the control row. Purely additive — sits on top
+  /// of the existing call UI as an overlay, never replacing it.
+  Widget _buildTranslationOverlay() {
+    return Positioned(
+      left: 0,
+      right: 0,
+      bottom: widget.isVideoCall ? 150 : 170,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Kora Translate indicator pill
+          Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: KoraColors.purple.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: KoraColors.purple.withValues(alpha: 0.4),
+                  width: 0.5,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.language_rounded, size: 14, color: KoraColors.purple),
+                  const SizedBox(width: 6),
+                  const Text(
+                    'Kora Translate • ON',
+                    style: TextStyle(
+                      color: KoraColors.purple,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () => setState(() => _captionsOn = !_captionsOn),
+                    child: Icon(
+                      _captionsOn ? Icons.closed_caption_rounded : Icons.closed_caption_outlined,
+                      size: 16,
+                      color: KoraColors.purple.withValues(alpha: 0.7),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (_captionsOn) ...[
+            const SizedBox(height: 8),
+            LiveCaptionsOverlay(
+              speakerName: widget.contactName,
+              fontSize: TranslationService.instance.captionSize,
+              captionStream: _remoteCaptionStream?.stream,
+              localCaptionStream: _localCaptionStream?.stream,
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -416,6 +625,15 @@ class _CallScreenState extends State<CallScreen> {
             isActive: false,
             onTap: () => _webrtcService.switchCamera(),
           ),
+
+        // Translate — opens/closes a bottom-sheet overlay above this
+        // same call screen. Never navigates away, never ends the call.
+        _buildControlButton(
+          icon: Icons.translate_rounded,
+          label: 'Translate',
+          isActive: _translationOn,
+          onTap: _toggleTranslation,
+        ),
 
         // End call
         GestureDetector(

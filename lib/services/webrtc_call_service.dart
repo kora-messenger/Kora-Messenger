@@ -24,10 +24,16 @@ class WebRTCCallService {
   RTCPeerConnection? _peerConnection;
   MediaStream? _localStream;
   MediaStream? _remoteStream;
+  RTCDataChannel? _captionChannel;
 
   String? _currentCallId;
   bool _isInitiator = false;
   Timer? _pollTimer;
+
+  /// Called when a caption message is received from the remote peer
+  /// via the data channel. The message is a JSON string containing
+  /// the recognized speech text and whether it's a final result.
+  void Function(String text, bool isFinal)? onRemoteCaption;
 
   // STUN/TURN servers for NAT traversal
   final Map<String, dynamic> _iceServers = {
@@ -144,6 +150,25 @@ class WebRTCCallService {
   /// Create the RTCPeerConnection and set up event handlers.
   Future<void> _createPeerConnection() async {
     _peerConnection = await createPeerConnection(_iceServers);
+
+    // Create a data channel for sending/receiving live captions
+    // during call translation. The initiator creates the channel;
+    // the callee receives it via onDataChannel.
+    if (_isInitiator) {
+      _captionChannel = await _peerConnection!.createDataChannel(
+        'captions',
+        RTCDataChannelInit()..ordered = true,
+      );
+      _setupCaptionChannel();
+    }
+
+    // Callee receives the data channel from the initiator
+    _peerConnection!.onDataChannel = (channel) {
+      if (channel.label == 'captions') {
+        _captionChannel = channel;
+        _setupCaptionChannel();
+      }
+    };
 
     // Add local tracks
     if (_localStream != null) {
@@ -277,6 +302,9 @@ class WebRTCCallService {
     _pollTimer?.cancel();
     _pollTimer = null;
 
+    _captionChannel?.close();
+    _captionChannel = null;
+
     if (_localStream != null) {
       for (final track in _localStream!.getTracks()) {
         track.stop();
@@ -318,6 +346,39 @@ class WebRTCCallService {
       if (videoTrack != null) {
         await Helper.switchCamera(videoTrack);
       }
+    }
+  }
+
+  /// Set up the data channel message handler for incoming captions.
+  void _setupCaptionChannel() {
+    _captionChannel?.onMessage = (RTCDataChannelMessage message) {
+      try {
+        final data = jsonDecode(message.text) as Map<String, dynamic>;
+        final text = data['text'] as String? ?? '';
+        final isFinal = data['isFinal'] as bool? ?? false;
+        if (text.isNotEmpty) {
+          onRemoteCaption?.call(text, isFinal);
+        }
+      } catch (e) {
+        debugPrint('[WebRTC] Caption parse error: $e');
+      }
+    };
+
+    _captionChannel?.onDataChannelState = (state) {
+      debugPrint('[WebRTC] Caption channel state: $state');
+    };
+  }
+
+  /// Send a caption (transcribed speech) to the remote peer via the
+  /// data channel. Called by the call screen when the local user's
+  /// speech is transcribed by [CallSttService].
+  Future<void> sendCaption(String text, bool isFinal) async {
+    if (_captionChannel == null) return;
+    try {
+      final msg = jsonEncode({'text': text, 'isFinal': isFinal});
+      await _captionChannel!.send(RTCDataChannelMessage(msg));
+    } catch (e) {
+      debugPrint('[WebRTC] Send caption error: $e');
     }
   }
 
