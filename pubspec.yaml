@@ -67,5 +67,5 @@ flutter:
     - assets/wallpapers/kora_default_doodle_milk.png
 
 dependency_overrides:
-  # Fix record_linux incompatibility with record_platform_interface 1.6.0
-  record_linux: ^0.7.3
+  # Fix record_linux 0.7.2 incompatibility with record_platform_interface 1.6.0
+  record_platform_interface: 1.5.0
