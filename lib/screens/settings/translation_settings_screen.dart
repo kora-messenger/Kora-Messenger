@@ -574,7 +574,7 @@ class _TranslationSettingsScreenState extends State<TranslationSettingsScreen> {
                   min: 10,
                   max: 24,
                   divisions: 14,
-                  activeThumbColor: KoraColors.purple,
+                  thumbColor: KoraColors.purple,
                   onChanged: onChanged,
                   label: '${value.round()}',
                 ),
