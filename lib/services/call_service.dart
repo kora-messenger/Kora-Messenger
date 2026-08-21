@@ -5,8 +5,9 @@ import '../models/chat_models.dart';
 
 /// Manages call history with local persistence (SharedPreferences).
 ///
-/// Calls are logged when a user makes or receives a voice/video call.
-/// The Calls tab on the Home screen reads from this service.
+/// Calls are logged when a user makes or receives a voice/video call
+/// through the [WebRTCCallService]. The Calls tab on the Home screen
+/// reads from this service.
 class CallService {
   static final CallService instance = CallService._();
   CallService._();
@@ -52,6 +53,63 @@ class CallService {
     await _persist();
   }
 
+  /// Log an outgoing call.
+  Future<void> logOutgoingCall({
+    required String contactName,
+    CallType type = CallType.voice,
+    String? avatarUrl,
+    KoraBadgeType? badge,
+    int? durationSeconds,
+  }) async {
+    await addLog(CallLog(
+      id: 'call_${DateTime.now().millisecondsSinceEpoch}',
+      contactName: contactName,
+      avatarUrl: avatarUrl,
+      badge: badge,
+      type: type,
+      status: CallStatus.outgoing,
+      timestamp: DateTime.now(),
+      durationSeconds: durationSeconds,
+    ));
+  }
+
+  /// Log an incoming call.
+  Future<void> logIncomingCall({
+    required String contactName,
+    CallType type = CallType.voice,
+    String? avatarUrl,
+    KoraBadgeType? badge,
+    int? durationSeconds,
+    bool missed = false,
+  }) async {
+    await addLog(CallLog(
+      id: 'call_${DateTime.now().millisecondsSinceEpoch}',
+      contactName: contactName,
+      avatarUrl: avatarUrl,
+      badge: badge,
+      type: type,
+      status: missed ? CallStatus.missed : CallStatus.incoming,
+      timestamp: DateTime.now(),
+      durationSeconds: durationSeconds,
+    ));
+  }
+
+  /// Log a missed call.
+  Future<void> logMissedCall({
+    required String contactName,
+    CallType type = CallType.voice,
+    String? avatarUrl,
+    KoraBadgeType? badge,
+  }) async {
+    await logIncomingCall(
+      contactName: contactName,
+      type: type,
+      avatarUrl: avatarUrl,
+      badge: badge,
+      missed: true,
+    );
+  }
+
   Future<void> clearAll() async {
     _logs.clear();
     await _persist();
@@ -65,7 +123,6 @@ class CallService {
       CallLog(
         id: 'call_1',
         contactName: 'David Okoro',
-        avatarAsset: null,
         avatarUrl: null,
         badge: KoraBadgeType.premiumBlue,
         type: CallType.video,
@@ -87,30 +144,6 @@ class CallService {
         status: CallStatus.incoming,
         timestamp: now.subtract(const Duration(hours: 5)),
         durationSeconds: 92,
-      ),
-      CallLog(
-        id: 'call_4',
-        contactName: 'Kola Adekunle',
-        badge: KoraBadgeType.premiumBlue,
-        type: CallType.video,
-        status: CallStatus.outgoing,
-        timestamp: now.subtract(const Duration(hours: 8)),
-        durationSeconds: 305,
-      ),
-      CallLog(
-        id: 'call_5',
-        contactName: 'Emeka Nwosu',
-        type: CallType.voice,
-        status: CallStatus.missed,
-        timestamp: now.subtract(const Duration(days: 1, hours: 3)),
-      ),
-      CallLog(
-        id: 'call_6',
-        contactName: 'Fatima Bello',
-        type: CallType.video,
-        status: CallStatus.incoming,
-        timestamp: now.subtract(const Duration(days: 2)),
-        durationSeconds: 67,
       ),
     ];
   }

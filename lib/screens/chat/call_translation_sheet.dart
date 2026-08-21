@@ -387,8 +387,6 @@ class _LiveCaptionsOverlayState extends State<LiveCaptionsOverlay>
   String _translatedText = '';
   late AnimationController _fadeController;
 
-  int _captionIndex = 0;
-
   @override
   void initState() {
     super.initState();

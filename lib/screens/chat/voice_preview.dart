@@ -1,22 +1,23 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../theme/kora_colors.dart';
 import '../../widgets/kora_waveform.dart';
+import '../../services/audio_playback_service.dart';
 
-/// Voice note preview — shown after recording stops, before sending.
+/// Kora's voice preview bar — shown after recording, before sending.
 ///
-/// Lets the user listen to the recording, see the waveform with playback
-/// progress, check the duration, delete (discard), or send it.
-///
-/// Since real audio isn't connected yet, playback is simulated with a
-/// timer that advances the waveform progress bar.
+/// Uses [AudioPlaybackService] to play the actual recorded audio file
+/// with real position/duration streams for the waveform progress.
 class VoicePreviewBar extends StatefulWidget {
   final String duration;
+  final String? filePath;
   final VoidCallback onDiscard;
   final VoidCallback onSend;
 
   const VoicePreviewBar({
     super.key,
     required this.duration,
+    this.filePath,
     required this.onDiscard,
     required this.onSend,
   });
@@ -27,49 +28,51 @@ class VoicePreviewBar extends StatefulWidget {
 
 class _VoicePreviewBarState extends State<VoicePreviewBar>
     with TickerProviderStateMixin {
+  final _playbackService = AudioPlaybackService.instance;
+
   bool _isPlaying = false;
   double _progress = 0.0;
   late AnimationController _slideController;
+  StreamSubscription? _positionSub;
+  StreamSubscription? _stateSub;
+  Duration? _audioDuration;
+
   @override
   void initState() {
     super.initState();
     _slideController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),
-    )..forward();
+    );
+    _slideController.forward();
+
+    // Listen to position updates for waveform progress
+    _positionSub = _playbackService.positionStream.listen((pos) {
+      if (_audioDuration != null && _audioDuration!.inMilliseconds > 0 && mounted) {
+        setState(() {
+          _progress = pos.inMilliseconds / _audioDuration!.inMilliseconds;
+        });
+      }
+    });
+
+    // Listen to playback state changes
+    _stateSub = _playbackService.playerStateStream.listen((state) {
+      if (state.processingState == ProcessingState.completed && mounted) {
+        setState(() {
+          _isPlaying = false;
+          _progress = 0.0;
+        });
+      }
+    });
   }
 
   @override
   void dispose() {
+    _positionSub?.cancel();
+    _stateSub?.cancel();
+    if (_isPlaying) _playbackService.stop();
     _slideController.dispose();
     super.dispose();
-  }
-
-  void _togglePlay() {
-    setState(() => _isPlaying = !_isPlaying);
-    if (_isPlaying) {
-      _simulatePlayback();
-    }
-  }
-
-  void _simulatePlayback() {
-    if (_progress >= 1.0) _progress = 0.0;
-    const stepMs = 80;
-    final totalSecs = _parseDuration(widget.duration);
-    final step = stepMs / 1000.0 / totalSecs;
-
-    Future.doWhile(() async {
-      await Future.delayed(const Duration(milliseconds: stepMs));
-      if (!mounted || !_isPlaying) return false;
-      setState(() {
-        _progress += step;
-        if (_progress >= 1.0) {
-          _progress = 1.0;
-          _isPlaying = false;
-        }
-      });
-      return _isPlaying;
-    });
   }
 
   int _parseDuration(String d) {
@@ -88,140 +91,153 @@ class _VoicePreviewBarState extends State<VoicePreviewBar>
     return '$m:$s';
   }
 
+  void _togglePlay() async {
+    if (widget.filePath == null) {
+      // Fallback to simulation if no file
+      setState(() => _isPlaying = !_isPlaying);
+      if (_isPlaying) _simulatePlayback();
+      return;
+    }
+
+    if (_isPlaying) {
+      await _playbackService.pause();
+      setState(() => _isPlaying = false);
+    } else {
+      await _playbackService.play(widget.filePath!);
+      _audioDuration = _playbackService.duration;
+      setState(() => _isPlaying = true);
+    }
+  }
+
+  void _simulatePlayback() {
+    if (_progress >= 1.0) _progress = 0.0;
+    final totalSecs = _parseDuration(widget.duration);
+    const stepMs = 80;
+    final step = stepMs / 1000.0 / totalSecs;
+
+    Future.doWhile(() async {
+      await Future.delayed(const Duration(milliseconds: stepMs));
+      if (!mounted || !_isPlaying) return false;
+      setState(() {
+        _progress += step;
+        if (_progress >= 1.0) {
+          _progress = 1.0;
+          _isPlaying = false;
+        }
+      });
+      return _isPlaying;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final brightness = Theme.of(context).brightness;
-    final textPrimary = KoraColors.textPrimaryFor(brightness);
-    final textMuted = KoraColors.textMutedFor(brightness);
+    final surface = KoraColors.cardFor(brightness);
+    final border = KoraColors.borderFor(brightness);
+    final textSecondary = KoraColors.textSecondaryFor(brightness);
 
     return SlideTransition(
       position: Tween<Offset>(
-        begin: const Offset(0, 0.3),
+        begin: const Offset(0, 1),
         end: Offset.zero,
-      ).animate(CurvedAnimation(parent: _slideController, curve: Curves.easeOut)),
-      child: FadeTransition(
-        opacity: Tween(begin: 0.0, end: 1.0).animate(
-          CurvedAnimation(parent: _slideController, curve: Curves.easeOut),
+      ).animate(_slideController),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: surface,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: border, width: 0.5),
         ),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          decoration: BoxDecoration(
-            color: KoraColors.cardFor(brightness),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Row(
-            children: [
-              // ── Play / Pause ──
-              GestureDetector(
-                onTap: _togglePlay,
-                child: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    gradient: KoraColors.brandGradient,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: KoraColors.purple.withValues(alpha: 0.3),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Icon(
-                    _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                    color: Colors.white,
-                    size: 26,
-                  ),
+        child: Row(
+          children: [
+            // ── Delete ──
+            GestureDetector(
+              onTap: widget.onDiscard,
+              child: Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: KoraColors.red.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.delete_outline_rounded,
+                  color: KoraColors.red,
+                  size: 22,
                 ),
               ),
-              const SizedBox(width: 12),
-              // ── Waveform + duration ──
-              Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    KoraWaveform(
+            ),
+            const SizedBox(width: 12),
+            // ── Play/Pause ──
+            GestureDetector(
+              onTap: _togglePlay,
+              child: Container(
+                width: 44,
+                height: 44,
+                decoration: const BoxDecoration(
+                  gradient: KoraColors.brandGradient,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            // ── Waveform + duration ──
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    height: 30,
+                    child: KoraWaveform(
                       isLive: false,
                       progress: _progress,
-                      barCount: 44,
-                      height: 28,
+                      barCount: 40,
+                      height: 30,
                       barWidth: 2.5,
                       barGap: 2.5,
                       playedColor: KoraColors.purple,
                       unplayedColor: KoraColors.purple.withValues(alpha: 0.2),
                     ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Text(
-                          _elapsedString,
-                          style: TextStyle(
-                            color: textMuted,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            fontFeatures: const [FontFeature.tabularFigures()],
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          '· ${widget.duration}',
-                          style: TextStyle(
-                            color: textMuted.withValues(alpha: 0.6),
-                            fontSize: 11,
-                          ),
-                        ),
-                      ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _isPlaying
+                        ? '$_elapsedString / ${widget.duration}'
+                        : widget.duration,
+                    style: TextStyle(
+                      color: textSecondary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      fontFeatures: const [FontFeature.tabularFigures()],
                     ),
-                  ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            // ── Send ──
+            GestureDetector(
+              onTap: widget.onSend,
+              child: Container(
+                width: 44,
+                height: 44,
+                decoration: const BoxDecoration(
+                  gradient: KoraColors.brandGradient,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.send_rounded,
+                  color: Colors.white,
+                  size: 20,
                 ),
               ),
-              const SizedBox(width: 10),
-              // ── Discard ──
-              GestureDetector(
-                onTap: widget.onDiscard,
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: KoraColors.red.withValues(alpha: 0.12),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.delete_outline_rounded,
-                    color: KoraColors.red,
-                    size: 20,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              // ── Send ──
-              GestureDetector(
-                onTap: widget.onSend,
-                child: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: const BoxDecoration(
-                    gradient: KoraColors.brandGradient,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Color(0x558B5CF6),
-                        blurRadius: 10,
-                        offset: Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.send_rounded,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

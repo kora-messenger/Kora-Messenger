@@ -25,6 +25,8 @@ class KoraMessage {
   final String? replyToName;
   final String? reaction; // emoji reaction (single for now)
   final String? voiceDuration; // "0:12" etc, for voice messages
+  final String? voiceFilePath; // local file path for real audio playback
+  final String? voiceTranscript; // on-device STT transcript
   final String? attachmentName; // for file messages
 
   /// For [KoraMessageType.action] messages — the button label
@@ -69,6 +71,8 @@ class KoraMessage {
     this.replyToName,
     this.reaction,
     this.voiceDuration,
+    this.voiceFilePath,
+    this.voiceTranscript,
     this.attachmentName,
     this.actionLabel,
     this.actionType,
@@ -112,6 +116,8 @@ class KoraMessage {
       replyToName: replyToName ?? this.replyToName,
       reaction: reaction ?? this.reaction,
       voiceDuration: voiceDuration ?? this.voiceDuration,
+      voiceFilePath: voiceFilePath ?? this.voiceFilePath,
+      voiceTranscript: voiceTranscript ?? this.voiceTranscript,
       attachmentName: attachmentName ?? this.attachmentName,
       actionLabel: actionLabel ?? this.actionLabel,
       actionType: actionType ?? this.actionType,
@@ -136,6 +142,8 @@ class KoraMessage {
     'replyToName': replyToName,
     'reaction': reaction,
     'voiceDuration': voiceDuration,
+    'voiceFilePath': voiceFilePath,
+    'voiceTranscript': voiceTranscript,
     'attachmentName': attachmentName,
     'actionLabel': actionLabel,
     'actionType': actionType,
@@ -165,6 +173,8 @@ class KoraMessage {
     replyToName: j['replyToName'] as String?,
     reaction: j['reaction'] as String?,
     voiceDuration: j['voiceDuration'] as String?,
+    voiceFilePath: j['voiceFilePath'] as String?,
+    voiceTranscript: j['voiceTranscript'] as String?,
     attachmentName: j['attachmentName'] as String?,
     actionLabel: j['actionLabel'] as String?,
     actionType: j['actionType'] as String?,

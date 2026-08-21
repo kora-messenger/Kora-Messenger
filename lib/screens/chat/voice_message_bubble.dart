@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../models/message_model.dart';
 import '../../models/chat_models.dart';
 import '../../theme/kora_colors.dart';
 import '../../widgets/kora_waveform.dart';
 import 'voice_translation_sheet.dart';
+import '../../services/audio_playback_service.dart';
 
 /// Kora's voice message bubble — used inside MessageBubble for voice messages.
 ///
@@ -14,12 +16,9 @@ import 'voice_translation_sheet.dart';
 /// the play button is replaced with a download/sync arrow icon, the waveform
 /// is dimmed, and a subtle "Waiting for network" indicator is shown.
 ///
-/// Playback is simulated (no real audio yet) — a timer advances the
-/// waveform progress. The structure is ready for real audio integration.
+/// Uses [AudioPlaybackService] for real audio playback via `just_audio`.
 class VoiceMessageBubble extends StatefulWidget {
   final KoraMessage message;
-
-  /// Opens the transcription / translation bottom sheet.
   final VoidCallback? onTranslate;
 
   const VoiceMessageBubble({
@@ -36,9 +35,12 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
     with SingleTickerProviderStateMixin {
   bool _isPlaying = false;
   double _progress = 0.0;
-
-  /// Sync arrow rotation animation — spins while uploading.
   late AnimationController _syncSpinController;
+
+  final _playbackService = AudioPlaybackService.instance;
+  StreamSubscription? _positionSub;
+  StreamSubscription? _stateSub;
+  Duration? _audioDuration;
 
   @override
   void initState() {
@@ -47,10 +49,30 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
       vsync: this,
       duration: const Duration(milliseconds: 1200),
     );
+
+    _positionSub = _playbackService.positionStream.listen((pos) {
+      if (_audioDuration != null && _audioDuration!.inMilliseconds > 0 && mounted) {
+        setState(() {
+          _progress = pos.inMilliseconds / _audioDuration!.inMilliseconds;
+        });
+      }
+    });
+
+    _stateSub = _playbackService.playerStateStream.listen((state) {
+      if (state.processingState == ProcessingState.completed && mounted) {
+        setState(() {
+          _isPlaying = false;
+          _progress = 0.0;
+        });
+      }
+    });
   }
 
   @override
   void dispose() {
+    _positionSub?.cancel();
+    _stateSub?.cancel();
+    if (_isPlaying) _playbackService.stop();
     _syncSpinController.dispose();
     super.dispose();
   }
@@ -58,10 +80,25 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
   bool get _isPendingOffline =>
       widget.message.status == MessageStatus.pendingOffline;
 
-  void _togglePlay() {
-    if (_isPendingOffline) return; // No playback while pending
-    setState(() => _isPlaying = !_isPlaying);
-    if (_isPlaying) _simulatePlayback();
+  void _togglePlay() async {
+    if (_isPendingOffline) return;
+
+    final path = widget.message.voiceFilePath;
+    if (path == null) {
+      // Fallback: simulate playback for demo/incoming messages without a file
+      setState(() => _isPlaying = !_isPlaying);
+      if (_isPlaying) _simulatePlayback();
+      return;
+    }
+
+    if (_isPlaying) {
+      await _playbackService.pause();
+      setState(() => _isPlaying = false);
+    } else {
+      await _playbackService.play(path);
+      _audioDuration = _playbackService.duration;
+      setState(() => _isPlaying = true);
+    }
   }
 
   void _simulatePlayback() {
@@ -108,7 +145,6 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
     final brightness = Theme.of(context).brightness;
     final textSecondary = KoraColors.textSecondaryFor(brightness);
 
-    // If the voice note is pending offline upload, show the sync state
     if (_isPendingOffline) {
       return _buildPendingOfflineView(isMe, brightness);
     }
@@ -127,7 +163,6 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // ── Play / Pause ──
             GestureDetector(
               onTap: _togglePlay,
               child: Container(
@@ -146,7 +181,6 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
               ),
             ),
             const SizedBox(width: 8),
-            // ── Waveform ──
             Flexible(
               child: SizedBox(
                 width: 140,
@@ -164,7 +198,6 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
               ),
             ),
             const SizedBox(width: 8),
-            // ── Duration ──
             Text(
               _isPlaying ? '$_elapsedString / $_totalDuration' : _totalDuration,
               style: TextStyle(
@@ -177,7 +210,6 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
           ],
         ),
         const SizedBox(height: 6),
-        // ── Transcribe + Translate Voice actions ──
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -187,6 +219,8 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
                   context,
                   voiceDuration: widget.message.voiceDuration ?? '0:05',
                   autoTranslate: false,
+                  voiceId: widget.message.id,
+                  transcript: widget.message.voiceTranscript,
                 );
               },
               child: Row(
@@ -216,6 +250,8 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
                   context,
                   voiceDuration: widget.message.voiceDuration ?? '0:05',
                   autoTranslate: true,
+                  voiceId: widget.message.id,
+                  transcript: widget.message.voiceTranscript,
                 );
               },
               child: Row(
@@ -244,9 +280,6 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
     );
   }
 
-  /// Builds the pending offline view — shows a sync/download arrow
-  /// instead of the play button, with a dimmed waveform and a
-  /// "Waiting for network" indicator.
   Widget _buildPendingOfflineView(bool isMe, Brightness brightness) {
     final textSecondary = KoraColors.textSecondaryFor(brightness);
     final textMuted = KoraColors.textMutedFor(brightness);
@@ -265,7 +298,6 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // ── Sync / Download arrow (replaces play button) ──
             Container(
               width: 36,
               height: 36,
@@ -282,7 +314,6 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
               ),
             ),
             const SizedBox(width: 8),
-            // ── Dimmed waveform ──
             Flexible(
               child: SizedBox(
                 width: 140,
@@ -300,9 +331,8 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
               ),
             ),
             const SizedBox(width: 8),
-            // ── Duration ──
             Text(
-              _totalDuration,
+              widget.message.voiceDuration ?? '0:05',
               style: TextStyle(
                 color: durationColor,
                 fontSize: 11.5,
@@ -313,23 +343,24 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
           ],
         ),
         const SizedBox(height: 6),
-        // ── "Waiting for network" indicator ──
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.cloud_off_rounded,
-              size: 12,
-              color: labelColor,
+            SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(
+                strokeWidth: 1.5,
+                valueColor: AlwaysStoppedAnimation<Color>(iconColor),
+              ),
             ),
-            const SizedBox(width: 4),
+            const SizedBox(width: 6),
             Text(
-              'Waiting for network',
+              'Waiting for network…',
               style: TextStyle(
                 color: labelColor,
-                fontSize: 10.5,
+                fontSize: 11,
                 fontWeight: FontWeight.w500,
-                fontStyle: FontStyle.italic,
               ),
             ),
           ],

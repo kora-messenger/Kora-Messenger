@@ -4,40 +4,27 @@ import 'package:flutter/material.dart';
 /// Kora's reusable waveform visualization.
 ///
 /// Two modes:
-/// 1. **Live** — animated random bars that simulate mic input while recording.
+/// 1. **Live** — animated bars that simulate mic input while recording,
+///    or display real amplitude data if [liveAmplitudes] is provided.
 /// 2. **Playback** — static bars where a `progress` value (0–1) determines
 ///    which bars are "played" (brighter) vs "unplayed" (dimmer).
 ///
 /// The waveform uses Kora's purple-to-blue identity for the played portion
 /// and a muted translucent fill for the unplayed portion.
 class KoraWaveform extends StatefulWidget {
-  /// Number of bars to render.
   final int barCount;
-
-  /// If true, bars animate to simulate live microphone input.
   final bool isLive;
-
-  /// Playback progress 0.0 – 1.0. Only meaningful when [isLive] is false.
   final double progress;
-
-  /// Color of the played (progress) portion. Defaults to white at 90% opacity.
   final Color? playedColor;
-
-  /// Color of the unplayed portion.
   final Color? unplayedColor;
-
-  /// Accent gradient colors for the played portion (Kora purple → blue).
-  /// If provided, played bars use a gradient instead of a flat color.
   final List<Color>? gradientColors;
-
-  /// Bar width in px.
   final double barWidth;
-
-  /// Gap between bars in px.
   final double barGap;
-
-  /// Height of the waveform. If null, fills parent.
   final double? height;
+
+  /// Real amplitude data (0.0–1.0) from the microphone.
+  /// When provided in live mode, bars use these values instead of random.
+  final List<double>? liveAmplitudes;
 
   const KoraWaveform({
     super.key,
@@ -50,6 +37,7 @@ class KoraWaveform extends StatefulWidget {
     this.barWidth = 2.5,
     this.barGap = 3.0,
     this.height,
+    this.liveAmplitudes,
   });
 
   @override
@@ -70,15 +58,15 @@ class _KoraWaveformState extends State<KoraWaveform>
       vsync: this,
       duration: const Duration(milliseconds: 120),
     );
-    if (widget.isLive) _animController.repeat();
+    if (widget.isLive && widget.liveAmplitudes == null) _animController.repeat();
   }
 
   @override
   void didUpdateWidget(KoraWaveform oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.isLive && !_animController.isAnimating) {
+    if (widget.isLive && widget.liveAmplitudes == null && !_animController.isAnimating) {
       _animController.repeat();
-    } else if (!widget.isLive && _animController.isAnimating) {
+    } else if ((!widget.isLive || widget.liveAmplitudes != null) && _animController.isAnimating) {
       _animController.stop();
     }
   }
@@ -95,26 +83,51 @@ class _KoraWaveformState extends State<KoraWaveform>
     return SizedBox(
       height: h,
       width: double.infinity,
-      child: AnimatedBuilder(
-        animation: _animController,
-        builder: (context, _) {
-          return CustomPaint(
-            painter: _KoraWaveformPainter(
-              barHeights: _barHeights,
-              isLive: widget.isLive,
-              progress: widget.progress,
-              playedColor: widget.playedColor,
-              unplayedColor: widget.unplayedColor,
-              gradientColors: widget.gradientColors,
-              barWidth: widget.barWidth,
-              barGap: widget.barGap,
-              animValue: _animController.value,
-              rng: _rng,
+      child: widget.liveAmplitudes != null
+          ? CustomPaint(
+              painter: _KoraWaveformPainter(
+                barHeights: _buildHeightsFromAmplitudes(),
+                isLive: false,
+                progress: 0,
+                playedColor: widget.playedColor,
+                unplayedColor: widget.playedColor?.withValues(alpha: 0.3),
+                gradientColors: widget.gradientColors,
+                barWidth: widget.barWidth,
+                barGap: widget.barGap,
+                animValue: 0,
+                rng: _rng,
+              ),
+            )
+          : AnimatedBuilder(
+              animation: _animController,
+              builder: (context, _) {
+                return CustomPaint(
+                  painter: _KoraWaveformPainter(
+                    barHeights: _barHeights,
+                    isLive: widget.isLive,
+                    progress: widget.progress,
+                    playedColor: widget.playedColor,
+                    unplayedColor: widget.unplayedColor,
+                    gradientColors: widget.gradientColors,
+                    barWidth: widget.barWidth,
+                    barGap: widget.barGap,
+                    animValue: _animController.value,
+                    rng: _rng,
+                  ),
+                );
+              },
             ),
-          );
-        },
-      ),
     );
+  }
+
+  List<double> _buildHeightsFromAmplitudes() {
+    final amps = widget.liveAmplitudes!;
+    final count = widget.barCount;
+    final result = List<double>.filled(count, 0.2);
+    for (int i = 0; i < count && i < amps.length; i++) {
+      result[i] = amps[amps.length - count + i].clamp(0.1, 1.0);
+    }
+    return result;
   }
 }
 
@@ -155,7 +168,6 @@ class _KoraWaveformPainter extends CustomPainter {
       double heightFraction;
 
       if (isLive) {
-        // Simulate live mic input — randomize heights each frame
         heightFraction = 0.15 + rng.nextDouble() * 0.85;
       } else {
         heightFraction = barHeights[i];
@@ -169,7 +181,6 @@ class _KoraWaveformPainter extends CustomPainter {
 
       Color color;
       if (isLive) {
-        // Live recording — all bars use played color
         color = playedColor ?? const Color(0xFFFFFFFF).withValues(alpha: 0.9);
       } else if (isPlayed) {
         color = playedColor ?? const Color(0xFFFFFFFF).withValues(alpha: 0.9);
@@ -196,8 +207,6 @@ class _KoraWaveformPainter extends CustomPainter {
   bool shouldRepaint(covariant _KoraWaveformPainter oldDelegate) => true;
 }
 
-/// Generates pseudo-random bar heights for a static waveform.
-/// Used to seed consistent waveform shapes for voice messages.
 List<double> generateWaveformData(int count, {int? seed}) {
   final rng = Random(seed ?? DateTime.now().millisecondsSinceEpoch);
   return List.generate(count, (_) => 0.2 + rng.nextDouble() * 0.8);
