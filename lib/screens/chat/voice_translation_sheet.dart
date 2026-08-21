@@ -249,7 +249,7 @@ class _VoiceTranslationSheetState extends State<VoiceTranslationSheet>
                     ] else if (_showTranslation && _selectedLanguage != null) ...[
                       const SizedBox(height: 16),
                       _buildSectionLabel(
-                        '\${_languages.firstWhere((l) => l['code'] == _selectedLanguage)['name']} translation',
+                        "${_languages.firstWhere((l) => l['code'] == _selectedLanguage)['name']} translation",
                         textMuted,
                       ),
                       const SizedBox(height: 6),
