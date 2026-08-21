@@ -158,10 +158,9 @@ class _ProfileTabState extends State<ProfileTab> {
             _sectionLabel('KORA', textMuted),
             _tile(
               context,
-              Icons.workspace_premium,
+              _isPremium ? Icons.workspace_premium : Icons.workspace_premium_outlined,
               'Kora Premium',
               _isPremium ? 'Premium active' : 'Unlock premium features',
-              iconColor: _isPremium ? KoraColors.purple : null,
             ),
             _tile(context, Icons.support_agent_outlined, 'Kora Support', 'Get help from the Kora team'),
             _tile(context, Icons.info_outline, 'About Kora', 'App version, terms & privacy'),

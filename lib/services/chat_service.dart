@@ -1,6 +1,5 @@
 import '../models/chat_models.dart';
 import 'message_service.dart';
-import '../theme/chat_theme_provider.dart';
 
 /// Builds the Home chat list from real persisted conversations.
 ///
@@ -11,14 +10,7 @@ class ChatService {
   static final ChatService instance = ChatService._();
   ChatService._();
 
-  /// Returns the badge the current user should show based on premium status.
-  KoraBadgeType get _userBadge {
-    return ChatThemeProvider.instance.isPremium
-        ? KoraBadgeType.premiumBlue
-        : KoraBadgeType.none;
-  }
-
-  /// Returns the current chat list, sorted: pinned official chats first,
+/// Returns the current chat list, sorted: pinned official chats first,
   /// then everything else by most recent message timestamp.
   List<ChatPreview> getChats() {
     final ms = MessageService.instance;
