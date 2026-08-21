@@ -81,7 +81,7 @@ class CallSttService {
     _isListening = true;
 
     await _speech.listen(
-      SpeechListenOptions(
+      listenOptions: stt.SpeechListenOptions(
         localeId: _currentLocale,
         listenMode: stt.ListenMode.dictation,
         partialResults: true,
@@ -100,7 +100,7 @@ class CallSttService {
 
     try {
       await _speech.listen(
-        SpeechListenOptions(
+        listenOptions: stt.SpeechListenOptions(
           localeId: _currentLocale,
           listenMode: stt.ListenMode.dictation,
           partialResults: true,
