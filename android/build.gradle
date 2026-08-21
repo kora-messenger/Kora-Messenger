@@ -12,11 +12,10 @@ subprojects {
 }
 subprojects {
     project.evaluationDependsOn(":app")
-}
-subprojects {
-    afterEvaluate { project ->
+    afterEvaluate {
         if (project.hasProperty("android")) {
-            if (project.android.namespace == null) {
+            def namespace = project.android.namespace
+            if (namespace == null || namespace.isEmpty()) {
                 project.android.namespace = project.group.toString() + "." + project.name.toString().replace("-", "_").replace(":", "_")
             }
         }
