@@ -67,7 +67,7 @@ class AudioRecordingService {
   /// Cancel recording and delete the file.
   Future<void> cancelRecording() async {
     if (_isRecording) {
-      await _recorder.cancel();
+      await _recorder.stop();
       _isRecording = false;
     }
     _currentPath = null;
