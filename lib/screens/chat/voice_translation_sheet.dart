@@ -511,7 +511,7 @@ class _VoiceTranslationSheetState extends State<VoiceTranslationSheet> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.auto_detect_rounded, size: 14, color: KoraColors.purple),
+          Icon(Icons.travel_explore_rounded, size: 14, color: KoraColors.purple),
           const SizedBox(width: 4),
           Text(
             'Detected: $_detectedLangName',

@@ -294,7 +294,7 @@ class MessageBubble extends StatelessWidget {
           onTranslate: isPendingOffline
               ? null
               : () {
-                  showVoiceTranslationSheet(
+                  VoiceTranslationSheet.show(
                     context,
                     voiceDuration: message.voiceDuration ?? '0:05',
                   );
