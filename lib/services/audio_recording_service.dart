@@ -5,13 +5,13 @@ import 'package:permission_handler/permission_handler.dart';
 
 /// Real audio recording service for Kora Messenger voice notes.
 ///
-/// Uses the `record` package to capture audio from the device microphone,
+/// Uses the `record` package (v4 API) to capture audio from the device microphone,
 /// saves to a temp file, and returns the file path for playback/storage.
 class AudioRecordingService {
   static final AudioRecordingService instance = AudioRecordingService._();
   AudioRecordingService._();
 
-  final AudioRecorder _recorder = AudioRecorder();
+  final Record _recorder = Record();
 
   bool _isRecording = false;
   String? _currentPath;
@@ -42,12 +42,10 @@ class AudioRecordingService {
     final path = '${tempDir.path}/kora_voice_$timestamp.m4a';
 
     await _recorder.start(
-      const RecordConfig(
-        encoder: AudioEncoder.aacLc,
-        bitRate: 128000,
-        sampleRate: 44100,
-      ),
       path: path,
+      encoder: AudioEncoder.aacLc,
+      bitRate: 128000,
+      samplingRate: 44100,
     );
 
     _isRecording = true;
