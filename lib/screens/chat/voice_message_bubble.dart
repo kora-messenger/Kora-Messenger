@@ -24,6 +24,18 @@ class VoiceMessageBubble extends StatefulWidget {
   final KoraMessage message;
   final VoidCallback? onTranslate;
 
+  const VoiceMessageBubble({
+    super.key,
+    required this.message,
+    this.onTranslate,
+  });
+
+  @override
+  State<VoiceMessageBubble> createState() => _VoiceMessageBubbleState();
+}
+
+class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
+    with SingleTickerProviderStateMixin {
   bool get _isPremium => ChatThemeProvider.instance.isPremium;
 
   void _showVoiceTranslation(BuildContext context, {required String voiceDuration, required bool autoTranslate, String? voiceId, String? transcript}) {
@@ -45,18 +57,7 @@ class VoiceMessageBubble extends StatefulWidget {
     );
   }
 
-  const VoiceMessageBubble({
-    super.key,
-    required this.message,
-    this.onTranslate,
-  });
-
-  @override
-  State<VoiceMessageBubble> createState() => _VoiceMessageBubbleState();
-}
-
-class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
-    with SingleTickerProviderStateMixin {
+  // ── Animation & playback state ──
   bool _isPlaying = false;
   double _progress = 0.0;
   late AnimationController _syncSpinController;

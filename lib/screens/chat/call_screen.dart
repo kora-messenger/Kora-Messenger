@@ -329,13 +329,12 @@ class _CallScreenState extends State<CallScreen> {
   @override
   static Future<void> _showCallTranslation(BuildContext context, {bool isInCall = false}) {
     if (!ChatThemeProvider.instance.isPremium) {
-      showModalBottomSheet(
+      return showModalBottomSheet(
         context: context,
         isScrollControlled: true,
         backgroundColor: Colors.transparent,
         builder: (context) => const PremiumSubscribeSheet(),
       );
-      return;
     }
     return CallTranslationSheet.show(context, isInCall: isInCall);
   }
