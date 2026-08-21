@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../services/data_saver_service.dart';
 import '../theme/kora_colors.dart';
 
 /// Reusable circular avatar for Kora — shows an asset image, a cached
@@ -110,8 +111,13 @@ class KoraAvatar extends StatelessWidget {
         fit: BoxFit.cover,
         placeholder: (_, __) => _buildInitials(),
         errorWidget: (_, __, ___) => _buildInitials(),
-        // Small image — no need for full-res downloads
+        // Data saving: cap both in-memory and disk cache width.
+        // For a 50px avatar, we only need ~100px of resolution.
         memCacheWidth: (size * 2).toInt(),
+        maxWidthDiskCache: (size * 2).toInt(),
+        maxHeightDiskCache: (size * 2).toInt(),
+        // Disable fadeIn to reduce unnecessary repaints
+        fadeInDuration: const Duration(milliseconds: 0),
       );
     }
     return _buildInitials();

@@ -7,8 +7,9 @@ import '../../widgets/secure_screen.dart';
 
 /// Full-screen contact info — opens when the user taps the avatar or
 /// name in a chat. Shows a large circular profile photo centered near
-/// the top, followed by the contact's name (with badge), username,
-/// and Kora ID.
+/// the top of the screen, followed by the contact's username and Kora ID.
+///
+/// Screenshot-protected via FLAG_SECURE on Android.
 class ContactInfoScreen extends StatelessWidget {
   final String name;
   final String? avatarAsset;
@@ -45,89 +46,112 @@ class ContactInfoScreen extends StatelessWidget {
     final textMuted = KoraColors.textMutedFor(brightness);
     final border = KoraColors.borderFor(brightness);
 
-    // Screenshot protection — FLAG_SECURE on Android prevents
-    // screenshots, screen recording, and content exposure in the
-    // recent apps preview.
     return SecureScreen(
       child: Scaffold(
-      backgroundColor: bg,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // ── Top bar with back button ──
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: Icon(Icons.arrow_back, color: textPrimary, size: 24),
-                    onPressed: () => Navigator.pop(context),
-                    padding: const EdgeInsets.all(8),
-                    constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    icon: Icon(Icons.more_vert, color: textPrimary, size: 22),
-                    onPressed: () {},
-                    padding: const EdgeInsets.all(8),
-                    constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-                  ),
-                ],
-              ),
-            ),
-            // ── Scrollable content ──
-            Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    const SizedBox(height: 24),
-                    // Large circular avatar
-                    KoraAvatar(
-                      name: name,
-                      assetPath: avatarAsset,
-                      imageUrl: avatarUrl,
-                      size: 120,
-                      showOnlineDot: isOnline,
-                    ),
-                    const SizedBox(height: 16),
-                    // Name with badge
-                    KoraNameWithBadge(
-                      name: name,
-                      badge: badge,
-                      badgeSize: 22,
-                      style: TextStyle(
-                        color: textPrimary,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w700,
+        backgroundColor: bg,
+        body: SafeArea(
+          child: Column(
+            children: [
+              // ── Top bar ──
+              _buildTopBar(context, textPrimary),
+              // ── Scrollable content ──
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 20),
+                      // Large circular profile avatar centered
+                      KoraAvatar(
+                        name: name,
+                        assetPath: avatarAsset,
+                        imageUrl: avatarUrl,
+                        size: 120,
+                        showOnlineDot: isOnline,
                       ),
-                    ),
-                    const SizedBox(height: 6),
-                    // Online / last seen
-                    Text(
-                      isOnline ? 'online' : (lastSeen ?? 'last seen recently'),
-                      style: TextStyle(
-                        color: isOnline ? KoraColors.purple : textMuted,
-                        fontSize: 13,
+                      const SizedBox(height: 16),
+                      // Name with badge
+                      KoraNameWithBadge(
+                        name: name,
+                        badge: badge,
+                        badgeSize: 22,
+                        style: TextStyle(
+                          color: textPrimary,
+                          fontSize: 24,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 32),
-                    // ── Info section ──
-                    _infoSection(context, card, textPrimary, textSecondary, textMuted, border),
-                    const SizedBox(height: 20),
-                    // ── Action row ──
-                    _actionRow(context, card, textPrimary, textSecondary, border),
-                  ],
+                      const SizedBox(height: 6),
+                      // Username
+                      if (username != null)
+                        Text(
+                          username!,
+                          style: TextStyle(
+                            color: textSecondary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      const SizedBox(height: 4),
+                      // Kora ID
+                      if (koraId != null)
+                        Text(
+                          koraId!,
+                          style: TextStyle(
+                            color: textMuted,
+                            fontSize: 13,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      const SizedBox(height: 8),
+                      // Online status
+                      Text(
+                        isOnline ? 'online' : (lastSeen ?? 'last seen recently'),
+                        style: TextStyle(
+                          color: isOnline ? KoraColors.purple : textMuted,
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(height: 28),
+                      // ── Info section ──
+                      _infoSection(card, textPrimary, textSecondary, border),
+                      const SizedBox(height: 16),
+                      // ── Action row ──
+                      _actionRow(context, card, textPrimary, textSecondary, border),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-    ),
     );
   }
 
-  Widget _infoSection(BuildContext context, Color card, Color textPrimary, Color textSecondary, Color textMuted, Color border) {
+  Widget _buildTopBar(BuildContext context, Color textPrimary) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+      child: Row(
+        children: [
+          IconButton(
+            icon: Icon(Icons.arrow_back, color: textPrimary, size: 24),
+            onPressed: () => Navigator.pop(context),
+            padding: const EdgeInsets.all(8),
+            constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+          ),
+          const Spacer(),
+          IconButton(
+            icon: Icon(Icons.more_vert, color: textPrimary, size: 22),
+            onPressed: () {},
+            padding: const EdgeInsets.all(8),
+            constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _infoSection(Color card, Color textPrimary, Color textSecondary, Color border) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(

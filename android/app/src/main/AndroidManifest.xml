@@ -22,6 +22,20 @@
     <!-- Notifications — new message, call, and group alerts (Android 13+) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- Location — for sharing live location in chats -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+    <!-- Contacts — for finding friends already on Kora -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+
+    <!-- Phone state — for handling in-call interruptions during voice/video calls -->
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    <uses-permission android:name="android.permission.CALL_PHONE" />
+
+    <!-- Storage — for saving received media (Android <13) -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
+
     <application
         android:label="Kora Messenger"
         android:name="${applicationName}"

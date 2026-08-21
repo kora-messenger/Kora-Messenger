@@ -3,28 +3,41 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// Central permission manager for Kora Messenger.
 ///
-/// Requests exactly the permissions Kora needs, when they're needed —
-/// not all at once on cold launch (which feels invasive). The one
-/// exception is [requestEssentialOnce], fired the first time a user
-/// reaches the Home screen after signing in, which asks for
-/// Notifications + Microphone + Camera + Gallery up front (like
-/// WhatsApp/Telegram do on first run) so the rest of the app just works.
+/// Requests exactly the permissions Kora needs, when they're needed.
+/// On first launch after sign-in, [requestEssentialOnce] asks for all
+/// essential permissions at once (like WhatsApp/Telegram do) so the
+/// rest of the app just works.
+///
+/// Permissions Kora needs:
+/// - Notifications: message & call push alerts
+/// - Microphone: voice messages, voice/video calls
+/// - Camera: photos, video calls, QR scanning
+/// - Gallery/Photos: picking images to send
+/// - Storage (Android <13): saving received media
+/// - Location: sharing live location in chats
+/// - Contacts: finding friends already on Kora
+/// - Phone state: handling in-call interruptions
 class KoraPermissionService {
   static const _kEssentialAsked = 'kora_essential_permissions_asked';
 
-  /// Requests Notifications, Microphone, Camera, and Gallery/Photos
-  /// once per install — right after the user reaches Home for the
-  /// first time. Safe to call every time; it no-ops after the first run.
+  /// Requests all essential permissions once per install — right
+  /// after the user reaches Home for the first time. Safe to call
+  /// every time; it no-ops after the first run.
   static Future<void> requestEssentialOnce() async {
     final prefs = await SharedPreferences.getInstance();
     final alreadyAsked = prefs.getBool(_kEssentialAsked) ?? false;
     if (alreadyAsked) return;
 
+    // Request all permissions Kora needs
     await [
       Permission.notification,
       Permission.microphone,
       Permission.camera,
       Permission.photos,
+      Permission.storage,       // Android <13 — for saving media
+      Permission.location,      // For sharing location in chats
+      Permission.contacts,      // For finding friends on Kora
+      Permission.phone,         // For call state handling
     ].request();
 
     await prefs.setBool(_kEssentialAsked, true);
@@ -38,7 +51,7 @@ class KoraPermissionService {
   }
 
   /// Camera — required before opening the camera (profile photo,
-  /// group photo, wallpaper photo, video calls).
+  /// group photo, QR scan, video calls).
   static Future<bool> requestCamera() async {
     final status = await Permission.camera.request();
     return status.isGranted;
@@ -47,13 +60,36 @@ class KoraPermissionService {
   /// Gallery/Photos — required before picking an image from the
   /// device's gallery.
   static Future<bool> requestGallery() async {
-    final status = await Permission.photos.request();
-    return status.isGranted;
+    // On Android 13+, use photos permission. On older, use storage.
+    final photosStatus = await Permission.photos.request();
+    if (photosStatus.isGranted) return true;
+    // Fall back to storage for older Android
+    final storageStatus = await Permission.storage.request();
+    return storageStatus.isGranted;
   }
 
   /// Notifications — required to show message/call push alerts.
   static Future<bool> requestNotifications() async {
     final status = await Permission.notification.request();
+    return status.isGranted;
+  }
+
+  /// Location — required before sharing live location in a chat.
+  static Future<bool> requestLocation() async {
+    final status = await Permission.location.request();
+    return status.isGranted;
+  }
+
+  /// Contacts — required to find which contacts are already on Kora.
+  static Future<bool> requestContacts() async {
+    final status = await Permission.contacts.request();
+    return status.isGranted;
+  }
+
+  /// Phone state — for handling in-call interruptions during
+  /// voice/video calls.
+  static Future<bool> requestPhone() async {
+    final status = await Permission.phone.request();
     return status.isGranted;
   }
 
