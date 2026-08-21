@@ -20,7 +20,6 @@ class TranslationService {
 
   // ── Config ──────────────────────────────────────────────────
   /// Future translation endpoint — currently unused (simulated).
-  static const String _translationEndpoint =
       '${KoraApi.baseUrl}/koraTranslate';
 
   // ── Keys ───────────────────────────────────────────────────
@@ -282,7 +281,7 @@ class TranslationService {
   /// Translates [text] to the language specified by [targetCode].
   ///
   /// Currently simulated — returns the text with a prefix.
-  /// Will be replaced with a real API call to [_translationEndpoint].
+  /// Will be replaced with a real API call once the backend is connected.
   Future<TranslationResult> translate(
     String text,
     String targetCode, {
@@ -296,8 +295,8 @@ class TranslationService {
     final detectedLang = languageByCode(detectedCode) ?? _allLanguages.first;
 
     // Simulated translation — prepend language tag as placeholder
-    // Real API will be called here via KoraApi.postTo(_translationEndpoint, {...})
-    final translatedText = '$text';
+    // Real API will be called here once the backend is connected
+    final translatedText = text;
 
     return TranslationResult(
       originalText: text,

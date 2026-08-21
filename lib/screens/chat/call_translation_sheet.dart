@@ -349,7 +349,7 @@ class _CallTranslationSheetState extends State<CallTranslationSheet> {
           Switch(
             value: value,
             onChanged: onChanged,
-            activeColor: KoraColors.purple,
+            activeThumbColor: KoraColors.purple,
             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
           ),
         ],

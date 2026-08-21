@@ -69,13 +69,11 @@ class _VoiceTranslationSheetState extends State<VoiceTranslationSheet> {
   String _translatedText = '';
   KoraLanguage? _targetLanguage;
   String _errorMsg = '';
-  bool _showOriginal = true;
 
   @override
   void initState() {
     super.initState();
     _targetLanguage = _translationService.preferredLanguage;
-    _showOriginal = _translationService.showOriginal;
 
     if (widget.autoTranslate) {
       _startFullFlow();

@@ -442,13 +442,10 @@ class _TranslationSettingsScreenState extends State<TranslationSettingsScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         child: Row(
           children: [
-            Radio<bool>(
-              value: true,
-              groupValue: isSelected,
-              onChanged: (_) => onTap(),
-              activeColor: KoraColors.purple,
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              visualDensity: VisualDensity.compact,
+            Icon(
+              isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+              size: 20,
+              color: isSelected ? KoraColors.purple : Colors.grey.shade600,
             ),
             const SizedBox(width: 6),
             Expanded(
@@ -528,7 +525,7 @@ class _TranslationSettingsScreenState extends State<TranslationSettingsScreen> {
           Switch(
             value: value,
             onChanged: onChanged,
-            activeColor: KoraColors.purple,
+            activeThumbColor: KoraColors.purple,
             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
           ),
         ],
@@ -577,7 +574,7 @@ class _TranslationSettingsScreenState extends State<TranslationSettingsScreen> {
                   min: 10,
                   max: 24,
                   divisions: 14,
-                  activeColor: KoraColors.purple,
+                  activeThumbColor: KoraColors.purple,
                   onChanged: onChanged,
                   label: '${value.round()}',
                 ),
