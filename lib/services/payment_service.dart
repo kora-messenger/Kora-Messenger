@@ -106,6 +106,10 @@ class PaymentService {
       // For Google Pay / Apple Pay: these are handled within Paystack's
       // checkout page automatically (Paystack detects the platform and
       // shows the appropriate mobile wallet option)
+      if (!context.mounted) {
+        return PaymentResult(success: false, message: 'Payment cancelled');
+      }
+
       final verifiedRef = await openPaystackCheckout(
         context: context,
         authorizationUrl: authorizationUrl,
