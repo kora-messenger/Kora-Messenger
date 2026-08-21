@@ -387,12 +387,6 @@ class _LiveCaptionsOverlayState extends State<LiveCaptionsOverlay>
   String _translatedText = '';
   late AnimationController _fadeController;
 
-  // Simulated captions — would come from real-time STT + translation
-  final _mockCaptions = [
-    ('Hello, how are you doing today?', 'Hola, ¿cómo estás hoy?'),
-    ('The meeting is at 3 PM, right?', 'La reunión es a las 3 PM, ¿verdad?'),
-    ('Let me know when you arrive.', 'Avísame cuando llegues.'),
-  ];
   int _captionIndex = 0;
 
   @override
@@ -403,20 +397,38 @@ class _LiveCaptionsOverlayState extends State<LiveCaptionsOverlay>
       duration: const Duration(milliseconds: 300),
     );
     _fadeController.forward();
-    _cycleCaptions();
+    _showWaitingMessage();
   }
 
-  void _cycleCaptions() {
-    Future.delayed(const Duration(seconds: 3), () {
-      if (!mounted) return;
-      setState(() {
-        final c = _mockCaptions[_captionIndex % _mockCaptions.length];
-        _originalText = c.$1;
-        _translatedText = c.$2;
-        _captionIndex++;
-      });
-      _cycleCaptions();
+  /// Shows a message that real-time captions will appear here
+  /// once the other person speaks. In production, this would
+  /// receive real-time STT data from the WebRTC audio stream and
+  /// translate it via [TranslationService].
+  void _showWaitingMessage() {
+    if (!mounted) return;
+    setState(() {
+      _originalText = 'Listening…';
+      _translatedText = 'Real-time captions will appear here when the other person speaks.';
     });
+  }
+
+  /// Called externally to add a new caption (from real-time STT).
+  /// Translates the text and updates the display.
+  Future<void> addCaption(String text) async {
+    if (!mounted) return;
+    setState(() => _originalText = text);
+
+    final result = await TranslationService.instance.translate(
+      text,
+      TranslationService.instance.preferredLanguageCode,
+    );
+    if (mounted) {
+      setState(() {
+        _translatedText = result.translatedText;
+      });
+      _fadeController.reset();
+      _fadeController.forward();
+    }
   }
 
   @override

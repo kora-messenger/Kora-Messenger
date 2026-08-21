@@ -26,13 +26,17 @@ import 'language_picker_screen.dart';
 class VoiceTranslationSheet extends StatefulWidget {
   final String voiceDuration;
   final bool autoTranslate;
+  final String? voiceId;
+  final String? transcript;
 
-  /// If true, skips straight to transcription + translation.
-  /// If false, shows transcript first then lets user translate.
+  /// If [transcript] is provided (e.g. from on-device STT during recording),
+  /// the sheet skips transcription and uses it directly.
   const VoiceTranslationSheet({
     super.key,
     required this.voiceDuration,
     this.autoTranslate = false,
+    this.voiceId,
+    this.transcript,
   });
 
   /// Opens the sheet. If [autoTranslate] is true, performs one-tap
@@ -41,6 +45,8 @@ class VoiceTranslationSheet extends StatefulWidget {
     BuildContext context, {
     required String voiceDuration,
     bool autoTranslate = false,
+    String? voiceId,
+    String? transcript,
   }) {
     showModalBottomSheet(
       context: context,
@@ -49,6 +55,8 @@ class VoiceTranslationSheet extends StatefulWidget {
       builder: (_) => VoiceTranslationSheet(
         voiceDuration: voiceDuration,
         autoTranslate: autoTranslate,
+        voiceId: voiceId,
+        transcript: transcript,
       ),
     );
   }
@@ -85,6 +93,21 @@ class _VoiceTranslationSheetState extends State<VoiceTranslationSheet> {
   Future<void> _startTranscription() async {
     setState(() => _stage = _Stage.transcribing);
 
+    // If we already have a transcript (e.g. from on-device STT), use it directly
+    if (widget.transcript != null && widget.transcript!.isNotEmpty) {
+      final detectedCode = await _translationService.detectLanguage(widget.transcript!);
+      final detectedLang = _translationService.languageByCode(detectedCode ?? 'en');
+      if (mounted) {
+        setState(() {
+          _transcript = widget.transcript!;
+          _detectedLangCode = detectedCode ?? 'en';
+          _detectedLangName = detectedLang?.name ?? 'Unknown';
+          _stage = _Stage.transcribed;
+        });
+      }
+      return;
+    }
+
     if (!ConnectivityService.instance.isOnline) {
       setState(() {
         _stage = _Stage.error;
@@ -95,7 +118,7 @@ class _VoiceTranslationSheetState extends State<VoiceTranslationSheet> {
 
     try {
       final transcript = await _translationService.transcribeVoiceNote(
-        'voice_${DateTime.now().millisecondsSinceEpoch}',
+        widget.voiceId ?? 'voice_${DateTime.now().millisecondsSinceEpoch}',
       );
       final detectedCode = await _translationService.detectLanguage(transcript);
       final detectedLang = _translationService.languageByCode(detectedCode ?? 'en');
@@ -121,19 +144,25 @@ class _VoiceTranslationSheetState extends State<VoiceTranslationSheet> {
   Future<void> _startFullFlow() async {
     setState(() => _stage = _Stage.transcribing);
 
-    if (!ConnectivityService.instance.isOnline) {
-      setState(() {
-        _stage = _Stage.error;
-        _errorMsg = 'No internet connection. Voice translation requires network access.';
-      });
-      return;
+    String transcript;
+
+    // Use pre-existing transcript if available
+    if (widget.transcript != null && widget.transcript!.isNotEmpty) {
+      transcript = widget.transcript!;
+    } else {
+      if (!ConnectivityService.instance.isOnline) {
+        setState(() {
+          _stage = _Stage.error;
+          _errorMsg = 'No internet connection. Voice translation requires network access.';
+        });
+        return;
+      }
+      transcript = await _translationService.transcribeVoiceNote(
+        widget.voiceId ?? 'voice_${DateTime.now().millisecondsSinceEpoch}',
+      );
     }
 
     try {
-      // Transcribe
-      final transcript = await _translationService.transcribeVoiceNote(
-        'voice_${DateTime.now().millisecondsSinceEpoch}',
-      );
       final detectedCode = await _translationService.detectLanguage(transcript);
       final detectedLang = _translationService.languageByCode(detectedCode ?? 'en');
 

@@ -20,6 +20,7 @@ import '../../widgets/kora_menu_sheet.dart';
 import 'chat_header.dart';
 import 'message_bubble.dart';
 import 'message_composer.dart';
+import 'call_screen.dart';
 import 'message_action_menu.dart';
 import 'contact_info_screen.dart';
 import '../../models/call_log.dart';
@@ -312,8 +313,12 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
     await _getAiResponse('[ISSUE]${issue.id}');
   }
 
-  void _sendVoice(String duration) async {
-    await _messageService.sendVoiceMessage(widget.chatId, duration);
+  void _sendVoice(String duration, {String? filePath}) async {
+    await _messageService.sendVoiceMessage(
+      widget.chatId,
+      duration,
+      filePath: filePath,
+    );
     setState(() {
       _messages = List.from(_messageService.getMessages(widget.chatId));
     });
@@ -381,30 +386,16 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => _CallScreen(
-          name: widget.name,
-          isVideo: isVideo,
-          avatarAsset: widget.avatarAsset,
+        builder: (_) => CallScreen(
+          contactName: widget.name,
+          isVideoCall: isVideo,
+          isOutgoing: true,
           avatarUrl: widget.avatarUrl,
           badge: widget.badge,
         ),
       ),
     ).then((result) {
-      // Log the call when the user returns from the call screen.
-      // result = true means the call was answered (duration > 3s).
-      // result = false or null means it was missed/declined.
-      final answered = result == true;
-      CallService.instance.addLog(CallLog(
-        id: 'call_${DateTime.now().millisecondsSinceEpoch}',
-        contactName: widget.name,
-        avatarAsset: widget.avatarAsset,
-        avatarUrl: widget.avatarUrl,
-        badge: widget.badge,
-        type: isVideo ? CallType.video : CallType.voice,
-        status: answered ? CallStatus.outgoing : CallStatus.missed,
-        timestamp: DateTime.now(),
-        durationSeconds: answered ? 60 : null,
-      ));
+      // Call logging is handled by CallScreen itself via CallService.
     });
   }
 
@@ -1387,266 +1378,3 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
 }
 
 /// Kora's call screen — opened when user taps voice/video call.
-/// Shows a full-screen gradient with the contact's info, call timer,
-/// and mute/speaker/end buttons. This is a UI placeholder — actual
-/// VoIP functionality will require a signaling backend.
-class _CallScreen extends StatefulWidget {
-  final String name;
-  final bool isVideo;
-  final String? avatarAsset;
-  final String? avatarUrl;
-  final KoraBadgeType badge;
-
-  const _CallScreen({
-    required this.name,
-    required this.isVideo,
-    this.avatarAsset,
-    this.avatarUrl,
-    this.badge = KoraBadgeType.none,
-  });
-
-  @override
-  State<_CallScreen> createState() => _CallScreenState();
-}
-
-class _CallScreenState extends State<_CallScreen> {
-  int _seconds = 0;
-  bool _isMuted = false;
-  bool _isSpeakerOn = true;
-  bool _translationOn = false;
-  bool _captionsOn = false;
-  late Timer _timer;
-
-  @override
-  void initState() {
-    super.initState();
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() => _seconds++);
-    });
-  }
-
-  @override
-  void dispose() {
-    _timer.cancel();
-    super.dispose();
-  }
-
-  String get _duration {
-    final m = (_seconds ~/ 60).toString().padLeft(2, '0');
-    final s = (_seconds % 60).toString().padLeft(2, '0');
-    return '$m:$s';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF1A0D2E),
-              Color(0xFF0D1B2A),
-              Colors.black,
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              const Spacer(flex: 2),
-              // Call type icon
-              Icon(
-                widget.isVideo ? Icons.videocam : Icons.call,
-                color: KoraColors.purple.withValues(alpha: 0.6),
-                size: 32,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                widget.isVideo ? 'Video call' : 'Voice call',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.5),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 20),
-              // Avatar
-              Container(
-                width: 120,
-                height: 120,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: KoraColors.brandGradient,
-                  boxShadow: [
-                    BoxShadow(
-                      color: KoraColors.purple.withValues(alpha: 0.4),
-                      blurRadius: 30,
-                      spreadRadius: 5,
-                    ),
-                  ],
-                ),
-                child: Center(
-                  child: Text(
-                    widget.name.isNotEmpty ? widget.name[0].toUpperCase() : '?',
-                    style: const TextStyle(color: Colors.white, fontSize: 48, fontWeight: FontWeight.w700),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              // Name
-              Text(
-                widget.name,
-                style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 6),
-              // Duration
-              Text(
-                _seconds < 3 ? 'Calling…' : _duration,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.6),
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const Spacer(flex: 3),
-              // Live captions overlay (when translation is on)
-              if (_translationOn && _captionsOn)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 120),
-                  child: LiveCaptionsOverlay(
-                    speakerName: widget.name,
-                    fontSize: TranslationService.instance.captionSize,
-                  ),
-                ),
-
-              // Kora Translate indicator
-              if (_translationOn)
-                Positioned(
-                  top: 60,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: KoraColors.purple.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: KoraColors.purple.withValues(alpha: 0.4),
-                          width: 0.5,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.language_rounded, size: 14, color: KoraColors.purple),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Kora Translate • ON',
-                            style: TextStyle(
-                              color: KoraColors.purple,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.3,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          GestureDetector(
-                            onTap: () => setState(() => _captionsOn = !_captionsOn),
-                            child: Icon(
-                              _captionsOn ? Icons.closed_caption_rounded : Icons.closed_caption_outlined,
-                              size: 16,
-                              color: KoraColors.purple.withValues(alpha: 0.7),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-
-              // Control buttons
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 40),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    // Mute
-                    GestureDetector(
-                      onTap: () => setState(() => _isMuted = !_isMuted),
-                      child: Container(
-                        width: 52, height: 52,
-                        decoration: BoxDecoration(
-                          color: _isMuted ? Colors.white : Colors.white.withValues(alpha: 0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          _isMuted ? Icons.mic_off : Icons.mic,
-                          color: _isMuted ? Colors.black : Colors.white,
-                          size: 22,
-                        ),
-                      ),
-                    ),
-                    // Translate toggle
-                    GestureDetector(
-                      onTap: () {
-                        setState(() => _translationOn = !_translationOn);
-                        if (_translationOn) {
-                          CallTranslationSheet.show(context, isInCall: true);
-                        }
-                      },
-                      child: Container(
-                        width: 52, height: 52,
-                        decoration: BoxDecoration(
-                          color: _translationOn
-                              ? KoraColors.purple
-                              : Colors.white.withValues(alpha: 0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.translate_rounded,
-                          color: _translationOn ? Colors.white : Colors.white,
-                          size: 22,
-                        ),
-                      ),
-                    ),
-                    // End call — pop with whether it was answered
-                    GestureDetector(
-                      onTap: () => Navigator.pop(context, _seconds >= 3),
-                      child: Container(
-                        width: 60, height: 60,
-                        decoration: const BoxDecoration(
-                          color: Colors.red,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.call_end, color: Colors.white, size: 28),
-                      ),
-                    ),
-                    // Speaker
-                    GestureDetector(
-                      onTap: () => setState(() => _isSpeakerOn = !_isSpeakerOn),
-                      child: Container(
-                        width: 52, height: 52,
-                        decoration: BoxDecoration(
-                          color: _isSpeakerOn ? Colors.white : Colors.white.withValues(alpha: 0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.volume_up,
-                          color: _isSpeakerOn ? Colors.black : Colors.white,
-                          size: 22,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}

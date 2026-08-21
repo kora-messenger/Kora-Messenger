@@ -17,7 +17,7 @@ import 'voice_preview.dart';
 /// it from device settings.
 class MessageComposer extends StatefulWidget {
   final Function(String) onSend;
-  final Function(String) onSendVoice;
+  final Function(String duration, {String? filePath}) onSendVoice;
   final VoidCallback? onAttachment;
 
   const MessageComposer({
@@ -39,6 +39,7 @@ class _MessageComposerState extends State<MessageComposer> {
   bool _hasText = false;
   _ComposerState _state = _ComposerState.idle;
   String _recordedDuration = '0:00';
+  String? _recordedPath;
 
   @override
   void initState() {
@@ -179,9 +180,10 @@ class _MessageComposerState extends State<MessageComposer> {
     setState(() => _state = _ComposerState.idle);
   }
 
-  void _stopRecording(String duration) {
+  void _stopRecording(String duration, String? filePath) {
     setState(() {
       _recordedDuration = duration;
+      _recordedPath = filePath;
       _state = _ComposerState.preview;
     });
   }
@@ -192,7 +194,8 @@ class _MessageComposerState extends State<MessageComposer> {
 
   void _sendVoice() {
     setState(() => _state = _ComposerState.idle);
-    widget.onSendVoice(_recordedDuration);
+    widget.onSendVoice(_recordedDuration, filePath: _recordedPath);
+    _recordedPath = null;
   }
 
   void _openAttachments() {
@@ -266,6 +269,7 @@ class _MessageComposerState extends State<MessageComposer> {
           padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
           child: VoicePreviewBar(
             duration: _recordedDuration,
+            filePath: _recordedPath,
             onDiscard: _discardPreview,
             onSend: _sendVoice,
           ),

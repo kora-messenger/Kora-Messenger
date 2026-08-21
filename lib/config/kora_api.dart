@@ -15,6 +15,16 @@ class KoraApi {
   /// Auth endpoint (handles signup, login, verification, password reset, profile)
   static const String authEndpoint = '$baseUrl/koraAuth';
 
+  /// Call signaling endpoint — WebRTC offer/answer/ICE exchange.
+  /// Temporary: Base44 backend function.
+  /// Future: 'https://api.koramessenger.com/call-signal' (or your domain)
+  static const String callSignalingEndpoint = '$baseUrl/koraCallSignal';
+
+  /// Translation endpoint — translates text between languages.
+  /// Temporary: Base44 backend function.
+  /// Future: 'https://api.koramessenger.com/translate' (or your domain)
+  static const String translateEndpoint = '$baseUrl/koraTranslate';
+
   /// Crash report endpoint — receives crash data and creates a GitHub Issue.
   /// Temporary: Base44 backend function.
   /// Future: 'https://api.koramessenger.com/crash-report' (or your domain)

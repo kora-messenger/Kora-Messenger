@@ -213,7 +213,10 @@ class MessageService {
     return messages.where((m) => !m.isMe && !m.isSeen).length;
   }
 
-  Future<void> sendVoiceMessage(String chatId, String duration) async {
+  Future<void> sendVoiceMessage(String chatId, String duration, {
+    String? filePath,
+    String? transcript,
+  }) async {
     final messages = _cache.putIfAbsent(chatId, () => <KoraMessage>[]);
     final msgId = 'voice_${DateTime.now().millisecondsSinceEpoch}';
 
@@ -230,6 +233,8 @@ class MessageService {
       type: KoraMessageType.voice,
       status: status,
       voiceDuration: duration,
+      voiceFilePath: filePath,
+      voiceTranscript: transcript,
     ));
     await _persist(chatId);
 

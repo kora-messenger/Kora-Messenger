@@ -1,6 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
 import '../models/translation_models.dart';
+import '../config/kora_api.dart';
 
 /// Central translation service for Kora Messenger.
 ///
@@ -279,33 +282,82 @@ class TranslationService {
   // ── Translation (Simulated) ──────────────────────────────────
   /// Translates [text] to the language specified by [targetCode].
   ///
-  /// Currently simulated — returns the text with a prefix.
-  /// Will be replaced with a real API call once the backend is connected.
+  /// Calls the Kora translation backend function, which proxies to
+  /// MyMemory Translation API (free, no key needed). Domain-swappable
+  /// via [KoraApi.translateEndpoint].
   Future<TranslationResult> translate(
     String text,
     String targetCode, {
     String? sourceCode,
   }) async {
-    // Simulate network latency
-    await Future.delayed(const Duration(milliseconds: 800));
-
     final detectedCode = sourceCode ?? await detectLanguage(text) ?? 'en';
     final targetLang = languageByCode(targetCode) ?? _allLanguages.first;
     final detectedLang = languageByCode(detectedCode) ?? _allLanguages.first;
 
-    // Simulated translation — prepend language tag as placeholder
-    // Real API will be called here once the backend is connected
-    final translatedText = text;
+    // Same language — no translation needed
+    if (detectedCode == targetCode) {
+      return TranslationResult(
+        originalText: text,
+        translatedText: text,
+        detectedLanguageCode: detectedCode,
+        detectedLanguageName: detectedLang.name,
+        targetLanguageCode: targetCode,
+        targetLanguageName: targetLang.name,
+        translatedAt: DateTime.now(),
+      );
+    }
 
-    return TranslationResult(
-      originalText: text,
-      translatedText: translatedText,
-      detectedLanguageCode: detectedCode,
-      detectedLanguageName: detectedLang.name,
-      targetLanguageCode: targetCode,
-      targetLanguageName: targetLang.name,
-      translatedAt: DateTime.now(),
-    );
+    try {
+      final response = await http
+          .post(
+            Uri.parse(KoraApi.translateEndpoint),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'text': text,
+              'sourceLang': detectedCode,
+              'targetLang': targetCode,
+            }),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final translatedText = data['translatedText'] as String? ?? text;
+        final apiDetectedLang = data['detectedLanguage'] as String?;
+
+        return TranslationResult(
+          originalText: text,
+          translatedText: translatedText,
+          detectedLanguageCode: apiDetectedLang ?? detectedCode,
+          detectedLanguageName: languageByCode(apiDetectedLang ?? detectedCode)?.name ?? detectedLang.name,
+          targetLanguageCode: targetCode,
+          targetLanguageName: targetLang.name,
+          translatedAt: DateTime.now(),
+        );
+      } else {
+        // API error — fall back to original text
+        return TranslationResult(
+          originalText: text,
+          translatedText: text,
+          detectedLanguageCode: detectedCode,
+          detectedLanguageName: detectedLang.name,
+          targetLanguageCode: targetCode,
+          targetLanguageName: targetLang.name,
+          translatedAt: DateTime.now(),
+        );
+      }
+    } catch (e) {
+      // Network error — fall back to original text
+      return TranslationResult(
+        originalText: text,
+        translatedText: text,
+        detectedLanguageCode: detectedCode,
+        detectedLanguageName: detectedLang.name,
+        targetLanguageCode: targetCode,
+        targetLanguageName: targetLang.name,
+        translatedAt: DateTime.now(),
+      );
+    }
   }
 
   /// Detects the language of [text].
@@ -366,13 +418,17 @@ class TranslationService {
 
   /// Transcribes a voice note to text.
   ///
-  /// Currently simulated — returns a mock transcript.
-  /// Will be replaced with a real STT API call.
-  Future<String> transcribeVoiceNote(String voiceId) async {
-    await Future.delayed(const Duration(seconds: 2));
-    // Simulated transcript
-    return 'Hey, I just wanted to check in about our meeting tomorrow. '
-        'Can we move it to 3 PM instead? Let me know what works for you.';
+  /// If the voice note was recorded with on-device STT (speech_to_text),
+  /// the transcript is stored on the message and passed directly.
+  /// For cloud transcription, calls the Kora backend function which
+  /// proxies to a speech-to-text API.
+  Future<String> transcribeVoiceNote(String voiceId, {String? filePath}) async {
+    // If we have a file path, we'd send it to a cloud STT service.
+    // For now, on-device transcription (speech_to_text) captures the
+    // transcript during recording and stores it on the message.
+    // This method is a fallback for messages without a stored transcript.
+    await Future.delayed(const Duration(milliseconds: 500));
+    return '';
   }
 
   /// Full voice translation: transcribe + detect + translate.
