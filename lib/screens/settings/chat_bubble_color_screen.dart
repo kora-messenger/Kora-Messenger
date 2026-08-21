@@ -78,6 +78,7 @@ class _ChatBubbleColorScreenState extends State<ChatBubbleColorScreen> {
     final textPrimary = KoraColors.textPrimaryFor(brightness);
     final card = KoraColors.cardFor(brightness);
     final border = KoraColors.borderFor(brightness);
+    final textSecondary = KoraColors.textSecondaryFor(brightness);
 
     return Scaffold(
       backgroundColor: bg,
@@ -241,6 +242,7 @@ class _ChatBubbleColorScreenState extends State<ChatBubbleColorScreen> {
                 },
               ),
             ),
+            ],
           ],
         ),
       ),
