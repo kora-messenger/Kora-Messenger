@@ -4,6 +4,7 @@ import '../../theme/kora_colors.dart';
 import '../../theme/chat_theme_provider.dart';
 import 'solid_color_screen.dart';
 import 'chat_theme_preview_screen.dart';
+import 'premium_subscribe_sheet.dart';
 
 /// Wallpaper picker — matches the classic "Choose from gallery / Set a
 /// color / Create with AI" menu followed by a grid of preset wallpaper
@@ -40,6 +41,7 @@ const List<String> _presetWallpapers = [
 class _WallpaperScreenState extends State<WallpaperScreen> {
   final _provider = ChatThemeProvider.instance;
   final _picker = ImagePicker();
+  bool _isLoadingPremium = false;
 
   @override
   void initState() {
@@ -79,6 +81,20 @@ class _WallpaperScreenState extends State<WallpaperScreen> {
 
   Future<void> _resetToDefault() async {
     await _provider.setChatTheme(_provider.themeId);
+  }
+
+  Future<void> _showPremiumSheet() async {
+    if (_isLoadingPremium) return;
+    setState(() => _isLoadingPremium = true);
+    await Future.delayed(const Duration(milliseconds: 100));
+    if (!mounted) return;
+    setState(() => _isLoadingPremium = false);
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const PremiumSubscribeSheet(),
+    );
   }
 
   void _openPreview(int index) {
@@ -146,29 +162,78 @@ class _WallpaperScreenState extends State<WallpaperScreen> {
               icon: Icons.image_outlined,
               label: 'Choose from gallery',
               color: textPrimary,
-              onTap: _pickFromGallery,
+              onTap: _provider.isPremium ? _pickFromGallery : _showPremiumSheet,
             ),
             _menuRow(
               icon: Icons.colorize_outlined,
               label: 'Set a color',
               color: textPrimary,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const SolidColorScreen()),
-                );
-              },
+              onTap: _provider.isPremium
+                  ? () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const SolidColorScreen()),
+                      );
+                    }
+                  : _showPremiumSheet,
             ),
             _menuRow(
               icon: Icons.auto_awesome_outlined,
               label: 'Create with AI',
               color: textPrimary,
-              onTap: _createWithAI,
+              onTap: _provider.isPremium ? _createWithAI : _showPremiumSheet,
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
               child: Divider(color: border, height: 1),
             ),
+            if (!_provider.isPremium) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: KoraColors.cardFor(brightness),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: KoraColors.purple.withValues(alpha: 0.25), width: 1.5),
+                  ),
+                  child: Column(
+                    children: [
+                      const Icon(Icons.workspace_premium, color: KoraColors.purple, size: 28),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Premium wallpapers are a Kora Premium feature',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: KoraColors.purple, fontSize: 14, fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Upgrade to unlock the full wallpaper collection.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: textSecondary, fontSize: 12.5),
+                      ),
+                      const SizedBox(height: 14),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: KoraColors.purple,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          icon: _isLoadingPremium
+                              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                              : const Icon(Icons.workspace_premium, size: 18),
+                          label: Text(_isLoadingPremium ? 'Loading...' : 'Get Kora Premium'),
+                          onPressed: _isLoadingPremium ? null : _showPremiumSheet,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ] else ...[
             const SizedBox(height: 16),
             GridView.builder(
               padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -232,6 +297,7 @@ class _WallpaperScreenState extends State<WallpaperScreen> {
                 style: TextStyle(color: textSecondary, fontSize: 12.5),
               ),
             ),
+            ],
           ],
         ),
       ),

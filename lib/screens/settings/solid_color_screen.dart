@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../theme/kora_colors.dart';
 import '../../theme/chat_theme_provider.dart';
 import 'chat_theme_preview_screen.dart';
+import 'premium_subscribe_sheet.dart';
 
 /// "Solid color" picker — light solid wallpaper colors.
 class SolidColorScreen extends StatefulWidget {
@@ -13,6 +14,7 @@ class SolidColorScreen extends StatefulWidget {
 
 class _SolidColorScreenState extends State<SolidColorScreen> {
   final _provider = ChatThemeProvider.instance;
+  bool _isLoadingPremium = false;
 
   @override
   void initState() {
@@ -28,6 +30,20 @@ class _SolidColorScreenState extends State<SolidColorScreen> {
 
   void _onChanged() {
     if (mounted) setState(() {});
+  }
+
+  Future<void> _showPremiumSheet() async {
+    if (_isLoadingPremium) return;
+    setState(() => _isLoadingPremium = true);
+    await Future.delayed(const Duration(milliseconds: 100));
+    if (!mounted) return;
+    setState(() => _isLoadingPremium = false);
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const PremiumSubscribeSheet(),
+    );
   }
 
   void _openPreview(int index) {
@@ -55,6 +71,8 @@ class _SolidColorScreenState extends State<SolidColorScreen> {
     final brightness = Theme.of(context).brightness;
     final bg = KoraColors.backgroundFor(brightness);
     final textPrimary = KoraColors.textPrimaryFor(brightness);
+    final textSecondary = KoraColors.textSecondaryFor(brightness);
+    final card = KoraColors.cardFor(brightness);
 
     final current = _provider.wallpaperColor ?? _provider.activeTheme.wallpaper;
 
@@ -73,7 +91,8 @@ class _SolidColorScreenState extends State<SolidColorScreen> {
         ),
       ),
       body: SafeArea(
-        child: GridView.builder(
+        child: _provider.isPremium
+            ? GridView.builder(
           padding: const EdgeInsets.all(20),
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 4,
@@ -109,6 +128,46 @@ class _SolidColorScreenState extends State<SolidColorScreen> {
               ),
             );
           },
+        )
+            : Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.workspace_premium, color: KoraColors.purple, size: 48),
+                const SizedBox(height: 12),
+                const Text(
+                  'Solid color wallpapers are a Kora Premium feature',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: KoraColors.purple, fontSize: 15, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Upgrade to unlock 20 solid wallpaper colors.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: textSecondary, fontSize: 13),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: KoraColors.purple,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    icon: _isLoadingPremium
+                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Icon(Icons.workspace_premium, size: 20),
+                    label: Text(_isLoadingPremium ? 'Loading...' : 'Get Kora Premium'),
+                    onPressed: _isLoadingPremium ? null : _showPremiumSheet,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
