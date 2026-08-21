@@ -6,6 +6,7 @@ import '../settings/appearance_screen.dart';
 import '../settings/account_screen.dart';
 import '../settings/translation_settings_screen.dart';
 import '../settings/voice_media_settings_screen.dart';
+import '../settings/privacy_screen.dart';
 
 /// "Profile" tab — the user's own profile summary plus settings shortcuts.
 class ProfileTab extends StatefulWidget {
@@ -120,6 +121,14 @@ class _ProfileTabState extends State<ProfileTab> {
             _tile(context, Icons.chat_bubble_outline, 'Chats', 'Theme, wallpapers, chat history'),
             _appearanceTile(context),
             _tile(context, Icons.notifications_outlined, 'Notifications', 'Message, group & call tones'),
+            _navTile(
+              context,
+              icon: Icons.privacy_tip_outlined,
+              iconColor: KoraColors.purple,
+              title: 'Privacy',
+              subtitle: 'Last seen, read receipts, blocked contacts',
+              screen: const PrivacyScreen(),
+            ),
             const SizedBox(height: 20),
             _sectionLabel('KORA', textMuted),
             _tile(context, Icons.workspace_premium_outlined, 'Kora Premium', 'Unlock premium features'),

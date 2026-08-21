@@ -11,6 +11,7 @@ import '../../widgets/new_chat_sheet.dart';
 import '../chat/kora_chat_screen.dart';
 import '../new_group_screen.dart';
 import '../channel_landing_screen.dart';
+import '../settings/privacy_screen.dart';
 
 /// The "Chats" tab — Kora's central conversation list.
 /// Owns the Home header (branding, avatar, search, three-dot menu).
@@ -140,7 +141,11 @@ class _ChatsTabState extends State<ChatsTab> {
       KoraMenuOption(
         icon: Icons.privacy_tip_outlined,
         label: 'Privacy',
-        onTap: () {},
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const PrivacyScreen()),
+          );
+        },
       ),
       KoraMenuOption(
         icon: Icons.settings_outlined,
