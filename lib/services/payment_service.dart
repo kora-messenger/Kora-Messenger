@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import '../config/kora_api.dart';
@@ -248,50 +247,52 @@ class _PaystackCheckoutScreenState extends State<_PaystackCheckoutScreen> {
 
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setNavigationRequestInterceptionCallback(_interceptNavigation)
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onPageStarted: (_) {
+            if (mounted) setState(() => _isLoading = true);
+          },
+          onPageFinished: (_) {
+            if (mounted) setState(() => _isLoading = false);
+          },
+          onWebResourceError: (error) {
+            if (!_resultSent && mounted) {
+              _resultSent = true;
+              widget.onResult(null);
+              Navigator.of(context).pop();
+            }
+          },
+          onNavigationRequest: (request) {
+            // Check for callback URL (kora://payment/verify)
+            if (request.url.startsWith('kora://')) {
+              if (!_resultSent) {
+                _resultSent = true;
+                widget.onResult(widget.reference);
+                Navigator.of(context).pop();
+              }
+              return NavigationDecision.prevent;
+            }
+
+            // Check for Paystack success/redirect URLs
+            if (request.url.contains('status=success') ||
+                request.url.contains('status=cancelled')) {
+              if (!_resultSent) {
+                _resultSent = true;
+                if (request.url.contains('status=success')) {
+                  widget.onResult(widget.reference);
+                } else {
+                  widget.onResult(null);
+                }
+                Navigator.of(context).pop();
+              }
+              return NavigationDecision.prevent;
+            }
+
+            return NavigationDecision.navigate;
+          },
+        ),
+      )
       ..loadRequest(Uri.parse(widget.authorizationUrl));
-
-    _controller.setPlatformNavigationDelegate(
-      NavigationDelegate(
-        onPageStarted: (_) => setState(() => _isLoading = true),
-        onPageFinished: (_) => setState(() => _isLoading = false),
-        onWebResourceError: (error) {
-          if (!_resultSent) {
-            _resultSent = true;
-            widget.onResult(null);
-            Navigator.of(context).pop();
-          }
-        },
-      ),
-    );
-  }
-
-  Future<NavigationDecision> _interceptNavigation(NavigationRequest request) async {
-    // Check for callback URL (kora://payment/verify)
-    if (request.url.startsWith('kora://')) {
-      if (!_resultSent) {
-        _resultSent = true;
-        widget.onResult(widget.reference);
-        Navigator.of(context).pop();
-      }
-      return NavigationDecision.prevent;
-    }
-
-    // Check for Paystack success/redirect URLs
-    if (request.url.contains('status=success') || request.url.contains('status=cancelled')) {
-      if (!_resultSent) {
-        _resultSent = true;
-        if (request.url.contains('status=success')) {
-          widget.onResult(widget.reference);
-        } else {
-          widget.onResult(null);
-        }
-        Navigator.of(context).pop();
-      }
-      return NavigationDecision.prevent;
-    }
-
-    return NavigationDecision.navigate;
   }
 
   @override

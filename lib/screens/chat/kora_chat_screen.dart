@@ -28,7 +28,7 @@ import '../settings/default_chat_theme_screen.dart';
 import '../settings/premium_subscribe_sheet.dart';
 import '../settings/billing_screen.dart';
 import '../../config/subscription_pricing.dart';
-import '../services/session_manager.dart';
+import '../../services/session_manager.dart';
 
 /// Kora's main conversation screen.
 /// Opens when a user taps any conversation from the Home/Chats list.
