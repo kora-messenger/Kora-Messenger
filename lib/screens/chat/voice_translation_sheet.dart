@@ -1,112 +1,252 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../theme/kora_colors.dart';
 import '../../widgets/kora_waveform.dart';
+import '../../services/translation_service.dart';
+import '../../models/translation_models.dart';
+import '../../services/connectivity_service.dart';
+import 'language_picker_screen.dart';
 
 /// Voice transcription & translation bottom sheet.
 ///
-/// Flow: Voice Note → Transcribe (auto) → Show transcript →
-/// User picks a language → Translated text appears.
+/// Supports two flows:
+/// 1. **Transcribe only** — Voice → Transcript (no translation)
+/// 2. **Transcribe + Translate** — Voice → Transcript → Translation
 ///
-/// Since real transcription/translation APIs aren't connected yet,
-/// the sheet shows a simulated processing state then displays
-/// placeholder transcript and translated text. The UI is fully
-/// functional — swap the simulation for real API calls later.
+/// Also supports one-tap "Translate Voice" which does both automatically.
+///
+/// Features:
+/// - Mini voice preview (play button, waveform, duration)
+/// - Detected language display
+/// - Transcript text (copyable)
+/// - Translation with language switching
+/// - Loading states ("Transcribing..." / "Translating...")
+/// - Offline error handling
+/// - Change target language without re-transcribing
 class VoiceTranslationSheet extends StatefulWidget {
   final String voiceDuration;
+  final bool autoTranslate;
 
+  /// If true, skips straight to transcription + translation.
+  /// If false, shows transcript first then lets user translate.
   const VoiceTranslationSheet({
     super.key,
     required this.voiceDuration,
+    this.autoTranslate = false,
   });
+
+  /// Opens the sheet. If [autoTranslate] is true, performs one-tap
+  /// voice translation (transcribe + translate in one go).
+  static void show(
+    BuildContext context, {
+    required String voiceDuration,
+    bool autoTranslate = false,
+  }) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => VoiceTranslationSheet(
+        voiceDuration: voiceDuration,
+        autoTranslate: autoTranslate,
+      ),
+    );
+  }
 
   @override
   State<VoiceTranslationSheet> createState() => _VoiceTranslationSheetState();
 }
 
-enum _Stage { transcribing, done }
+enum _Stage { transcribing, transcribed, translating, translated, error }
 
-class _VoiceTranslationSheetState extends State<VoiceTranslationSheet>
-    with SingleTickerProviderStateMixin {
+class _VoiceTranslationSheetState extends State<VoiceTranslationSheet> {
+  final _translationService = TranslationService.instance;
+
   _Stage _stage = _Stage.transcribing;
-  String? _selectedLanguage;
-  bool _isTranslating = false;
-  bool _showTranslation = false;
-
-  late AnimationController _spinController;
-
-  static const _languages = [
-    {'code': 'es', 'name': 'Spanish', 'flag': '🇪🇸'},
-    {'code': 'fr', 'name': 'French', 'flag': '🇫🇷'},
-    {'code': 'pt', 'name': 'Portuguese', 'flag': '🇵🇹'},
-    {'code': 'ar', 'name': 'Arabic', 'flag': '🇸🇦'},
-    {'code': 'de', 'name': 'German', 'flag': '🇩🇪'},
-    {'code': 'hi', 'name': 'Hindi', 'flag': '🇮🇳'},
-    {'code': 'zh', 'name': 'Chinese', 'flag': '🇨🇳'},
-    {'code': 'ja', 'name': 'Japanese', 'flag': '🇯🇵'},
-    {'code': 'yo', 'name': 'Yoruba', 'flag': '🇳🇬'},
-    {'code': 'sw', 'name': 'Swahili', 'flag': '🇰🇪'},
-  ];
-
-  // Simulated transcript (replace with real transcription API)
-  static const _mockTranscript =
-      'Hey, just wanted to check in about the meeting tomorrow. '
-      'Can we move it to 3 PM instead? Let me know what works for you.';
-
-  // Simulated translations (replace with real translation API)
-  static const _mockTranslations = {
-    'es': 'Oye, solo quería informarte sobre la reunión de mañana. ¿Podemos cambiarla a las 3 PM en su lugar? Avísame qué te funciona.',
-    'fr': 'Hé, je voulais juste vérifier pour la réunion de demain. Peut-on la déplacer à 15h à la place ? Dis-moi ce qui te convient.',
-    'pt': 'Ei, só queria confirmar sobre a reunião de amanhã. Podemos mudar para as 15h? Me diga o que funciona para você.',
-    'ar': 'مرحبًا، أردت فقط التحقق من اجتماع الغد. هل يمكننا نقله إلى الساعة 3 مساءً؟ دعني أعرف ما يناسبك.',
-    'de': 'Hey, ich wollte nur wegen des Treffens morgen nachfragen. Können wir es stattdessen auf 15 Uhr verschieben? Sag mir Bescheid, was dir passt.',
-    'hi': 'अरे, मैं बस कल की मीटिंग के बारे में जानना चाहता था। क्या हम इसे दोपहर 3 बजे कर सकते हैं? मुझे बताएं कि आपके लिए कौन सा समय उपयुक्त है।',
-    'zh': '嘿，只是想确认一下明天的会议。我们能改到下午3点吗？告诉我你什么时间方便。',
-    'ja': 'ねえ、明日の会議について確認したかったんです。3時に変更できますか？都合のいい時間を教えてください。',
-    'yo': 'Kílọ̀, mo fẹ́ wá yẹ ìpàdé ọ̀la wò. Ṣé a lè yí ọ́ padà sí ọ̀sán mẹ́ta? Sọ fún mi irúfẹ́ tí ó wù ọ́.',
-    'sw': 'Hey, nilitaka tu kuangalia kuhusu mkutano wa kesho. Tunaweza kuusogeza hadi saa 3 mchana? Niambie inakufaa nini.',
-  };
+  String _transcript = '';
+  String _detectedLangName = '';
+  String _detectedLangCode = '';
+  String _translatedText = '';
+  KoraLanguage? _targetLanguage;
+  String _errorMsg = '';
+  bool _showOriginal = true;
 
   @override
   void initState() {
     super.initState();
-    _spinController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 1),
-    )..repeat();
+    _targetLanguage = _translationService.preferredLanguage;
+    _showOriginal = _translationService.showOriginal;
 
-    // Simulate transcription processing
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) setState(() => _stage = _Stage.done);
-    });
+    if (widget.autoTranslate) {
+      _startFullFlow();
+    } else {
+      _startTranscription();
+    }
   }
 
-  @override
-  void dispose() {
-    _spinController.dispose();
-    super.dispose();
-  }
+  Future<void> _startTranscription() async {
+    setState(() => _stage = _Stage.transcribing);
 
-  void _translate(String code) {
-    setState(() {
-      _selectedLanguage = code;
-      _isTranslating = true;
-      _showTranslation = false;
-    });
-    Future.delayed(const Duration(milliseconds: 800), () {
+    if (!ConnectivityService.instance.isOnline) {
+      setState(() {
+        _stage = _Stage.error;
+        _errorMsg = 'No internet connection. Transcription requires network access.';
+      });
+      return;
+    }
+
+    try {
+      final transcript = await _translationService.transcribeVoiceNote(
+        'voice_${DateTime.now().millisecondsSinceEpoch}',
+      );
+      final detectedCode = await _translationService.detectLanguage(transcript);
+      final detectedLang = _translationService.languageByCode(detectedCode ?? 'en');
+
       if (mounted) {
         setState(() {
-          _isTranslating = false;
-          _showTranslation = true;
+          _transcript = transcript;
+          _detectedLangCode = detectedCode ?? 'en';
+          _detectedLangName = detectedLang?.name ?? 'Unknown';
+          _stage = _Stage.transcribed;
         });
       }
-    });
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _stage = _Stage.error;
+          _errorMsg = 'We couldn\'t transcribe this voice note. Please try again.';
+        });
+      }
+    }
+  }
+
+  Future<void> _startFullFlow() async {
+    setState(() => _stage = _Stage.transcribing);
+
+    if (!ConnectivityService.instance.isOnline) {
+      setState(() {
+        _stage = _Stage.error;
+        _errorMsg = 'No internet connection. Voice translation requires network access.';
+      });
+      return;
+    }
+
+    try {
+      // Transcribe
+      final transcript = await _translationService.transcribeVoiceNote(
+        'voice_${DateTime.now().millisecondsSinceEpoch}',
+      );
+      final detectedCode = await _translationService.detectLanguage(transcript);
+      final detectedLang = _translationService.languageByCode(detectedCode ?? 'en');
+
+      if (!mounted) return;
+      setState(() {
+        _transcript = transcript;
+        _detectedLangCode = detectedCode ?? 'en';
+        _detectedLangName = detectedLang?.name ?? 'Unknown';
+      });
+
+      // Auto-translate if detected language differs from target
+      if (_detectedLangCode != _targetLanguage?.code) {
+        setState(() => _stage = _Stage.translating);
+        final result = await _translationService.translate(
+          transcript,
+          _targetLanguage!.code,
+          sourceCode: _detectedLangCode,
+        );
+        if (mounted) {
+          setState(() {
+            _translatedText = result.translatedText;
+            _stage = _Stage.translated;
+          });
+        }
+      } else {
+        // Same language — no translation needed
+        if (mounted) {
+          setState(() {
+            _translatedText = transcript;
+            _stage = _Stage.translated;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _stage = _Stage.error;
+          _errorMsg = 'We couldn\'t process this voice note. Please try again.';
+        });
+      }
+    }
+  }
+
+  Future<void> _translate() async {
+    if (!ConnectivityService.instance.isOnline) {
+      setState(() {
+        _stage = _Stage.error;
+        _errorMsg = 'No internet connection. Translation requires network access.';
+      });
+      return;
+    }
+
+    setState(() => _stage = _Stage.translating);
+    try {
+      final result = await _translationService.translate(
+        _transcript,
+        _targetLanguage!.code,
+        sourceCode: _detectedLangCode,
+      );
+      if (mounted) {
+        setState(() {
+          _translatedText = result.translatedText;
+          _stage = _Stage.translated;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _stage = _Stage.error;
+          _errorMsg = 'We couldn\'t translate this transcript. Please try again.';
+        });
+      }
+    }
+  }
+
+  void _changeLanguage() async {
+    final result = await Navigator.push<KoraLanguage>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LanguagePickerScreen(
+          selectedCode: _targetLanguage?.code,
+          title: 'Translate to',
+        ),
+      ),
+    );
+    if (result != null && result.code != _targetLanguage?.code) {
+      setState(() => _targetLanguage = result);
+      if (_stage == _Stage.translated) {
+        _translate();
+      }
+    }
+  }
+
+  void _copyText(String text) {
+    if (text.isEmpty) return;
+    Clipboard.setData(ClipboardData(text: text));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Copied'),
+        backgroundColor: KoraColors.purple,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 1),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final brightness = Theme.of(context).brightness;
-    final surface = KoraColors.cardFor(brightness);
-    final bg = KoraColors.surfaceFor(brightness);
+    final card = KoraColors.cardFor(brightness);
+    final surface = KoraColors.surfaceFor(brightness);
     final textPrimary = KoraColors.textPrimaryFor(brightness);
     final textSecondary = KoraColors.textSecondaryFor(brightness);
     final textMuted = KoraColors.textMutedFor(brightness);
@@ -114,189 +254,200 @@ class _VoiceTranslationSheetState extends State<VoiceTranslationSheet>
 
     return Container(
       decoration: BoxDecoration(
-        color: surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        color: card,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // ── Handle ──
-          Container(
-            margin: const EdgeInsets.only(top: 10),
-            width: 36,
-            height: 4,
-            decoration: BoxDecoration(
-              color: border,
-              borderRadius: BorderRadius.circular(2),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.75,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // ── Handle ──
+            Container(
+              margin: const EdgeInsets.only(top: 10),
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: border,
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
-          ),
-          // ── Header ──
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 16, 12),
-            child: Row(
-              children: [
-                Icon(Icons.language_rounded, color: KoraColors.purple, size: 22),
-                const SizedBox(width: 8),
-                Text(
-                  'Transcribe & Translate',
-                  style: TextStyle(
-                    color: textPrimary,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const Spacer(),
-                IconButton(
-                  icon: Icon(Icons.close_rounded, color: textMuted, size: 22),
-                  onPressed: () => Navigator.pop(context),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                ),
-              ],
-            ),
-          ),
-          Divider(height: 1, color: border),
-          // ── Body ──
-          Flexible(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            // ── Header ──
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 16, 12),
+              child: Row(
                 children: [
-                  // Voice note mini-preview
-                  _buildMiniVoicePreview(bg, border, textMuted),
-                  const SizedBox(height: 20),
-
-                  if (_stage == _Stage.transcribing) ...[
-                    _buildTranscribingState(textSecondary),
-                  ] else ...[
-                    // ── Transcript ──
-                    _buildSectionLabel('Transcript', textMuted),
-                    const SizedBox(height: 6),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: bg,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: border, width: 0.5),
-                      ),
-                      child: Text(
-                        _mockTranscript,
-                        style: TextStyle(
-                          color: textPrimary,
-                          fontSize: 14.5,
-                          height: 1.5,
-                        ),
-                      ),
+                  Icon(Icons.language_rounded, color: KoraColors.purple, size: 22),
+                  const SizedBox(width: 8),
+                  Text(
+                    widget.autoTranslate ? 'Translate Voice' : 'Transcribe & Translate',
+                    style: TextStyle(
+                      color: textPrimary,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
                     ),
-                    const SizedBox(height: 20),
-
-                    // ── Translate ──
-                    _buildSectionLabel('Translate to', textMuted),
-                    const SizedBox(height: 8),
-
-                    // Language chips
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: _languages.map((lang) {
-                        final isSelected = _selectedLanguage == lang['code'];
-                        return GestureDetector(
-                          onTap: () => _translate(lang['code']!),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? KoraColors.purple
-                                  : bg,
-                              border: Border.all(
-                                color: isSelected
-                                    ? KoraColors.purple
-                                    : border,
-                                width: 0.8,
-                              ),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(lang['flag']!, style: const TextStyle(fontSize: 14)),
-                                const SizedBox(width: 6),
-                                Text(
-                                  lang['name']!,
-                                  style: TextStyle(
-                                    color: isSelected ? Colors.white : textSecondary,
-                                    fontSize: 12.5,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-
-                    // Translation result
-                    if (_isTranslating) ...[
-                      const SizedBox(height: 16),
-                      _buildTranslatingState(textSecondary),
-                    ] else if (_showTranslation && _selectedLanguage != null) ...[
-                      const SizedBox(height: 16),
-                      _buildSectionLabel(
-                        "${_languages.firstWhere((l) => l['code'] == _selectedLanguage)['name']} translation",
-                        textMuted,
-                      ),
-                      const SizedBox(height: 6),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              KoraColors.purple.withValues(alpha: 0.08),
-                              KoraColors.blue.withValues(alpha: 0.05),
-                            ],
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: KoraColors.purple.withValues(alpha: 0.2),
-                            width: 0.5,
-                          ),
-                        ),
-                        child: Text(
-                          _mockTranslations[_selectedLanguage]!,
-                          style: TextStyle(
-                            color: textPrimary,
-                            fontSize: 14.5,
-                            height: 1.5,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    icon: Icon(Icons.close_rounded, color: textMuted, size: 22),
+                    onPressed: () => Navigator.pop(context),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                  ),
                 ],
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
+            Divider(height: 1, color: border),
+            // ── Body ──
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // ── Mini voice preview ──
+                    _buildMiniVoicePreview(surface, border, textMuted),
+                    const SizedBox(height: 20),
 
-  Widget _buildSectionLabel(String text, Color color) {
-    return Text(
-      text,
-      style: TextStyle(
-        color: color,
-        fontSize: 12,
-        fontWeight: FontWeight.w700,
-        letterSpacing: 0.3,
+                    // ── State-based content ──
+                    if (_stage == _Stage.transcribing)
+                      _buildProcessingRow(
+                        surface,
+                        textSecondary,
+                        'Transcribing voice...',
+                        Icons.mic_rounded,
+                      )
+                    else if (_stage == _Stage.translating)
+                      _buildProcessingRow(
+                        surface,
+                        textSecondary,
+                        'Translating...',
+                        Icons.translate_rounded,
+                      )
+                    else if (_stage == _Stage.error)
+                      _buildErrorCard(surface, textSecondary)
+                    else ...[
+                      // ── Detected language ──
+                      if (_detectedLangName.isNotEmpty)
+                        _buildLanguageBadge(surface, textMuted),
+                      const SizedBox(height: 12),
+
+                      // ── Transcript ──
+                      _buildSectionLabel('Transcript', textMuted),
+                      const SizedBox(height: 6),
+                      _buildTextCard(
+                        _transcript,
+                        surface,
+                        textPrimary,
+                        onCopy: () => _copyText(_transcript),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // ── Translation section ──
+                      if (_stage == _Stage.translated) ...[
+                        _buildSectionLabel(
+                          '${_targetLanguage?.name ?? ''} Translation',
+                          textMuted,
+                        ),
+                        const SizedBox(height: 6),
+                        _buildTextCard(
+                          _translatedText,
+                          KoraColors.purple.withValues(alpha: 0.04),
+                          textPrimary,
+                          isTranslation: true,
+                          onCopy: () => _copyText(_translatedText),
+                        ),
+                        const SizedBox(height: 12),
+                        // Action row
+                        Row(
+                          children: [
+                            _buildAction(
+                              Icons.language_rounded,
+                              'Change language',
+                              _changeLanguage,
+                              textSecondary,
+                            ),
+                            const SizedBox(width: 16),
+                            _buildAction(
+                              Icons.copy_rounded,
+                              'Copy translation',
+                              () => _copyText(_translatedText),
+                              textSecondary,
+                            ),
+                          ],
+                        ),
+                      ] else if (_stage == _Stage.transcribed) ...[
+                        // Translate button
+                        Row(
+                          children: [
+                            // Language selector
+                            GestureDetector(
+                              onTap: _changeLanguage,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: surface,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: border, width: 0.5),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(_targetLanguage?.flag ?? '', style: const TextStyle(fontSize: 14)),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      _targetLanguage?.name ?? 'Select',
+                                      style: TextStyle(
+                                        color: textPrimary,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: textMuted),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            // Translate button
+                            GestureDetector(
+                              onTap: _translate,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+                                decoration: BoxDecoration(
+                                  gradient: KoraColors.brandGradient,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.translate_rounded, size: 16, color: Colors.white),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      'Translate',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -318,30 +469,55 @@ class _VoiceTranslationSheetState extends State<VoiceTranslationSheet>
               gradient: KoraColors.brandGradient,
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 20),
+            child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 18),
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: SizedBox(
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 100,
+            height: 24,
+            child: KoraWaveform(
+              isLive: false,
+              progress: 0,
+              barCount: 24,
               height: 24,
-              child: KoraWaveform(
-                isLive: false,
-                progress: 0.3,
-                barCount: 30,
-                height: 24,
-                barWidth: 2,
-                barGap: 2,
-                playedColor: KoraColors.purple,
-                unplayedColor: KoraColors.purple.withValues(alpha: 0.2),
-              ),
+              barWidth: 2,
+              barGap: 2,
+              playedColor: KoraColors.purple.withValues(alpha: 0.3),
+              unplayedColor: KoraColors.purple.withValues(alpha: 0.15),
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Text(
             widget.voiceDuration,
             style: TextStyle(
               color: textMuted,
               fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLanguageBadge(Color surface, Color textMuted) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: KoraColors.purple.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.auto_detect_rounded, size: 14, color: KoraColors.purple),
+          const SizedBox(width: 4),
+          Text(
+            'Detected: $_detectedLangName',
+            style: TextStyle(
+              color: KoraColors.purple,
+              fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -350,88 +526,178 @@ class _VoiceTranslationSheetState extends State<VoiceTranslationSheet>
     );
   }
 
-  Widget _buildTranscribingState(Color textSecondary) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 32),
-        child: Column(
-          children: [
-            RotationTransition(
-              turns: _spinController,
-              child: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: KoraColors.purple.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.graphic_eq_rounded,
-                  color: KoraColors.purple,
-                  size: 24,
-                ),
-              ),
+  Widget _buildProcessingRow(Color surface, Color textSecondary, String label, IconData icon) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: surface,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: KoraColors.purple.withValues(alpha: 0.7),
             ),
-            const SizedBox(height: 14),
-            Text(
-              'Transcribing...',
-              style: TextStyle(
-                color: textSecondary,
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),
+          ),
+          const SizedBox(width: 12),
+          Icon(icon, size: 18, color: KoraColors.purple.withValues(alpha: 0.5)),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: TextStyle(
+              color: textSecondary,
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
             ),
-            const SizedBox(height: 4),
-            Text(
-              'Converting voice to text',
-              style: TextStyle(
-                color: textSecondary.withValues(alpha: 0.6),
-                fontSize: 12,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildTranslatingState(Color textSecondary) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        child: Column(
-          children: [
-            SizedBox(
-              width: 24,
-              height: 24,
-              child: CircularProgressIndicator(
-                strokeWidth: 2.5,
-                color: KoraColors.purple,
+  Widget _buildErrorCard(Color surface, Color textSecondary) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: surface,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.error_outline_rounded, size: 18, color: KoraColors.red),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  _errorMsg,
+                  style: TextStyle(color: textSecondary, fontSize: 13.5, height: 1.4),
+                ),
               ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          GestureDetector(
+            onTap: () {
+              if (widget.autoTranslate) {
+                _startFullFlow();
+              } else {
+                _startTranscription();
+              }
+            },
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.refresh_rounded, size: 16, color: KoraColors.purple),
+                const SizedBox(width: 4),
+                Text(
+                  'Try again',
+                  style: TextStyle(
+                    color: KoraColors.purple,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 10),
-            Text(
-              'Translating...',
-              style: TextStyle(
-                color: textSecondary,
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
-}
 
-/// Shows the voice translation bottom sheet.
-void showVoiceTranslationSheet(BuildContext context, {required String voiceDuration}) {
-  showModalBottomSheet(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    barrierColor: Colors.black.withValues(alpha: 0.4),
-    builder: (_) => VoiceTranslationSheet(voiceDuration: voiceDuration),
-  );
+  Widget _buildSectionLabel(String label, Color color) {
+    return Text(
+      label,
+      style: TextStyle(
+        color: color,
+        fontSize: 11.5,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0.3,
+      ),
+    );
+  }
+
+  Widget _buildTextCard(
+    String text,
+    Color bg,
+    Color textColor, {
+    bool isTranslation = false,
+    VoidCallback? onCopy,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(12),
+        border: isTranslation
+            ? Border.all(color: KoraColors.purple.withValues(alpha: 0.15), width: 0.5)
+            : null,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            text,
+            style: TextStyle(
+              color: textColor,
+              fontSize: 14.5,
+              height: 1.5,
+              fontWeight: isTranslation ? FontWeight.w500 : FontWeight.w400,
+            ),
+          ),
+          if (onCopy != null) ...[
+            const SizedBox(height: 8),
+            GestureDetector(
+              onTap: onCopy,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.copy_rounded, size: 14, color: KoraColors.textMutedFor(Theme.of(context).brightness)),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Copy',
+                    style: TextStyle(
+                      color: KoraColors.textMutedFor(Theme.of(context).brightness),
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAction(IconData icon, String label, VoidCallback onTap, Color color) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

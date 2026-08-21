@@ -10,6 +10,9 @@ import '../../models/chat_models.dart';
 import '../../models/message_model.dart';
 import '../../services/message_service.dart';
 import '../../services/offline_voice_sync.dart';
+import '../../services/translation_service.dart';
+import '../../models/translation_models.dart';
+import 'call_translation_sheet.dart';
 import '../../theme/kora_colors.dart';
 import '../../theme/chat_theme_provider.dart';
 import '../../config/kora_api.dart';
@@ -338,11 +341,26 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
       context,
       messageKey: key,
       isMe: message.isMe,
+      messageType: message.type,
       onReact: (emoji) => _onReact(message.id, emoji),
       onReply: () => setState(() => _replyTarget = message),
       onCopy: () => _onCopy(message.text),
       onForward: () {},
       onTranslate: () => _onTranslate(message.text),
+      onTranscribeVoice: message.type == KoraMessageType.voice
+          ? () => VoiceTranslationSheet.show(
+              context,
+              voiceDuration: message.voiceDuration ?? '0:05',
+              autoTranslate: false,
+            )
+          : null,
+      onTranslateVoice: message.type == KoraMessageType.voice
+          ? () => VoiceTranslationSheet.show(
+              context,
+              voiceDuration: message.voiceDuration ?? '0:05',
+              autoTranslate: true,
+            )
+          : null,
       onDelete: () => _onDelete(message.id),
     );
   }
@@ -1383,6 +1401,8 @@ class _CallScreenState extends State<_CallScreen> {
   int _seconds = 0;
   bool _isMuted = false;
   bool _isSpeakerOn = true;
+  bool _translationOn = false;
+  bool _captionsOn = false;
   late Timer _timer;
 
   @override
@@ -1479,9 +1499,65 @@ class _CallScreenState extends State<_CallScreen> {
                 ),
               ),
               const Spacer(flex: 3),
+              // Live captions overlay (when translation is on)
+              if (_translationOn && _captionsOn)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 120),
+                  child: LiveCaptionsOverlay(
+                    speakerName: widget.name,
+                    fontSize: TranslationService.instance.captionSize,
+                  ),
+                ),
+
+              // Kora Translate indicator
+              if (_translationOn)
+                Positioned(
+                  top: 60,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: KoraColors.purple.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: KoraColors.purple.withValues(alpha: 0.4),
+                          width: 0.5,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.language_rounded, size: 14, color: KoraColors.purple),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Kora Translate • ON',
+                            style: TextStyle(
+                              color: KoraColors.purple,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.3,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          GestureDetector(
+                            onTap: () => setState(() => _captionsOn = !_captionsOn),
+                            child: Icon(
+                              _captionsOn ? Icons.closed_caption_rounded : Icons.closed_caption_outlined,
+                              size: 16,
+                              color: KoraColors.purple.withValues(alpha: 0.7),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
               // Control buttons
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 40),
+                padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 40),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
@@ -1489,7 +1565,7 @@ class _CallScreenState extends State<_CallScreen> {
                     GestureDetector(
                       onTap: () => setState(() => _isMuted = !_isMuted),
                       child: Container(
-                        width: 56, height: 56,
+                        width: 52, height: 52,
                         decoration: BoxDecoration(
                           color: _isMuted ? Colors.white : Colors.white.withValues(alpha: 0.1),
                           shape: BoxShape.circle,
@@ -1497,7 +1573,30 @@ class _CallScreenState extends State<_CallScreen> {
                         child: Icon(
                           _isMuted ? Icons.mic_off : Icons.mic,
                           color: _isMuted ? Colors.black : Colors.white,
-                          size: 24,
+                          size: 22,
+                        ),
+                      ),
+                    ),
+                    // Translate toggle
+                    GestureDetector(
+                      onTap: () {
+                        setState(() => _translationOn = !_translationOn);
+                        if (_translationOn) {
+                          CallTranslationSheet.show(context, isInCall: true);
+                        }
+                      },
+                      child: Container(
+                        width: 52, height: 52,
+                        decoration: BoxDecoration(
+                          color: _translationOn
+                              ? KoraColors.purple
+                              : Colors.white.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.translate_rounded,
+                          color: _translationOn ? Colors.white : Colors.white,
+                          size: 22,
                         ),
                       ),
                     ),
@@ -1505,7 +1604,7 @@ class _CallScreenState extends State<_CallScreen> {
                     GestureDetector(
                       onTap: () => Navigator.pop(context, _seconds >= 3),
                       child: Container(
-                        width: 64, height: 64,
+                        width: 60, height: 60,
                         decoration: const BoxDecoration(
                           color: Colors.red,
                           shape: BoxShape.circle,
@@ -1517,7 +1616,7 @@ class _CallScreenState extends State<_CallScreen> {
                     GestureDetector(
                       onTap: () => setState(() => _isSpeakerOn = !_isSpeakerOn),
                       child: Container(
-                        width: 56, height: 56,
+                        width: 52, height: 52,
                         decoration: BoxDecoration(
                           color: _isSpeakerOn ? Colors.white : Colors.white.withValues(alpha: 0.1),
                           shape: BoxShape.circle,
@@ -1525,7 +1624,7 @@ class _CallScreenState extends State<_CallScreen> {
                         child: Icon(
                           Icons.volume_up,
                           color: _isSpeakerOn ? Colors.black : Colors.white,
-                          size: 24,
+                          size: 22,
                         ),
                       ),
                     ),

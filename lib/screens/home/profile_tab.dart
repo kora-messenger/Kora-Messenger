@@ -4,6 +4,8 @@ import '../../widgets/kora_avatar.dart';
 import '../../services/session_manager.dart';
 import '../settings/appearance_screen.dart';
 import '../settings/account_screen.dart';
+import '../settings/translation_settings_screen.dart';
+import '../settings/voice_media_settings_screen.dart';
 
 /// "Profile" tab — the user's own profile summary plus settings shortcuts.
 class ProfileTab extends StatefulWidget {
@@ -123,6 +125,24 @@ class _ProfileTabState extends State<ProfileTab> {
             _tile(context, Icons.workspace_premium_outlined, 'Kora Premium', 'Unlock premium features'),
             _tile(context, Icons.support_agent_outlined, 'Kora Support', 'Get help from the Kora team'),
             _tile(context, Icons.info_outline, 'About Kora', 'App version, terms & privacy'),
+            const SizedBox(height: 20),
+            _sectionLabel('TRANSLATION & MEDIA', textMuted),
+            _navTile(
+              context,
+              icon: Icons.translate_rounded,
+              iconColor: KoraColors.purple,
+              title: 'Translation',
+              subtitle: 'Preferred language, auto-translate, voice notes',
+              screen: const TranslationSettingsScreen(),
+            ),
+            _navTile(
+              context,
+              icon: Icons.graphic_eq_rounded,
+              iconColor: KoraColors.purple,
+              title: 'Voice & Media',
+              subtitle: 'Upload your own audio or video',
+              screen: const VoiceMediaSettingsScreen(),
+            ),
           ],
         ),
       ),
@@ -302,6 +322,71 @@ class _ProfileTabState extends State<ProfileTab> {
                   ],
                 ),
               ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _navTile(
+    BuildContext context, {
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    required Widget screen,
+  }) {
+    final brightness = Theme.of(context).brightness;
+    final textPrimary = KoraColors.textPrimaryFor(brightness);
+    final textSecondary = KoraColors.textSecondaryFor(brightness);
+    final textMuted = KoraColors.textMutedFor(brightness);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => screen),
+          );
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: iconColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: iconColor, size: 20),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        color: textPrimary,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(color: textSecondary, fontSize: 12.5),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, color: textMuted),
             ],
           ),
         ),

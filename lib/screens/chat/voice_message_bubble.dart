@@ -3,6 +3,7 @@ import '../../models/message_model.dart';
 import '../../models/chat_models.dart';
 import '../../theme/kora_colors.dart';
 import '../../widgets/kora_waveform.dart';
+import 'voice_translation_sheet.dart';
 
 /// Kora's voice message bubble — used inside MessageBubble for voice messages.
 ///
@@ -176,30 +177,69 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
           ],
         ),
         const SizedBox(height: 6),
-        // ── Translate / Transcribe action ──
-        if (widget.onTranslate != null)
-          GestureDetector(
-            onTap: widget.onTranslate,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.language_rounded,
-                  size: 13,
-                  color: isMe ? Colors.white.withValues(alpha: 0.7) : KoraColors.purple,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  'Transcribe & Translate',
-                  style: TextStyle(
+        // ── Transcribe + Translate Voice actions ──
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            GestureDetector(
+              onTap: () {
+                VoiceTranslationSheet.show(
+                  context,
+                  voiceDuration: widget.message.voiceDuration ?? '0:05',
+                  autoTranslate: false,
+                );
+              },
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.mic_outlined,
+                    size: 13,
                     color: isMe ? Colors.white.withValues(alpha: 0.7) : KoraColors.purple,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
                   ),
-                ),
-              ],
+                  const SizedBox(width: 3),
+                  Text(
+                    'Transcribe',
+                    style: TextStyle(
+                      color: isMe ? Colors.white.withValues(alpha: 0.7) : KoraColors.purple,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
+            const SizedBox(width: 12),
+            GestureDetector(
+              onTap: () {
+                VoiceTranslationSheet.show(
+                  context,
+                  voiceDuration: widget.message.voiceDuration ?? '0:05',
+                  autoTranslate: true,
+                );
+              },
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.translate_rounded,
+                    size: 13,
+                    color: isMe ? Colors.white.withValues(alpha: 0.7) : KoraColors.purple,
+                  ),
+                  const SizedBox(width: 3),
+                  Text(
+                    'Translate Voice',
+                    style: TextStyle(
+                      color: isMe ? Colors.white.withValues(alpha: 0.7) : KoraColors.purple,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ],
     );
   }

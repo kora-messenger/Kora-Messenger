@@ -11,6 +11,7 @@ import 'services/data_saver_service.dart';
 import 'services/crash_logger.dart';
 import 'services/connectivity_service.dart';
 import 'services/offline_voice_sync.dart';
+import 'services/translation_service.dart';
 import 'services/message_service.dart';
 import 'theme/chat_theme_provider.dart';
 
@@ -32,6 +33,9 @@ void main() {
     ConnectivityService.instance.init();
     await MessageService.instance.init();
     await OfflineVoiceSyncService.instance.init();
+
+    // Initialize translation service.
+    await TranslationService.instance.init();
 
     runApp(const KoraMessengerApp());
   }, (error, stackTrace) {

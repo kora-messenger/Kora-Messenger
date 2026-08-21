@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../theme/kora_colors.dart';
+import '../../models/message_model.dart';
 
 /// Actions available when long-pressing a message in Kora.
 enum KoraMessageAction {
@@ -8,6 +9,8 @@ enum KoraMessageAction {
   copy,
   forward,
   translate,
+  transcribeVoice,
+  translateVoice,
   delete,
   select,
 }
@@ -16,17 +19,23 @@ enum KoraMessageAction {
 const _quickReactions = ['❤️', '😂', '👍', '😮', '😢', '🙏'];
 
 /// Shows Kora's message action menu as an overlay near the tapped message.
-/// Includes a quick-reaction row + contextual actions (reply, copy, etc.)
+/// Includes a quick-reaction row + contextual actions.
+///
+/// For voice messages, shows Transcribe and Translate Voice instead of
+/// just Translate.
 void showKoraMessageActionMenu(
   BuildContext context, {
   required GlobalKey messageKey,
   required bool isMe,
+  required KoraMessageType messageType,
   required ValueChanged<String> onReact,
   required VoidCallback onReply,
   required VoidCallback onCopy,
   required VoidCallback onForward,
   required VoidCallback onTranslate,
   required VoidCallback onDelete,
+  VoidCallback? onTranscribeVoice,
+  VoidCallback? onTranslateVoice,
 }) {
   final overlay = Overlay.of(context);
   late OverlayEntry entry;
@@ -35,6 +44,7 @@ void showKoraMessageActionMenu(
     builder: (context) => _MessageActionOverlay(
       messageKey: messageKey,
       isMe: isMe,
+      messageType: messageType,
       onDismiss: () => entry.remove(),
       onReact: (emoji) {
         entry.remove();
@@ -56,6 +66,18 @@ void showKoraMessageActionMenu(
         entry.remove();
         onTranslate();
       },
+      onTranscribeVoice: onTranscribeVoice != null
+          ? () {
+              entry.remove();
+              onTranscribeVoice();
+            }
+          : null,
+      onTranslateVoice: onTranslateVoice != null
+          ? () {
+              entry.remove();
+              onTranslateVoice();
+            }
+          : null,
       onDelete: () {
         entry.remove();
         onDelete();
@@ -69,32 +91,39 @@ void showKoraMessageActionMenu(
 class _MessageActionOverlay extends StatelessWidget {
   final GlobalKey messageKey;
   final bool isMe;
+  final KoraMessageType messageType;
   final VoidCallback onDismiss;
   final ValueChanged<String> onReact;
   final VoidCallback onReply;
   final VoidCallback onCopy;
   final VoidCallback onForward;
   final VoidCallback onTranslate;
+  final VoidCallback? onTranscribeVoice;
+  final VoidCallback? onTranslateVoice;
   final VoidCallback onDelete;
 
   const _MessageActionOverlay({
     required this.messageKey,
     required this.isMe,
+    required this.messageType,
     required this.onDismiss,
     required this.onReact,
     required this.onReply,
     required this.onCopy,
     required this.onForward,
     required this.onTranslate,
+    this.onTranscribeVoice,
+    this.onTranslateVoice,
     required this.onDelete,
   });
+
+  bool get _isVoice => messageType == KoraMessageType.voice;
 
   @override
   Widget build(BuildContext context) {
     final brightness = Theme.of(context).brightness;
     final card = KoraColors.cardFor(brightness);
     final textPrimary = KoraColors.textPrimaryFor(brightness);
-    
 
     // Find the message position
     final renderBox = messageKey.currentContext?.findRenderObject() as RenderBox?;
@@ -107,7 +136,7 @@ class _MessageActionOverlay extends StatelessWidget {
     double menuTop = (messagePos?.dy ?? 100) - 12;
     double menuLeft = (messagePos?.dx ?? 0) + (messageSize.width / 2) - 120;
     menuLeft = menuLeft.clamp(16.0, screenWidth - 256);
-    menuTop = menuTop.clamp(80.0, screenHeight - 300);
+    menuTop = menuTop.clamp(80.0, screenHeight - 360);
 
     return Stack(
       children: [
@@ -166,9 +195,18 @@ class _MessageActionOverlay extends StatelessWidget {
                   // Actions
                   _action(Icons.reply, 'Reply', onReply, textPrimary),
                   _action(Icons.emoji_emotions_outlined, 'React', () {}, textPrimary),
-                  _action(Icons.copy_outlined, 'Copy', onCopy, textPrimary),
+                  if (!_isVoice)
+                    _action(Icons.copy_outlined, 'Copy', onCopy, textPrimary),
                   _action(Icons.forward_outlined, 'Forward', onForward, textPrimary),
-                  _action(Icons.translate_outlined, 'Translate', onTranslate, textPrimary),
+                  // Voice-specific actions
+                  if (_isVoice) ...[
+                    if (onTranscribeVoice != null)
+                      _action(Icons.mic_outlined, 'Transcribe', onTranscribeVoice!, textPrimary),
+                    if (onTranslateVoice != null)
+                      _action(Icons.translate_outlined, 'Translate Voice', onTranslateVoice!, textPrimary),
+                  ] else ...[
+                    _action(Icons.translate_outlined, 'Translate', onTranslate, textPrimary),
+                  ],
                   if (isMe)
                     _action(Icons.delete_outline, 'Delete', onDelete, Colors.red),
                 ],
