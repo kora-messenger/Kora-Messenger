@@ -316,7 +316,7 @@ class WebRTCCallService {
     if (_localStream != null) {
       final videoTrack = _localStream!.getVideoTracks().firstOrNull;
       if (videoTrack != null) {
-        await videoTrack.switchCamera();
+        await Helper.switchCamera(videoTrack);
       }
     }
   }

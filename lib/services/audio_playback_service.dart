@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 
 /// Real audio playback service for Kora Messenger voice notes.
