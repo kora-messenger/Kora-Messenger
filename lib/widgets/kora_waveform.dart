@@ -124,8 +124,20 @@ class _KoraWaveformState extends State<KoraWaveform>
     final amps = widget.liveAmplitudes!;
     final count = widget.barCount;
     final result = List<double>.filled(count, 0.2);
-    for (int i = 0; i < count && i < amps.length; i++) {
-      result[i] = amps[amps.length - count + i].clamp(0.1, 1.0);
+
+    if (amps.isEmpty) return result;
+
+    if (amps.length >= count) {
+      // More amplitudes than bars — sample the last `count` amplitudes
+      for (int i = 0; i < count; i++) {
+        result[i] = amps[amps.length - count + i].clamp(0.1, 1.0);
+      }
+    } else {
+      // Fewer amplitudes than bars — map proportionally, pad with minimum
+      for (int i = 0; i < count; i++) {
+        final ampIndex = (i * amps.length) ~/ count;
+        result[i] = amps[ampIndex.clamp(0, amps.length - 1)].clamp(0.1, 1.0);
+      }
     }
     return result;
   }
