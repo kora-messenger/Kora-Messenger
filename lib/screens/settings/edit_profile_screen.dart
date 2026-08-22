@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
 import 'dart:io';
+import 'dart:convert';
 import '../../theme/kora_colors.dart';
 import '../../services/session_manager.dart';
 import '../../config/kora_api.dart';
@@ -55,20 +57,51 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     super.dispose();
   }
 
+  bool _uploadingAvatar = false;
+
   Future<void> _pickAvatar() async {
     try {
       final picker = ImagePicker();
-      final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+      final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 75);
       if (picked == null) return;
 
-      // Upload the image — for now use the file path as a data URL
-      // In production this would upload to a server
-      setState(() => _avatarUrl = picked.path);
-    } catch (_) {
+      // Read file bytes and convert to base64
+      final bytes = await picked.readAsBytes();
+      final base64Image = base64Encode(bytes);
+      final mimeType = picked.mimeType ?? 'image/jpeg';
+
+      setState(() => _uploadingAvatar = true);
+
+      // Upload to server
+      final response = await http.post(
+        Uri.parse(KoraApi.uploadEndpoint),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'action': 'uploadAvatar',
+          'imageBase64': base64Image,
+          'fileName': 'avatar_${_session?['id'] ?? DateTime.now().millisecondsSinceEpoch}.${mimeType.contains('png') ? 'png' : 'jpg'}',
+          'fileType': mimeType,
+        }),
+      ).timeout(const Duration(seconds: 30));
+
+      final data = jsonDecode(response.body);
       if (!mounted) return;
+
+      if (data['success'] == true && data['url'] != null) {
+        setState(() {
+          _avatarUrl = data['url'] as String;
+          _uploadingAvatar = false;
+        });
+      } else {
+        setState(() => _uploadingAvatar = false);
+        _showError(data['error'] as String? ?? 'Failed to upload image');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _uploadingAvatar = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Could not pick image'),
+          content: const Text('Could not pick or upload image. Check your connection.'),
           backgroundColor: KoraColors.red,
           behavior: SnackBarBehavior.floating,
         ),
@@ -216,7 +249,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 // Avatar
                 Center(
                   child: GestureDetector(
-                    onTap: _pickAvatar,
+                    onTap: _uploadingAvatar ? null : _pickAvatar,
                     child: Stack(
                       children: [
                         Container(
@@ -226,24 +259,35 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             shape: BoxShape.circle,
                             gradient: KoraColors.brandGradient,
                           ),
-                          child: _avatarUrl != null && _avatarUrl!.isNotEmpty
-                              ? ClipOval(
-                                  child: _avatarUrl!.startsWith('/')
-                                      ? Image.file(File(_avatarUrl!), fit: BoxFit.cover)
-                                      : Image.network(_avatarUrl!, fit: BoxFit.cover),
-                                )
-                              : Center(
-                                  child: Text(
-                                    (_nameController.text.isNotEmpty
-                                        ? _nameController.text[0].toUpperCase()
-                                        : 'K'),
-                                    style: const TextStyle(
+                          child: _uploadingAvatar
+                              ? const Center(
+                                  child: SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.5,
                                       color: Colors.white,
-                                      fontSize: 40,
-                                      fontWeight: FontWeight.w800,
                                     ),
                                   ),
-                                ),
+                                )
+                              : _avatarUrl != null && _avatarUrl!.isNotEmpty
+                                  ? ClipOval(
+                                      child: _avatarUrl!.startsWith('/')
+                                          ? Image.file(File(_avatarUrl!), fit: BoxFit.cover)
+                                          : Image.network(_avatarUrl!, fit: BoxFit.cover),
+                                    )
+                                  : Center(
+                                      child: Text(
+                                        (_nameController.text.isNotEmpty
+                                            ? _nameController.text[0].toUpperCase()
+                                            : 'K'),
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 40,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                    ),
                         ),
                         Positioned(
                           bottom: 0,

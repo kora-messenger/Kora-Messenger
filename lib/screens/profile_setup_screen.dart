@@ -1,12 +1,15 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
 import '../theme/kora_colors.dart';
 import '../theme/chat_theme_provider.dart';
 import '../widgets/kora_button.dart';
 import '../widgets/kora_input.dart';
 import '../services/auth_service.dart';
+import '../config/kora_api.dart';
 import '../services/session_manager.dart';
 import 'kora_home_screen.dart';
 
@@ -264,12 +267,37 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       return;
     }
 
+    // Upload avatar to server if user picked a photo
+    String avatarUrl = '';
+    if (_photo != null) {
+      try {
+        final bytes = await _photo!.readAsBytes();
+        final base64Image = base64Encode(bytes);
+        final uploadResp = await http.post(
+          Uri.parse(KoraApi.uploadEndpoint),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'action': 'uploadAvatar',
+            'imageBase64': base64Image,
+            'fileName': 'avatar_${userId}.${_photo!.path.endsWith('.png') ? 'png' : 'jpg'}',
+            'fileType': _photo!.path.endsWith('.png') ? 'image/png' : 'image/jpeg',
+          }),
+        ).timeout(const Duration(seconds: 30));
+        final uploadData = jsonDecode(uploadResp.body);
+        if (uploadData['success'] == true && uploadData['url'] != null) {
+          avatarUrl = uploadData['url'] as String;
+        }
+      } catch (_) {
+        // Non-fatal — continue without avatar if upload fails
+      }
+    }
+
     final result = await _auth.saveProfile(
       userId: userId,
       fullName: _nameController.text.trim(),
       username: _usernameController.text.trim(),
       bio: _bioController.text.trim(),
-      avatarUrl: '', // TODO: upload photo to storage, then pass URL
+      avatarUrl: avatarUrl,
     );
 
     if (!mounted) return;

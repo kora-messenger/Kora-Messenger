@@ -536,6 +536,15 @@ Deno.serve(async (req: Request) => {
     }
 
 
+    // ── GET PROFILE ───────────────────────────────────────
+    if (action === "getProfile") {
+      const { userId } = body;
+      if (!userId) return jsonResponse({ success: false, error: "User ID is required" });
+      const user = await db.entities.KoraUser.get(userId);
+      if (!user) return jsonResponse({ success: false, error: "Account not found" });
+      return jsonResponse({ success: true, user: getUserFromRecord(user) });
+    }
+
     // ── REQUEST ACCOUNT INFO ────────────────────────────────
     if (action === 'requestAccountInfo') {
       const { userId, email } = body;

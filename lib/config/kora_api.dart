@@ -36,6 +36,11 @@ class KoraApi {
   static const String crashReportEndpoint = '$baseUrl/koraCrashReport';
 
   /// Automated detection system — monitors activity, suspends accounts,
+
+  /// File upload endpoint — avatar and media uploads.
+  /// Temporary: Base44 backend function.
+  /// Future: 'https://api.koramessenger.com/upload' (or your domain)
+  static const String uploadEndpoint = '$baseUrl/koraUpload';
   /// checks suspension status, and handles appeals.
   static const String autoDetectEndpoint = '$baseUrl/koraAutoDetect';
 

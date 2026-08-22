@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'theme/kora_colors.dart';
 import 'config/kora_api.dart';
+import 'services/auth_service.dart';
 import 'screens/welcome_screen.dart';
 import 'screens/suspension_screen.dart';
 import 'screens/kora_home_screen.dart';
@@ -201,6 +202,19 @@ class _SplashScreenState extends State<SplashScreen> {
       } catch (_) {
         // Fail open — let the user through if detection service is down
       }
+
+      // Refresh profile from backend so avatar URL and data persist
+      // across app reinstalls. Falls back to cached session on failure.
+      try {
+        final userId = session['id']?.toString() ?? '';
+        if (userId.isNotEmpty) {
+          final auth = AuthService();
+          final fresh = await auth.getProfile(userId: userId);
+          if (fresh.success && fresh.user != null) {
+            await SessionManager.instance.saveSession(fresh.user!);
+          }
+        }
+      } catch (_) {}
 
       if (!mounted) return;
       final profileCompleted = session['profileCompleted'] == true;

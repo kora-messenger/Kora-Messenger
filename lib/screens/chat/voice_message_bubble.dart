@@ -15,27 +15,14 @@ import 'package:just_audio/just_audio.dart';
 /// Shows: play/pause button, waveform with playback progress, duration,
 /// and a Translate / Transcribe action that opens the translation sheet.
 ///
-/// When a voice note is pending offline upload ([MessageStatus.pendingOffline]),
-/// the visual depends on [KoraMessage.voiceTransferState]:
-/// - [VoiceTransferState.uploading] — a circular progress ring with a
-///   tap-to-cancel "X" in the middle, plus the note's size (e.g. "10 kB").
-/// - [VoiceTransferState.notSent] — a tap-to-retry upload arrow icon.
-///   Tapping it while still offline briefly spins then shows a "check
-///   your internet connection" error and reverts; tapping while online
-///   (or connectivity returning on its own) uploads and sends normally.
-///
-/// Uses [AudioPlaybackService] for real audio playback via `just_audio`.
+/// Audio playback is managed by [AudioPlaybackService] — a singleton that
+/// ensures only ONE voice note plays at a time (WhatsApp-style). Each bubble
+/// listens to the global [playingIdStream] so it knows whether it's the
+/// active player, and auto-resets its icon when another bubble takes over.
 class VoiceMessageBubble extends StatefulWidget {
   final KoraMessage message;
   final VoidCallback? onTranslate;
-
-  /// Tap the "X" during [VoiceTransferState.uploading] — cancels the
-  /// attempt (message is NOT deleted, switches to notSent/tap-to-retry).
   final VoidCallback? onCancelUpload;
-
-  /// Tap the retry arrow during [VoiceTransferState.notSent]. Returns
-  /// true if the device is online (upload proceeds in the background),
-  /// false if still offline — this widget shows the error itself.
   final Future<bool> Function()? onRetryUpload;
 
   const VoiceMessageBubble({
@@ -54,7 +41,11 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
     with SingleTickerProviderStateMixin {
   bool get _isPremium => ChatThemeProvider.instance.isPremium;
 
-  void _showVoiceTranslation(BuildContext context, {required String voiceDuration, required bool autoTranslate, String? voiceId, String? transcript}) {
+  void _showVoiceTranslation(BuildContext context,
+      {required String voiceDuration,
+      required bool autoTranslate,
+      String? voiceId,
+      String? transcript}) {
     if (!_isPremium) {
       showModalBottomSheet(
         context: context,
@@ -73,8 +64,9 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
     );
   }
 
-  // ── Animation & playback state ──
+  // ── Playback state ──
   bool _isPlaying = false;
+  bool _isLoading = false; // guards against double-tap race conditions
   double _progress = 0.0;
   double _speed = 1.0; // cycles 1x -> 1.5x -> 2x -> 1x
   late AnimationController _syncSpinController;
@@ -82,6 +74,8 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
   final _playbackService = AudioPlaybackService.instance;
   StreamSubscription? _positionSub;
   StreamSubscription? _stateSub;
+  StreamSubscription? _playingIdSub;
+  StreamSubscription? _loadingSub;
   Duration? _audioDuration;
 
   @override
@@ -92,16 +86,48 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
       duration: const Duration(milliseconds: 1200),
     );
 
-    _positionSub = _playbackService.positionStream.listen((pos) {
-      if (_audioDuration != null && _audioDuration!.inMilliseconds > 0 && mounted) {
+    // Listen to global playing ID changes — this is how we know
+    // when another bubble started playing and we should reset.
+    _playingIdSub = _playbackService.playingIdStream.listen((playingId) {
+      if (!mounted) return;
+      final myId = widget.message.id;
+      if (playingId != myId && _isPlaying) {
+        // Another message took over — reset our UI to play icon
         setState(() {
-          _progress = pos.inMilliseconds / _audioDuration!.inMilliseconds;
+          _isPlaying = false;
+        });
+      } else if (playingId == myId && !_isPlaying) {
+        // This message is now the active player
+        setState(() {
+          _isPlaying = true;
+        });
+      }
+    });
+
+    // Listen to loading state — prevents double-taps while loading
+    _loadingSub = _playbackService.loadingStream.listen((loading) {
+      if (!mounted) return;
+      setState(() => _isLoading = loading);
+    });
+
+    _positionSub = _playbackService.positionStream.listen((pos) {
+      if (_audioDuration != null &&
+          _audioDuration!.inMilliseconds > 0 &&
+          mounted &&
+          _playbackService.currentPlayingId == widget.message.id) {
+        setState(() {
+          _progress =
+              (pos.inMilliseconds / _audioDuration!.inMilliseconds)
+                  .clamp(0.0, 1.0);
         });
       }
     });
 
     _stateSub = _playbackService.playerStateStream.listen((state) {
-      if (state.processingState == ProcessingState.completed && mounted) {
+      if (!mounted) return;
+      if (state.processingState == ProcessingState.completed) {
+        // Playback finished — reset everything, just like WhatsApp
+        _playbackService.handleCompletion();
         setState(() {
           _isPlaying = false;
           _progress = 0.0;
@@ -114,7 +140,12 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
   void dispose() {
     _positionSub?.cancel();
     _stateSub?.cancel();
-    if (_isPlaying) _playbackService.stop();
+    _playingIdSub?.cancel();
+    _loadingSub?.cancel();
+    // Stop playback if this bubble was the active one
+    if (_playbackService.currentPlayingId == widget.message.id) {
+      _playbackService.stop();
+    }
     _syncSpinController.dispose();
     super.dispose();
   }
@@ -122,10 +153,6 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
   bool get _isPendingOffline =>
       widget.message.status == MessageStatus.pendingOffline;
 
-  /// Local-only transient flag: true while a manual retry tap is
-  /// checking connectivity, before we know whether it'll succeed or
-  /// show the "check your internet connection" error. Purely visual —
-  /// doesn't touch the persisted message.
   bool _manualRetryChecking = false;
 
   String get _formattedSize {
@@ -134,46 +161,12 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
     return '$kb kB';
   }
 
-  Future<void> _handleRetryTap() async {
-    if (_manualRetryChecking || widget.onRetryUpload == null) return;
-    setState(() => _manualRetryChecking = true);
-
-    // Small delay so the spin is visible even on a fast check —
-    // matches the "it will load" beat described for this flow.
-    final results = await Future.wait([
-      widget.onRetryUpload!(),
-      Future.delayed(const Duration(milliseconds: 600)),
-    ]);
-    final online = results[0] as bool;
-
-    if (!mounted) return;
-    setState(() => _manualRetryChecking = false);
-
-    if (!online) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: const [
-              Icon(Icons.wifi_off_rounded, color: Colors.white, size: 18),
-              SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Failed to load. Check your internet connection.',
-                  style: TextStyle(fontSize: 13),
-                ),
-              ),
-            ],
-          ),
-          backgroundColor: KoraColors.red,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 3),
-        ),
-      );
-    }
-  }
-
-  void _togglePlay() async {
-    if (_isPendingOffline) return;
+  // ── Play / Pause toggle ──
+  // Guards against double-taps with _isLoading. When tapped, we
+  // immediately update the icon for responsiveness, then do the
+  // async work. The global playingIdStream keeps all bubbles in sync.
+  Future<void> _togglePlay() async {
+    if (_isPendingOffline || _isLoading) return; // no double-taps while loading
 
     final path = widget.message.voiceFilePath;
     if (path == null) {
@@ -183,14 +176,53 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
       return;
     }
 
+    final messageId = widget.message.id;
+
     if (_isPlaying) {
+      // Pause — keep position
       await _playbackService.pause();
-      setState(() => _isPlaying = false);
+      if (mounted) setState(() => _isPlaying = false);
     } else {
-      await _playbackService.play(path);
-      await _playbackService.setSpeed(_speed);
-      _audioDuration = _playbackService.duration;
-      setState(() => _isPlaying = true);
+      // Play — if same file and it was completed, seek to 0:00 first
+      // Immediately show loading state to prevent double-taps
+      setState(() => _isLoading = true);
+
+      try {
+        if (_progress >= 1.0) {
+          _progress = 0.0;
+        }
+
+        await _playbackService.play(path, messageId: messageId);
+        await _playbackService.setSpeed(_speed);
+        _audioDuration = _playbackService.duration;
+
+        if (mounted) {
+          setState(() {
+            _isPlaying = true;
+            _isLoading = false;
+          });
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            _isPlaying = false;
+          });
+        }
+      }
+    }
+  }
+
+  // ── Seek / Scrub ──
+  // Tap on waveform to seek to that position.
+  Future<void> _seekTo(double fraction) async {
+    if (_audioDuration == null || _audioDuration!.inMilliseconds == 0) return;
+
+    final targetMs = (fraction * _audioDuration!.inMilliseconds).round();
+    await _playbackService.seek(Duration(milliseconds: targetMs));
+
+    if (mounted) {
+      setState(() => _progress = fraction.clamp(0.0, 1.0));
     }
   }
 
@@ -200,8 +232,7 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
     return '1x';
   }
 
-  /// Cycles 1x → 1.5x → 2x → 1x. Applies immediately if this note is
-  /// currently playing; otherwise takes effect on the next play.
+  /// Cycles 1x → 1.5x → 2x → 1x. Applies immediately if playing.
   void _cycleSpeed() async {
     setState(() {
       if (_speed == 1.0) {
@@ -212,8 +243,7 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
         _speed = 1.0;
       }
     });
-    final path = widget.message.voiceFilePath;
-    if (_isPlaying && path != null) {
+    if (_isPlaying) {
       await _playbackService.setSpeed(_speed);
     }
   }
@@ -273,7 +303,8 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
     final unplayedColor = isMe
         ? Colors.white.withValues(alpha: 0.25)
         : KoraColors.purple.withValues(alpha: 0.2);
-    final durationColor = isMe ? Colors.white.withValues(alpha: 0.7) : textSecondary;
+    final durationColor =
+        isMe ? Colors.white.withValues(alpha: 0.7) : textSecondary;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -282,12 +313,12 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Playback speed pill — 1x → 1.5x → 2x → 1x. Sits before
-            // the play/pause button, matching the reference layout.
+            // Playback speed pill — 1x → 1.5x → 2x → 1x.
             GestureDetector(
               onTap: _cycleSpeed,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
                   color: isMe
                       ? Colors.white.withValues(alpha: 0.15)
@@ -306,8 +337,9 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
               ),
             ),
             const SizedBox(width: 8),
+            // Play / Pause button — shows loading spinner while audio loads
             GestureDetector(
-              onTap: _togglePlay,
+              onTap: _isLoading ? null : _togglePlay,
               child: Container(
                 width: 36,
                 height: 36,
@@ -316,15 +348,33 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
                   color: isMe ? Colors.white.withValues(alpha: 0.15) : null,
                   shape: BoxShape.circle,
                 ),
-                child: Icon(
-                  _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                  color: iconColor,
-                  size: 22,
-                ),
+                child: _isLoading
+                    ? Padding(
+                        padding: const EdgeInsets.all(8),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: iconColor,
+                        ),
+                      )
+                    : Icon(
+                        _isPlaying
+                            ? Icons.pause_rounded
+                            : Icons.play_arrow_rounded,
+                        color: iconColor,
+                        size: 22,
+                      ),
               ),
             ),
             const SizedBox(width: 8),
-            Flexible(
+            // Waveform — tappable for seeking
+            GestureDetector(
+              onTapDown: (details) {
+                // Get tap position as fraction of waveform width
+                final box = context.findRenderObject() as RenderBox?;
+                // Seek to tapped position
+                final fraction = details.localPosition.dx / 140;
+                _seekTo(fraction);
+              },
               child: SizedBox(
                 width: 140,
                 height: 30,
@@ -372,13 +422,17 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
                   Icon(
                     Icons.mic_outlined,
                     size: 13,
-                    color: isMe ? Colors.white.withValues(alpha: 0.7) : KoraColors.purple,
+                    color: isMe
+                        ? Colors.white.withValues(alpha: 0.7)
+                        : KoraColors.purple,
                   ),
                   const SizedBox(width: 3),
                   Text(
                     'Transcribe',
                     style: TextStyle(
-                      color: isMe ? Colors.white.withValues(alpha: 0.7) : KoraColors.purple,
+                      color: isMe
+                          ? Colors.white.withValues(alpha: 0.7)
+                          : KoraColors.purple,
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
                     ),
@@ -403,13 +457,17 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
                   Icon(
                     Icons.translate_rounded,
                     size: 13,
-                    color: isMe ? Colors.white.withValues(alpha: 0.7) : KoraColors.purple,
+                    color: isMe
+                        ? Colors.white.withValues(alpha: 0.7)
+                        : KoraColors.purple,
                   ),
                   const SizedBox(width: 3),
                   Text(
                     'Translate Voice',
                     style: TextStyle(
-                      color: isMe ? Colors.white.withValues(alpha: 0.7) : KoraColors.purple,
+                      color: isMe
+                          ? Colors.white.withValues(alpha: 0.7)
+                          : KoraColors.purple,
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
                     ),
@@ -427,11 +485,13 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
   /// tap-to-cancel X in the middle, waveform, and the note's size.
   Widget _buildUploadingView(bool isMe, Brightness brightness) {
     final textMuted = KoraColors.textMutedFor(brightness);
-    final iconColor = isMe ? Colors.white.withValues(alpha: 0.85) : KoraColors.purple;
+    final iconColor =
+        isMe ? Colors.white.withValues(alpha: 0.85) : KoraColors.purple;
     final waveformColor = isMe
         ? Colors.white.withValues(alpha: 0.18)
         : KoraColors.purple.withValues(alpha: 0.15);
-    final sizeColor = isMe ? Colors.white.withValues(alpha: 0.5) : textMuted;
+    final sizeColor =
+        isMe ? Colors.white.withValues(alpha: 0.5) : textMuted;
 
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -444,9 +504,6 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
             child: Stack(
               alignment: Alignment.center,
               children: [
-                // Indeterminate spin — Flutter animates this
-                // continuously with no `value` set, giving the same
-                // "actively uploading" ring look as WhatsApp's.
                 SizedBox(
                   width: 30,
                   height: 30,
@@ -493,15 +550,15 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
   }
 
   /// [VoiceTransferState.notSent] — tap-to-retry upload arrow icon.
-  /// A local spin plays while checking connectivity; if still offline
-  /// [_handleRetryTap] shows the "check your connection" error itself.
   Widget _buildNotSentView(bool isMe, Brightness brightness) {
     final textMuted = KoraColors.textMutedFor(brightness);
-    final iconColor = isMe ? Colors.white.withValues(alpha: 0.85) : KoraColors.purple;
+    final iconColor =
+        isMe ? Colors.white.withValues(alpha: 0.85) : KoraColors.purple;
     final waveformColor = isMe
         ? Colors.white.withValues(alpha: 0.18)
         : KoraColors.purple.withValues(alpha: 0.15);
-    final durationColor = isMe ? Colors.white.withValues(alpha: 0.5) : textMuted;
+    final durationColor =
+        isMe ? Colors.white.withValues(alpha: 0.5) : textMuted;
 
     return Row(
       mainAxisSize: MainAxisSize.min,

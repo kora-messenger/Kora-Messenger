@@ -380,6 +380,38 @@ class AuthService {
     }
   }
 
+  // ── Get Profile ───────────────────────────────────────────
+
+  /// Fetches the latest profile data from the backend.
+  /// Called on app startup and login to ensure the local session
+  /// has the most up-to-date avatar URL, name, bio, etc.
+  /// This ensures profile data survives app reinstall.
+  Future<({bool success, String? error, Map<String, dynamic>? user})>
+      getProfile({required String userId}) async {
+    try {
+      final response = await http.post(
+        Uri.parse(_endpoint),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'action': 'getProfile',
+          'userId': userId,
+        }),
+      ).timeout(const Duration(seconds: 15));
+      final data = jsonDecode(response.body);
+
+      if (data['success'] == true) {
+        return (
+          success: true,
+          error: null,
+          user: data['user'] as Map<String, dynamic>?,
+        );
+      }
+      return (success: false, error: data['error'] as String?, user: null);
+    } catch (e) {
+      return (success: false, error: _friendlyError(e), user: null);
+    }
+  }
+
   // ── Utility ──────────────────────────────────────────────────
 
   /// Generates a unique Kora ID: KM-XXXXXXXXX (9 digits).

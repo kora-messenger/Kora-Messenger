@@ -209,7 +209,17 @@ class _LoginVerificationScreenState extends State<LoginVerificationScreen>
       if (!mounted) return;
 
       if (result.success && result.user != null) {
-        await SessionManager.instance.saveSession(result.user!);
+        // Fetch fresh profile from backend
+        try {
+          final freshProfile = await _auth.getProfile(userId: result.user!['id'] ?? '');
+          if (freshProfile.success && freshProfile.user != null) {
+            await SessionManager.instance.saveSession(freshProfile.user!);
+          } else {
+            await SessionManager.instance.saveSession(result.user!);
+          }
+        } catch (_) {
+          await SessionManager.instance.saveSession(result.user!);
+        }
         await ChatThemeProvider.instance.load(); // Refresh owner/premium status for badge + gating
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('kora_last_email', widget.email);
