@@ -10,31 +10,9 @@ import '../../config/kora_api.dart';
 import '../../theme/kora_colors.dart';
 import '../../widgets/kora_button.dart';
 import 'qr_code_screen.dart';
+import 'select_country_screen.dart';
 import '../chat/contact_info_screen.dart';
 import '../../models/chat_models.dart';
-
-/// A small dial-code entry for the country picker sheet.
-class _DialCountry {
-  final String name;
-  final String iso;
-  final String dialCode;
-  const _DialCountry(this.name, this.iso, this.dialCode);
-}
-
-const List<_DialCountry> _kDialCountries = [
-  _DialCountry('Nigeria', 'NG', '+234'),
-  _DialCountry('United States', 'US', '+1'),
-  _DialCountry('United Kingdom', 'GB', '+44'),
-  _DialCountry('Ghana', 'GH', '+233'),
-  _DialCountry('Kenya', 'KE', '+254'),
-  _DialCountry('South Africa', 'ZA', '+27'),
-  _DialCountry('Canada', 'CA', '+1'),
-  _DialCountry('India', 'IN', '+91'),
-  _DialCountry('Germany', 'DE', '+49'),
-  _DialCountry('France', 'FR', '+33'),
-  _DialCountry('United Arab Emirates', 'AE', '+971'),
-  _DialCountry('Egypt', 'EG', '+20'),
-];
 
 /// Kora's "New contact" screen — add someone by name, Kora username/ID,
 /// or phone number, with an optional toggle to sync them to the phone's
@@ -53,7 +31,7 @@ class _NewContactScreenState extends State<NewContactScreen> {
   final _usernameController = TextEditingController();
   final _phoneController = TextEditingController();
 
-  _DialCountry _selectedCountry = _kDialCountries.first;
+  CountryInfo _selectedCountry = allCountries.firstWhere((c) => c.iso == 'NG');
   bool _syncToPhone = false;
   bool _isSaving = false;
 
@@ -145,70 +123,11 @@ class _NewContactScreenState extends State<NewContactScreen> {
   }
 
   Future<void> _pickCountry() async {
-    final brightness = Theme.of(context).brightness;
-    final card = KoraColors.cardFor(brightness);
-    final textPrimary = KoraColors.textPrimaryFor(brightness);
-    final textSecondary = KoraColors.textSecondaryFor(brightness);
-    final border = KoraColors.borderFor(brightness);
-
-    final picked = await showModalBottomSheet<_DialCountry>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (_) {
-        return DraggableScrollableSheet(
-          initialChildSize: 0.6,
-          minChildSize: 0.4,
-          maxChildSize: 0.85,
-          builder: (context, scrollController) {
-            return Container(
-              decoration: BoxDecoration(
-                color: card,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-              ),
-              child: Column(
-                children: [
-                  const SizedBox(height: 10),
-                  Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: textSecondary.withValues(alpha: 0.4),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Text(
-                      'Select a country',
-                      style: TextStyle(
-                        color: textPrimary,
-                        fontSize: 17,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: ListView.separated(
-                      controller: scrollController,
-                      itemCount: _kDialCountries.length,
-                      separatorBuilder: (_, __) => Divider(height: 1, color: border),
-                      itemBuilder: (context, index) {
-                        final country = _kDialCountries[index];
-                        return ListTile(
-                          title: Text(country.name, style: TextStyle(color: textPrimary, fontSize: 15)),
-                          trailing: Text(country.dialCode, style: TextStyle(color: textSecondary, fontSize: 15)),
-                          onTap: () => Navigator.pop(context, country),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
+    final picked = await Navigator.push<CountryInfo>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SelectCountryScreen(currentCountry: _selectedCountry),
+      ),
     );
 
     if (picked != null) {
@@ -405,7 +324,7 @@ class _NewContactScreenState extends State<NewContactScreen> {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Text(
-                                    '${_selectedCountry.iso} ${_selectedCountry.dialCode}',
+                                    '${_selectedCountry.flagEmoji} ${_selectedCountry.dialCode}',
                                     style: TextStyle(color: textPrimary, fontSize: 15, fontWeight: FontWeight.w600),
                                   ),
                                   const SizedBox(width: 4),
