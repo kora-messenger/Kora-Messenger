@@ -127,6 +127,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           'avatarUrl': _avatarUrl ?? '',
         });
 
+        if (!mounted) return;
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('Profile updated successfully'),

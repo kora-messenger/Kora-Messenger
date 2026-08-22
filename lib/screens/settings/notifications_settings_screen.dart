@@ -227,7 +227,7 @@ class _NotificationsSettingsScreenState extends State<NotificationsSettingsScree
             Switch(
               value: value,
               onChanged: onChanged,
-              activeColor: KoraColors.purple,
+              activeThumbColor: KoraColors.purple,
             ),
           ],
         ),
