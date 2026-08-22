@@ -39,10 +39,10 @@ class VoiceHoldingContent extends StatelessWidget {
           scale: Tween(begin: 0.8, end: 1.2).animate(
             CurvedAnimation(parent: pulseController, curve: Curves.easeInOut),
           ),
-          child: const Container(
+          child: Container(
             width: 10,
             height: 10,
-            decoration: BoxDecoration(color: KoraColors.red, shape: BoxShape.circle),
+            decoration: const BoxDecoration(color: KoraColors.red, shape: BoxShape.circle),
           ),
         ),
         const SizedBox(width: 8),

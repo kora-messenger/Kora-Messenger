@@ -235,10 +235,6 @@ class MessageService {
 
     final status = isOnline ? MessageStatus.sent : MessageStatus.pendingOffline;
 
-    // Rough size estimate: ~16 kB/s for typical voice note compression.
-    final secs = _parseDurationSeconds(duration);
-    final estimatedBytes = (secs * 16000).clamp(1024, 99999999);
-
     messages.add(KoraMessage(
       id: msgId,
       text: '',
@@ -250,7 +246,6 @@ class MessageService {
       voiceFilePath: filePath,
       voiceTransferState:
           isOnline ? VoiceTransferState.uploading : VoiceTransferState.notSent,
-      estimatedSizeBytes: estimatedBytes,
       voiceTranscript: transcript,
     ));
     await _persist(chatId);
