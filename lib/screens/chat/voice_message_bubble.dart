@@ -161,6 +161,43 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
     return '$kb kB';
   }
 
+  Future<void> _handleRetryTap() async {
+    if (_manualRetryChecking || widget.onRetryUpload == null) return;
+    setState(() => _manualRetryChecking = true);
+
+    // Small delay so the spin is visible even on a fast check.
+    final results = await Future.wait([
+      widget.onRetryUpload!(),
+      Future.delayed(const Duration(milliseconds: 600)),
+    ]);
+    final online = results[0] as bool;
+
+    if (!mounted) return;
+    setState(() => _manualRetryChecking = false);
+
+    if (!online) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: const [
+              Icon(Icons.wifi_off_rounded, color: Colors.white, size: 18),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Failed to load. Check your internet connection.',
+                  style: TextStyle(fontSize: 13),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: KoraColors.red,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
   // ── Play / Pause toggle ──
   // Guards against double-taps with _isLoading. When tapped, we
   // immediately update the icon for responsiveness, then do the

@@ -208,7 +208,7 @@ class _SplashScreenState extends State<SplashScreen> {
       try {
         final userId = session['id']?.toString() ?? '';
         if (userId.isNotEmpty) {
-          final auth = AuthService();
+          final auth = AuthService.instance;
           final fresh = await auth.getProfile(userId: userId);
           if (fresh.success && fresh.user != null) {
             await SessionManager.instance.saveSession(fresh.user!);
