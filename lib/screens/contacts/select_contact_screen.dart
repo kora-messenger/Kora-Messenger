@@ -104,26 +104,40 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
     final koraMatches = <_MergedContact>[];
     final inviteMatches = <_MergedContact>[];
 
-    // Check each contact's primary phone number against the Kora backend,
-    // a handful at a time so we don't fire hundreds of requests at once.
-    const batchSize = 8;
-    for (var i = 0; i < withPhones.length; i += batchSize) {
-      final batch = withPhones.skip(i).take(batchSize).toList();
-      final results = await Future.wait(batch.map((c) => _checkContact(c)));
-      for (final merged in results) {
-        if (merged.onKora) {
-          koraMatches.add(merged);
-        } else {
-          inviteMatches.add(merged);
-        }
+    // Single bulk request checks every contact's phone number against
+    // the Kora backend in one round trip (backend loads the users
+    // table once and matches all numbers server-side), instead of one
+    // request per contact. This is what made syncing hundreds of
+    // contacts feel like it hung.
+    final phoneNumbers = withPhones.map((c) => c.phones.first.number).toList();
+    Map<String, dynamic> results = {};
+    try {
+      final res = await http.post(
+        Uri.parse(KoraApi.authEndpoint),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'action': 'checkPhoneNumbers', 'phoneNumbers': phoneNumbers}),
+      ).timeout(const Duration(seconds: 20));
+
+      final data = jsonDecode(res.body);
+      if (data['success'] == true) {
+        results = data['results'] as Map<String, dynamic>? ?? {};
       }
-      if (mounted) {
-        // Progressive reveal so the list doesn't feel frozen on big
-        // contact books.
-        setState(() {
-          _koraContacts = List.of(koraMatches);
-          _inviteContacts = List.of(inviteMatches);
-        });
+    } catch (_) {
+      // Network hiccup — everyone falls back to "not on Kora" below.
+    }
+
+    for (final c in withPhones) {
+      final phone = c.phones.first.number;
+      final entry = results[phone] as Map<String, dynamic>?;
+      if (entry != null && entry['registered'] == true) {
+        koraMatches.add(_MergedContact(
+          contact: c,
+          onKora: true,
+          koraUser: entry['user'] as Map<String, dynamic>?,
+          matchedPhone: phone,
+        ));
+      } else {
+        inviteMatches.add(_MergedContact(contact: c, onKora: false, matchedPhone: phone));
       }
     }
 
@@ -133,30 +147,6 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
       _koraContacts = koraMatches;
       _inviteContacts = inviteMatches;
     });
-  }
-
-  Future<_MergedContact> _checkContact(Contact contact) async {
-    final phone = contact.phones.first.number;
-    try {
-      final res = await http.post(
-        Uri.parse(KoraApi.authEndpoint),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'action': 'checkPhoneNumber', 'phoneNumber': phone}),
-      ).timeout(const Duration(seconds: 8));
-
-      final data = jsonDecode(res.body);
-      if (data['success'] == true && data['registered'] == true) {
-        return _MergedContact(
-          contact: contact,
-          onKora: true,
-          koraUser: data['user'] as Map<String, dynamic>?,
-          matchedPhone: phone,
-        );
-      }
-    } catch (_) {
-      // Network hiccup — treat as not-on-Kora for this pass, non-fatal.
-    }
-    return _MergedContact(contact: contact, onKora: false, matchedPhone: phone);
   }
 
   List<_MergedContact> _filtered(List<_MergedContact> source) {

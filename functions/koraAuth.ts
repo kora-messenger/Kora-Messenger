@@ -915,6 +915,45 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ success: true, message: 'Logout email sent' });
     }
 
+    // ── CHECK PHONE NUMBERS IN BULK (contact sync) ─────────
+    // Loads the KoraUser table ONCE and matches every phone number in
+    // a single pass, instead of one full-table scan per contact.
+    // This is what powers "Select contact" / "New group" — syncing a
+    // few hundred contacts used to mean a few hundred sequential
+    // requests, each re-loading the whole users table. Now it's one
+    // request total.
+    if (action === 'checkPhoneNumbers') {
+      const { phoneNumbers } = body;
+      if (!Array.isArray(phoneNumbers) || phoneNumbers.length === 0) {
+        return jsonResponse({ success: false, error: 'phoneNumbers array is required' });
+      }
+
+      const normalizeDigits = (p: string) => (p || '').replace(/\D/g, '');
+
+      // Load every user once, build a lookup by last-10-digits.
+      const allUsers = await db.entities.KoraUser.list();
+      const byLast10 = new Map<string, any>();
+      for (const u of allUsers) {
+        const raw = u.data?.phoneNumber ?? u.phoneNumber ?? '';
+        const digits = normalizeDigits(raw);
+        if (digits.length >= 9) {
+          byLast10.set(digits.slice(-10), u);
+        }
+      }
+
+      const results: Record<string, any> = {};
+      for (const phoneNumber of phoneNumbers) {
+        const digits = normalizeDigits(phoneNumber);
+        const last10 = digits.slice(-10);
+        const match = last10.length >= 9 ? byLast10.get(last10) : undefined;
+        results[phoneNumber] = match
+          ? { registered: true, user: getUserFromRecord(match) }
+          : { registered: false };
+      }
+
+      return jsonResponse({ success: true, results });
+    }
+
     // ── CHECK PHONE NUMBER (is it registered on Kora?) ─────
     if (action === 'checkPhoneNumber') {
       const { phoneNumber } = body;
