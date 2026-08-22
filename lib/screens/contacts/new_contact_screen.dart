@@ -495,7 +495,7 @@ class _NewContactScreenState extends State<NewContactScreen> {
   /// - Loading spinner when checking
   /// - Green checkmark when registered
   /// - Nothing when not registered (description below handles it)
-  Widget _buildPhoneSuffixIcon() {
+  Widget? _buildPhoneSuffixIcon() {
     if (_isCheckingPhone) {
       return const Padding(
         padding: EdgeInsets.only(right: 14),
