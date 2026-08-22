@@ -8,9 +8,9 @@ import '../config/kora_api.dart';
 /// Central translation service for Kora Messenger.
 ///
 /// Handles:
-/// - Text translation (simulated now, real API later)
+/// - Text translation (real, via Kora backend → Google Translate + MyMemory fallback)
 /// - Language detection
-/// - Voice note transcription + translation (simulated)
+/// - Voice note transcription + translation
 /// - User translation preferences (persisted)
 /// - Recently used languages
 ///
@@ -21,8 +21,8 @@ class TranslationService {
   TranslationService._();
 
   // ── Config ──────────────────────────────────────────────────
-  // Future translation endpoint — will be connected when backend is live.
-  // Currently all translation is simulated locally.
+  // Translation endpoint — deployed and live (Google Translate + MyMemory fallback).
+  // All translation runs through the koraTranslate backend function.
 
   // ── Keys ───────────────────────────────────────────────────
   static const _kPreferredLang = 'kora_translation_pref_lang';
@@ -279,7 +279,7 @@ class TranslationService {
     _settingsController.add('historyCleared');
   }
 
-  // ── Translation (Simulated) ──────────────────────────────────
+  // ── Translation ──────────────────────────────────────────────
   /// Translates [text] to the language specified by [targetCode].
   ///
   /// Calls the Kora translation backend function, which proxies to
@@ -362,8 +362,8 @@ class TranslationService {
 
   /// Detects the language of [text].
   ///
-  /// Currently uses a simple heuristic based on Unicode character ranges.
-  /// Returns null if detection is uncertain.
+  /// Uses a heuristic based on Unicode character ranges for instant detection.
+  /// The backend also has its own detection as a secondary check.
   Future<String?> detectLanguage(String text) async {
     await Future.delayed(const Duration(milliseconds: 300));
 
@@ -423,9 +423,8 @@ class TranslationService {
   /// For cloud transcription, calls the Kora backend function which
   /// proxies to a speech-to-text API.
   Future<String> transcribeVoiceNote(String voiceId, {String? filePath}) async {
-    // If we have a file path, we'd send it to a cloud STT service.
-    // For now, on-device transcription (speech_to_text) captures the
-    // transcript during recording and stores it on the message.
+    // On-device transcription (speech_to_text) captures the transcript
+    // during recording and stores it on the message.
     // This method is a fallback for messages without a stored transcript.
     await Future.delayed(const Duration(milliseconds: 500));
     return '';

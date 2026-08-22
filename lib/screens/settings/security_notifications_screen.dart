@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../theme/kora_colors.dart';
 
 /// Security notifications settings screen — controls which security
 /// events (new logins, password changes, suspicious activity) Kora
-/// alerts the user about.
+/// alerts the user about. All preferences persisted to SharedPreferences.
 class SecurityNotificationsScreen extends StatefulWidget {
   const SecurityNotificationsScreen({super.key});
 
@@ -12,9 +13,34 @@ class SecurityNotificationsScreen extends StatefulWidget {
 }
 
 class _SecurityNotificationsScreenState extends State<SecurityNotificationsScreen> {
+  static const _kPrefix = 'sec_notif_';
   bool _newLoginAlerts = true;
   bool _passwordChanged = true;
   bool _suspiciousActivity = true;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPrefs();
+  }
+
+  Future<void> _loadPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _newLoginAlerts = prefs.getBool('${_kPrefix}new_login_alerts') ?? true;
+        _passwordChanged = prefs.getBool('${_kPrefix}password_changed') ?? true;
+        _suspiciousActivity = prefs.getBool('${_kPrefix}suspicious_activity') ?? true;
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _setPref(String key, bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('$key', value);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +66,9 @@ class _SecurityNotificationsScreenState extends State<SecurityNotificationsScree
         ),
       ),
       body: SafeArea(
-        child: ListView(
+        child: _loading
+            ? const Center(child: CircularProgressIndicator(color: KoraColors.purple))
+            : ListView(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
           children: [
             Center(
@@ -72,7 +100,10 @@ class _SecurityNotificationsScreenState extends State<SecurityNotificationsScree
               title: 'New Login Alerts',
               subtitle: 'When your account is accessed from a new device',
               value: _newLoginAlerts,
-              onChanged: (v) => setState(() => _newLoginAlerts = v),
+              onChanged: (v) {
+                setState(() => _newLoginAlerts = v);
+                _setPref('${_kPrefix}new_login_alerts', v);
+              },
               card: card,
               border: border,
               textPrimary: textPrimary,
@@ -83,7 +114,10 @@ class _SecurityNotificationsScreenState extends State<SecurityNotificationsScree
               title: 'Password Changed',
               subtitle: 'When your account password is changed',
               value: _passwordChanged,
-              onChanged: (v) => setState(() => _passwordChanged = v),
+              onChanged: (v) {
+                setState(() => _passwordChanged = v);
+                _setPref('${_kPrefix}password_changed', v);
+              },
               card: card,
               border: border,
               textPrimary: textPrimary,
@@ -94,7 +128,10 @@ class _SecurityNotificationsScreenState extends State<SecurityNotificationsScree
               title: 'Suspicious Activity',
               subtitle: 'Unusual sign-in attempts or account behavior',
               value: _suspiciousActivity,
-              onChanged: (v) => setState(() => _suspiciousActivity = v),
+              onChanged: (v) {
+                setState(() => _suspiciousActivity = v);
+                _setPref('${_kPrefix}suspicious_activity', v);
+              },
               card: card,
               border: border,
               textPrimary: textPrimary,
