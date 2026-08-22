@@ -95,6 +95,17 @@ class OfflineVoiceSyncService {
       final online = await ConnectivityService.instance.checkNow();
       if (!online) break;
 
+      // Flip to "uploading" right away so the bubble shows the live
+      // progress ring — matters most for notes the user had cancelled
+      // to the "tap to retry" state, which now auto-resume the moment
+      // connectivity returns with no tap needed.
+      await MessageService.instance.setVoiceTransferState(
+        entry.chatId,
+        entry.messageId,
+        VoiceTransferState.uploading,
+      );
+      _syncController.add(entry.chatId);
+
       // Simulate upload with a short delay (would be a real file
       // upload in production)
       await Future.delayed(const Duration(milliseconds: 800));

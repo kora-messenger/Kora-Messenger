@@ -337,6 +337,22 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
     _scrollToBottom();
   }
 
+  /// Tap the "X" on an in-flight voice upload — cancels the attempt
+  /// without deleting the note; it switches to the tap-to-retry look
+  /// but stays in the background sync queue for auto-upload later.
+  void _onCancelVoiceUpload(String messageId) async {
+    await _messageService.cancelVoiceUpload(widget.chatId, messageId);
+    _refreshMessages();
+  }
+
+  /// Tap the retry arrow on a not-sent voice note. Returns whether the
+  /// device is online so [VoiceMessageBubble] can show its own error.
+  Future<bool> _onRetryVoiceUpload(String messageId) async {
+    final online = await _messageService.retryVoiceUpload(widget.chatId, messageId);
+    _refreshMessages();
+    return online;
+  }
+
   void _onReact(String messageId, String emoji) async {
     await _messageService.toggleReaction(widget.chatId, messageId, emoji);
     _refreshMessages();
@@ -1159,6 +1175,8 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
                                           onLongPress: () => _showMessageActions(rk, message),
                                           onActionTap: () => _onActionTap(message),
                                           onIssueTap: (issue) => _onIssueSelected(issue),
+                                          onCancelVoiceUpload: () => _onCancelVoiceUpload(message.id),
+                                          onRetryVoiceUpload: () => _onRetryVoiceUpload(message.id),
                                         ),
                                       ),
                                     ],

@@ -7,6 +7,9 @@ import 'package:permission_handler/permission_handler.dart';
 ///
 /// Uses the `flutter_sound` package to capture audio from the device microphone,
 /// saves to a temp file, and returns the file path for playback/storage.
+///
+/// Supports pause/resume for the locked "hands-free" recording bar —
+/// the same underlying file just keeps appending once resumed.
 class AudioRecordingService {
   static final AudioRecordingService instance = AudioRecordingService._();
   AudioRecordingService._();
@@ -15,9 +18,11 @@ class AudioRecordingService {
   bool _isInitialized = false;
 
   bool _isRecording = false;
+  bool _isPaused = false;
   String? _currentPath;
 
   bool get isRecording => _isRecording;
+  bool get isPaused => _isPaused;
   String? get currentPath => _currentPath;
 
   /// Initialize the recorder (must be called before recording).
@@ -60,8 +65,33 @@ class AudioRecordingService {
     );
 
     _isRecording = true;
+    _isPaused = false;
     _currentPath = path;
     return path;
+  }
+
+  /// Pause an in-progress recording (used when the locked bar's pause
+  /// button is tapped). The file keeps its contents so far; resume
+  /// appends more audio to the same file.
+  Future<void> pauseRecording() async {
+    if (!_isRecording || _isPaused) return;
+    try {
+      await _recorder.pauseRecorder();
+      _isPaused = true;
+    } catch (_) {
+      // Some platforms/codecs may not support pausing — ignore and
+      // keep recording rather than crash the flow.
+    }
+  }
+
+  /// Resume a paused recording.
+  Future<void> resumeRecording() async {
+    if (!_isRecording || !_isPaused) return;
+    try {
+      await _recorder.resumeRecorder();
+    } finally {
+      _isPaused = false;
+    }
   }
 
   /// Stop recording and return the file path.
@@ -71,6 +101,7 @@ class AudioRecordingService {
 
     final path = await _recorder.stopRecorder();
     _isRecording = false;
+    _isPaused = false;
     _currentPath = null;
     return path;
   }
@@ -80,6 +111,7 @@ class AudioRecordingService {
     if (_isRecording) {
       await _recorder.stopRecorder();
       _isRecording = false;
+      _isPaused = false;
     }
     _currentPath = null;
   }
@@ -87,7 +119,7 @@ class AudioRecordingService {
   /// Get the amplitude of the current recording (for waveform).
   /// Returns a value 0.0 - 1.0.
   Future<double> getAmplitude() async {
-    if (!_isRecording) return 0.0;
+    if (!_isRecording || _isPaused) return 0.0;
     try {
       // flutter_sound doesn't have a direct amplitude API,
       // but we can use the recorder's onProgress stream

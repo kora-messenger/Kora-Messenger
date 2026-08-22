@@ -235,6 +235,10 @@ class MessageService {
 
     final status = isOnline ? MessageStatus.sent : MessageStatus.pendingOffline;
 
+    // Rough size estimate: ~16 kB/s for typical voice note compression.
+    final secs = _parseDurationSeconds(duration);
+    final estimatedBytes = (secs * 16000).clamp(1024, 99999999);
+
     messages.add(KoraMessage(
       id: msgId,
       text: '',
@@ -244,6 +248,9 @@ class MessageService {
       status: status,
       voiceDuration: duration,
       voiceFilePath: filePath,
+      voiceTransferState:
+          isOnline ? VoiceTransferState.uploading : VoiceTransferState.notSent,
+      estimatedSizeBytes: estimatedBytes,
       voiceTranscript: transcript,
     ));
     await _persist(chatId);
@@ -274,6 +281,57 @@ class MessageService {
     final idx = msgs.indexWhere((m) => m.id == messageId);
     if (idx == -1) return;
     msgs[idx] = msgs[idx].copyWith(status: newStatus);
+    await _persist(chatId);
+  }
+
+  /// Cancels an in-progress voice upload attempt (user tapped the X on
+  /// the loading ring). The message is NOT deleted and stays in
+  /// [OfflineVoiceSyncService]'s background queue — it still
+  /// auto-uploads the moment connectivity returns. Only the UI switches
+  /// to the "tap to retry" (not sent) look.
+  Future<void> cancelVoiceUpload(String chatId, String messageId) async {
+    final msgs = _cache[chatId];
+    if (msgs == null) return;
+    final idx = msgs.indexWhere((m) => m.id == messageId);
+    if (idx == -1) return;
+    msgs[idx] = msgs[idx].copyWith(
+      voiceTransferState: VoiceTransferState.notSent,
+    );
+    await _persist(chatId);
+  }
+
+  /// User manually tapped the "tap to retry" arrow on a not-sent voice
+  /// note. Returns true if the device is online (an upload attempt will
+  /// proceed via [OfflineVoiceSyncService]), false if still offline —
+  /// callers should show a "check your internet connection" error and
+  /// leave the note in the [VoiceTransferState.notSent] state.
+  Future<bool> retryVoiceUpload(String chatId, String messageId) async {
+    final online = await ConnectivityService.instance.checkNow();
+    if (!online) return false;
+
+    await setVoiceTransferState(chatId, messageId, VoiceTransferState.uploading);
+
+    // Nudge the sync queue to process this (and any other pending)
+    // note right away instead of waiting for the next connectivity
+    // change event.
+    OfflineVoiceSyncService.instance.syncPendingNotes();
+    return true;
+  }
+
+  /// Sets a pending voice note's transfer sub-state directly. Used for
+  /// the manual retry flow above and by [OfflineVoiceSyncService] to
+  /// flip a note to "uploading" the instant it starts an automatic
+  /// background attempt (e.g. connectivity just returned on its own).
+  Future<void> setVoiceTransferState(
+    String chatId,
+    String messageId,
+    VoiceTransferState state,
+  ) async {
+    final msgs = _cache[chatId];
+    if (msgs == null) return;
+    final idx = msgs.indexWhere((m) => m.id == messageId);
+    if (idx == -1) return;
+    msgs[idx] = msgs[idx].copyWith(voiceTransferState: state);
     await _persist(chatId);
   }
 

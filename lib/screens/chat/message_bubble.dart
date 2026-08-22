@@ -18,6 +18,13 @@ class MessageBubble extends StatelessWidget {
   final VoidCallback? onActionTap;
   final void Function(IssueOption)? onIssueTap;
 
+  /// Voice note upload retry flow — only relevant while
+  /// [MessageStatus.pendingOffline]. See [VoiceMessageBubble].
+  /// [onRetryVoiceUpload] returns true if the retry could proceed
+  /// (device online) or false if it should show a connection error.
+  final VoidCallback? onCancelVoiceUpload;
+  final Future<bool> Function()? onRetryVoiceUpload;
+
   const MessageBubble({
     super.key,
     required this.message,
@@ -25,6 +32,8 @@ class MessageBubble extends StatelessWidget {
     this.onReplyTap,
     this.onActionTap,
     this.onIssueTap,
+    this.onCancelVoiceUpload,
+    this.onRetryVoiceUpload,
   });
 
   @override
@@ -299,6 +308,8 @@ class MessageBubble extends StatelessWidget {
                     voiceDuration: message.voiceDuration ?? '0:05',
                   );
                 },
+          onCancelUpload: onCancelVoiceUpload,
+          onRetryUpload: onRetryVoiceUpload,
         ),
         const SizedBox(height: 4),
         // Timestamp + status indicator
@@ -315,8 +326,7 @@ class MessageBubble extends StatelessWidget {
                 fontWeight: FontWeight.w500,
               ),
             ),
-            if (isMe && !isPendingOffline &&
-                message.status != MessageStatus.none) ...[
+            if (isMe && message.status != MessageStatus.none) ...[
               const SizedBox(width: 4),
               _buildStatusIcon(message.status, isMe),
             ],
@@ -457,9 +467,11 @@ class MessageBubble extends StatelessWidget {
   Widget _buildStatusIcon(MessageStatus status, bool isMe) {
     switch (status) {
       case MessageStatus.pendingOffline:
+        // Small clock — "not sent yet", matches the uploading/tap-to-retry
+        // voice note states rendered by VoiceMessageBubble.
         return Icon(
-          Icons.cloud_off_rounded,
-          size: 13,
+          Icons.access_time_rounded,
+          size: 12,
           color: isMe
               ? Colors.white.withValues(alpha: 0.5)
               : const Color(0xFF9A9AB0),

@@ -136,7 +136,7 @@ class ChatListItem extends StatelessWidget {
   Widget _buildStatusIcon(MessageStatus status) {
     switch (status) {
       case MessageStatus.pendingOffline:
-        return const Icon(Icons.cloud_off_rounded, size: 14, color: Color(0xFF9A9AB0));
+        return const Icon(Icons.access_time_rounded, size: 13, color: Color(0xFF9A9AB0));
       case MessageStatus.sent:
         return const Icon(Icons.check, size: 15, color: Color(0xFF9A9AB0));
       case MessageStatus.delivered:

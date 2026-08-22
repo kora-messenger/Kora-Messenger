@@ -26,6 +26,11 @@ class KoraMessage {
   final String? reaction; // emoji reaction (single for now)
   final String? voiceDuration; // "0:12" etc, for voice messages
   final String? voiceFilePath; // local file path for real audio playback
+  /// When [status] is [MessageStatus.pendingOffline], tracks whether
+  /// an upload attempt is in flight or has been cancelled/failed.
+  /// Ignored once the message actually sends.
+  final VoiceTransferState voiceTransferState;
+  final int estimatedSizeBytes; // rough size for upload progress display
   final String? voiceTranscript; // on-device STT transcript
   final String? attachmentName; // for file messages
 
@@ -72,6 +77,8 @@ class KoraMessage {
     this.reaction,
     this.voiceDuration,
     this.voiceFilePath,
+    this.voiceTransferState = VoiceTransferState.uploading,
+    this.estimatedSizeBytes = 10240,
     this.voiceTranscript,
     this.attachmentName,
     this.actionLabel,
@@ -96,6 +103,8 @@ class KoraMessage {
     String? reaction,
     String? voiceDuration,
     String? voiceFilePath,
+    VoiceTransferState? voiceTransferState,
+    int? estimatedSizeBytes,
     String? voiceTranscript,
     String? attachmentName,
     String? actionLabel,
@@ -119,6 +128,8 @@ class KoraMessage {
       reaction: reaction ?? this.reaction,
       voiceDuration: voiceDuration ?? this.voiceDuration,
       voiceFilePath: voiceFilePath ?? this.voiceFilePath,
+      voiceTransferState: voiceTransferState ?? this.voiceTransferState,
+      estimatedSizeBytes: estimatedSizeBytes ?? this.estimatedSizeBytes,
       voiceTranscript: voiceTranscript ?? this.voiceTranscript,
       attachmentName: attachmentName ?? this.attachmentName,
       actionLabel: actionLabel ?? this.actionLabel,
@@ -145,6 +156,8 @@ class KoraMessage {
     'reaction': reaction,
     'voiceDuration': voiceDuration,
     'voiceFilePath': voiceFilePath,
+    'voiceTransferState': voiceTransferState.name,
+    'estimatedSizeBytes': estimatedSizeBytes,
     'voiceTranscript': voiceTranscript,
     'attachmentName': attachmentName,
     'actionLabel': actionLabel,
@@ -176,6 +189,11 @@ class KoraMessage {
     reaction: j['reaction'] as String?,
     voiceDuration: j['voiceDuration'] as String?,
     voiceFilePath: j['voiceFilePath'] as String?,
+    estimatedSizeBytes: j['estimatedSizeBytes'] as int? ?? 10240,
+    voiceTransferState: VoiceTransferState.values.firstWhere(
+      (e) => e.name == j['voiceTransferState'],
+      orElse: () => VoiceTransferState.uploading,
+    ),
     voiceTranscript: j['voiceTranscript'] as String?,
     attachmentName: j['attachmentName'] as String?,
     actionLabel: j['actionLabel'] as String?,

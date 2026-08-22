@@ -17,6 +17,20 @@ enum MessageStatus {
   read, // double check, purple
 }
 
+/// Fine-grained transfer state for an outgoing voice note that hasn't
+/// finished uploading yet (i.e. its [MessageStatus] is [MessageStatus.pendingOffline]).
+///
+/// - [uploading]: an upload attempt is actively in flight — shows a
+///   circular progress ring with a tap-to-cancel X in the middle.
+/// - [notSent]: the attempt was cancelled (or a manual retry failed
+///   while offline) — shows a tap-to-retry arrow icon. The note stays
+///   in the background sync queue and auto-uploads the moment
+///   connectivity returns, with no action needed from the user.
+enum VoiceTransferState {
+  uploading,
+  notSent,
+}
+
 /// A single conversation entry in the Home chat list.
 class ChatPreview {
   final String id;
