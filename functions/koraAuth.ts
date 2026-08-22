@@ -307,7 +307,30 @@ Deno.serve(async (req: Request) => {
             isTrusted: monthsSinceFirstLogin >= 1 ? true : (device.data?.isTrusted || device.isTrusted || false),
           });
 
-          return jsonResponse({ success: true, user, deviceRecognized: true });
+      // Send login security alert email
+      try {
+        const _ipAddress = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+          || req.headers.get('x-real-ip')
+          || req.headers.get('cf-connecting-ip')
+          || 'Unknown';
+        const _loginTimestamp = new Date().toLocaleString('en-US', {
+          timeZone: 'UTC',
+          dateStyle: 'full',
+          timeStyle: 'short',
+        });
+        await sendSecurityAlertEmail(
+          email,
+          deviceName || 'Unknown Device',
+          'Account Login',
+          _loginTimestamp,
+          deviceId,
+          _ipAddress,
+        );
+      } catch (e) {
+        console.error('Failed to send login security email:', e);
+      }
+
+      return jsonResponse({ success: true, user, deviceRecognized: true });
         }
       }
 
@@ -393,6 +416,28 @@ Deno.serve(async (req: Request) => {
         }
       }
 
+      // Send login security alert email
+      try {
+        const _ipAddress = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+          || req.headers.get('x-real-ip')
+          || req.headers.get('cf-connecting-ip')
+          || 'Unknown';
+        const _loginTimestamp = new Date().toLocaleString('en-US', {
+          timeZone: 'UTC',
+          dateStyle: 'full',
+          timeStyle: 'short',
+        });
+        await sendSecurityAlertEmail(
+          email,
+          deviceName || 'Unknown Device',
+          'Account Login',
+          _loginTimestamp,
+          deviceId,
+          _ipAddress,
+        );
+      } catch (e) {
+        console.error('Failed to send login security email:', e);
+      }
       return jsonResponse({ success: true, user });
     }
 
@@ -613,6 +658,28 @@ Deno.serve(async (req: Request) => {
         }
       }
 
+      // Send login security alert email
+      try {
+        const _ipAddress = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+          || req.headers.get('x-real-ip')
+          || req.headers.get('cf-connecting-ip')
+          || 'Unknown';
+        const _loginTimestamp = new Date().toLocaleString('en-US', {
+          timeZone: 'UTC',
+          dateStyle: 'full',
+          timeStyle: 'short',
+        });
+        await sendSecurityAlertEmail(
+          email,
+          deviceName || 'Unknown Device',
+          'Account Login',
+          _loginTimestamp,
+          deviceId,
+          _ipAddress,
+        );
+      } catch (e) {
+        console.error('Failed to send login security email:', e);
+      }
       return jsonResponse({ success: true, user });
     }
 
@@ -763,6 +830,28 @@ Deno.serve(async (req: Request) => {
         });
       }
 
+      // Send login security alert email
+      try {
+        const _ipAddress = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+          || req.headers.get('x-real-ip')
+          || req.headers.get('cf-connecting-ip')
+          || 'Unknown';
+        const _loginTimestamp = new Date().toLocaleString('en-US', {
+          timeZone: 'UTC',
+          dateStyle: 'full',
+          timeStyle: 'short',
+        });
+        await sendSecurityAlertEmail(
+          email,
+          deviceName || 'Unknown Device',
+          'Account Login',
+          _loginTimestamp,
+          deviceId,
+          _ipAddress,
+        );
+      } catch (e) {
+        console.error('Failed to send login security email:', e);
+      }
       return jsonResponse({ success: true, user });
     }
 
