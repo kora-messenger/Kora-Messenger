@@ -123,14 +123,16 @@ async function sendVerificationEmail(toEmail: string, code: string, type = 'regi
   });
 }
 
-async function sendSecurityAlertEmail(toEmail: string, deviceName: string, action: string, timestamp: string) {
+async function sendSecurityAlertEmail(toEmail: string, deviceName: string, action: string, timestamp: string, deviceId?: string, ipAddress?: string) {
   const subject = `${APP_NAME}: Security Alert — ${action}`;
 
   const bodyHtml = `<p style="margin:0 0 16px;">We detected a security event on your Kora Messenger account:</p>
     <div style="background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.15);border-radius:12px;padding:16px;margin:0 0 16px;">
       <table cellpadding="0" cellspacing="0" style="width:100%;color:#A0A0B8;font-size:14px;">
         <tr><td style="padding:4px 0;color:#6B6B80;">Action:</td><td style="padding:4px 0;color:#FFFFFF;font-weight:600;">${action}</td></tr>
-        <tr><td style="padding:4px 0;color:#6B6B80;">Device:</td><td style="padding:4px 0;color:#FFFFFF;font-weight:600;">${deviceName}</td></tr>
+        <tr><td style="padding:4px 0;color:#6B6B80;">Device:</td><td style="padding:4px 0;color:#FFFFFF;font-weight:600;">${deviceName}</td></tr>${deviceId ? `
+        <tr><td style="padding:4px 0;color:#6B6B80;">Device ID:</td><td style="padding:4px 0;color:#FFFFFF;font-weight:600;">${deviceId}</td></tr>` : ''}${ipAddress ? `
+        <tr><td style="padding:4px 0;color:#6B6B80;">IP Address:</td><td style="padding:4px 0;color:#FFFFFF;font-weight:600;">${ipAddress}</td></tr>` : ''}
         <tr><td style="padding:4px 0;color:#6B6B80;">Time:</td><td style="padding:4px 0;color:#FFFFFF;font-weight:600;">${timestamp}</td></tr>
       </table>
     </div>
@@ -786,19 +788,27 @@ Deno.serve(async (req: Request) => {
       const { email, userId, deviceId, deviceName } = body;
       if (!email) return jsonResponse({ success: false, error: 'Email is required' });
 
+      // Extract client IP from request headers
+      const ipAddress = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+        || req.headers.get('x-real-ip')
+        || req.headers.get('cf-connecting-ip')
+        || 'Unknown';
+
       const timestamp = new Date().toLocaleString('en-US', {
         timeZone: 'UTC',
         dateStyle: 'full',
         timeStyle: 'short',
       });
 
-      // Send security alert email
+      // Send security alert email with device ID and IP
       try {
         await sendSecurityAlertEmail(
           email,
           deviceName || 'Unknown Device',
           'Account Logout',
           timestamp,
+          deviceId,
+          ipAddress,
         );
       } catch (e) {
         console.error('Failed to send logout email:', e);
