@@ -17,15 +17,6 @@ class _NotificationsSettingsScreenState extends State<NotificationsSettingsScree
   bool _callTones = true;
   bool _previewMessage = true;
   bool _vibrate = true;
-  bool _loading = true;
-
-  static const _kPrefs = {
-    'notif_messages': 'messageNotif',
-    'notif_groups': 'groupNotif',
-    'notif_call_tones': 'callTones',
-    'notif_preview': 'previewMessage',
-    'notif_vibrate': 'vibrate',
-  };
 
   @override
   void initState() {

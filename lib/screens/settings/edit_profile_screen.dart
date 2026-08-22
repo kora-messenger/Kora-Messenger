@@ -4,10 +4,7 @@ import 'dart:io';
 import '../../theme/kora_colors.dart';
 import '../../services/session_manager.dart';
 import '../../config/kora_api.dart';
-import '../../widgets/kora_avatar.dart';
-import '../../widgets/kora_badge.dart';
 import '../../theme/chat_theme_provider.dart';
-import '../../models/chat_models.dart';
 
 /// Edit Profile screen — lets the user edit their name, bio, and avatar.
 class EditProfileScreen extends StatefulWidget {

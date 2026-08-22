@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 import '../../theme/kora_colors.dart';
 import '../../widgets/kora_avatar.dart';
 import '../../widgets/kora_badge.dart';
