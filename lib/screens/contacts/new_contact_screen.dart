@@ -322,7 +322,7 @@ class _NewContactScreenState extends State<NewContactScreen> {
         displayName: fullName,
         phones: [Phone(number: phoneNumber)],
       );
-      await FlutterContacts.insert(newContact);
+      await FlutterContacts.create(newContact);
       return true;
     } catch (e) {
       return false;
