@@ -232,11 +232,11 @@ class _NewContactScreenState extends State<NewContactScreen> {
       final newContact = Contact(
         displayName: fullName,
         phones: [
-          Phone(phoneNumber, label: PhoneLabel.mobile),
+          Phone(phoneNumber),
         ],
       );
 
-      await newContact.insert();
+      await FlutterContacts.create(newContact);
       return true;
     } catch (e) {
       return false;

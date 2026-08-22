@@ -89,7 +89,7 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
 
     List<Contact> deviceContacts = [];
     try {
-      deviceContacts = await FlutterContacts.getContacts(withProperties: true);
+      deviceContacts = await FlutterContacts.getAll(properties: ContactProperties.all);
     } catch (_) {
       deviceContacts = [];
     }
