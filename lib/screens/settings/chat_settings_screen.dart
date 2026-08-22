@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../theme/kora_colors.dart';
-import 'default_chat_theme_screen.dart';
-import 'wallpaper_screen.dart';
-import 'chat_bubble_color_screen.dart';
+import '../archived_chats_screen.dart';
 
-/// Chat settings screen — theme, wallpapers, bubble color, chat history.
+/// Chat settings screen — archived chats and chat history.
+///
+/// Chat theme, wallpapers, and bubble color live under
+/// Appearance → Default chat theme, so they're not duplicated here.
 class ChatSettingsScreen extends StatefulWidget {
   const ChatSettingsScreen({super.key});
 
@@ -44,49 +45,32 @@ class _ChatSettingsScreenState extends State<ChatSettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
         children: [
-          _sectionLabel('DISPLAY', textMuted),
+          // ── ARCHIVED CHATS ──
+          _sectionLabel('ARCHIVED CHATS', textMuted),
           _tile(
             context,
-            icon: Icons.palette_outlined,
-            title: 'Chat Theme',
-            subtitle: 'Default bubble style and color',
+            icon: Icons.archive_outlined,
+            title: 'Archived chats',
+            subtitle: 'View chats you have archived',
             card: card,
             textPrimary: textPrimary,
             textSecondary: textSecondary,
             textMuted: textMuted,
             border: border,
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DefaultChatThemeScreen())),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ArchivedChatsScreen()),
+            ),
           ),
-          _tile(
-            context,
-            icon: Icons.wallpaper_outlined,
-            title: 'Wallpapers',
-            subtitle: 'Choose a background for your chats',
-            card: card,
-            textPrimary: textPrimary,
-            textSecondary: textSecondary,
-            textMuted: textMuted,
-            border: border,
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WallpaperScreen())),
-          ),
-          _tile(
-            context,
-            icon: Icons.format_color_fill_outlined,
-            title: 'Chat Bubble Color',
-            subtitle: 'Customize your message bubble color',
-            card: card,
-            textPrimary: textPrimary,
-            textSecondary: textSecondary,
-            textMuted: textMuted,
-            border: border,
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatBubbleColorScreen())),
-          ),
-          const SizedBox(height: 20),
+
+          const SizedBox(height: 24),
+
+          // ── CHAT HISTORY ──
           _sectionLabel('CHAT HISTORY', textMuted),
           _tile(
             context,
             icon: Icons.history_rounded,
-            title: 'Clear All Chats',
+            title: 'Clear all chats',
             subtitle: 'Delete all messages from all conversations',
             card: card,
             textPrimary: textPrimary,

@@ -231,7 +231,7 @@ class _ProfileTabState extends State<ProfileTab> {
               context,
               icon: Icons.chat_bubble_outline,
               title: 'Chats',
-              subtitle: 'Theme, wallpapers, chat history',
+              subtitle: 'Archived chats, chat history',
               screen: const ChatSettingsScreen(),
             ),
             _appearanceTile(context),
