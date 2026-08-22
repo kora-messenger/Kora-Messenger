@@ -47,7 +47,8 @@ class _ChatsTabState extends State<ChatsTab> {
     await MessageService.instance.loadMessages('kora_support');
     await MessageService.instance.loadMessages('kora_ai');
     if (mounted) {
-      setState(() => _chats = ChatService.instance.getChats());
+      _chats = await ChatService.instance.getChats();
+      if (mounted) setState(() {});
     }
   }
 
@@ -70,10 +71,13 @@ class _ChatsTabState extends State<ChatsTab> {
           lastSeen: chat.isOnline ? null : 'last seen recently',
         ),
       ),
-    ).then((_) {
+    ).then((_) async {
       // Refresh unread badges/bold state after returning — the chat
       // screen marks incoming messages as viewed while it's open.
-      if (mounted) setState(() => _chats = ChatService.instance.getChats());
+      if (mounted) {
+        _chats = await ChatService.instance.getChats();
+        setState(() {});
+      }
     });
   }
 
@@ -94,7 +98,8 @@ class _ChatsTabState extends State<ChatsTab> {
       await MessageService.instance.markChatViewed(c.id);
     }
     if (mounted) {
-      setState(() => _chats = ChatService.instance.getChats());
+      _chats = await ChatService.instance.getChats();
+      setState(() {});
     }
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -219,7 +224,8 @@ class _ChatsTabState extends State<ChatsTab> {
                   : RefreshIndicator(
                       color: KoraColors.purple,
                       onRefresh: () async {
-                        setState(() => _chats = ChatService.instance.getChats());
+                        _chats = await ChatService.instance.getChats();
+                        setState(() {});
                       },
                       child: _filteredChats.isEmpty
                           ? ListView(

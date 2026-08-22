@@ -410,6 +410,10 @@ class _MessageComposerState extends State<MessageComposer>
     // ── Idle / typing / holding — the mic's GestureDetector stays
     // mounted at the same spot across idle ↔ holding so an active
     // long-press gesture never gets torn down mid-drag.
+    //
+    // Layout matches WhatsApp: a single rounded pill containing
+    // emoji + text field + camera + attach, with a separate circular
+    // mic/send button floating outside on the right.
     return SafeArea(
       top: false,
       child: Container(
@@ -422,23 +426,26 @@ class _MessageComposerState extends State<MessageComposer>
           child: Row(
             children: [
               if (!isHolding) ...[
-                // Emoji button
-                IconButton(
-                  icon: Icon(Icons.emoji_emotions_outlined, color: textMuted, size: 26),
-                  onPressed: () {},
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-                ),
-                // Text input
+                // ── Single pill: emoji + text + camera + attach ──
                 Expanded(
                   child: Container(
                     constraints: const BoxConstraints(maxHeight: 120),
                     decoration: BoxDecoration(
                       color: KoraColors.surfaceFor(brightness),
-                      borderRadius: BorderRadius.circular(24),
+                      borderRadius: BorderRadius.circular(26),
                     ),
                     child: Row(
                       children: [
+                        // Emoji icon
+                        IconButton(
+                          icon: Icon(Icons.emoji_emotions_outlined,
+                              color: textMuted, size: 24),
+                          onPressed: () {},
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(
+                              minWidth: 40, minHeight: 40),
+                        ),
+                        // Text input
                         Expanded(
                           child: TextField(
                             controller: _controller,
@@ -448,27 +455,40 @@ class _MessageComposerState extends State<MessageComposer>
                             style: TextStyle(color: textPrimary, fontSize: 15),
                             decoration: InputDecoration(
                               hintText: 'Message',
-                              hintStyle: TextStyle(color: textMuted, fontSize: 15),
+                              hintStyle:
+                                  TextStyle(color: textMuted, fontSize: 15),
                               border: InputBorder.none,
                               contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16,
+                                horizontal: 4,
                                 vertical: 10,
                               ),
                             ),
                           ),
                         ),
+                        // Camera icon (inside pill, right side)
                         IconButton(
-                          icon: Icon(Icons.attach_file, color: textMuted, size: 22),
+                          icon: Icon(Icons.camera_alt_outlined,
+                              color: textMuted, size: 22),
+                          onPressed: () {},
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(
+                              minWidth: 36, minHeight: 36),
+                        ),
+                        // Attach icon (inside pill, far right)
+                        IconButton(
+                          icon: Icon(Icons.attach_file,
+                              color: textMuted, size: 22),
                           onPressed: _openAttachments,
-                          padding: const EdgeInsets.only(right: 8),
-                          constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                          padding: const EdgeInsets.only(right: 4),
+                          constraints: const BoxConstraints(
+                              minWidth: 36, minHeight: 36),
                         ),
                       ],
                     ),
                   ),
                 ),
-              ] else
-                // Holding — replaces the text field area with the live
+              ] else ...[
+                // Holding — replaces the pill with the live
                 // timer + waveform + slide-to-cancel hint.
                 Expanded(
                   child: VoiceHoldingContent(
@@ -478,8 +498,9 @@ class _MessageComposerState extends State<MessageComposer>
                     pulseController: _pulseController,
                   ),
                 ),
-              const SizedBox(width: 4),
-              // Send or Mic button (with floating lock hint while holding)
+              ],
+              const SizedBox(width: 6),
+              // ── Send / Mic circular button (outside the pill) ──
               Stack(
                 clipBehavior: Clip.none,
                 alignment: Alignment.center,
@@ -491,7 +512,8 @@ class _MessageComposerState extends State<MessageComposer>
                     ),
                   GestureDetector(
                     onTap: _hasText ? _send : null,
-                    onLongPressStart: (!_hasText && !isHolding) ? _onHoldStart : null,
+                    onLongPressStart:
+                        (!_hasText && !isHolding) ? _onHoldStart : null,
                     onLongPressMoveUpdate: isHolding ? _onHoldMove : null,
                     onLongPressEnd: isHolding ? _onHoldEnd : null,
                     child: Transform.translate(
@@ -504,19 +526,21 @@ class _MessageComposerState extends State<MessageComposer>
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
                         curve: Curves.easeInOut,
-                        width: isHolding ? 50 : 44,
-                        height: isHolding ? 50 : 44,
+                        width: isHolding ? 50 : 46,
+                        height: isHolding ? 50 : 46,
                         decoration: BoxDecoration(
                           gradient: _hasText ? KoraColors.brandGradient : null,
                           color: _hasText
                               ? null
                               : (isHolding
                                   ? KoraColors.red.withValues(alpha: 0.15)
-                                  : KoraColors.surfaceFor(brightness)),
+                                  : null),
                           shape: BoxShape.circle,
                           border: (_hasText || isHolding)
                               ? null
-                              : Border.all(color: textMuted.withValues(alpha: 0.3), width: 1),
+                              : Border.all(
+                                  color: textMuted.withValues(alpha: 0.3),
+                                  width: 1),
                         ),
                         child: AnimatedSwitcher(
                           duration: const Duration(milliseconds: 200),

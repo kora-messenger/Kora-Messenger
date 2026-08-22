@@ -47,6 +47,15 @@ class ChatPreview {
   final bool isOnline;
   final bool isTyping;
 
+  /// True when the last message in this conversation is a voice note.
+  /// Drives the Home row to render a mic icon + "Voice message (0:09)"
+  /// instead of showing (empty) raw text.
+  final bool isVoiceLastMessage;
+
+  /// Duration string ("0:09") for the last message, when
+  /// [isVoiceLastMessage] is true.
+  final String? lastVoiceDuration;
+
   const ChatPreview({
     required this.id,
     required this.name,
@@ -61,6 +70,8 @@ class ChatPreview {
     this.isPinned = false,
     this.isOnline = false,
     this.isTyping = false,
+    this.isVoiceLastMessage = false,
+    this.lastVoiceDuration,
   });
 }
 

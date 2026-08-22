@@ -4,6 +4,7 @@ import '../models/message_model.dart';
 import '../models/chat_models.dart';
 import 'connectivity_service.dart';
 import 'offline_voice_sync.dart';
+import 'conversation_directory.dart';
 
 /// Manages all Kora conversations with local persistence.
 ///
@@ -130,26 +131,50 @@ class MessageService {
     ));
     await _persist(chatId);
 
-    // Auto-progress: sent → delivered (1.5s) → read (4s)
-    // Simulates recipient receiving and reading the message
-    Future.delayed(const Duration(milliseconds: 1500), () async {
-      final msgs = _cache[chatId];
-      if (msgs == null) return;
-      final idx = msgs.indexWhere((m) => m.id == msgId);
-      if (idx != -1 && msgs[idx].status == MessageStatus.sent) {
-        msgs[idx] = msgs[idx].copyWith(status: MessageStatus.delivered);
-        await _persist(chatId);
-      }
-    });
+    _scheduleStatusProgress(chatId, msgId);
+  }
 
-    Future.delayed(const Duration(seconds: 4), () async {
-      final msgs = _cache[chatId];
-      if (msgs == null) return;
-      final idx = msgs.indexWhere((m) => m.id == msgId);
-      if (idx != -1 && msgs[idx].status == MessageStatus.delivered) {
-        msgs[idx] = msgs[idx].copyWith(status: MessageStatus.read);
-        await _persist(chatId);
-      }
+  /// Whether the other person in [chatId] is currently online, per the
+  /// conversation directory (falls back to true — Kora Support/AI and
+  /// any contact we don't have fresh presence for are treated as
+  /// reachable so the simulated receipts still progress).
+  Future<bool> _isRecipientOnline(String chatId) async {
+    if (chatId == 'kora_support' || chatId == 'kora_ai') return true;
+    final entry = await ConversationDirectoryService.instance.get(chatId);
+    if (entry == null) return true;
+    return entry['isOnline'] as bool? ?? true;
+  }
+
+  /// Advances a text message: sent → delivered → read.
+  ///
+  /// When the recipient is online, this is near-instant (matches real
+  /// messaging apps: an online recipient's device delivers+reads almost
+  /// immediately). When offline, the message stays on a single tick
+  /// (sent) until they come back online — no fake "read" while they
+  /// haven't actually seen it.
+  void _scheduleStatusProgress(String chatId, String msgId) {
+    _isRecipientOnline(chatId).then((online) {
+      if (!online) return; // stays at "sent" (1 tick) until online
+
+      Future.delayed(const Duration(milliseconds: 250), () async {
+        final msgs = _cache[chatId];
+        if (msgs == null) return;
+        final idx = msgs.indexWhere((m) => m.id == msgId);
+        if (idx != -1 && msgs[idx].status == MessageStatus.sent) {
+          msgs[idx] = msgs[idx].copyWith(status: MessageStatus.delivered);
+          await _persist(chatId);
+        }
+      });
+
+      Future.delayed(const Duration(milliseconds: 700), () async {
+        final msgs = _cache[chatId];
+        if (msgs == null) return;
+        final idx = msgs.indexWhere((m) => m.id == msgId);
+        if (idx != -1 && msgs[idx].status == MessageStatus.delivered) {
+          msgs[idx] = msgs[idx].copyWith(status: MessageStatus.read);
+          await _persist(chatId);
+        }
+      });
     });
   }
 
@@ -331,27 +356,10 @@ class MessageService {
   }
 
   /// Schedules the sent → delivered → read progression for a voice
-  /// message that was sent while online.
+  /// message that was sent while online. Same near-instant timing as
+  /// text messages, gated on the recipient's online status.
   void _scheduleVoiceStatusProgress(String chatId, String msgId) {
-    Future.delayed(const Duration(milliseconds: 1500), () async {
-      final msgs = _cache[chatId];
-      if (msgs == null) return;
-      final idx = msgs.indexWhere((m) => m.id == msgId);
-      if (idx != -1 && msgs[idx].status == MessageStatus.sent) {
-        msgs[idx] = msgs[idx].copyWith(status: MessageStatus.delivered);
-        await _persist(chatId);
-      }
-    });
-
-    Future.delayed(const Duration(seconds: 4), () async {
-      final msgs = _cache[chatId];
-      if (msgs == null) return;
-      final idx = msgs.indexWhere((m) => m.id == msgId);
-      if (idx != -1 && msgs[idx].status == MessageStatus.delivered) {
-        msgs[idx] = msgs[idx].copyWith(status: MessageStatus.read);
-        await _persist(chatId);
-      }
-    });
+    _scheduleStatusProgress(chatId, msgId);
   }
 
   Future<void> toggleReaction(String chatId, String messageId, String emoji) async {

@@ -29,6 +29,7 @@ import '../settings/premium_subscribe_sheet.dart';
 import '../settings/billing_screen.dart';
 import '../../config/subscription_pricing.dart';
 import '../../services/session_manager.dart';
+import '../../services/conversation_directory.dart';
 import '../suspension_screen.dart';
 
 /// Kora's main conversation screen.
@@ -96,6 +97,16 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
     super.initState();
     _loadEmail();
     _themeProvider.addListener(_onThemeChanged);
+    // Register this conversation in the directory so it appears
+    // on the Home screen with correct name/avatar/badge/online state.
+    ConversationDirectoryService.instance.upsert(
+      chatId: widget.chatId,
+      name: widget.name,
+      avatarAsset: widget.avatarAsset,
+      avatarUrl: widget.avatarUrl,
+      badge: widget.badge,
+      isOnline: widget.isOnline,
+    );
     _loadMessages();
     _scrollController.addListener(_onScrollChanged);
     // Listen for offline voice sync events — when a pending note
@@ -105,9 +116,10 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
         _refreshMessages();
       }
     });
-    // Refresh every 500ms to pick up status changes (sent → delivered → read)
-    // and mark any newly-arrived incoming messages as viewed while open.
-    _statusTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+    // Poll for status changes (sent → delivered → read) and mark
+    // newly-arrived incoming messages as viewed while the chat is open.
+    // 300ms keeps the ticks feeling instant without burning CPU.
+    _statusTimer = Timer.periodic(const Duration(milliseconds: 300), (_) {
       if (!mounted) return;
       _messageService.markChatViewed(widget.chatId);
       _refreshMessages();
@@ -1298,9 +1310,16 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
               ),
             // Composer or blocked-state bar — hidden during search
             if (!_showSearch)
-              AnimatedPadding(
+              // Plain Padding (no extra animation layer) — the OS reports
+              // viewInsets.bottom frame-by-frame as the keyboard animates,
+              // so tracking it directly here keeps the composer perfectly
+              // glued to the keyboard on both open AND close, with zero
+              // lag. A separate AnimatedPadding/AnimatedContainer here
+              // would re-animate on its own timer/curve, fighting the
+              // system keyboard animation and causing a visible delay
+              // (most noticeable when the keyboard closes).
+              Padding(
                 padding: EdgeInsets.only(bottom: bottomInset),
-                duration: const Duration(milliseconds: 200),
                 child: _isBlocked && !_isAiChat
                     ? _buildBlockedBar()
                     : MessageComposer(

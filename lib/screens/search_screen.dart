@@ -23,23 +23,52 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   void initState() {
     super.initState();
+    _controller.addListener(_onQueryChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _focusNode.requestFocus();
     });
   }
 
+  void _onQueryChanged() {
+    final q = _controller.text;
+    if (q != _query) {
+      _query = q;
+      _refreshResults();
+    }
+  }
+
   @override
   void dispose() {
+    _controller.removeListener(_onQueryChanged);
     _controller.dispose();
     _focusNode.dispose();
     super.dispose();
   }
 
+  List<ChatPreview> _cachedResults = [];
+  String _lastQuery = '';
+
+  Future<void> _refreshResults() async {
+    if (_query == _lastQuery && _cachedResults.isNotEmpty) return;
+    _lastQuery = _query;
+    if (_query.isEmpty) {
+      _cachedResults = [];
+      if (mounted) setState(() {});
+      return;
+    }
+    final all = await ChatService.instance.getChats();
+    final q = _query.toLowerCase();
+    _cachedResults = all.where((c) {
+      final name = c.name.toLowerCase();
+      final lastMsg = c.lastMessage.toLowerCase();
+      return name.contains(q) || lastMsg.contains(q);
+    }).toList();
+    if (mounted) setState(() {});
+  }
+
   List<ChatPreview> get _results {
     if (_query.isEmpty) return [];
-    final all = ChatService.instance.getChats();
-    final q = _query.toLowerCase();
-    return all.where((c) => c.name.toLowerCase().contains(q)).toList();
+    return _cachedResults;
   }
 
   void _openChat(ChatPreview chat) {
@@ -95,7 +124,7 @@ class _SearchScreenState extends State<SearchScreen> {
                             child: TextField(
                               controller: _controller,
                               focusNode: _focusNode,
-                              onChanged: (v) => setState(() => _query = v),
+                              onChanged: (v) { _query = v; _refreshResults(); },
                               style: TextStyle(color: textPrimary, fontSize: 15),
                               decoration: InputDecoration(
                                 hintText: 'Search chats, users, Kora IDs...',

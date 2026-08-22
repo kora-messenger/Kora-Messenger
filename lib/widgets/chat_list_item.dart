@@ -83,9 +83,21 @@ class ChatListItem extends StatelessWidget {
                         _buildStatusIcon(chat.status),
                         const SizedBox(width: 4),
                       ],
+                      if (chat.isVoiceLastMessage && !chat.isTyping) ...[
+                        Icon(
+                          Icons.mic_rounded,
+                          size: 15,
+                          color: hasUnread ? textPrimary : textSecondary,
+                        ),
+                        const SizedBox(width: 4),
+                      ],
                       Expanded(
                         child: Text(
-                          chat.isTyping ? 'typing…' : chat.lastMessage,
+                          chat.isTyping
+                              ? 'typing…'
+                              : (chat.isVoiceLastMessage
+                                  ? 'Voice message${chat.lastVoiceDuration != null ? ' (${chat.lastVoiceDuration})' : ''}'
+                                  : chat.lastMessage),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
