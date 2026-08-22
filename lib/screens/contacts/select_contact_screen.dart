@@ -31,8 +31,10 @@ class _MergedContact {
     required this.matchedPhone,
   });
 
-  String get displayName =>
-      contact.displayName.trim().isEmpty ? matchedPhone : contact.displayName.trim();
+  String get displayName {
+    final name = contact.displayName ?? '';
+    return name.trim().isEmpty ? matchedPhone : name.trim();
+  }
 }
 
 /// Kora's "Select contact" screen — the entry point for starting a new
@@ -97,7 +99,7 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
     // Only keep contacts that have at least one phone number.
     final withPhones = deviceContacts.where((c) => c.phones.isNotEmpty).toList();
     withPhones.sort((a, b) =>
-        a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase()));
+        (a.displayName ?? '').toLowerCase().compareTo((b.displayName ?? '').toLowerCase()));
 
     final koraMatches = <_MergedContact>[];
     final inviteMatches = <_MergedContact>[];

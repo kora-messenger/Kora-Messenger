@@ -232,7 +232,7 @@ class _NewContactScreenState extends State<NewContactScreen> {
       final newContact = Contact(
         displayName: fullName,
         phones: [
-          Phone(phoneNumber),
+          Phone(number: phoneNumber),
         ],
       );
 

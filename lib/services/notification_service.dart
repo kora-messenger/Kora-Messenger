@@ -31,7 +31,7 @@ class KoraNotificationService {
     const initSettings = InitializationSettings(android: androidInit);
 
     await _plugin.initialize(
-      initSettings,
+      settings: initSettings,
       onDidReceiveNotificationResponse: _onNotificationTapped,
     );
 
@@ -124,10 +124,10 @@ class KoraNotificationService {
     final notifId = chatId?.hashCode ?? senderName.hashCode;
 
     await _plugin.show(
-      notifId,
-      senderName,
-      message,
-      notifDetails,
+      id: notifId,
+      title: senderName,
+      body: message,
+      notificationDetails: notifDetails,
       payload: chatId,
     );
   }
@@ -154,10 +154,10 @@ class KoraNotificationService {
     const notifDetails = NotificationDetails(android: androidDetails);
 
     await _plugin.show(
-      9999, // fixed ID for call notifications
-      isVideo ? 'Incoming video call' : 'Incoming voice call',
-      callerName,
-      notifDetails,
+      id: 9999, // fixed ID for call notifications
+      title: isVideo ? 'Incoming video call' : 'Incoming voice call',
+      body: callerName,
+      notificationDetails: notifDetails,
     );
   }
 
@@ -181,16 +181,16 @@ class KoraNotificationService {
     const notifDetails = NotificationDetails(android: androidDetails);
 
     await _plugin.show(
-      9998, // fixed ID for missed call notifications
-      isVideo ? 'Missed video call' : 'Missed voice call',
-      callerName,
-      notifDetails,
+      id: 9998, // fixed ID for missed call notifications
+      title: isVideo ? 'Missed video call' : 'Missed voice call',
+      body: callerName,
+      notificationDetails: notifDetails,
     );
   }
 
   /// Cancels a specific notification by ID.
   Future<void> cancel(int id) async {
-    await _plugin.cancel(id);
+    await _plugin.cancel(id: id);
   }
 
   /// Cancels all active notifications.

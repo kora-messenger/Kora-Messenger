@@ -102,9 +102,7 @@ class _PasskeyLoginScreenState extends State<PasskeyLoginScreen> {
 
       final didAuth = await _localAuth.authenticate(
         localizedReason: 'Authenticate to sign in to Kora',
-        options: const AuthenticationOptions(
-          biometricOnly: false,
-        ),
+        biometricOnly: false,
       );
 
       if (!mounted) return;
