@@ -1,3 +1,4 @@
+import '../channel_landing_screen.dart';
 import 'package:flutter/material.dart';
 import '../../models/chat_models.dart';
 import '../../services/chat_service.dart';
@@ -10,16 +11,18 @@ import '../../widgets/kora_menu_sheet.dart';
 import '../../widgets/new_chat_sheet.dart';
 import '../chat/kora_chat_screen.dart';
 import '../new_group_screen.dart';
-import '../channel_landing_screen.dart';
 import '../settings/privacy_screen.dart';
+import '../archived_chats_screen.dart';
+import '../starred_messages_screen.dart';
 
 /// The "Chats" tab — Kora's central conversation list.
 /// Owns the Home header (branding, avatar, search, three-dot menu).
 /// Features inline search bar, Read all, New Group, New Channel.
 class ChatsTab extends StatefulWidget {
   final VoidCallback? onProfileTap;
+  final VoidCallback? onGoToChannels;
 
-  const ChatsTab({super.key, this.onProfileTap});
+  const ChatsTab({super.key, this.onProfileTap, this.onGoToChannels});
 
   @override
   State<ChatsTab> createState() => _ChatsTabState();
@@ -118,20 +121,32 @@ class _ChatsTabState extends State<ChatsTab> {
         icon: Icons.campaign_outlined,
         label: 'New Channel',
         onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const ChannelLandingScreen()),
-          );
+          if (widget.onGoToChannels != null) {
+            widget.onGoToChannels!();
+          } else {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const ChannelLandingScreen()),
+            );
+          }
         },
       ),
       KoraMenuOption(
         icon: Icons.archive_outlined,
         label: 'Archived Chats',
-        onTap: () {},
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const ArchivedChatsScreen()),
+          );
+        },
       ),
       KoraMenuOption(
         icon: Icons.star_outline,
         label: 'Starred Messages',
-        onTap: () {},
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const StarredMessagesScreen()),
+          );
+        },
       ),
       KoraMenuOption(
         icon: Icons.done_all,
@@ -150,7 +165,11 @@ class _ChatsTabState extends State<ChatsTab> {
       KoraMenuOption(
         icon: Icons.settings_outlined,
         label: 'Settings',
-        onTap: () {},
+        onTap: () {
+          if (widget.onProfileTap != null) {
+            widget.onProfileTap!();
+          }
+        },
       ),
     ]);
   }

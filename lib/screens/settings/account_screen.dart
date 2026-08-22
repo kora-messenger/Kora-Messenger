@@ -1,3 +1,4 @@
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import '../../theme/kora_colors.dart';
 import '../../services/session_manager.dart';
@@ -276,19 +277,239 @@ class _AccountScreenState extends State<AccountScreen> {
   // ── Logout ──────────────────────────────────────────────────
 
   Future<void> _logout() async {
+    final brightness = Theme.of(context).brightness;
+    final textPrimary = KoraColors.textPrimaryFor(brightness);
+    final textSecondary = KoraColors.textSecondaryFor(brightness);
+    final card = KoraColors.cardFor(brightness);
+
+    // 1. Show confirmation dialog asking 'Log out of this device?'
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 380),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: KoraColors.purple.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.logout_rounded,
+                    color: KoraColors.purple,
+                    size: 28,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Log out of this device?',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: textPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'You will need to sign in again to access your messages and account settings.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: textSecondary,
+                    fontSize: 14,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        style: TextButton.styleFrom(
+                          foregroundColor: textSecondary,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(color: KoraColors.borderFor(brightness)),
+                          ),
+                        ),
+                        child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.w600)),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.pop(ctx, true),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: KoraColors.purple,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text('Log Out', style: TextStyle(fontWeight: FontWeight.w700)),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    // 2. If user taps Cancel, do nothing
+    if (confirm != true) return;
+
+    if (!mounted) return;
+
+    // Set loading state
     setState(() => _loggingOut = true);
+
+    // 3. Show loading dialog / overlay
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (loadingCtx) => Dialog(
+        backgroundColor: card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 24),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  color: KoraColors.purple,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Text(
+                'Logging out...',
+                style: TextStyle(
+                  color: textPrimary,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    try {
+      // Get deviceId and deviceName from SharedPreferences (fallback: 'Unknown Device')
+      final prefs = await SharedPreferences.getInstance();
+      final deviceId = prefs.getString('kora_device_id') ?? 'Unknown Device';
+      final deviceName = prefs.getString('kora_device_name') ?? 'Unknown Device';
+
+      final email = _session?['email']?.toString() ?? '';
+      final userId = _session?['id']?.toString() ?? '';
+
+      // 4. Call backend API (KoraApi.post) with action 'logout'
+      await KoraApi.post({
+        'action': 'logout',
+        'email': email,
+        'userId': userId,
+        'deviceId': deviceId,
+        'deviceName': deviceName,
+      });
+    } catch (e) {
+      // Continue clearing session locally even if network fails
+    }
 
     try {
       await SessionManager.instance.clearSession();
-
-      if (!mounted) return;
-
-      Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
     } catch (e) {
-      if (!mounted) return;
-      setState(() => _loggingOut = false);
-      _showError('Failed to log out. Please try again.');
+      // Ignore local clear errors
     }
+
+    if (!mounted) return;
+
+    // Pop the loading dialog
+    Navigator.of(context, rootNavigator: true).pop();
+
+    setState(() => _loggingOut = false);
+
+    // 5. Show success popup dialog with checkmark icon and OK button
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (successCtx) => Dialog(
+        backgroundColor: card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 380),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: KoraColors.purple.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.check_circle_rounded,
+                    color: KoraColors.purple,
+                    size: 32,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'You have been logged out successfully',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(successCtx).pop();
+                      Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: KoraColors.purple,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text('OK', style: TextStyle(fontWeight: FontWeight.w700)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   // ── Navigation ────────────────────────────────────────────────

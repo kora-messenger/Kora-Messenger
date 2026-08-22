@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme/kora_colors.dart';
+import '../theme/chat_theme_provider.dart';
 import '../services/auth_service.dart';
 import '../services/session_manager.dart';
 import '../widgets/kora_button.dart';
@@ -59,6 +60,7 @@ class _PhoneNumberScreenState extends State<PhoneNumberScreen> {
         );
         if (result.success && result.user != null) {
           await SessionManager.instance.saveSession(result.user!);
+          await ChatThemeProvider.instance.load(); // Refresh owner/premium status for badge + gating
         }
       }
     }

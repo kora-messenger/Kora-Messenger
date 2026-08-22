@@ -43,6 +43,16 @@ class MessageService {
         _kPremiumTrialStart,
         DateTime.now().toIso8601String(),
       );
+      // Actually activate the 7-day free Premium trial
+      await prefs.setBool('kora_is_premium', true);
+      await prefs.setString('premium_plan', 'trial');
+      await prefs.setInt(
+        'premium_expiry',
+        DateTime.now()
+            .add(const Duration(days: _kPremiumTrialDays))
+            .millisecondsSinceEpoch,
+      );
+      await prefs.setString('premium_activated_at', DateTime.now().toIso8601String());
     }
 
     // Check if the 7-day trial has expired (and we haven't sent the expiry message yet)
@@ -433,9 +443,11 @@ class MessageService {
     for (final k in keys) {
       await prefs.remove(k);
     }
-    await prefs.remove(_kWelcomeSent);
-    await prefs.remove(_kExpirySent);
-    await prefs.remove(_kPremiumTrialStart);
+    // NOTE: _kWelcomeSent, _kExpirySent, and _kPremiumTrialStart are
+    // intentionally NOT cleared here. The welcome message and 7-day
+    // trial are one-time events tied to the device install, not the
+    // login session. A returning user who logs out and back in should
+    // not be re-welcomed or given another trial.
     _cache.clear();
     _blockedChats.clear();
     _blockedLoaded = false;

@@ -202,6 +202,7 @@ class ChatThemeProvider extends ChangeNotifier {
   double _wallpaperDimLevel = 0.0;
   Color _appThemeColor = const Color(0xFF8B5CF6);
   bool _isPremium = false;
+  bool _isOwnerAccount = false;
   int _appIconIndex = 0;
 
   String get themeId => _themeId;
@@ -213,6 +214,13 @@ class ChatThemeProvider extends ChangeNotifier {
   double get wallpaperDimLevel => _wallpaperDimLevel;
   Color get appThemeColor => _appThemeColor;
   bool get isPremium => _isPremium;
+
+  /// True when the logged-in session belongs to one of the hardcoded
+  /// Kora owner accounts (see [kOwnerEmails]). Owner accounts get the
+  /// official purple Kora badge instead of the blue Premium badge,
+  /// since they represent Kora itself rather than a paying subscriber.
+  bool get isOwnerAccount => _isOwnerAccount;
+
   int get appIconIndex => _appIconIndex;
 
   /// Called after a successful payment to activate premium across the app.
@@ -281,8 +289,10 @@ class ChatThemeProvider extends ChangeNotifier {
     _isPremium = prefs.getBool(_kIsPremium) ?? false;
     _appIconIndex = prefs.getInt(_kAppIconIndex) ?? 0;
 
-    // Owner accounts are always Premium — free forever.
-    if (_isOwnerSession(prefs)) {
+    // Owner accounts are always Premium — free forever — and get the
+    // official Kora badge instead of the Premium subscriber badge.
+    _isOwnerAccount = _isOwnerSession(prefs);
+    if (_isOwnerAccount) {
       _isPremium = true;
     }
 

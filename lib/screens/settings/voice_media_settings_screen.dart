@@ -1,5 +1,13 @@
+import 'dart:convert';
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../theme/chat_theme_provider.dart';
 import '../../theme/kora_colors.dart';
+import 'premium_subscribe_sheet.dart';
 
 /// Kora's Voice & Media settings — upload your own audio/video for
 /// supported Kora voice features.
@@ -7,9 +15,7 @@ import '../../theme/kora_colors.dart';
 /// Flow: Settings → Voice & Media → Upload Your Own Voice →
 /// Select Audio/Video → Consent Warning → Agree → Upload → Process
 ///
-/// The consent warning is mandatory before any upload or processing.
-/// The "I Agree" button stays disabled until the user checks the
-/// agreement checkbox.
+/// Premium Feature: Premium check is enforced before upload flow opens.
 class VoiceMediaSettingsScreen extends StatefulWidget {
   const VoiceMediaSettingsScreen({super.key});
 
@@ -19,6 +25,97 @@ class VoiceMediaSettingsScreen extends StatefulWidget {
 }
 
 class _VoiceMediaSettingsScreenState extends State<VoiceMediaSettingsScreen> {
+  static const String _kUploadsKey = 'kora_voice_uploads';
+  List<Map<String, dynamic>> _uploadedFiles = [];
+  bool _loadingUploads = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUploadedFiles();
+  }
+
+  Future<void> _loadUploadedFiles() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_kUploadsKey);
+    if (raw != null && raw.isNotEmpty) {
+      try {
+        final list = jsonDecode(raw) as List;
+        if (mounted) {
+          setState(() {
+            _uploadedFiles = list.cast<Map<String, dynamic>>();
+            _loadingUploads = false;
+          });
+        }
+        return;
+      } catch (_) {}
+    }
+    if (mounted) {
+      setState(() {
+        _uploadedFiles = [];
+        _loadingUploads = false;
+      });
+    }
+  }
+
+  Future<void> _deleteUploadedFile(String id) async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_kUploadsKey);
+    if (raw != null && raw.isNotEmpty) {
+      try {
+        final list = (jsonDecode(raw) as List).cast<Map<String, dynamic>>();
+        final index = list.indexWhere((item) => item['id'] == id);
+        if (index != -1) {
+          final item = list[index];
+          final path = item['path'] as String?;
+          if (path != null && path.isNotEmpty) {
+            try {
+              final file = File(path);
+              if (await file.exists()) {
+                await file.delete();
+              }
+            } catch (_) {}
+          }
+          list.removeAt(index);
+          await prefs.setString(_kUploadsKey, jsonEncode(list));
+        }
+      } catch (_) {}
+    }
+    await _loadUploadedFiles();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Upload deleted'),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  void _showUploadFlow(BuildContext context) {
+    if (!ChatThemeProvider.instance.isPremium) {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (context) => const PremiumSubscribeSheet(),
+      );
+      return;
+    }
+
+    final brightness = Theme.of(context).brightness;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _UploadFlowSheet(
+        brightness: brightness,
+        onUploadChanged: _loadUploadedFiles,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final brightness = Theme.of(context).brightness;
@@ -66,7 +163,7 @@ class _VoiceMediaSettingsScreenState extends State<VoiceMediaSettingsScreen> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.graphic_eq_rounded, size: 22, color: KoraColors.purple),
+                  const Icon(Icons.graphic_eq_rounded, size: 22, color: KoraColors.purple),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
@@ -137,6 +234,16 @@ class _VoiceMediaSettingsScreenState extends State<VoiceMediaSettingsScreen> {
 
           const SizedBox(height: 20),
 
+          // ── Previously Uploaded Files ──
+          _sectionLabel('PREVIOUSLY UPLOADED FILES', textMuted),
+          _card(
+            card: card,
+            border: border,
+            children: _buildUploadedFilesList(card, textPrimary, textSecondary, textMuted, border),
+          ),
+
+          const SizedBox(height: 20),
+
           // ── Consent info ──
           _sectionLabel('CONSENT', textMuted),
           _card(
@@ -182,19 +289,120 @@ class _VoiceMediaSettingsScreenState extends State<VoiceMediaSettingsScreen> {
               ),
             ],
           ),
+          const SizedBox(height: 24),
         ],
       ),
     );
   }
 
-  void _showUploadFlow(BuildContext context) {
-    final brightness = Theme.of(context).brightness;
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => _UploadFlowSheet(brightness: brightness),
-    );
+  List<Widget> _buildUploadedFilesList(
+    Color card,
+    Color textPrimary,
+    Color textSecondary,
+    Color textMuted,
+    Color border,
+  ) {
+    if (_loadingUploads) {
+      return [
+        const Padding(
+          padding: EdgeInsets.all(20),
+          child: Center(
+            child: SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: KoraColors.purple,
+              ),
+            ),
+          ),
+        ),
+      ];
+    }
+
+    if (_uploadedFiles.isEmpty) {
+      return [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Icon(Icons.folder_open_rounded, color: textMuted, size: 22),
+              const SizedBox(width: 12),
+              Text(
+                'No uploaded files yet',
+                style: TextStyle(color: textSecondary, fontSize: 13.5),
+              ),
+            ],
+          ),
+        ),
+      ];
+    }
+
+    final widgets = <Widget>[];
+    for (int i = 0; i < _uploadedFiles.length; i++) {
+      final fileData = _uploadedFiles[i];
+      final id = fileData['id']?.toString() ?? '';
+      final name = fileData['name']?.toString() ?? 'Unnamed File';
+      final type = fileData['type']?.toString() ?? 'audio';
+      final isVideo = type == 'video';
+
+      widgets.add(
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: KoraColors.purple.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  isVideo ? Icons.movie_rounded : Icons.audiotrack_rounded,
+                  color: KoraColors.purple,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: TextStyle(
+                        color: textPrimary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      type.toUpperCase(),
+                      style: TextStyle(color: textMuted, fontSize: 11, fontWeight: FontWeight.w500),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline_rounded, color: KoraColors.red, size: 20),
+                onPressed: () => _deleteUploadedFile(id),
+                tooltip: 'Delete Upload',
+              ),
+            ],
+          ),
+        ),
+      );
+
+      if (i < _uploadedFiles.length - 1) {
+        widgets.add(Divider(height: 1, color: border, indent: 14, endIndent: 14));
+      }
+    }
+
+    return widgets;
   }
 
   Widget _sectionLabel(String label, Color color) {
@@ -236,17 +444,171 @@ class _VoiceMediaSettingsScreenState extends State<VoiceMediaSettingsScreen> {
 
 class _UploadFlowSheet extends StatefulWidget {
   final Brightness brightness;
+  final VoidCallback? onUploadChanged;
 
-  const _UploadFlowSheet({required this.brightness});
+  const _UploadFlowSheet({
+    required this.brightness,
+    this.onUploadChanged,
+  });
 
   @override
   State<_UploadFlowSheet> createState() => _UploadFlowSheetState();
 }
 
 class _UploadFlowSheetState extends State<_UploadFlowSheet> {
+  String? _selectedFilePath;
+  String? _selectedFileName;
+  String? _selectedFileType;
+  String? _uploadedFileId;
+
   bool _agreed = false;
   bool _uploading = false;
   bool _uploaded = false;
+
+  Future<void> _selectFile(String type) async {
+    final extensions = type == 'audio'
+        ? ['mp3', 'wav', 'm4a', 'aac', 'ogg', 'flac']
+        : ['mp4', 'mov', 'avi', 'mkv'];
+
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: extensions,
+      );
+
+      if (result != null && result.files.isNotEmpty && result.files.first.path != null) {
+        final file = result.files.first;
+        setState(() {
+          _selectedFilePath = file.path;
+          _selectedFileName = file.name;
+          _selectedFileType = type;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error selecting file: $e'),
+            backgroundColor: KoraColors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _doUpload() async {
+    if (_selectedFilePath == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select an audio or video file first.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _uploading = true);
+
+    try {
+      final docsDir = await getApplicationDocumentsDirectory();
+      final uploadsDir = Directory('${docsDir.path}/kora_voice_uploads');
+      if (!await uploadsDir.exists()) {
+        await uploadsDir.create(recursive: true);
+      }
+
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final fileId = timestamp.toString();
+      final fileName = _selectedFileName ?? 'file_$fileId';
+      final savedPath = '${uploadsDir.path}/${timestamp}_$fileName';
+
+      final sourceFile = File(_selectedFilePath!);
+      await sourceFile.copy(savedPath);
+
+      final metadata = {
+        'id': fileId,
+        'path': savedPath,
+        'name': fileName,
+        'type': _selectedFileType ?? 'audio',
+        'uploadDate': DateTime.now().toIso8601String(),
+      };
+
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString('kora_voice_uploads');
+      List list = [];
+      if (raw != null && raw.isNotEmpty) {
+        try {
+          list = jsonDecode(raw) as List;
+        } catch (_) {}
+      }
+      list.insert(0, metadata);
+      await prefs.setString('kora_voice_uploads', jsonEncode(list));
+
+      if (widget.onUploadChanged != null) {
+        widget.onUploadChanged!();
+      }
+
+      if (mounted) {
+        setState(() {
+          _uploading = false;
+          _uploaded = true;
+          _uploadedFileId = fileId;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _uploading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Upload failed: $e'),
+            backgroundColor: KoraColors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteCurrentUpload() async {
+    if (_uploadedFileId == null) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString('kora_voice_uploads');
+    if (raw != null && raw.isNotEmpty) {
+      try {
+        final list = (jsonDecode(raw) as List).cast<Map<String, dynamic>>();
+        final index = list.indexWhere((item) => item['id'] == _uploadedFileId);
+        if (index != -1) {
+          final item = list[index];
+          final path = item['path'] as String?;
+          if (path != null && path.isNotEmpty) {
+            try {
+              final file = File(path);
+              if (await file.exists()) {
+                await file.delete();
+              }
+            } catch (_) {}
+          }
+          list.removeAt(index);
+          await prefs.setString('kora_voice_uploads', jsonEncode(list));
+        }
+      } catch (_) {}
+    }
+
+    if (widget.onUploadChanged != null) {
+      widget.onUploadChanged!();
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Upload deleted'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      Navigator.pop(context);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -287,10 +649,10 @@ class _UploadFlowSheetState extends State<_UploadFlowSheet> {
               padding: const EdgeInsets.fromLTRB(20, 16, 16, 12),
               child: Row(
                 children: [
-                  Icon(Icons.upload_file_rounded, color: KoraColors.purple, size: 22),
-                  const SizedBox(width: 8),
+                  const Icon(Icons.upload_file_rounded, color: KoraColors.purple, size: 22),
+                  const SizedBox(width: 10),
                   Text(
-                    'Upload Your Own Voice',
+                    'Upload Voice / Media',
                     style: TextStyle(
                       color: textPrimary,
                       fontSize: 17,
@@ -313,7 +675,7 @@ class _UploadFlowSheetState extends State<_UploadFlowSheet> {
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
                 child: _uploaded
-                    ? _buildSuccessView(surface, textPrimary, textSecondary)
+                    ? _buildSuccessView(surface, textPrimary, textSecondary, border)
                     : _buildUploadView(surface, textPrimary, textSecondary, textMuted, border),
               ),
             ),
@@ -330,6 +692,8 @@ class _UploadFlowSheetState extends State<_UploadFlowSheet> {
     Color textMuted,
     Color border,
   ) {
+    final bool canSubmit = _agreed && _selectedFilePath != null && !_uploading;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -350,6 +714,7 @@ class _UploadFlowSheetState extends State<_UploadFlowSheet> {
               child: _fileTypeCard(
                 Icons.audio_file_rounded,
                 'Audio File',
+                _selectedFileType == 'audio',
                 surface,
                 textPrimary,
                 textSecondary,
@@ -362,6 +727,7 @@ class _UploadFlowSheetState extends State<_UploadFlowSheet> {
               child: _fileTypeCard(
                 Icons.video_file_rounded,
                 'Video File',
+                _selectedFileType == 'video',
                 surface,
                 textPrimary,
                 textSecondary,
@@ -371,6 +737,69 @@ class _UploadFlowSheetState extends State<_UploadFlowSheet> {
             ),
           ],
         ),
+
+        if (_selectedFileName != null) ...[
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: KoraColors.purple.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: KoraColors.purple.withValues(alpha: 0.25),
+                width: 0.5,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  _selectedFileType == 'video'
+                      ? Icons.movie_rounded
+                      : Icons.audiotrack_rounded,
+                  color: KoraColors.purple,
+                  size: 22,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Selected File',
+                        style: TextStyle(
+                          color: textMuted,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _selectedFileName!,
+                        style: TextStyle(
+                          color: textPrimary,
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(Icons.close_rounded, size: 18, color: textMuted),
+                  onPressed: () {
+                    setState(() {
+                      _selectedFilePath = null;
+                      _selectedFileName = null;
+                      _selectedFileType = null;
+                    });
+                  },
+                ),
+              ],
+            ),
+          ),
+        ],
 
         const SizedBox(height: 24),
 
@@ -390,7 +819,7 @@ class _UploadFlowSheetState extends State<_UploadFlowSheet> {
             children: [
               Row(
                 children: [
-                  Icon(Icons.warning_amber_rounded, size: 20, color: KoraColors.red),
+                  const Icon(Icons.warning_amber_rounded, size: 20, color: KoraColors.red),
                   const SizedBox(width: 8),
                   Text(
                     'Before You Upload',
@@ -496,15 +925,15 @@ class _UploadFlowSheetState extends State<_UploadFlowSheet> {
             const SizedBox(width: 12),
             Expanded(
               child: GestureDetector(
-                onTap: _agreed && !_uploading ? _doUpload : null,
+                onTap: canSubmit ? _doUpload : null,
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   height: 48,
                   decoration: BoxDecoration(
-                    gradient: _agreed ? KoraColors.brandGradient : null,
-                    color: _agreed ? null : surface,
+                    gradient: canSubmit ? KoraColors.brandGradient : null,
+                    color: canSubmit ? null : surface,
                     borderRadius: BorderRadius.circular(12),
-                    border: _agreed ? null : Border.all(color: border, width: 0.5),
+                    border: canSubmit ? null : Border.all(color: border, width: 0.5),
                   ),
                   child: Center(
                     child: _uploading
@@ -519,7 +948,7 @@ class _UploadFlowSheetState extends State<_UploadFlowSheet> {
                         : Text(
                             'I Agree',
                             style: TextStyle(
-                              color: _agreed ? Colors.white : textMuted,
+                              color: canSubmit ? Colors.white : textMuted,
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
                             ),
@@ -537,6 +966,7 @@ class _UploadFlowSheetState extends State<_UploadFlowSheet> {
   Widget _fileTypeCard(
     IconData icon,
     String label,
+    bool isSelected,
     Color surface,
     Color textPrimary,
     Color textSecondary,
@@ -545,23 +975,27 @@ class _UploadFlowSheetState extends State<_UploadFlowSheet> {
   ) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
-          color: surface,
+          color: isSelected ? KoraColors.purple.withValues(alpha: 0.08) : surface,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: border, width: 0.5),
+          border: Border.all(
+            color: isSelected ? KoraColors.purple : border,
+            width: isSelected ? 1.5 : 0.5,
+          ),
         ),
         child: Column(
           children: [
-            Icon(icon, size: 32, color: KoraColors.purple),
+            Icon(icon, size: 32, color: isSelected ? KoraColors.purple : KoraColors.purple.withValues(alpha: 0.7)),
             const SizedBox(height: 8),
             Text(
               label,
               style: TextStyle(
-                color: textPrimary,
+                color: isSelected ? KoraColors.purple : textPrimary,
                 fontSize: 13,
-                fontWeight: FontWeight.w600,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
               ),
             ),
           ],
@@ -570,32 +1004,12 @@ class _UploadFlowSheetState extends State<_UploadFlowSheet> {
     );
   }
 
-  void _selectFile(String type) {
-    // Would use image_picker or file_picker here in production
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(type == 'audio' ? 'Select an audio file...' : 'Select a video file...'),
-        backgroundColor: KoraColors.purple,
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 1),
-      ),
-    );
-  }
-
-  void _doUpload() {
-    setState(() => _uploading = true);
-    // Simulate upload + processing
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() {
-          _uploading = false;
-          _uploaded = true;
-        });
-      }
-    });
-  }
-
-  Widget _buildSuccessView(Color surface, Color textPrimary, Color textSecondary) {
+  Widget _buildSuccessView(
+    Color surface,
+    Color textPrimary,
+    Color textSecondary,
+    Color border,
+  ) {
     return Column(
       children: [
         const SizedBox(height: 20),
@@ -606,7 +1020,7 @@ class _UploadFlowSheetState extends State<_UploadFlowSheet> {
             color: KoraColors.purple.withValues(alpha: 0.1),
             shape: BoxShape.circle,
           ),
-          child: Icon(Icons.check_circle_rounded, size: 40, color: KoraColors.purple),
+          child: const Icon(Icons.check_circle_rounded, size: 40, color: KoraColors.purple),
         ),
         const SizedBox(height: 16),
         Text(
@@ -617,9 +1031,45 @@ class _UploadFlowSheetState extends State<_UploadFlowSheet> {
             fontWeight: FontWeight.w700,
           ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 8),
+        if (_selectedFileName != null) ...[
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: surface,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: border, width: 0.5),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  _selectedFileType == 'video'
+                      ? Icons.movie_rounded
+                      : Icons.audiotrack_rounded,
+                  size: 18,
+                  color: KoraColors.purple,
+                ),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    _selectedFileName!,
+                    style: TextStyle(
+                      color: textPrimary,
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
         Text(
-          'Your media has been processed and is ready to use in supported Kora features.',
+          'Your media has been processed and saved to Kora Voice & Media.',
           style: TextStyle(
             color: textSecondary,
             fontSize: 13.5,
@@ -627,26 +1077,59 @@ class _UploadFlowSheetState extends State<_UploadFlowSheet> {
           ),
           textAlign: TextAlign.center,
         ),
-        const SizedBox(height: 20),
-        GestureDetector(
-          onTap: () => Navigator.pop(context),
-          child: Container(
-            height: 48,
-            decoration: BoxDecoration(
-              gradient: KoraColors.brandGradient,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Center(
-              child: Text(
-                'Done',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
+        const SizedBox(height: 24),
+        Row(
+          children: [
+            Expanded(
+              child: GestureDetector(
+                onTap: _deleteCurrentUpload,
+                child: Container(
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: KoraColors.red.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: KoraColors.red.withValues(alpha: 0.25),
+                      width: 0.5,
+                    ),
+                  ),
+                  child: const Center(
+                    child: Text(
+                      'Delete Upload',
+                      style: TextStyle(
+                        color: KoraColors.red,
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
-          ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  height: 48,
+                  decoration: BoxDecoration(
+                    gradient: KoraColors.brandGradient,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Center(
+                    child: Text(
+                      'Done',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ],
     );

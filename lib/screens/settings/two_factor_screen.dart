@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../theme/kora_colors.dart';
+import '../../theme/chat_theme_provider.dart';
 import '../../services/session_manager.dart';
 import '../../services/crash_logger.dart';
 import 'two_factor_verify_screen.dart';
@@ -84,6 +85,7 @@ class _TwoFactorScreenState extends State<TwoFactorScreen> {
       if (session != null) {
         session['twoFactorEnabled'] = enabled;
         await SessionManager.instance.saveSession(session);
+        await ChatThemeProvider.instance.load(); // Refresh owner/premium status for badge + gating
       }
     } catch (e, stack) {
       await CrashLogger.log(e, stackTrace: stack, context: 'TwoFactorScreen._persistTwoFactor');

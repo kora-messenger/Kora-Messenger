@@ -27,6 +27,7 @@ class _KoraHomeScreenState extends State<KoraHomeScreen> {
   }
 
   void _goToProfile() => setState(() => _tabIndex = 4);
+  void _goToChannels() => setState(() => _tabIndex = 3);
 
   @override
   Widget build(BuildContext context) {
@@ -36,7 +37,7 @@ class _KoraHomeScreenState extends State<KoraHomeScreen> {
     final textSecondary = KoraColors.textSecondaryFor(brightness);
 
     final tabs = [
-      ChatsTab(onProfileTap: _goToProfile),
+      ChatsTab(onProfileTap: _goToProfile, onGoToChannels: _goToChannels),
       const CallsTab(),
       const StatusTab(),
       const ChannelsTab(),

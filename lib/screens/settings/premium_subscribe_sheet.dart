@@ -51,23 +51,27 @@ class _PremiumSubscribeSheetState extends State<PremiumSubscribeSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final maxHeight = MediaQuery.of(context).size.height * 0.9;
+
     return Material(
       color: Colors.transparent,
-      child: Container(
-        decoration: const BoxDecoration(
-          color: KoraColors.trueBlack,
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(24),
-            topRight: Radius.circular(24),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: maxHeight),
+        child: Container(
+          decoration: const BoxDecoration(
+            color: KoraColors.trueBlack,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(24),
+              topRight: Radius.circular(24),
+            ),
           ),
-        ),
-        child: SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
+          child: SafeArea(
+            top: false,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
                 const SizedBox(height: 12),
                 // Drag handle
                 Container(
@@ -209,7 +213,8 @@ class _PremiumSubscribeSheetState extends State<PremiumSubscribeSheet> {
                   ),
                 ),
                 const SizedBox(height: 24),
-              ],
+                ],
+              ),
             ),
           ),
         ),

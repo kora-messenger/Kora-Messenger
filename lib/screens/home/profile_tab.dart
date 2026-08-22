@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import '../../theme/kora_colors.dart';
 import '../../widgets/kora_avatar.dart';
 import '../../widgets/kora_badge.dart';
@@ -10,6 +11,14 @@ import '../settings/account_screen.dart';
 import '../settings/translation_settings_screen.dart';
 import '../settings/voice_media_settings_screen.dart';
 import '../settings/privacy_screen.dart';
+import '../settings/edit_profile_screen.dart';
+import '../settings/chat_settings_screen.dart';
+import '../settings/notifications_settings_screen.dart';
+import '../settings/about_kora_screen.dart';
+import '../settings/premium_subscribe_sheet.dart';
+import '../ai/kora_support_screen.dart';
+import '../search_screen.dart';
+import '../contacts/qr_code_screen.dart';
 
 /// "Profile" tab — the user's own profile summary plus settings shortcuts.
 class ProfileTab extends StatefulWidget {
@@ -59,6 +68,60 @@ class _ProfileTabState extends State<ProfileTab> {
     }
   }
 
+  void _showQrCode() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const QrCodeScreen()),
+    );
+  }
+
+  void _openSearch() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const SearchScreen()),
+    );
+  }
+
+  void _openEditProfile() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+    ).then((_) => _loadSession());
+  }
+
+  void _openPremium() {
+    if (_isPremium) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('You are already a Kora Premium member'),
+          backgroundColor: KoraColors.purple,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const PremiumSubscribeSheet(),
+    );
+  }
+
+  void _openKoraSupport() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const KoraSupportScreen()),
+    );
+  }
+
+  void _openAbout() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const AboutKoraScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final brightness = Theme.of(context).brightness;
@@ -74,78 +137,112 @@ class _ProfileTabState extends State<ProfileTab> {
 
     return Scaffold(
       backgroundColor: bg,
+      appBar: AppBar(
+        backgroundColor: bg,
+        elevation: 0,
+        title: Text(
+          'Profile',
+          style: TextStyle(
+            color: textPrimary,
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.5,
+          ),
+        ),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.search, color: textPrimary, size: 22),
+            onPressed: _openSearch,
+          ),
+          IconButton(
+            icon: Icon(Icons.qr_code_scanner_rounded, color: textPrimary, size: 22),
+            onPressed: _showQrCode,
+          ),
+          const SizedBox(width: 4),
+        ],
+      ),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
           children: [
-            Text(
-              'Profile',
-              style: TextStyle(
-                color: textPrimary,
-                fontSize: 24,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.5,
-              ),
-            ),
-            const SizedBox(height: 20),
-            Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: card,
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: _loading
-                  ? const Center(
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(vertical: 8),
-                        child: SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(strokeWidth: 2.2, color: KoraColors.purple),
-                        ),
-                      ),
-                    )
-                  : Row(
-                      children: [
-                        KoraAvatar(name: fullName, size: 62),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              KoraNameWithBadge(
-                                name: fullName,
-                                badge: _isPremium ? KoraBadgeType.premiumBlue : KoraBadgeType.none,
-                                badgeSize: 18,
-                                style: TextStyle(
-                                  color: textPrimary,
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              const SizedBox(height: 3),
-                              Text(
-                                '@$username',
-                                style: TextStyle(color: textSecondary, fontSize: 13.5),
-                              ),
-                              const SizedBox(height: 3),
-                              Text(
-                                koraId.isNotEmpty ? koraId : 'Tap to view your Kora ID',
-                                style: TextStyle(color: textMuted, fontSize: 12),
-                              ),
-                            ],
+            // Profile card — tappable to edit
+            GestureDetector(
+              onTap: _openEditProfile,
+              child: Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: card,
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: _loading
+                    ? const Center(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(vertical: 8),
+                          child: SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(strokeWidth: 2.2, color: KoraColors.purple),
                           ),
                         ),
-                        Icon(Icons.chevron_right, color: textMuted),
-                      ],
-                    ),
+                      )
+                    : Row(
+                        children: [
+                          KoraAvatar(name: fullName, size: 62),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                KoraNameWithBadge(
+                                  name: fullName,
+                                  badge: ChatThemeProvider.instance.isOwnerAccount
+                                      ? KoraBadgeType.officialPurple
+                                      : (_isPremium ? KoraBadgeType.premiumBlue : KoraBadgeType.none),
+                                  badgeSize: 18,
+                                  style: TextStyle(
+                                    color: textPrimary,
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  '@$username',
+                                  style: TextStyle(color: textSecondary, fontSize: 13.5),
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  koraId.isNotEmpty ? koraId : 'Tap to view your Kora ID',
+                                  style: TextStyle(color: textMuted, fontSize: 12),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Icon(Icons.edit_rounded, color: KoraColors.purple, size: 20),
+                        ],
+                      ),
+              ),
             ),
             const SizedBox(height: 24),
+
+            // ── ACCOUNT section ──
             _sectionLabel('ACCOUNT', textMuted),
             _accountTile(context),
-            _tile(context, Icons.chat_bubble_outline, 'Chats', 'Theme, wallpapers, chat history'),
+            _navTile(
+              context,
+              icon: Icons.chat_bubble_outline,
+              title: 'Chats',
+              subtitle: 'Theme, wallpapers, chat history',
+              screen: const ChatSettingsScreen(),
+            ),
             _appearanceTile(context),
-            _tile(context, Icons.notifications_outlined, 'Notifications', 'Message, group & call tones'),
+            _navTile(
+              context,
+              icon: Icons.notifications_outlined,
+              title: 'Notifications',
+              subtitle: 'Message, group & call tones',
+              screen: const NotificationsSettingsScreen(),
+            ),
             _navTile(
               context,
               icon: Icons.privacy_tip_outlined,
@@ -155,16 +252,8 @@ class _ProfileTabState extends State<ProfileTab> {
               screen: const PrivacyScreen(),
             ),
             const SizedBox(height: 20),
-            _sectionLabel('KORA', textMuted),
-            _tile(
-              context,
-              _isPremium ? Icons.workspace_premium : Icons.workspace_premium_outlined,
-              'Kora Premium',
-              _isPremium ? 'Premium active' : 'Unlock premium features',
-            ),
-            _tile(context, Icons.support_agent_outlined, 'Kora Support', 'Get help from the Kora team'),
-            _tile(context, Icons.info_outline, 'About Kora', 'App version, terms & privacy'),
-            const SizedBox(height: 20),
+
+            // ── TRANSLATION & MEDIA section (moved ABOVE Kora section) ──
             _sectionLabel('TRANSLATION & MEDIA', textMuted),
             _navTile(
               context,
@@ -181,6 +270,31 @@ class _ProfileTabState extends State<ProfileTab> {
               title: 'Voice & Media',
               subtitle: 'Upload your own audio or video',
               screen: const VoiceMediaSettingsScreen(),
+            ),
+            const SizedBox(height: 20),
+
+            // ── KORA section (moved BELOW Translation & Media) ──
+            _sectionLabel('KORA', textMuted),
+            _tile(
+              context,
+              _isPremium ? Icons.workspace_premium : Icons.workspace_premium_outlined,
+              'Kora Premium',
+              _isPremium ? 'Premium active' : 'Unlock premium features',
+              onTap: _openPremium,
+            ),
+            _tile(
+              context,
+              Icons.support_agent_outlined,
+              'Kora Support',
+              'Get help from the Kora team',
+              onTap: _openKoraSupport,
+            ),
+            _tile(
+              context,
+              Icons.info_outline,
+              'About Kora',
+              'App version, terms & privacy',
+              onTap: _openAbout,
             ),
           ],
         ),
@@ -202,7 +316,6 @@ class _ProfileTabState extends State<ProfileTab> {
       ),
     );
   }
-
 
   Widget _accountTile(BuildContext context) {
     final brightness = Theme.of(context).brightness;
@@ -265,6 +378,7 @@ class _ProfileTabState extends State<ProfileTab> {
     final brightness = Theme.of(context).brightness;
     final textPrimary = KoraColors.textPrimaryFor(brightness);
     final textSecondary = KoraColors.textSecondaryFor(brightness);
+    final textMuted = KoraColors.textMutedFor(brightness);
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
@@ -310,6 +424,7 @@ class _ProfileTabState extends State<ProfileTab> {
                   ],
                 ),
               ),
+              Icon(Icons.chevron_right, color: textMuted),
             ],
           ),
         ),
@@ -317,15 +432,16 @@ class _ProfileTabState extends State<ProfileTab> {
     );
   }
 
-  Widget _tile(BuildContext context, IconData icon, String title, String subtitle) {
+  Widget _tile(BuildContext context, IconData icon, String title, String subtitle, {VoidCallback? onTap}) {
     final brightness = Theme.of(context).brightness;
     final textPrimary = KoraColors.textPrimaryFor(brightness);
     final textSecondary = KoraColors.textSecondaryFor(brightness);
+    final textMuted = KoraColors.textMutedFor(brightness);
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: InkWell(
-        onTap: () {},
+        onTap: onTap ?? () {},
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 6),
@@ -361,6 +477,7 @@ class _ProfileTabState extends State<ProfileTab> {
                   ],
                 ),
               ),
+              Icon(Icons.chevron_right, color: textMuted),
             ],
           ),
         ),
@@ -371,7 +488,7 @@ class _ProfileTabState extends State<ProfileTab> {
   Widget _navTile(
     BuildContext context, {
     required IconData icon,
-    required Color iconColor,
+    Color iconColor = KoraColors.purple,
     required String title,
     required String subtitle,
     required Widget screen,
@@ -432,5 +549,4 @@ class _ProfileTabState extends State<ProfileTab> {
       ),
     );
   }
-
 }

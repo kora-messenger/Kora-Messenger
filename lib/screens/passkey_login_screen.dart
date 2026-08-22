@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:local_auth/local_auth.dart';
 import '../theme/kora_colors.dart';
+import '../theme/chat_theme_provider.dart';
 import '../services/auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/session_manager.dart';
@@ -116,6 +117,7 @@ class _PasskeyLoginScreenState extends State<PasskeyLoginScreen> {
 
         if (result.success && result.user != null) {
           await SessionManager.instance.saveSession(result.user!);
+          await ChatThemeProvider.instance.load(); // Refresh owner/premium status for badge + gating
 
           // Save last email
           final prefs = await SharedPreferences.getInstance();

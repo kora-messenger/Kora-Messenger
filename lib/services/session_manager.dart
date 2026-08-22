@@ -39,6 +39,14 @@ class SessionManager {
     await prefs.remove(_sessionKey);
   }
 
+  /// Updates the existing session with new/changed fields.
+  Future<void> updateSession(Map<String, dynamic> updates) async {
+    final existing = await loadSession();
+    if (existing == null) return;
+    final merged = {...existing, ...updates};
+    await saveSession(merged);
+  }
+
   /// Returns true if a session exists.
   Future<bool> hasSession() async {
     final prefs = await SharedPreferences.getInstance();

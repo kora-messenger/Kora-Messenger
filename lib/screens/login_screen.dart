@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/services.dart';
 import '../theme/kora_colors.dart';
+import '../theme/chat_theme_provider.dart';
 import '../services/auth_service.dart';
 import '../services/session_manager.dart';
 import '../services/crash_logger.dart';
@@ -239,8 +240,18 @@ class _LogInScreenState extends State<LogInScreen> {
       if (result.success && result.user != null) {
         final user = KoraUserSession.fromMap(result.user!);
         await SessionManager.instance.saveSession(result.user!);
+        await ChatThemeProvider.instance.load(); // Refresh owner/premium status for badge + gating
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('kora_last_email', email);
+        if (prefs.getString('kora_device_id') == null || prefs.getString('kora_device_id')!.isEmpty) {
+          final timestamp = DateTime.now().millisecondsSinceEpoch;
+          final randomStr = DateTime.now().microsecondsSinceEpoch.toString();
+          final shortId = randomStr.length >= 6 ? randomStr.substring(randomStr.length - 6) : '000000';
+          await prefs.setString('kora_device_id', 'dev-$timestamp-$shortId');
+        }
+        if (prefs.getString('kora_device_name') == null || prefs.getString('kora_device_name')!.isEmpty) {
+          await prefs.setString('kora_device_name', 'Mobile Device');
+        }
         if (!mounted) return;
 
         TextInput.finishAutofillContext();

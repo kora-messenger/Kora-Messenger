@@ -29,6 +29,67 @@ function getTransporter() {
   return transporter;
 }
 
+function premiumEmailTemplate(title: string, bodyHtml: string, codeBlock = ''): string {
+  const year = new Date().getFullYear();
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin:0;padding:0;background:#050508;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#050508;min-height:100vh;">
+    <tr>
+      <td align="center" style="padding:40px 20px;">
+        <table width="480" cellpadding="0" cellspacing="0" style="background:linear-gradient(180deg,#0A0A14 0%,#13131F 100%);border-radius:24px;overflow:hidden;box-shadow:0 8px 40px rgba(99,102,241,0.15);">
+
+          <!-- Header bar -->
+          <tr>
+            <td style="background:linear-gradient(135deg,#8B5CF6 0%,#3B82F6 100%);padding:32px 40px;text-align:center;">
+              <div style="width:56px;height:56px;background:rgba(255,255,255,0.15);border-radius:16px;line-height:56px;color:white;font-size:32px;font-weight:800;margin:0 auto;">K</div>
+              <h1 style="margin:16px 0 0;color:#FFFFFF;font-size:22px;font-weight:800;letter-spacing:-0.5px;">${APP_NAME}</h1>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding:36px 40px 20px;">
+              <h2 style="margin:0 0 16px;color:#FFFFFF;font-size:18px;font-weight:700;">${title}</h2>
+              <div style="color:#A0A0B8;font-size:15px;line-height:1.6;">
+                ${bodyHtml}
+              </div>
+              ${codeBlock ? `
+              <div style="text-align:center;margin:28px 0;">
+                <div style="display:inline-block;padding:22px 44px;background:linear-gradient(135deg,#8B5CF6 0%,#3B82F6 100%);border-radius:18px;box-shadow:0 6px 24px rgba(99,102,241,0.35);">
+                  <span style="color:#FFFFFF;font-size:36px;font-weight:800;letter-spacing:10px;">${codeBlock}</span>
+                </div>
+              </div>
+              ` : ''}
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding:20px 40px 36px;">
+              <div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:20px;">
+                <p style="margin:0;color:#4A4A5E;font-size:12px;line-height:1.5;text-align:center;">
+                  © ${year} ${APP_NAME}. All rights reserved.<br>
+                  This is an automated message — please do not reply.
+                </p>
+              </div>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `;
+}
+
 async function sendVerificationEmail(toEmail: string, code: string, type = 'registration') {
   const subject = type === 'passwordReset'
     ? `${APP_NAME}: Password Reset Code`
@@ -37,28 +98,45 @@ async function sendVerificationEmail(toEmail: string, code: string, type = 'regi
       : `${APP_NAME}: Email Verification Code`;
 
   const introText = type === 'passwordReset'
-    ? 'Use the code below to reset your password.'
+    ? 'Use the code below to reset your Kora account password.'
     : type === 'login'
-      ? 'Use the code below to verify your login on your new device.'
-      : 'Use the code below to verify your email address.';
+      ? 'A new device is trying to sign in to your Kora account. Use the code below to verify this login.'
+      : 'Welcome to Kora! Use the code below to verify your email address and complete your registration.';
 
-  const html = `
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
-      <div style="text-align: center; margin-bottom: 32px;">
-        <div style="display: inline-block; width: 56px; height: 56px; background: linear-gradient(135deg, #6366F1, #3B82F6); border-radius: 14px; line-height: 56px; color: white; font-size: 32px; font-weight: 800;">K</div>
-        <h2 style="margin: 16px 0 0; color: #1a1a2e;">${APP_NAME}</h2>
-      </div>
-      <p style="color: #333; font-size: 16px; line-height: 1.6;">${introText}</p>
-      <div style="text-align: center; margin: 32px 0;">
-        <div style="display: inline-block; padding: 20px 40px; background: linear-gradient(135deg, #6366F1, #3B82F6); border-radius: 16px;">
-          <span style="color: white; font-size: 36px; font-weight: 800; letter-spacing: 8px;">${code}</span>
-        </div>
-      </div>
-      <p style="color: #666; font-size: 14px; line-height: 1.5;">This code expires in 10 minutes. If you didn't request this, you can safely ignore this email.</p>
-      <hr style="border: none; border-top: 1px solid #eee; margin: 32px 0;">
-      <p style="color: #999; font-size: 12px; text-align: center;">© ${new Date().getFullYear()} ${APP_NAME}</p>
+  const title = type === 'passwordReset' ? 'Password Reset' : type === 'login' ? 'New Device Login' : 'Verify Your Email';
+
+  const bodyHtml = `<p style="margin:0 0 12px;">${introText}</p>
+    <p style="margin:0;color:#6B6B80;font-size:13px;">This code expires in 10 minutes. If you didn't request this, you can safely ignore this email.</p>`;
+
+  const html = premiumEmailTemplate(title, bodyHtml, code);
+
+  await getTransporter().sendMail({
+    from: EMAIL_FROM,
+    to: toEmail,
+    subject,
+    html,
+    headers: {
+      'Date': new Date().toUTCString(),
+      'Message-ID': `<${Date.now()}.${Math.random().toString(36).substring(2)}@koramessenger.app>`,
+      'Reply-To': EMAIL_FROM,
+    },
+  });
+}
+
+async function sendSecurityAlertEmail(toEmail: string, deviceName: string, action: string, timestamp: string) {
+  const subject = `${APP_NAME}: Security Alert — ${action}`;
+
+  const bodyHtml = `<p style="margin:0 0 16px;">We detected a security event on your Kora Messenger account:</p>
+    <div style="background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.15);border-radius:12px;padding:16px;margin:0 0 16px;">
+      <table cellpadding="0" cellspacing="0" style="width:100%;color:#A0A0B8;font-size:14px;">
+        <tr><td style="padding:4px 0;color:#6B6B80;">Action:</td><td style="padding:4px 0;color:#FFFFFF;font-weight:600;">${action}</td></tr>
+        <tr><td style="padding:4px 0;color:#6B6B80;">Device:</td><td style="padding:4px 0;color:#FFFFFF;font-weight:600;">${deviceName}</td></tr>
+        <tr><td style="padding:4px 0;color:#6B6B80;">Time:</td><td style="padding:4px 0;color:#FFFFFF;font-weight:600;">${timestamp}</td></tr>
+      </table>
     </div>
-  `;
+    <p style="margin:0;color:#6B6B80;font-size:13px;">If this was you, no action is needed. If you don't recognize this activity, please change your password immediately and review your trusted devices in Settings → Account → Security.</p>`;
+
+  const html = premiumEmailTemplate('Security Alert', bodyHtml);
 
   await getTransporter().sendMail({
     from: EMAIL_FROM,
@@ -701,6 +779,32 @@ Deno.serve(async (req: Request) => {
       const passkeysEnabled = !!(u.data?.passkeysEnabled ?? u.passkeysEnabled);
 
       return jsonResponse({ success: true, hasBackupPin, passkeysEnabled });
+    }
+
+    // ── LOGOUT (send security email) ───────────────────────
+    if (action === 'logout') {
+      const { email, userId, deviceId, deviceName } = body;
+      if (!email) return jsonResponse({ success: false, error: 'Email is required' });
+
+      const timestamp = new Date().toLocaleString('en-US', {
+        timeZone: 'UTC',
+        dateStyle: 'full',
+        timeStyle: 'short',
+      });
+
+      // Send security alert email
+      try {
+        await sendSecurityAlertEmail(
+          email,
+          deviceName || 'Unknown Device',
+          'Account Logout',
+          timestamp,
+        );
+      } catch (e) {
+        console.error('Failed to send logout email:', e);
+      }
+
+      return jsonResponse({ success: true, message: 'Logout email sent' });
     }
 
     return jsonResponse({ success: false, error: `Unknown action: ${action}` });

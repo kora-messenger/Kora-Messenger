@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme/kora_colors.dart';
+import '../theme/chat_theme_provider.dart';
 import '../services/auth_service.dart';
 import '../services/session_manager.dart';
 import '../services/crash_logger.dart';
@@ -267,6 +268,7 @@ class _VerificationScreenState extends State<VerificationScreen>
       }
 
       await SessionManager.instance.saveSession(mergedUser);
+      await ChatThemeProvider.instance.load(); // Refresh owner/premium status for badge + gating
       if (!mounted) return;
 
       Navigator.of(context).pushReplacement(

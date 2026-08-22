@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../theme/kora_colors.dart';
+import '../theme/chat_theme_provider.dart';
 import '../widgets/kora_button.dart';
 import '../widgets/kora_input.dart';
 import '../services/auth_service.dart';
@@ -277,6 +278,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       // Save the updated session so the app remembers login on restart
       if (result.user != null) {
         await SessionManager.instance.saveSession(result.user!);
+        await ChatThemeProvider.instance.load(); // Refresh owner/premium status for badge + gating
       }
       _navigateHome();
     } else {
