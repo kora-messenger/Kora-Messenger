@@ -1,5 +1,5 @@
 import '../channel_landing_screen.dart';
-import '../contacts/new_contact_screen.dart';
+import '../contacts/select_contact_screen.dart';
 import 'package:flutter/material.dart';
 import '../../models/chat_models.dart';
 import '../../services/chat_service.dart';
@@ -9,7 +9,6 @@ import '../../theme/kora_colors.dart';
 import '../../widgets/chat_list_item.dart';
 import '../../widgets/kora_empty_state.dart';
 import '../../widgets/kora_menu_sheet.dart';
-import '../../widgets/new_chat_sheet.dart';
 import '../chat/kora_chat_screen.dart';
 import '../new_group_screen.dart';
 import '../settings/privacy_screen.dart';
@@ -212,7 +211,10 @@ class _ChatsTabState extends State<ChatsTab> {
                       title: 'No conversations yet',
                       message: 'Start a chat with friends, family, or Kora Support to see it here.',
                       actionLabel: 'Start a Chat',
-                      onAction: () => NewChatSheet.show(context),
+                      onAction: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const SelectContactScreen()),
+                      ),
                     )
                   : RefreshIndicator(
                       color: KoraColors.purple,
@@ -259,12 +261,12 @@ class _ChatsTabState extends State<ChatsTab> {
         onPressed: () {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => const NewContactScreen()),
+            MaterialPageRoute(builder: (_) => const SelectContactScreen()),
           );
         },
         backgroundColor: KoraColors.purple,
         elevation: 4,
-        child: const Icon(Icons.person_add, color: Colors.white, size: 24),
+        child: const Icon(Icons.chat_bubble, color: Colors.white, size: 24),
       ),
     );
   }

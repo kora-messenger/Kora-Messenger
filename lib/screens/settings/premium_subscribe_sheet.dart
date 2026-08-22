@@ -15,6 +15,19 @@ import '../../services/pricing_service.dart';
 class PremiumSubscribeSheet extends StatefulWidget {
   const PremiumSubscribeSheet({super.key});
 
+  /// Opens the Premium subscribe sheet from anywhere in the app —
+  /// used by the tappable Premium badge so it behaves the same way
+  /// no matter where that badge is shown (chat list, contact list,
+  /// profile, search results, etc.).
+  static void show(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const PremiumSubscribeSheet(),
+    );
+  }
+
   @override
   State<PremiumSubscribeSheet> createState() => _PremiumSubscribeSheetState();
 }

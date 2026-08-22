@@ -62,6 +62,10 @@ class KoraApi {
   static const String termsOfServiceUrl = '$legalBaseUrl/terms-of-service.html';
   static const String learnMoreUrl = '$legalBaseUrl/index.html';
 
+  /// Link shared when inviting a friend to Kora — swap this for the
+  /// real app-store / website link once available.
+  static const String inviteDownloadUrl = '$legalBaseUrl/index.html';
+
   /// Blocking / unblocking / reporting help page — linked from the
   /// "Learn more" text in the Block confirmation dialog.
   static const String blockingInfoUrl = '$legalBaseUrl/blocking-and-reporting.html';
