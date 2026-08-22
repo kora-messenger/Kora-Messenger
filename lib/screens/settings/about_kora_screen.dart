@@ -137,6 +137,17 @@ class AboutKoraScreen extends StatelessWidget {
             border: border,
             onTap: () => _launchUrl(KoraApi.privacyPolicyUrl),
           ),
+          _linkTile(
+            context,
+            icon: Icons.groups_outlined,
+            title: 'Community Guidelines',
+            card: card,
+            textPrimary: textPrimary,
+            textSecondary: textSecondary,
+            textMuted: textMuted,
+            border: border,
+            onTap: () => _launchUrl(KoraApi.communityGuidelinesUrl),
+          ),
           const SizedBox(height: 20),
 
           // Credits
