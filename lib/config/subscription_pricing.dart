@@ -1,14 +1,14 @@
-/// Central subscription pricing configuration for Kora Premium.
-///
-/// All prices are centralized here. When migrating to a custom domain,
-/// update [KoraApi.baseUrl] and the backend subscription endpoint —
-/// the pricing structure stays the same.
-///
-/// To add a new region/currency:
-///   1. Add an entry to [SubscriptionPricing.regionalPricing] with the
-///      country code → RegionalPrice mapping
-///   2. Specify monthly and yearly prices in that currency
-///   3. The UI will automatically pick it up
+// Central subscription pricing configuration for Kora Premium.
+//
+// All prices are centralized here. When migrating to a custom domain,
+// update [KoraApi.baseUrl] and the backend subscription endpoint —
+// the pricing structure stays the same.
+//
+// To add a new region/currency:
+//   1. Add an entry to [SubscriptionPricing.regionalPricing] with the
+//      country code → RegionalPrice mapping
+//   2. Specify monthly and yearly prices in that currency
+//   3. The UI will automatically pick it up
 
 
 /// Subscription plan types.
