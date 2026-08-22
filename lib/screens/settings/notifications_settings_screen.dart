@@ -17,6 +17,7 @@ class _NotificationsSettingsScreenState extends State<NotificationsSettingsScree
   bool _callTones = true;
   bool _previewMessage = true;
   bool _vibrate = true;
+  bool _loading = true;
 
   @override
   void initState() {
