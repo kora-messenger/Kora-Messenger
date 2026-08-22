@@ -1120,7 +1120,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
                           onError: (_, __) {},
                         ),
                       )
-                    : hasWallpaperImage
+                    : hasWallpaperImage && File(_themeProvider.wallpaperImagePath!).existsSync()
                         ? BoxDecoration(
                             image: DecorationImage(
                               image: FileImage(File(_themeProvider.wallpaperImagePath!)),

@@ -21,7 +21,7 @@ class ChatService {
     chats.add(ChatPreview(
       id: 'kora_support',
       name: 'Kora Support',
-      avatarAsset: 'assets/images/kora_support_avatar.png',
+      avatarAsset: 'assets/images/kora_ai_avatar.png',
       lastMessage: supportMsgs.isNotEmpty
           ? supportMsgs.last.text
           : 'Welcome to Kora Messenger!',
@@ -39,7 +39,7 @@ class ChatService {
     chats.add(ChatPreview(
       id: 'kora_ai',
       name: 'Kora AI',
-      avatarAsset: 'assets/images/kora_ai_avatar.png',
+      avatarAsset: 'assets/images/kora_support_avatar.png',
       lastMessage: aiMsgs.isNotEmpty
           ? aiMsgs.last.text
           : 'Ask me anything — inside or outside Kora.',

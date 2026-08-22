@@ -495,7 +495,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                 ),
               ),
               child: ClipOval(
-                child: _photo != null
+                child: _photo != null && _photo!.existsSync()
                     ? Image.file(_photo!, fit: BoxFit.cover)
                     : _buildDefaultAvatar(initials),
               ),

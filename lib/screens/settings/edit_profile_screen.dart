@@ -57,6 +57,27 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     super.dispose();
   }
 
+  /// Fallback avatar with initials on a gradient background.
+  /// Used when the avatar file/URL is missing or fails to load.
+  Widget _buildInitialsCircle() {
+    final initials = _nameController.text.isNotEmpty
+        ? _nameController.text[0].toUpperCase()
+        : 'K';
+    return Container(
+      decoration: const BoxDecoration(gradient: KoraColors.brandGradient),
+      child: Center(
+        child: Text(
+          initials,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 36,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+
   bool _uploadingAvatar = false;
 
   Future<void> _pickAvatar() async {
@@ -273,8 +294,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               : _avatarUrl != null && _avatarUrl!.isNotEmpty
                                   ? ClipOval(
                                       child: _avatarUrl!.startsWith('/')
-                                          ? Image.file(File(_avatarUrl!), fit: BoxFit.cover)
-                                          : Image.network(_avatarUrl!, fit: BoxFit.cover),
+                                          ? (File(_avatarUrl!).existsSync()
+                                              ? Image.file(File(_avatarUrl!), fit: BoxFit.cover)
+                                              : _buildInitialsCircle())
+                                          : Image.network(_avatarUrl!, fit: BoxFit.cover,
+                                              errorBuilder: (_, __, ___) => _buildInitialsCircle(),
+                                            ),
                                     )
                                   : Center(
                                       child: Text(
