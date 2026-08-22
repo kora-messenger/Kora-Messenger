@@ -952,9 +952,56 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    // ── CHECK KORA ID ─────────────────────────────────────────
+    if (action === 'checkKoraId') {
+      const { koraId } = body;
+      if (!koraId) return jsonResponse({ success: false, error: 'Kora ID is required' });
+
+      const users = await db.entities.KoraUser.filter({ koraId });
+      if (!users || users.length === 0) {
+        return jsonResponse({ success: true, registered: false });
+      }
+      return jsonResponse({
+        success: true,
+        registered: true,
+        user: getUserFromRecord(users[0]),
+      });
+    }
+
+    // ── LOOKUP USER (by username or koraId) ────────────────────
+    if (action === 'lookupUser') {
+      const { identifier } = body;
+      if (!identifier) return jsonResponse({ success: false, error: 'Identifier is required' });
+
+      const trimmed = identifier.trim();
+      // Check if it looks like a Kora ID (starts with KM-)
+      if (trimmed.toUpperCase().startsWith('KM-')) {
+        const users = await db.entities.KoraUser.filter({ koraId: trimmed.toUpperCase() });
+        if (users && users.length > 0) {
+          return jsonResponse({
+            success: true,
+            found: true,
+            type: 'koraId',
+            user: getUserFromRecord(users[0]),
+          });
+        }
+        return jsonResponse({ success: true, found: false, type: 'koraId' });
+      }
+
+      // Otherwise treat as username (strip leading @)
+      let username = trimmed;
+      if (username.startsWith('@')) username = username.substring(1);
+      const lower = username.toLowerCase();
+      const users = await db.entities.KoraUser.filter({ username: lower });
+      if (users && users.length > 0) {
+        return jsonResponse({
+          success: true,
+          found: true,
+          type: 'username',
+          user: getUserFromRecord(users[0]),
+        });
+      }
+      return jsonResponse({ success: true, found: false, type: 'username' });
+    }
+
     return jsonResponse({ success: false, error: `Unknown action: ${action}` });
-  } catch (error: any) {
-    console.error('koraAuth error:', error);
-    return jsonResponse({ success: false, error: error.message || 'Internal server error' }, 500);
-  }
-});
