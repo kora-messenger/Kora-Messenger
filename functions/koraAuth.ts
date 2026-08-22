@@ -807,6 +807,52 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ success: true, message: 'Logout email sent' });
     }
 
+    // ── CHECK PHONE NUMBER (is it registered on Kora?) ─────
+    if (action === 'checkPhoneNumber') {
+      const { phoneNumber } = body;
+      if (!phoneNumber) return jsonResponse({ success: false, error: 'Phone number is required' });
+
+      // Normalize: strip spaces, ensure leading +
+      let normalized = phoneNumber.replace(/\s+/g, '');
+      if (!normalized.startsWith('+') && !normalized.startsWith('0')) {
+        normalized = '+' + normalized;
+      }
+
+      // Try exact match first, then partial match (last 9+ digits)
+      let users = await db.entities.KoraUser.filter({ phoneNumber: normalized });
+
+      if (!users || users.length === 0) {
+        // Try without the + prefix
+        users = await db.entities.KoraUser.filter({ phoneNumber: normalized.replace(/^\+/, '') });
+      }
+
+      if (!users || users.length === 0) {
+        // Try matching by last 10 digits (handles different country code formats)
+        const last10 = normalized.replace(/\D/g, '').slice(-10);
+        if (last10.length >= 9) {
+          const allUsers = await db.entities.KoraUser.list();
+          const match = allUsers.find((u: any) => {
+            const phone = (u.data?.phoneNumber ?? u.phoneNumber ?? '').replace(/\D/g, '');
+            return phone.length >= 9 && phone.slice(-10) === last10;
+          });
+          if (match) {
+            return jsonResponse({
+              success: true,
+              registered: true,
+              user: getUserFromRecord(match),
+            });
+          }
+        }
+        return jsonResponse({ success: true, registered: false });
+      }
+
+      return jsonResponse({
+        success: true,
+        registered: true,
+        user: getUserFromRecord(users[0]),
+      });
+    }
+
     return jsonResponse({ success: false, error: `Unknown action: ${action}` });
   } catch (error: any) {
     console.error('koraAuth error:', error);

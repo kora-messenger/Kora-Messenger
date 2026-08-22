@@ -28,6 +28,7 @@
 
     <!-- Contacts — for finding friends already on Kora -->
     <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <uses-permission android:name="android.permission.WRITE_CONTACTS" />
 
     <!-- Phone state — for handling in-call interruptions during voice/video calls -->
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />

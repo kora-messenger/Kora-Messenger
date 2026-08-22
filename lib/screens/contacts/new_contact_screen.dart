@@ -1,10 +1,17 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_contacts/flutter_contacts.dart';
+import 'package:http/http.dart' as http;
+import 'package:permission_handler/permission_handler.dart';
+
+import '../../config/kora_api.dart';
 import '../../theme/kora_colors.dart';
 import '../../widgets/kora_button.dart';
 import 'qr_code_screen.dart';
 import '../chat/contact_info_screen.dart';
 import '../../models/chat_models.dart';
-import '../../data/mock_contacts.dart';
 
 /// A small dial-code entry for the country picker sheet.
 class _DialCountry {
@@ -31,8 +38,8 @@ const List<_DialCountry> _kDialCountries = [
 
 /// Kora's "New contact" screen — add someone by name, Kora username/ID,
 /// or phone number, with an optional toggle to sync them to the phone's
-/// native contacts. Matches Kora's design language: adaptive light/dark
-/// surfaces, purple accent, rounded-outline fields with a leading icon.
+/// native contacts. Phone numbers are checked against the Kora backend
+/// in real time to show whether the number is registered.
 class NewContactScreen extends StatefulWidget {
   const NewContactScreen({super.key});
 
@@ -50,18 +57,79 @@ class _NewContactScreenState extends State<NewContactScreen> {
   bool _syncToPhone = false;
   bool _isSaving = false;
 
+  // Phone number checking state
+  Timer? _phoneCheckTimer;
+  String _fullPhoneNumber = '';
+  bool _isCheckingPhone = false;
+  bool? _phoneRegistered; // null = not checked, true = registered, false = not registered
+  Map<String, dynamic>? _matchedUser;
+
   @override
   void initState() {
     super.initState();
     _firstNameController.addListener(_onChanged);
     _usernameController.addListener(_onChanged);
-    _phoneController.addListener(_onChanged);
+    _phoneController.addListener(_onPhoneChanged);
   }
 
   void _onChanged() => setState(() {});
 
+  void _onPhoneChanged() {
+    final phone = _phoneController.text.trim();
+    _fullPhoneNumber = phone.isEmpty ? '' : '$_selectedCountry.dialCode$phone';
+
+    // Reset state
+    setState(() {
+      _phoneRegistered = null;
+      _matchedUser = null;
+    });
+
+    // Cancel any pending check
+    _phoneCheckTimer?.cancel();
+
+    if (phone.isEmpty || phone.length < 4) return;
+
+    // Debounce: check after 600ms of typing stopping
+    _phoneCheckTimer = Timer(const Duration(milliseconds: 600), () {
+      _checkPhoneNumber(_fullPhoneNumber);
+    });
+  }
+
+  Future<void> _checkPhoneNumber(String phoneNumber) async {
+    if (!mounted) return;
+    setState(() => _isCheckingPhone = true);
+
+    try {
+      final res = await http.post(
+        Uri.parse(KoraApi.authEndpoint),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'action': 'checkPhoneNumber',
+          'phoneNumber': phoneNumber,
+        }),
+      ).timeout(const Duration(seconds: 8));
+
+      if (!mounted) return;
+
+      final data = jsonDecode(res.body);
+      if (data['success'] == true) {
+        setState(() {
+          _isCheckingPhone = false;
+          _phoneRegistered = data['registered'] == true;
+          _matchedUser = _phoneRegistered == true ? data['user'] : null;
+        });
+      } else {
+        setState(() => _isCheckingPhone = false);
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isCheckingPhone = false);
+    }
+  }
+
   @override
   void dispose() {
+    _phoneCheckTimer?.cancel();
     _firstNameController.dispose();
     _lastNameController.dispose();
     _usernameController.dispose();
@@ -145,74 +213,114 @@ class _NewContactScreenState extends State<NewContactScreen> {
 
     if (picked != null) {
       setState(() => _selectedCountry = picked);
+      // Re-check phone with new dial code if there's a number entered
+      if (_phoneController.text.trim().isNotEmpty) {
+        _onPhoneChanged();
+      }
     }
   }
 
-  /// Tries to match the entered username/Kora ID to a known Kora
-  /// user. If found, opens their profile screen directly.
-  /// Otherwise, saves the contact with the entered info and shows
-  /// a confirmation.
-  void _save() {
+  /// Syncs the contact to the phone's native address book using
+  /// flutter_contacts. Requests the contacts permission first.
+  Future<bool> _syncToPhoneContacts(String fullName, String phoneNumber) async {
+    try {
+      // Request permission
+      final permission = await Permission.contacts.request();
+      if (!permission.isGranted) return false;
+
+      // Create a new contact in the device's address book
+      final newContact = Contact(
+        displayName: fullName,
+        phones: [
+          Phone(phoneNumber, label: PhoneLabel.mobile),
+        ],
+      );
+
+      await newContact.insert();
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  void _save() async {
     if (!_canSave || _isSaving) return;
     setState(() => _isSaving = true);
 
     final firstName = _firstNameController.text.trim();
     final lastName = _lastNameController.text.trim();
     final fullName = lastName.isEmpty ? firstName : '$firstName $lastName';
-    final identifier = _usernameController.text.trim().toLowerCase();
+    final phoneNumber = _phoneController.text.trim().isNotEmpty
+        ? '${_selectedCountry.dialCode}${_phoneController.text.trim()}'
+        : '';
 
-    // Try to find the user on Kora by username/Kora ID
-    Map<String, Object>? match;
-    if (identifier.isNotEmpty) {
-      for (final contact in koraMockContacts) {
-        final koraId = (contact['koraId'] as String).toLowerCase();
-        final username = (contact['username'] as String).toLowerCase();
-        final usernameClean = username.replaceAll('@', '');
-        if (koraId == identifier || username == identifier || usernameClean == identifier) {
-          match = contact;
-          break;
-        }
+    // If phone number is registered on Kora, open their profile directly
+    if (_phoneRegistered == true && _matchedUser != null) {
+      final user = _matchedUser!;
+      final name = user['fullName'] as String? ?? fullName;
+      final koraId = user['koraId'] as String? ?? '';
+      final username = user['username'] as String? ?? '';
+
+      // Still sync to phone if enabled
+      if (_syncToPhone && phoneNumber.isNotEmpty) {
+        await _syncToPhoneContacts(fullName, phoneNumber);
       }
-    }
 
-    Future.delayed(const Duration(milliseconds: 400), () {
       if (!mounted) return;
       setState(() => _isSaving = false);
 
-      if (match != null) {
-        // Contact found on Kora — pop the New Contact screen and
-        // immediately open their profile.
-        final name = match['name'] as String;
-        final koraId = match['koraId'] as String;
-        final username = match['username'] as String;
-        final isPremium = match['premium'] as bool;
+      Navigator.pop(context); // Close NewContactScreen
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ContactInfoScreen(
+            name: name,
+            koraId: koraId,
+            username: username,
+            badge: KoraBadgeType.none,
+            isOnline: true,
+            about: 'Hey there! I\'m on Kora.',
+          ),
+        ),
+      );
+      return;
+    }
 
-        Navigator.pop(context); // Close NewContactScreen
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ContactInfoScreen(
-              name: name,
-              koraId: koraId,
-              username: username,
-              badge: isPremium ? KoraBadgeType.premiumBlue : KoraBadgeType.none,
-              isOnline: true,
-              about: 'Hey there! I\'m on Kora.',
-            ),
+    // Sync to phone contacts if enabled
+    if (_syncToPhone && phoneNumber.isNotEmpty) {
+      final synced = await _syncToPhoneContacts(fullName, phoneNumber);
+      if (!mounted) return;
+      if (synced) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('$fullName added to contacts and synced to phone'),
+            backgroundColor: KoraColors.purple,
+            behavior: SnackBarBehavior.floating,
           ),
         );
       } else {
-        // No match — save as a local contact
-        Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('$fullName added to contacts'),
+            content: Text('$fullName added to contacts (phone sync failed)'),
             backgroundColor: KoraColors.purple,
             behavior: SnackBarBehavior.floating,
           ),
         );
       }
-    });
+    } else {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$fullName added to contacts'),
+          backgroundColor: KoraColors.purple,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+
+    if (!mounted) return;
+    setState(() => _isSaving = false);
+    Navigator.pop(context);
   }
 
   @override
@@ -312,10 +420,22 @@ class _NewContactScreenState extends State<NewContactScreen> {
                       Expanded(
                         child: Padding(
                           padding: const EdgeInsets.only(top: 20),
-                          child: _OutlinedField(
-                            hintText: 'Phone',
-                            controller: _phoneController,
-                            keyboardType: TextInputType.phone,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _OutlinedField(
+                                hintText: 'Phone',
+                                controller: _phoneController,
+                                keyboardType: TextInputType.phone,
+                                suffixIcon: _buildPhoneSuffixIcon(),
+                              ),
+                              if (_phoneController.text.trim().isNotEmpty &&
+                                  !_isCheckingPhone &&
+                                  _phoneRegistered != null) ...[
+                                const SizedBox(height: 8),
+                                _buildPhoneStatus(),
+                              ],
+                            ],
                           ),
                         ),
                       ),
@@ -371,6 +491,80 @@ class _NewContactScreenState extends State<NewContactScreen> {
     );
   }
 
+  /// Builds the suffix icon for the phone input field:
+  /// - Loading spinner when checking
+  /// - Green checkmark when registered
+  /// - Nothing when not registered (description below handles it)
+  Widget _buildPhoneSuffixIcon() {
+    if (_isCheckingPhone) {
+      return const Padding(
+        padding: EdgeInsets.only(right: 14),
+        child: SizedBox(
+          width: 18,
+          height: 18,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: KoraColors.purple,
+          ),
+        ),
+      );
+    }
+    if (_phoneRegistered == true) {
+      return const Padding(
+        padding: EdgeInsets.only(right: 14),
+        child: Icon(
+          Icons.check_circle,
+          color: Colors.green,
+          size: 22,
+        ),
+      );
+    }
+    return null;
+  }
+
+  /// Builds the description text below the phone input:
+  /// - "This number is on Kora Messenger" (green) when registered
+  /// - "This phone number is not on Kora Messenger" (muted) when not registered
+  Widget _buildPhoneStatus() {
+    final brightness = Theme.of(context).brightness;
+
+    if (_phoneRegistered == true) {
+      return Row(
+        children: [
+          Icon(Icons.check_circle, color: Colors.green.shade600, size: 15),
+          const SizedBox(width: 6),
+          Text(
+            'This number is on Kora Messenger',
+            style: TextStyle(
+              color: Colors.green.shade600,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Row(
+      children: [
+        Icon(
+          Icons.info_outline,
+          color: KoraColors.textSecondaryFor(brightness),
+          size: 15,
+        ),
+        const SizedBox(width: 6),
+        Text(
+          'This phone number is not on Kora Messenger',
+          style: TextStyle(
+            color: KoraColors.textSecondaryFor(brightness),
+            fontSize: 12.5,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _iconFieldGroup({required IconData icon, required List<Widget> children}) {
     final brightness = Theme.of(context).brightness;
     final textSecondary = KoraColors.textSecondaryFor(brightness);
@@ -400,11 +594,13 @@ class _OutlinedField extends StatelessWidget {
   final String hintText;
   final TextEditingController controller;
   final TextInputType keyboardType;
+  final Widget? suffixIcon;
 
   const _OutlinedField({
     required this.hintText,
     required this.controller,
     this.keyboardType = TextInputType.text,
+    this.suffixIcon,
   });
 
   @override
@@ -422,6 +618,7 @@ class _OutlinedField extends StatelessWidget {
         hintText: hintText,
         hintStyle: TextStyle(color: hintColor, fontSize: 15.5),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+        suffixIcon: suffixIcon,
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: border),

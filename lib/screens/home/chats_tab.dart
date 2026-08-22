@@ -1,4 +1,5 @@
 import '../channel_landing_screen.dart';
+import '../contacts/new_contact_screen.dart';
 import 'package:flutter/material.dart';
 import '../../models/chat_models.dart';
 import '../../services/chat_service.dart';
@@ -254,14 +255,17 @@ class _ChatsTabState extends State<ChatsTab> {
           ],
         ),
       ),
-      floatingActionButton: _chats.isEmpty
-          ? null
-          : FloatingActionButton(
-              onPressed: () => NewChatSheet.show(context),
-              backgroundColor: KoraColors.purple,
-              elevation: 4,
-              child: const Icon(Icons.chat_bubble, color: Colors.white, size: 24),
-            ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const NewContactScreen()),
+          );
+        },
+        backgroundColor: KoraColors.purple,
+        elevation: 4,
+        child: const Icon(Icons.person_add, color: Colors.white, size: 24),
+      ),
     );
   }
 
