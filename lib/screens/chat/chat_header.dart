@@ -18,8 +18,8 @@ class ChatHeader extends StatelessWidget {
   final bool isTyping;
   final VoidCallback onBack;
   final VoidCallback onAvatarTap;
-  final VoidCallback onVoiceCall;
-  final VoidCallback onVideoCall;
+  final VoidCallback? onVoiceCall;
+  final VoidCallback? onVideoCall;
   final List<KoraMenuOption> menuOptions;
 
   const ChatHeader({
@@ -33,8 +33,8 @@ class ChatHeader extends StatelessWidget {
     this.isTyping = false,
     required this.onBack,
     required this.onAvatarTap,
-    required this.onVoiceCall,
-    required this.onVideoCall,
+    this.onVoiceCall,
+    this.onVideoCall,
     required this.menuOptions,
   });
 
@@ -118,18 +118,20 @@ class ChatHeader extends StatelessWidget {
                   ),
                 ),
               ),
-              IconButton(
-                icon: Icon(Icons.call_outlined, color: textPrimary, size: 22),
-                onPressed: onVoiceCall,
-                padding: const EdgeInsets.all(8),
-                constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-              ),
-              IconButton(
-                icon: Icon(Icons.videocam_outlined, color: textPrimary, size: 22),
-                onPressed: onVideoCall,
-                padding: const EdgeInsets.all(8),
-                constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-              ),
+              if (onVoiceCall != null)
+                IconButton(
+                  icon: Icon(Icons.call_outlined, color: textPrimary, size: 22),
+                  onPressed: onVoiceCall,
+                  padding: const EdgeInsets.all(8),
+                  constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                ),
+              if (onVideoCall != null)
+                IconButton(
+                  icon: Icon(Icons.videocam_outlined, color: textPrimary, size: 22),
+                  onPressed: onVideoCall,
+                  padding: const EdgeInsets.all(8),
+                  constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                ),
               IconButton(
                 icon: Icon(Icons.more_vert, color: textPrimary, size: 22),
                 onPressed: () => KoraMenuSheet.show(context, menuOptions),

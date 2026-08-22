@@ -484,6 +484,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
           username: '@$lowerName',
           about: 'Hey there! I am using Kora Messenger.',
           phone: '+123 456 7890',
+          isAiChat: _isAiChat,
         ),
       ),
     );
@@ -1115,8 +1116,8 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
               lastSeen: _isAiChat ? 'AI Assistant' : widget.lastSeen,
               onBack: () => Navigator.pop(context),
               onAvatarTap: _showContactInfo,
-              onVoiceCall: () => _openCallScreen(isVideo: false),
-              onVideoCall: () => _openCallScreen(isVideo: true),
+              onVoiceCall: _isAiChat ? null : () => _openCallScreen(isVideo: false),
+              onVideoCall: _isAiChat ? null : () => _openCallScreen(isVideo: true),
               menuOptions: [
                 KoraMenuOption(icon: Icons.person_outline, label: 'Contact info', onTap: () => _showContactInfo()),
                 KoraMenuOption(icon: Icons.search, label: 'Search', onTap: () => _showChatSearch()),
