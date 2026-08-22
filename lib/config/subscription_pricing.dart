@@ -9,7 +9,7 @@
 ///      country code → RegionalPrice mapping
 ///   2. Specify monthly and yearly prices in that currency
 ///   3. The UI will automatically pick it up
-library;
+
 
 /// Subscription plan types.
 enum SubscriptionPlan { monthly, yearly }
