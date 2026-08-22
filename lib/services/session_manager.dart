@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'auth_service.dart';
 
 /// Manages the local user session using shared_preferences.
 ///
@@ -15,19 +16,33 @@ class SessionManager {
   static SessionManager get instance => _instance ??= SessionManager._();
   SessionManager._();
 
-  /// Saves the user session locally.
+  /// Cached email for current session (sync access from detection system).
+  String _cachedEmail = '';
+  String get currentEmail => _cachedEmail;
+
+  /// Cached user object (sync access from detection system).
+  KoraUserSession? _cachedUser;
+  KoraUserSession? get currentUser => _cachedUser;
+
+  /// Saves session and updates cache.
   Future<void> saveSession(Map<String, dynamic> userData) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_sessionKey, jsonEncode(userData));
+    _cachedEmail = userData['email'] as String? ?? '';
+    _cachedUser = KoraUserSession.fromMap(userData);
   }
 
-  /// Loads the saved session, or null if none exists.
+  /// Loads session from storage and caches it for sync access.
+  /// Call this on app startup before navigating to home.
   Future<Map<String, dynamic>?> loadSession() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_sessionKey);
     if (raw == null || raw.isEmpty) return null;
     try {
-      return jsonDecode(raw) as Map<String, dynamic>;
+      final data = jsonDecode(raw) as Map<String, dynamic>;
+      _cachedEmail = data['email'] as String? ?? '';
+      _cachedUser = KoraUserSession.fromMap(data);
+      return data;
     } catch (_) {
       return null;
     }
@@ -37,6 +52,8 @@ class SessionManager {
   Future<void> clearSession() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_sessionKey);
+    _cachedEmail = '';
+    _cachedUser = null;
   }
 
   /// Updates the existing session with new/changed fields.

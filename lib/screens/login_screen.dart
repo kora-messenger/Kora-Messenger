@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import '../config/kora_api.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/services.dart';
 import '../theme/kora_colors.dart';
@@ -12,6 +15,7 @@ import 'forgot_password_screen.dart';
 import 'profile_setup_screen.dart';
 import 'kora_home_screen.dart';
 import 'login_verification_screen.dart';
+import 'suspension_screen.dart';
 import 'signup_screen.dart';
 import 'backup_pin_login_screen.dart';
 import 'passkey_login_screen.dart';
@@ -239,6 +243,39 @@ class _LogInScreenState extends State<LogInScreen> {
 
       if (result.success && result.user != null) {
         final user = KoraUserSession.fromMap(result.user!);
+
+        // Check suspension status before allowing access
+        try {
+          final suspensionResp = await http.post(
+            Uri.parse(KoraApi.autoDetectEndpoint),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'action': 'checkSuspensionStatus',
+              'email': email,
+            }),
+          );
+          final suspData = jsonDecode(suspensionResp.body);
+          if (suspData['suspended'] == true && mounted) {
+            setState(() => _isLoading = false);
+            TextInput.finishAutofillContext();
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(
+                builder: (_) => SuspensionScreen(
+                  email: email,
+                  suspensionReason: suspData['reason'] ?? 'Your account has been suspended for violating Kora Messenger Community Guidelines.',
+                  isPermanent: suspData['isPermanent'] ?? false,
+                  expiresAt: suspData['expiresAt'],
+                  hoursRemaining: suspData['hoursRemaining'],
+                  appealStatus: suspData['appealStatus'] ?? 'none',
+                ),
+              ),
+              (route) => false,
+            );
+            return;
+          }
+        } catch (_) {
+          // If suspension check fails, allow login (fail open)
+        }
         await SessionManager.instance.saveSession(result.user!);
         await ChatThemeProvider.instance.load(); // Refresh owner/premium status for badge + gating
         final prefs = await SharedPreferences.getInstance();

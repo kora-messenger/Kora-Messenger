@@ -1,7 +1,11 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'theme/kora_colors.dart';
+import 'config/kora_api.dart';
 import 'screens/welcome_screen.dart';
+import 'screens/suspension_screen.dart';
 import 'screens/kora_home_screen.dart';
 import 'screens/profile_setup_screen.dart';
 import 'screens/crash_report_screen.dart';
@@ -169,6 +173,36 @@ class _SplashScreenState extends State<SplashScreen> {
         MaterialPageRoute(builder: (_) => const WelcomeScreen()),
       );
     } else {
+      final email = session['email']?.toString() ?? '';
+
+      // Check if account is suspended before navigating to home
+      try {
+        final suspResp = await http.post(
+          Uri.parse(KoraApi.autoDetectEndpoint),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'action': 'checkSuspensionStatus', 'email': email}),
+        );
+        final suspData = jsonDecode(suspResp.body);
+        if (suspData['suspended'] == true && mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => SuspensionScreen(
+                email: email,
+                suspensionReason: suspData['reason'] ?? 'Your account has been suspended for violating Kora Messenger Community Guidelines.',
+                isPermanent: suspData['isPermanent'] ?? false,
+                expiresAt: suspData['expiresAt'],
+                hoursRemaining: suspData['hoursRemaining'],
+                appealStatus: suspData['appealStatus'] ?? 'none',
+              ),
+            ),
+          );
+          return;
+        }
+      } catch (_) {
+        // Fail open — let the user through if detection service is down
+      }
+
+      if (!mounted) return;
       final profileCompleted = session['profileCompleted'] == true;
       if (profileCompleted) {
         Navigator.of(context).pushReplacement(
@@ -178,7 +212,7 @@ class _SplashScreenState extends State<SplashScreen> {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (_) => ProfileSetupScreen(
-              email: session['email']?.toString() ?? '',
+              email: email,
               userData: session,
             ),
           ),

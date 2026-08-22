@@ -35,6 +35,10 @@ class KoraApi {
   /// Future: 'https://api.koramessenger.com/crash-report' (or your domain)
   static const String crashReportEndpoint = '$baseUrl/koraCrashReport';
 
+  /// Automated detection system — monitors activity, suspends accounts,
+  /// checks suspension status, and handles appeals.
+  static const String autoDetectEndpoint = '$baseUrl/koraAutoDetect';
+
   /// Payment endpoint — initialize Paystack transactions.
   /// Temporary: Base44 backend function.
   /// Future: 'https://api.koramessenger.com/payment/init' (or your domain)

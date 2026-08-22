@@ -29,6 +29,7 @@ import '../settings/premium_subscribe_sheet.dart';
 import '../settings/billing_screen.dart';
 import '../../config/subscription_pricing.dart';
 import '../../services/session_manager.dart';
+import '../suspension_screen.dart';
 
 /// Kora's main conversation screen.
 /// Opens when a user taps any conversation from the Home/Chats list.
@@ -202,6 +203,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
   }
 
   Future<void> _sendMessage(String text) async {
+    _runDetection(text);
     await _messageService.sendMessage(
       widget.chatId,
       text,
@@ -219,6 +221,42 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
     if (_isAiChat) {
       await _getAiResponse(text);
     }
+  }
+
+  void _runDetection(String messageContent) async {
+    try {
+      final sessionEmail = SessionManager.instance.currentEmail ?? '';
+      final sessionUser = SessionManager.instance.currentUser;
+      final userKoraId = sessionUser?.koraId ?? '';
+      final username = sessionUser?.username ?? '';
+
+      final resp = await http.post(
+        Uri.parse(KoraApi.autoDetectEndpoint),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'action': 'analyzeMessage',
+          'userEmail': sessionEmail,
+          'userKoraId': userKoraId,
+          'username': username,
+          'messageContent': messageContent,
+        }),
+      );
+
+      final data = jsonDecode(resp.body);
+      if (data['suspended'] == true && mounted) {
+        await SessionManager.instance.clearSession();
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (_) => SuspensionScreen(
+              email: sessionEmail,
+              suspensionReason: data['message'] ?? 'Your account has been suspended for violating Kora Messenger Community Guidelines.',
+              isPermanent: data['isPermanent'] ?? false,
+            ),
+          ),
+          (route) => false,
+        );
+      }
+    } catch (_) {}
   }
 
   Future<void> _getAiResponse(String userMessage) async {
