@@ -76,6 +76,7 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
   // ── Animation & playback state ──
   bool _isPlaying = false;
   double _progress = 0.0;
+  double _speed = 1.0; // cycles 1x -> 1.5x -> 2x -> 1x
   late AnimationController _syncSpinController;
 
   final _playbackService = AudioPlaybackService.instance;
@@ -187,8 +188,33 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
       setState(() => _isPlaying = false);
     } else {
       await _playbackService.play(path);
+      await _playbackService.setSpeed(_speed);
       _audioDuration = _playbackService.duration;
       setState(() => _isPlaying = true);
+    }
+  }
+
+  String get _speedLabel {
+    if (_speed == 1.5) return '1.5x';
+    if (_speed == 2.0) return '2x';
+    return '1x';
+  }
+
+  /// Cycles 1x → 1.5x → 2x → 1x. Applies immediately if this note is
+  /// currently playing; otherwise takes effect on the next play.
+  void _cycleSpeed() async {
+    setState(() {
+      if (_speed == 1.0) {
+        _speed = 1.5;
+      } else if (_speed == 1.5) {
+        _speed = 2.0;
+      } else {
+        _speed = 1.0;
+      }
+    });
+    final path = widget.message.voiceFilePath;
+    if (_isPlaying && path != null) {
+      await _playbackService.setSpeed(_speed);
     }
   }
 
@@ -256,6 +282,30 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // Playback speed pill — 1x → 1.5x → 2x → 1x. Sits before
+            // the play/pause button, matching the reference layout.
+            GestureDetector(
+              onTap: _cycleSpeed,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: isMe
+                      ? Colors.white.withValues(alpha: 0.15)
+                      : KoraColors.purple.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Text(
+                  _speedLabel,
+                  style: TextStyle(
+                    color: iconColor,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
             GestureDetector(
               onTap: _togglePlay,
               child: Container(
