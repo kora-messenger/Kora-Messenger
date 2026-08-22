@@ -39,7 +39,7 @@ class _SecurityNotificationsScreenState extends State<SecurityNotificationsScree
 
   Future<void> _setPref(String key, bool value) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('$key', value);
+    await prefs.setBool(key, value);
   }
 
   @override

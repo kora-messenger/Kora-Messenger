@@ -225,7 +225,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
 
   void _runDetection(String messageContent) async {
     try {
-      final sessionEmail = SessionManager.instance.currentEmail ?? '';
+      final sessionEmail = SessionManager.instance.currentEmail;
       final sessionUser = SessionManager.instance.currentUser;
       final userKoraId = sessionUser?.koraId ?? '';
       final username = sessionUser?.username ?? '';
@@ -245,6 +245,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
       final data = jsonDecode(resp.body);
       if (data['suspended'] == true && mounted) {
         await SessionManager.instance.clearSession();
+        if (!mounted) return;
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(
             builder: (_) => SuspensionScreen(
