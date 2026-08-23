@@ -98,7 +98,7 @@ class LiveTranslationService {
 
   /// Initialize TTS — set up the engine.
   Future<void> _initTts() async {
-    _tts.awaitSpeakCompletion = false;
+    await _tts.awaitSpeakCompletion(false);
     _tts.setStartHandler(() {
       _isSpeaking = true;
     });
