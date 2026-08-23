@@ -260,7 +260,7 @@ class WebRTCCallService {
           final status = data['status'] as String?;
 
           if (status == 'rejected' || status == 'ended') {
-            onCallStateChanged?.call(status);
+            onCallStateChanged?.call(status ?? 'unknown');
             timer.cancel();
             _endCall();
             return;
