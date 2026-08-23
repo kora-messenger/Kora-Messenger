@@ -59,17 +59,26 @@ class KoraApi {
   /// Future: 'https://api.koramessenger.com/chat-sync' (or your domain)
   static const String chatSyncEndpoint = '$baseUrl/koraChatSync';
 
-  /// Kora AI Server base URL.
+  /// Kora AI Server base URL — legacy local dev server.
+  /// Only the writing/reply-suggestions/summarize/transcribe/analyze
+  /// endpoints below still point here (they have client-side fallbacks).
   /// Temporary: local dev server for testing.
   /// Future: 'https://ai.koramessenger.com' (or your domain)
   static const String aiServerUrl = 'http://10.0.2.2:5000';
 
-  /// Kora AI endpoints
-  static const String aiChatEndpoint = '$aiServerUrl/api/ai/chat';
-  static const String aiSupportEndpoint = '$aiServerUrl/api/ai/support';
+  /// Kora AI Chat & Support — live Base44 backend function (OpenRouter).
+  /// Both chat and support hit the same deployed endpoint; the body's
+  /// 'chatType' field ('ai' or 'support') selects the system prompt.
+  /// Temporary: Base44 backend function.
+  /// Future: 'https://api.koramessenger.com/ai/chat' (or your domain)
+  static const String aiChatSupportEndpoint = '$baseUrl/koraAiChat';
+  static const String aiChatEndpoint = aiChatSupportEndpoint;
+  static const String aiSupportEndpoint = aiChatSupportEndpoint;
   static const String aiHealthEndpoint = '$aiServerUrl/api/ai/health';
 
   /// Kora AI feature endpoints (writing assistant, reply suggestions, etc.)
+  /// Still on the legacy local URL — not part of this fix; each of these
+  /// has a graceful client-side fallback in AiFeaturesService.
   static const String aiWritingEndpoint = '$aiServerUrl/api/ai/writing';
   static const String aiReplySuggestionsEndpoint = '$aiServerUrl/api/ai/reply-suggestions';
   static const String aiSummarizeChatEndpoint = '$aiServerUrl/api/ai/summarize-chat';

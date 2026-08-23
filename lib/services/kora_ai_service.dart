@@ -74,25 +74,30 @@ class KoraAiService {
     String? webUrl,
   }) async {
     try {
-      final body = <String, dynamic>{
-        'message': message,
-        'conversationId': conversationId,
-      };
+      // Pull existing local history and convert to the format the
+      // backend expects: [{isMe: bool, text: string}]
+      final priorHistory = await getHistory(conversationId: conversationId);
+      final historyPayload = priorHistory
+          .map((m) => {'isMe': m.role == 'user', 'text': m.content})
+          .toList();
 
-      if (imageBase64 != null) body['imageBase64'] = imageBase64;
-      if (webUrl != null) body['webUrl'] = webUrl;
+      final body = <String, dynamic>{
+        'chatType': 'ai',
+        'message': message,
+        'history': historyPayload,
+      };
 
       final result = await KoraApi.postToAi(KoraApi.aiChatEndpoint, body);
 
-      if (result.containsKey('error')) {
+      final response = result['reply'] as String? ?? '';
+
+      if (result['success'] != true) {
         return KoraAiResult(
           success: false,
-          response: '',
-          error: result['error'] as String,
+          response: response,
+          error: result['error'] as String? ?? 'Unknown error',
         );
       }
-
-      final response = result['response'] as String? ?? '';
 
       // Save to local history
       await _saveToHistory(
@@ -122,22 +127,31 @@ class KoraAiService {
     required String conversationId,
   }) async {
     try {
+      final priorHistory = await getHistory(
+        conversationId: conversationId,
+        isSupport: true,
+      );
+      final historyPayload = priorHistory
+          .map((m) => {'isMe': m.role == 'user', 'text': m.content})
+          .toList();
+
       final body = <String, dynamic>{
+        'chatType': 'support',
         'message': message,
-        'conversationId': conversationId,
+        'history': historyPayload,
       };
 
       final result = await KoraApi.postToAi(KoraApi.aiSupportEndpoint, body);
 
-      if (result.containsKey('error')) {
+      final response = result['reply'] as String? ?? '';
+
+      if (result['success'] != true) {
         return KoraAiResult(
           success: false,
-          response: '',
-          error: result['error'] as String,
+          response: response,
+          error: result['error'] as String? ?? 'Unknown error',
         );
       }
-
-      final response = result['response'] as String? ?? '';
 
       // Save to local history
       await _saveToHistory(
