@@ -26,6 +26,18 @@ class KoraMessage {
   final String? reaction; // emoji reaction (single for now)
   final String? voiceDuration; // "0:12" etc, for voice messages
   final String? voiceFilePath; // local file path for real audio playback
+
+  /// Remote URL for received voice notes that haven't been downloaded
+  /// to the device yet. When set, the bubble shows a download button
+  /// instead of play. Once downloaded, the file is cached locally and
+  /// [voiceFilePath] is used for playback.
+  final String? voiceFileUrl;
+
+  /// Whether an INCOMING voice note has been played by the user.
+  /// Outgoing notes are always considered "played" by the sender.
+  /// Drives the unplayed indicator dot on the voice bubble.
+  final bool isVoicePlayed;
+
   /// When [status] is [MessageStatus.pendingOffline], tracks whether
   /// an upload attempt is in flight or has been cancelled/failed.
   /// Ignored once the message actually sends.
@@ -84,6 +96,8 @@ class KoraMessage {
     this.reaction,
     this.voiceDuration,
     this.voiceFilePath,
+    this.voiceFileUrl,
+    this.isVoicePlayed = false,
     this.voiceTransferState = VoiceTransferState.uploading,
     this.voiceTranscript,
     this.attachmentName,
@@ -111,6 +125,8 @@ class KoraMessage {
     String? reaction,
     String? voiceDuration,
     String? voiceFilePath,
+    String? voiceFileUrl,
+    bool? isVoicePlayed,
     VoiceTransferState? voiceTransferState,
     String? voiceTranscript,
     String? attachmentName,
@@ -137,6 +153,8 @@ class KoraMessage {
       reaction: reaction ?? this.reaction,
       voiceDuration: voiceDuration ?? this.voiceDuration,
       voiceFilePath: voiceFilePath ?? this.voiceFilePath,
+      voiceFileUrl: voiceFileUrl ?? this.voiceFileUrl,
+      isVoicePlayed: isVoicePlayed ?? this.isVoicePlayed,
       voiceTransferState: voiceTransferState ?? this.voiceTransferState,
       voiceTranscript: voiceTranscript ?? this.voiceTranscript,
       attachmentName: attachmentName ?? this.attachmentName,
@@ -166,6 +184,8 @@ class KoraMessage {
     'reaction': reaction,
     'voiceDuration': voiceDuration,
     'voiceFilePath': voiceFilePath,
+    'voiceFileUrl': voiceFileUrl,
+    'isVoicePlayed': isVoicePlayed,
     'voiceTransferState': voiceTransferState.name,
     'voiceTranscript': voiceTranscript,
     'attachmentName': attachmentName,
@@ -200,6 +220,8 @@ class KoraMessage {
     reaction: j['reaction'] as String?,
     voiceDuration: j['voiceDuration'] as String?,
     voiceFilePath: j['voiceFilePath'] as String?,
+    voiceFileUrl: j['voiceFileUrl'] as String?,
+    isVoicePlayed: j['isVoicePlayed'] as bool? ?? false,
     voiceTransferState: VoiceTransferState.values.firstWhere(
       (e) => e.name == j['voiceTransferState'],
       orElse: () => VoiceTransferState.uploading,

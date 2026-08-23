@@ -164,6 +164,8 @@ class ChatSyncService {
           reaction: msg['reaction'] as String?,
           voiceDuration: msg['voiceDuration'] as String?,
           voiceFilePath: msg['voiceFilePath'] as String?,
+          voiceFileUrl: msg['voiceFileUrl'] as String?,
+          isVoicePlayed: (msg['isVoicePlayed'] as bool?) ?? false,
           voiceTranscript: msg['voiceTranscript'] as String?,
           translatedLanguageCode: msg['translatedLanguageCode'] as String?,
           translatedLanguageName: msg['translatedLanguageName'] as String?,

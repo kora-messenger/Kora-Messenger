@@ -318,6 +318,7 @@ class MessageService {
         chatId: chatId,
         messageId: msgId,
         duration: duration,
+        filePath: filePath ?? '',
       );
       return; // Don't schedule sent → delivered → read progression
     }

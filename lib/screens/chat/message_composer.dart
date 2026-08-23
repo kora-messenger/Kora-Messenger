@@ -259,7 +259,8 @@ class _MessageComposerState extends State<MessageComposer>
     _startTimer();
   }
 
-  Future<void> _onHoldStart(LongPressStartDetails details) async {
+  Future<void> _onHoldStart(DragStartDetails details) async {
+    HapticFeedback.heavyImpact();
     final granted = await _ensureMicPermission();
     if (!granted || !mounted) return;
 
@@ -302,12 +303,11 @@ class _MessageComposerState extends State<MessageComposer>
     });
   }
 
-  void _onHoldMove(LongPressMoveUpdateDetails details) {
+  void _onHoldMove(DragUpdateDetails details) {
     if (_state != _ComposerState.holding || _gestureResolved) return;
-    final off = details.offsetFromOrigin;
     setState(() {
-      _dragDx = off.dx;
-      _dragDy = off.dy;
+      _dragDx += details.delta.dx;
+      _dragDy += details.delta.dy;
     });
 
     if (_dragDx <= -_kCancelThreshold) {
@@ -319,7 +319,7 @@ class _MessageComposerState extends State<MessageComposer>
     }
   }
 
-  void _onHoldEnd(LongPressEndDetails details) {
+  void _onHoldEnd(DragEndDetails details) {
     if (_state != _ComposerState.holding || _gestureResolved) return;
     _finishAndSend();
   }
@@ -344,12 +344,13 @@ class _MessageComposerState extends State<MessageComposer>
   }
 
   void _lockRecording() {
-    HapticFeedback.mediumImpact();
+    HapticFeedback.heavyImpact();
     _pulseController.stop();
     setState(() => _state = _ComposerState.locked);
   }
 
   void _finishAndSend() async {
+    HapticFeedback.lightImpact();
     _timer?.cancel();
     _amplitudeSub?.cancel();
     _pulseController.stop();
@@ -760,10 +761,10 @@ class _MessageComposerState extends State<MessageComposer>
                     ),
                   GestureDetector(
                     onTap: _hasText ? _send : _onTapRecord,
-                    onLongPressStart:
+                    onPanStart:
                         (!_hasText && !isHolding) ? _onHoldStart : null,
-                    onLongPressMoveUpdate: isHolding ? _onHoldMove : null,
-                    onLongPressEnd: isHolding ? _onHoldEnd : null,
+                    onPanUpdate: isHolding ? _onHoldMove : null,
+                    onPanEnd: isHolding ? _onHoldEnd : null,
                     child: Transform.translate(
                       offset: isHolding
                           ? Offset(

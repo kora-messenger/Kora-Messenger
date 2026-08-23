@@ -65,11 +65,13 @@ class OfflineVoiceSyncService {
     required String chatId,
     required String messageId,
     required String duration,
+    required String filePath,
   }) async {
     final entry = OfflineVoiceEntry(
       chatId: chatId,
       messageId: messageId,
       duration: duration,
+      filePath: filePath,
       createdAt: DateTime.now(),
     );
     _queue.add(entry);
@@ -192,6 +194,7 @@ class OfflineVoiceSyncService {
             chatId: m['chatId'] as String,
             messageId: m['messageId'] as String,
             duration: m['duration'] as String,
+            filePath: m['filePath'] as String? ?? '',
             createdAt: DateTime.parse(m['createdAt'] as String),
           ));
         }
@@ -208,6 +211,7 @@ class OfflineVoiceSyncService {
               'chatId': e.chatId,
               'messageId': e.messageId,
               'duration': e.duration,
+              'filePath': e.filePath,
               'createdAt': e.createdAt.toIso8601String(),
             })
         .toList();
@@ -225,12 +229,14 @@ class OfflineVoiceEntry {
   final String chatId;
   final String messageId;
   final String duration;
+  final String filePath;
   final DateTime createdAt;
 
   const OfflineVoiceEntry({
     required this.chatId,
     required this.messageId,
     required this.duration,
+    required this.filePath,
     required this.createdAt,
   });
 }
