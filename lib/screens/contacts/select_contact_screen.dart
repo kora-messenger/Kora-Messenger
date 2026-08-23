@@ -11,6 +11,7 @@ import '../../models/chat_models.dart';
 import '../../theme/kora_colors.dart';
 import '../../widgets/kora_avatar.dart';
 import '../chat/contact_info_screen.dart';
+import '../chat/kora_chat_screen.dart';
 import '../new_community_screen.dart';
 import '../new_group_screen.dart';
 import 'new_contact_screen.dart';
@@ -471,6 +472,8 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
     final subtitle = (bio != null && bio.isNotEmpty) ? bio : 'Hey there! I\'m on Kora.';
     final avatarUrl = user?['avatarUrl'] as String?;
     final isPremium = user?['isPremium'] == true;
+    final koraId = user?['koraId'] as String?;
+    final fullName = (user?['fullName'] as String?) ?? merged.displayName;
 
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
@@ -478,8 +481,6 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
         name: merged.displayName,
         imageUrl: (avatarUrl != null && avatarUrl.isNotEmpty) ? avatarUrl : null,
         size: 46,
-        // Small blue star badge for Kora Premium subscribers — no
-        // badge at all for regular users.
         isPremium: isPremium,
       ),
       title: Text(
@@ -491,6 +492,24 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: TextStyle(color: textSecondary, fontSize: 13),
+      ),
+      trailing: TextButton(
+        onPressed: () {
+          final chatId = (koraId != null && koraId.isNotEmpty) ? koraId : merged.matchedPhone;
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => KoraChatScreen(
+                chatId: chatId,
+                name: fullName,
+                avatarUrl: (avatarUrl != null && avatarUrl.isNotEmpty) ? avatarUrl : null,
+                isOnline: true,
+              ),
+            ),
+          );
+        },
+        style: TextButton.styleFrom(foregroundColor: KoraColors.purple),
+        child: const Text('Message', style: TextStyle(fontWeight: FontWeight.w700)),
       ),
       onTap: () => _openContact(merged),
     );
