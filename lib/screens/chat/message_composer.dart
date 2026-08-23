@@ -14,15 +14,12 @@ import 'voice_recorder_locked.dart';
 /// - **Idle** → text input + mic button (when empty) or send button (when typing)
 /// - **Holding** → press-and-hold the mic to record. Shows a live timer +
 ///   waveform + "slide to cancel" hint, with a lock capsule floating
-///   above the mic. Slide left past the threshold to cancel, slide up
-///   past the threshold to lock into hands-free recording. Releasing
-///   without crossing either threshold sends the note immediately.
-/// - **Locked** → hands-free recording continues. Full-width bar with
-///   trash (discard), waveform + timer, pause/resume, and send.
+///   above the mic. Slide left to cancel, slide up to lock hands-free.
+///   Releasing without crossing either threshold sends immediately.
+/// - **Locked** → hands-free recording bar with trash, pause/resume, send.
 ///
-/// Mic button requests microphone permission with a clear explanation
-/// before recording. If denied, shows a message explaining how to enable
-/// it from device settings.
+/// Waveform data comes from [AudioRecordingService.amplitudeStream] —
+/// real microphone amplitude, not a placeholder.
 class MessageComposer extends StatefulWidget {
   final Function(String) onSend;
   final Function(String duration, {String? filePath}) onSendVoice;
@@ -52,17 +49,17 @@ class _MessageComposerState extends State<MessageComposer>
   final _recordingService = AudioRecordingService.instance;
   int _seconds = 0;
   Timer? _timer;
-  Timer? _amplitudeTimer;
+  StreamSubscription<double>? _amplitudeSub;
   final List<double> _waveformSamples = [];
   String? _filePath;
   bool _isPaused = false;
 
-  // ── Drag tracking (holding state) ──
+  // ── Drag tracking ──
   double _dragDx = 0;
   double _dragDy = 0;
   static const double _kCancelThreshold = 120.0;
   static const double _kLockThreshold = 80.0;
-  bool _gestureResolved = false; // true once cancelled or locked, ignore further drag updates
+  bool _gestureResolved = false;
 
   late AnimationController _pulseController;
 
@@ -84,7 +81,7 @@ class _MessageComposerState extends State<MessageComposer>
     _controller.dispose();
     _focusNode.dispose();
     _timer?.cancel();
-    _amplitudeTimer?.cancel();
+    _amplitudeSub?.cancel();
     _pulseController.dispose();
     if (_recordingService.isRecording) {
       _recordingService.cancelRecording();
@@ -100,7 +97,7 @@ class _MessageComposerState extends State<MessageComposer>
     setState(() => _hasText = false);
   }
 
-  // ── Permission flow ──
+  // ── Permission ──
 
   Future<bool> _ensureMicPermission() async {
     final status = await Permission.microphone.status;
@@ -203,7 +200,7 @@ class _MessageComposerState extends State<MessageComposer>
     );
   }
 
-  // ── Hold / slide / lock gesture ──
+  // ── Recording ──
 
   Future<void> _onHoldStart(LongPressStartDetails details) async {
     final granted = await _ensureMicPermission();
@@ -219,31 +216,29 @@ class _MessageComposerState extends State<MessageComposer>
     try {
       _filePath = await _recordingService.startRecording();
     } catch (_) {
-      return; // permission or recorder error — stay idle
+      return;
     }
     if (!mounted) return;
 
+    // Listen to real amplitude data for the live waveform
+    _amplitudeSub?.cancel();
+    _amplitudeSub = _recordingService.amplitudeStream.listen((amp) {
+      if (!mounted || !_recordingService.isRecording || _isPaused) return;
+      setState(() {
+        _waveformSamples.add(amp);
+        if (_waveformSamples.length > 60) _waveformSamples.removeAt(0);
+      });
+    });
+
     setState(() => _state = _ComposerState.holding);
     _pulseController.repeat(reverse: true);
-    _startTimers();
+    _startTimer();
   }
 
-  void _startTimers() {
+  void _startTimer() {
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted && !_isPaused) setState(() => _seconds++);
-    });
-
-    _amplitudeTimer?.cancel();
-    _amplitudeTimer = Timer.periodic(const Duration(milliseconds: 80), (_) async {
-      if (!mounted || !_recordingService.isRecording || _isPaused) return;
-      final amp = await _recordingService.getAmplitude();
-      if (mounted) {
-        setState(() {
-          _waveformSamples.add(amp);
-          if (_waveformSamples.length > 60) _waveformSamples.removeAt(0);
-        });
-      }
     });
   }
 
@@ -281,7 +276,7 @@ class _MessageComposerState extends State<MessageComposer>
   void _cancelHolding() async {
     HapticFeedback.mediumImpact();
     _timer?.cancel();
-    _amplitudeTimer?.cancel();
+    _amplitudeSub?.cancel();
     _pulseController.stop();
     await _recordingService.cancelRecording();
     if (mounted) setState(() => _state = _ComposerState.idle);
@@ -295,11 +290,10 @@ class _MessageComposerState extends State<MessageComposer>
 
   void _finishAndSend() async {
     _timer?.cancel();
-    _amplitudeTimer?.cancel();
+    _amplitudeSub?.cancel();
     _pulseController.stop();
 
     if (_seconds < 1) {
-      // Too short to be a real note — treat as an accidental tap-hold.
       await _recordingService.cancelRecording();
       if (mounted) setState(() => _state = _ComposerState.idle);
       return;
@@ -324,14 +318,14 @@ class _MessageComposerState extends State<MessageComposer>
 
   void _discardLocked() async {
     _timer?.cancel();
-    _amplitudeTimer?.cancel();
+    _amplitudeSub?.cancel();
     await _recordingService.cancelRecording();
     if (mounted) setState(() => _state = _ComposerState.idle);
   }
 
   void _sendLocked() async {
     _timer?.cancel();
-    _amplitudeTimer?.cancel();
+    _amplitudeSub?.cancel();
     final path = await _recordingService.stopRecording();
     final duration = _durationString;
     if (mounted) setState(() => _state = _ComposerState.idle);
@@ -387,7 +381,7 @@ class _MessageComposerState extends State<MessageComposer>
     final textMuted = KoraColors.textMutedFor(brightness);
     final border = KoraColors.borderFor(brightness);
 
-    // ── Locked state — full-width hands-free bar ──
+    // ── Locked state ──
     if (_state == _ComposerState.locked) {
       return SafeArea(
         top: false,
@@ -407,13 +401,6 @@ class _MessageComposerState extends State<MessageComposer>
 
     final isHolding = _state == _ComposerState.holding;
 
-    // ── Idle / typing / holding — the mic's GestureDetector stays
-    // mounted at the same spot across idle ↔ holding so an active
-    // long-press gesture never gets torn down mid-drag.
-    //
-    // Layout matches WhatsApp: a single rounded pill containing
-    // emoji + text field + camera + attach, with a separate circular
-    // mic/send button floating outside on the right.
     return SafeArea(
       top: false,
       child: Container(
@@ -426,7 +413,6 @@ class _MessageComposerState extends State<MessageComposer>
           child: Row(
             children: [
               if (!isHolding) ...[
-                // ── Single pill: emoji + text + camera + attach ──
                 Expanded(
                   child: Container(
                     constraints: const BoxConstraints(maxHeight: 120),
@@ -436,7 +422,6 @@ class _MessageComposerState extends State<MessageComposer>
                     ),
                     child: Row(
                       children: [
-                        // Emoji icon
                         IconButton(
                           icon: Icon(Icons.emoji_emotions_outlined,
                               color: textMuted, size: 24),
@@ -445,7 +430,6 @@ class _MessageComposerState extends State<MessageComposer>
                           constraints: const BoxConstraints(
                               minWidth: 40, minHeight: 40),
                         ),
-                        // Text input
                         Expanded(
                           child: TextField(
                             controller: _controller,
@@ -465,7 +449,6 @@ class _MessageComposerState extends State<MessageComposer>
                             ),
                           ),
                         ),
-                        // Camera icon (inside pill, right side)
                         IconButton(
                           icon: Icon(Icons.camera_alt_outlined,
                               color: textMuted, size: 22),
@@ -474,7 +457,6 @@ class _MessageComposerState extends State<MessageComposer>
                           constraints: const BoxConstraints(
                               minWidth: 36, minHeight: 36),
                         ),
-                        // Attach icon (inside pill, far right)
                         IconButton(
                           icon: Icon(Icons.attach_file,
                               color: textMuted, size: 22),
@@ -488,8 +470,6 @@ class _MessageComposerState extends State<MessageComposer>
                   ),
                 ),
               ] else ...[
-                // Holding — replaces the pill with the live
-                // timer + waveform + slide-to-cancel hint.
                 Expanded(
                   child: VoiceHoldingContent(
                     seconds: _seconds,
@@ -500,7 +480,6 @@ class _MessageComposerState extends State<MessageComposer>
                 ),
               ],
               const SizedBox(width: 6),
-              // ── Send / Mic circular button (outside the pill) ──
               Stack(
                 clipBehavior: Clip.none,
                 alignment: Alignment.center,

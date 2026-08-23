@@ -8,17 +8,12 @@ import 'voice_translation_sheet.dart';
 import '../../theme/chat_theme_provider.dart';
 import '../settings/premium_subscribe_sheet.dart';
 import '../../services/audio_playback_service.dart';
-import 'package:just_audio/just_audio.dart';
 
-/// Kora's voice message bubble — used inside MessageBubble for voice messages.
+/// Kora's voice message bubble — clean, single-stream playback.
 ///
-/// Shows: play/pause button, waveform with playback progress, duration,
-/// and a Translate / Transcribe action that opens the translation sheet.
-///
-/// Audio playback is managed by [AudioPlaybackService] — a singleton that
-/// ensures only ONE voice note plays at a time (WhatsApp-style). Each bubble
-/// listens to the global [playingIdStream] so it knows whether it's the
-/// active player, and auto-resets its icon when another bubble takes over.
+/// Listens to [AudioPlaybackService.stateStream] for everything:
+/// play/pause state, position, duration, completion.
+/// One subscription, one setState — no race conditions.
 class VoiceMessageBubble extends StatefulWidget {
   final KoraMessage message;
   final VoidCallback? onTranslate;
@@ -37,9 +32,46 @@ class VoiceMessageBubble extends StatefulWidget {
   State<VoiceMessageBubble> createState() => _VoiceMessageBubbleState();
 }
 
-class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
-    with SingleTickerProviderStateMixin {
+class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
+  final _playback = AudioPlaybackService.instance;
+  StreamSubscription<PlaybackState>? _sub;
+
+  bool _isPlaying = false;
+  double _progress = 0.0;
+  double _speed = 1.0;
+  bool _manualRetryChecking = false;
+
   bool get _isPremium => ChatThemeProvider.instance.isPremium;
+
+  bool get _isPendingOffline =>
+      widget.message.status == MessageStatus.pendingOffline;
+
+  @override
+  void initState() {
+    super.initState();
+    _sub = _playback.stateStream.listen((state) {
+      if (!mounted) return;
+      final myId = widget.message.id;
+      final isMine = state.playingId == myId;
+
+      setState(() {
+        _isPlaying = isMine && state.isPlaying;
+        if (isMine) {
+          _progress = state.progress;
+          if (state.isCompleted) _progress = 0.0;
+        } else if (!state.isPlaying && _progress > 0 && _progress < 1.0) {
+          // Another message took over — keep our progress as-is (paused look)
+        }
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    _playback.stopIfActive(widget.message.id);
+    super.dispose();
+  }
 
   void _showVoiceTranslation(BuildContext context,
       {required String voiceDuration,
@@ -64,96 +96,56 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
     );
   }
 
-  // ── Playback state ──
-  bool _isPlaying = false;
-  bool _isLoading = false; // guards against double-tap race conditions
-  double _progress = 0.0;
-  double _speed = 1.0; // cycles 1x -> 1.5x -> 2x -> 1x
-  late AnimationController _syncSpinController;
+  Future<void> _togglePlay() async {
+    final path = widget.message.voiceFilePath;
+    if (path == null) return;
 
-  final _playbackService = AudioPlaybackService.instance;
-  StreamSubscription? _positionSub;
-  StreamSubscription? _stateSub;
-  StreamSubscription? _playingIdSub;
-  StreamSubscription? _loadingSub;
-  Duration? _audioDuration;
-
-  @override
-  void initState() {
-    super.initState();
-    _syncSpinController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    );
-
-    // Listen to global playing ID changes — this is how we know
-    // when another bubble started playing and we should reset.
-    _playingIdSub = _playbackService.playingIdStream.listen((playingId) {
-      if (!mounted) return;
-      final myId = widget.message.id;
-      if (playingId != myId && _isPlaying) {
-        // Another message took over — reset our UI to play icon
-        setState(() {
-          _isPlaying = false;
-        });
-      } else if (playingId == myId && !_isPlaying) {
-        // This message is now the active player
-        setState(() {
-          _isPlaying = true;
-        });
-      }
-    });
-
-    // Listen to loading state — prevents double-taps while loading
-    _loadingSub = _playbackService.loadingStream.listen((loading) {
-      if (!mounted) return;
-      setState(() => _isLoading = loading);
-    });
-
-    _positionSub = _playbackService.positionStream.listen((pos) {
-      if (_audioDuration != null &&
-          _audioDuration!.inMilliseconds > 0 &&
-          mounted &&
-          _playbackService.currentPlayingId == widget.message.id) {
-        setState(() {
-          _progress =
-              (pos.inMilliseconds / _audioDuration!.inMilliseconds)
-                  .clamp(0.0, 1.0);
-        });
-      }
-    });
-
-    _stateSub = _playbackService.playerStateStream.listen((state) {
-      if (!mounted) return;
-      if (state.processingState == ProcessingState.completed) {
-        // Playback finished — reset everything, just like WhatsApp
-        _playbackService.handleCompletion();
-        setState(() {
-          _isPlaying = false;
-          _progress = 0.0;
-        });
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _positionSub?.cancel();
-    _stateSub?.cancel();
-    _playingIdSub?.cancel();
-    _loadingSub?.cancel();
-    // Stop playback if this bubble was the active one
-    if (_playbackService.currentPlayingId == widget.message.id) {
-      _playbackService.stop();
+    if (_isPlaying) {
+      await _playback.pause();
+    } else {
+      await _playback.play(path, messageId: widget.message.id);
+      await _playback.setSpeed(_speed);
     }
-    _syncSpinController.dispose();
-    super.dispose();
   }
 
-  bool get _isPendingOffline =>
-      widget.message.status == MessageStatus.pendingOffline;
+  Future<void> _seekToFraction(double fraction) async {
+    await _playback.seekToFraction(fraction);
+  }
 
-  bool _manualRetryChecking = false;
+  String get _speedLabel {
+    if (_speed == 1.5) return '1.5x';
+    if (_speed == 2.0) return '2x';
+    return '1x';
+  }
+
+  void _cycleSpeed() async {
+    setState(() {
+      if (_speed == 1.0) {
+        _speed = 1.5;
+      } else if (_speed == 1.5) {
+        _speed = 2.0;
+      } else {
+        _speed = 1.0;
+      }
+    });
+    if (_isPlaying) await _playback.setSpeed(_speed);
+  }
+
+  int _parseDuration(String d) {
+    final parts = d.split(':');
+    if (parts.length == 2) return int.parse(parts[0]) * 60 + int.parse(parts[1]);
+    return int.tryParse(d) ?? 5;
+  }
+
+  String get _totalDuration => widget.message.voiceDuration ?? '0:05';
+
+  String get _elapsedString {
+    final total = _parseDuration(_totalDuration);
+    final elapsed = (total * _progress).floor();
+    final m = (elapsed ~/ 60).toString();
+    final s = (elapsed % 60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
 
   String get _formattedSize {
     final bytes = widget.message.estimatedSizeBytes;
@@ -165,7 +157,6 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
     if (_manualRetryChecking || widget.onRetryUpload == null) return;
     setState(() => _manualRetryChecking = true);
 
-    // Small delay so the spin is visible even on a fast check.
     final results = await Future.wait([
       widget.onRetryUpload!(),
       Future.delayed(const Duration(milliseconds: 600)),
@@ -198,131 +189,6 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
     }
   }
 
-  // ── Play / Pause toggle ──
-  // Guards against double-taps with _isLoading. When tapped, we
-  // immediately update the icon for responsiveness, then do the
-  // async work. The global playingIdStream keeps all bubbles in sync.
-  Future<void> _togglePlay() async {
-    if (_isPendingOffline || _isLoading) return; // no double-taps while loading
-
-    final path = widget.message.voiceFilePath;
-    if (path == null) {
-      // Fallback: simulate playback for demo/incoming messages without a file
-      setState(() => _isPlaying = !_isPlaying);
-      if (_isPlaying) _simulatePlayback();
-      return;
-    }
-
-    final messageId = widget.message.id;
-
-    if (_isPlaying) {
-      // Pause — keep position
-      await _playbackService.pause();
-      if (mounted) setState(() => _isPlaying = false);
-    } else {
-      // Play — if same file and it was completed, seek to 0:00 first
-      // Immediately show loading state to prevent double-taps
-      setState(() => _isLoading = true);
-
-      try {
-        if (_progress >= 1.0) {
-          _progress = 0.0;
-        }
-
-        await _playbackService.play(path, messageId: messageId);
-        await _playbackService.setSpeed(_speed);
-        _audioDuration = _playbackService.duration;
-
-        if (mounted) {
-          setState(() {
-            _isPlaying = true;
-            _isLoading = false;
-          });
-        }
-      } catch (e) {
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-            _isPlaying = false;
-          });
-        }
-      }
-    }
-  }
-
-  // ── Seek / Scrub ──
-  // Tap on waveform to seek to that position.
-  Future<void> _seekTo(double fraction) async {
-    if (_audioDuration == null || _audioDuration!.inMilliseconds == 0) return;
-
-    final targetMs = (fraction * _audioDuration!.inMilliseconds).round();
-    await _playbackService.seek(Duration(milliseconds: targetMs));
-
-    if (mounted) {
-      setState(() => _progress = fraction.clamp(0.0, 1.0));
-    }
-  }
-
-  String get _speedLabel {
-    if (_speed == 1.5) return '1.5x';
-    if (_speed == 2.0) return '2x';
-    return '1x';
-  }
-
-  /// Cycles 1x → 1.5x → 2x → 1x. Applies immediately if playing.
-  void _cycleSpeed() async {
-    setState(() {
-      if (_speed == 1.0) {
-        _speed = 1.5;
-      } else if (_speed == 1.5) {
-        _speed = 2.0;
-      } else {
-        _speed = 1.0;
-      }
-    });
-    if (_isPlaying) {
-      await _playbackService.setSpeed(_speed);
-    }
-  }
-
-  void _simulatePlayback() {
-    if (_progress >= 1.0) _progress = 0.0;
-    final totalSecs = _parseDuration(widget.message.voiceDuration ?? '0:05');
-    const stepMs = 80;
-    final step = stepMs / 1000.0 / totalSecs;
-
-    Future.doWhile(() async {
-      await Future.delayed(const Duration(milliseconds: stepMs));
-      if (!mounted || !_isPlaying) return false;
-      setState(() {
-        _progress += step;
-        if (_progress >= 1.0) {
-          _progress = 1.0;
-          _isPlaying = false;
-        }
-      });
-      return _isPlaying;
-    });
-  }
-
-  int _parseDuration(String d) {
-    final parts = d.split(':');
-    if (parts.length == 2) {
-      return int.parse(parts[0]) * 60 + int.parse(parts[1]);
-    }
-    return int.tryParse(d) ?? 5;
-  }
-
-  String get _elapsedString {
-    final total = _parseDuration(widget.message.voiceDuration ?? '0:05');
-    final elapsed = (total * _progress).floor();
-    final m = (elapsed ~/ 60).toString();
-    final s = (elapsed % 60).toString().padLeft(2, '0');
-    return '$m:$s';
-  }
-
-  String get _totalDuration => widget.message.voiceDuration ?? '0:05';
-
   @override
   Widget build(BuildContext context) {
     final isMe = widget.message.isMe;
@@ -340,8 +206,7 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
     final unplayedColor = isMe
         ? Colors.white.withValues(alpha: 0.25)
         : KoraColors.purple.withValues(alpha: 0.2);
-    final durationColor =
-        isMe ? Colors.white.withValues(alpha: 0.7) : textSecondary;
+    final durationColor = isMe ? Colors.white.withValues(alpha: 0.7) : textSecondary;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -350,12 +215,11 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Playback speed pill — 1x → 1.5x → 2x → 1x.
+            // Speed pill
             GestureDetector(
               onTap: _cycleSpeed,
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
                   color: isMe
                       ? Colors.white.withValues(alpha: 0.15)
@@ -374,9 +238,9 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
               ),
             ),
             const SizedBox(width: 8),
-            // Play / Pause button — shows loading spinner while audio loads
+            // Play/Pause button
             GestureDetector(
-              onTap: _isLoading ? null : _togglePlay,
+              onTap: _togglePlay,
               child: Container(
                 width: 36,
                 height: 36,
@@ -385,47 +249,42 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
                   color: isMe ? Colors.white.withValues(alpha: 0.15) : null,
                   shape: BoxShape.circle,
                 ),
-                child: _isLoading
-                    ? Padding(
-                        padding: const EdgeInsets.all(8),
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: iconColor,
-                        ),
-                      )
-                    : Icon(
-                        _isPlaying
-                            ? Icons.pause_rounded
-                            : Icons.play_arrow_rounded,
-                        color: iconColor,
-                        size: 22,
-                      ),
+                child: Icon(
+                  _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                  color: iconColor,
+                  size: 22,
+                ),
               ),
             ),
             const SizedBox(width: 8),
-            // Waveform — tappable for seeking
-            GestureDetector(
-              onTapDown: (details) {
-                // Get tap position as fraction of waveform width
-                final box = context.findRenderObject() as RenderBox?;
-                // Seek to tapped position
-                final fraction = details.localPosition.dx / 140;
-                _seekTo(fraction);
+            // Waveform — uses LayoutBuilder for correct tap-to-seek
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final waveWidth = constraints.maxWidth.isFinite
+                    ? constraints.maxWidth
+                    : 140.0;
+                return GestureDetector(
+                  onTapDown: (details) {
+                    final fraction = (details.localPosition.dx / waveWidth)
+                        .clamp(0.0, 1.0);
+                    _seekToFraction(fraction);
+                  },
+                  child: SizedBox(
+                    width: waveWidth,
+                    height: 30,
+                    child: KoraWaveform(
+                      isLive: false,
+                      progress: _progress,
+                      barCount: 30,
+                      height: 30,
+                      barWidth: 2.5,
+                      barGap: 2.5,
+                      playedColor: playedColor,
+                      unplayedColor: unplayedColor,
+                    ),
+                  ),
+                );
               },
-              child: SizedBox(
-                width: 140,
-                height: 30,
-                child: KoraWaveform(
-                  isLive: false,
-                  progress: _progress,
-                  barCount: 30,
-                  height: 30,
-                  barWidth: 2.5,
-                  barGap: 2.5,
-                  playedColor: playedColor,
-                  unplayedColor: unplayedColor,
-                ),
-              ),
             ),
             const SizedBox(width: 8),
             Text(
@@ -440,76 +299,33 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
           ],
         ),
         const SizedBox(height: 6),
+        // Translate / Transcribe actions
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            GestureDetector(
-              onTap: () {
-                _showVoiceTranslation(
-                  context,
-                  voiceDuration: widget.message.voiceDuration ?? '0:05',
-                  autoTranslate: false,
-                  voiceId: widget.message.id,
-                  transcript: widget.message.voiceTranscript,
-                );
-              },
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.mic_outlined,
-                    size: 13,
-                    color: isMe
-                        ? Colors.white.withValues(alpha: 0.7)
-                        : KoraColors.purple,
-                  ),
-                  const SizedBox(width: 3),
-                  Text(
-                    'Transcribe',
-                    style: TextStyle(
-                      color: isMe
-                          ? Colors.white.withValues(alpha: 0.7)
-                          : KoraColors.purple,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
+            _buildAction(
+              isMe: isMe,
+              icon: Icons.mic_outlined,
+              label: 'Transcribe',
+              onTap: () => _showVoiceTranslation(
+                context,
+                voiceDuration: _totalDuration,
+                autoTranslate: false,
+                voiceId: widget.message.id,
+                transcript: widget.message.voiceTranscript,
               ),
             ),
             const SizedBox(width: 12),
-            GestureDetector(
-              onTap: () {
-                _showVoiceTranslation(
-                  context,
-                  voiceDuration: widget.message.voiceDuration ?? '0:05',
-                  autoTranslate: true,
-                  voiceId: widget.message.id,
-                  transcript: widget.message.voiceTranscript,
-                );
-              },
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.translate_rounded,
-                    size: 13,
-                    color: isMe
-                        ? Colors.white.withValues(alpha: 0.7)
-                        : KoraColors.purple,
-                  ),
-                  const SizedBox(width: 3),
-                  Text(
-                    'Translate Voice',
-                    style: TextStyle(
-                      color: isMe
-                          ? Colors.white.withValues(alpha: 0.7)
-                          : KoraColors.purple,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
+            _buildAction(
+              isMe: isMe,
+              icon: Icons.translate_rounded,
+              label: 'Translate Voice',
+              onTap: () => _showVoiceTranslation(
+                context,
+                voiceDuration: _totalDuration,
+                autoTranslate: true,
+                voiceId: widget.message.id,
+                transcript: widget.message.voiceTranscript,
               ),
             ),
           ],
@@ -518,8 +334,33 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
     );
   }
 
-  /// [VoiceTransferState.uploading] — circular progress ring with a
-  /// tap-to-cancel X in the middle, waveform, and the note's size.
+  Widget _buildAction({
+    required bool isMe,
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    final color = isMe ? Colors.white.withValues(alpha: 0.7) : KoraColors.purple;
+    return GestureDetector(
+      onTap: onTap,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: color),
+          const SizedBox(width: 3),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildUploadingView(bool isMe, Brightness brightness) {
     final textMuted = KoraColors.textMutedFor(brightness);
     final iconColor =
@@ -527,8 +368,7 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
     final waveformColor = isMe
         ? Colors.white.withValues(alpha: 0.18)
         : KoraColors.purple.withValues(alpha: 0.15);
-    final sizeColor =
-        isMe ? Colors.white.withValues(alpha: 0.5) : textMuted;
+    final sizeColor = isMe ? Colors.white.withValues(alpha: 0.5) : textMuted;
 
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -586,7 +426,6 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
     );
   }
 
-  /// [VoiceTransferState.notSent] — tap-to-retry upload arrow icon.
   Widget _buildNotSentView(bool isMe, Brightness brightness) {
     final textMuted = KoraColors.textMutedFor(brightness);
     final iconColor =
@@ -619,11 +458,7 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble>
                       valueColor: AlwaysStoppedAnimation<Color>(iconColor),
                     ),
                   )
-                : Icon(
-                    Icons.file_upload_rounded,
-                    color: iconColor,
-                    size: 20,
-                  ),
+                : Icon(Icons.file_upload_rounded, color: iconColor, size: 20),
           ),
         ),
         const SizedBox(width: 8),

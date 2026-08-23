@@ -1,15 +1,12 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:just_audio/just_audio.dart';
 
-/// Real audio playback service for Kora Messenger voice notes.
+/// Clean audio playback service for Kora Messenger voice notes.
 ///
-/// Uses `just_audio` to play voice note audio files. Manages a single
-/// player instance and provides position/duration streams for waveform
-/// progress display.
-///
-/// Only ONE audio can play at a time — starting a new audio automatically
-/// stops the previous one. A [currentPlayingId] identifies which message
-/// is currently active so other VoiceMessageBubbles can reset their UI.
+/// Uses just_audio. Single player, single active message at a time.
+/// Exposes a simple state notifier instead of raw streams — the UI
+/// just listens to [stateStream] and gets everything it needs.
 class AudioPlaybackService {
   static final AudioPlaybackService instance = AudioPlaybackService._();
   AudioPlaybackService._();
@@ -17,100 +14,119 @@ class AudioPlaybackService {
   final AudioPlayer _player = AudioPlayer();
 
   String? _currentFile;
-  String? _currentPlayingId; // unique ID of the message currently playing
-  bool _isPlaying = false;
-  bool _isLoading = false; // true while loading/preparing an audio file
+  String? _currentPlayingId;
 
-  String? get currentFile => _currentFile;
+  // Unified state for the UI
+  final StreamController<PlaybackState> _stateController =
+      StreamController<PlaybackState>.broadcast();
+  Stream<PlaybackState> get stateStream => _stateController.stream;
+
   String? get currentPlayingId => _currentPlayingId;
-  bool get isPlaying => _isPlaying;
-  bool get isLoading => _isLoading;
+  String? get currentFile => _currentFile;
 
-  /// Stream of playback position (in seconds).
-  Stream<Duration> get positionStream => _player.positionStream;
+  /// Current playback position in milliseconds.
+  int get positionMs => _player.position.inMilliseconds;
 
-  /// Stream of audio duration (in seconds).
-  Stream<Duration?> get durationStream => _player.durationStream;
+  /// Total duration in milliseconds (null if not loaded yet).
+  int? get durationMs => _player.duration?.inMilliseconds;
 
-  /// Stream of player state (playing, paused, stopped, completed).
-  Stream<PlayerState> get playerStateStream => _player.playerStateStream;
+  bool get isPlaying =>
+      _player.playing && _player.processingState != ProcessingState.completed;
 
-  /// Notifies listeners when the active playing ID changes.
-  /// VoiceMessageBubble listens to this so only the active bubble shows
-  /// the pause icon — all others automatically reset to play icon.
-  final StreamController<String?> _playingIdController =
-      StreamController<String?>.broadcast();
-  Stream<String?> get playingIdStream => _playingIdController.stream;
+  // Internal listener wiring
+  StreamSubscription? _positionSub;
+  StreamSubscription? _stateSub;
+  bool _listenersWired = false;
 
-  /// Notifies when loading state changes (for disabling double-taps).
-  final StreamController<bool> _loadingController =
-      StreamController<bool>.broadcast();
-  Stream<bool> get loadingStream => _loadingController.stream;
+  void _wireListeners() {
+    if (_listenersWired) return;
+    _listenersWired = true;
 
-  /// Load and prepare an audio file for playback.
-  Future<void> load(String path) async {
-    if (_currentFile == path && !_isPlaying) return;
+    _positionSub = _player.positionStream.listen((pos) {
+      _emitState();
+    });
 
-    _setLoading(true);
-    try {
-      await _player.stop();
-      await _player.setFilePath(path);
-      _currentFile = path;
-    } finally {
-      _setLoading(false);
-    }
+    _stateSub = _player.playerStateStream.listen((state) {
+      if (state.processingState == ProcessingState.completed) {
+        _currentPlayingId = null;
+        _player.seek(Duration.zero);
+      }
+      _emitState();
+    });
   }
 
-  /// Play the audio file associated with [messageId].
-  /// If [path] is different from the currently loaded file, loads it first.
-  /// Automatically stops any previously playing audio.
+  void _emitState() {
+    final dur = _player.duration?.inMilliseconds ?? 0;
+    final pos = _player.position.inMilliseconds;
+    _stateController.add(PlaybackState(
+      playingId: _currentPlayingId,
+      isPlaying: isPlaying,
+      positionMs: pos,
+      durationMs: dur,
+      isCompleted: _player.processingState == ProcessingState.completed,
+    ));
+  }
+
+  /// Load and play an audio file. If another file is playing, it stops
+  /// automatically. Sets [messageId] as the active playing ID.
   Future<void> play(String path, {String? messageId}) async {
-    // Stop the previous audio if switching to a new file
-    if (_currentFile != path) {
-      _setLoading(true);
-      try {
-        await _player.stop();
-        await _player.setFilePath(path);
-        _currentFile = path;
-      } finally {
-        _setLoading(false);
+    _wireListeners();
+
+    // If same file and already playing, do nothing
+    if (_currentFile == path && isPlaying) return;
+
+    // If same file but paused or completed, resume from current position
+    if (_currentFile == path && !isPlaying) {
+      if (_player.processingState == ProcessingState.completed) {
+        await _player.seek(Duration.zero);
       }
-    } else if (_isPlaying) {
-      // Same file already playing — don't restart
+      _currentPlayingId = messageId;
+      await _player.play();
+      _emitState();
       return;
     }
 
-    // Reset position to start if we're replaying a completed audio
-    if (_player.position == _player.duration && _player.duration != null) {
-      await _player.seek(Duration.zero);
+    // New file — stop current, load new
+    await _player.stop();
+
+    if (!File(path).existsSync()) {
+      _emitState();
+      return; // File doesn't exist — can't play
     }
 
-    _currentPlayingId = messageId;
-    _playingIdController.add(_currentPlayingId);
-    await _player.play();
-    _isPlaying = true;
+    try {
+      await _player.setFilePath(path);
+      _currentFile = path;
+      _currentPlayingId = messageId;
+      await _player.play();
+      _emitState();
+    } catch (_) {
+      _currentPlayingId = null;
+      _emitState();
+    }
   }
 
-  /// Pause playback. Keeps the current position.
+  /// Pause playback. Position is kept.
   Future<void> pause() async {
     await _player.pause();
-    _isPlaying = false;
-    // Don't clear _currentPlayingId — the bubble still shows as "active"
-    _playingIdController.add(null);
+    _emitState();
   }
 
-  /// Stop playback and reset position to start.
+  /// Stop playback and reset position.
   Future<void> stop() async {
     await _player.stop();
     await _player.seek(Duration.zero);
-    _isPlaying = false;
     _currentPlayingId = null;
-    _playingIdController.add(null);
+    _emitState();
   }
 
-  /// Seek to a specific position.
-  Future<void> seek(Duration position) async {
-    await _player.seek(position);
+  /// Seek to a position (0.0–1.0 fraction of total duration).
+  Future<void> seekToFraction(double fraction) async {
+    final dur = _player.duration;
+    if (dur == null || dur.inMilliseconds == 0) return;
+    final targetMs = (fraction * dur.inMilliseconds).round();
+    await _player.seek(Duration(milliseconds: targetMs));
+    _emitState();
   }
 
   /// Set playback speed (0.5 to 2.0).
@@ -118,52 +134,53 @@ class AudioPlaybackService {
     await _player.setSpeed(speed);
   }
 
-  /// Get current position.
-  Duration get position => _player.position;
-
-  /// Get total duration.
-  Duration? get duration => _player.duration;
-
-  /// Toggle play/pause for a given file path and message ID.
-  /// Returns true if now playing, false if now paused.
+  /// Toggle play/pause for a given file + message ID.
+  /// Returns true if now playing, false if paused.
   Future<bool> toggle(String path, {String? messageId}) async {
-    if (_isPlaying && _currentFile == path) {
+    if (isPlaying && _currentFile == path) {
       await pause();
-      return false; // now paused
+      return false;
     } else {
       await play(path, messageId: messageId);
-      return true; // now playing
+      return true;
     }
   }
 
-  /// Called when audio playback completes — resets state and notifies
-  /// all listeners so the UI resets to play icon + 0:00.
-  void handleCompletion() {
-    _isPlaying = false;
-    _currentPlayingId = null;
-    _playingIdController.add(null);
-    // Reset position to 0:00
-    _player.seek(Duration.zero);
-  }
-
-  void _setLoading(bool loading) {
-    _isLoading = loading;
-    _loadingController.add(loading);
-  }
-
-  /// Check if this message is the currently active playing one.
-  bool isMessagePlaying(String messageId) {
-    return _isPlaying && _currentPlayingId == messageId;
-  }
-
-  /// Check if this message is currently loading audio.
-  bool isMessageLoading(String messageId) {
-    return _isLoading && _currentFile != null;
+  /// Stop if the given messageId is the currently active one.
+  void stopIfActive(String messageId) {
+    if (_currentPlayingId == messageId) {
+      stop();
+    }
   }
 
   void dispose() {
-    _playingIdController.close();
-    _loadingController.close();
+    _positionSub?.cancel();
+    _stateSub?.cancel();
+    _stateController.close();
     _player.dispose();
   }
+}
+
+/// Unified playback state — the UI only needs to listen to this.
+class PlaybackState {
+  final String? playingId;
+  final bool isPlaying;
+  final int positionMs;
+  final int durationMs;
+  final bool isCompleted;
+
+  const PlaybackState({
+    this.playingId,
+    this.isPlaying = false,
+    this.positionMs = 0,
+    this.durationMs = 0,
+    this.isCompleted = false,
+  });
+
+  double get progress {
+    if (durationMs == 0) return 0.0;
+    return (positionMs / durationMs).clamp(0.0, 1.0);
+  }
+
+  bool isThisPlaying(String messageId) => isPlaying && playingId == messageId;
 }

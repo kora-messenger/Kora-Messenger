@@ -1,31 +1,33 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter_sound/flutter_sound.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
-/// Real audio recording service for Kora Messenger voice notes.
+/// Clean audio recording service for Kora Messenger voice notes.
 ///
-/// Uses the `flutter_sound` package to capture audio from the device microphone,
-/// saves to a temp file, and returns the file path for playback/storage.
-///
-/// Supports pause/resume for the locked "hands-free" recording bar —
-/// the same underlying file just keeps appending once resumed.
+/// Uses flutter_sound to capture AAC audio. Provides real amplitude
+/// data via a broadcast stream so the UI can render a live waveform
+/// that actually responds to the microphone input.
 class AudioRecordingService {
   static final AudioRecordingService instance = AudioRecordingService._();
   AudioRecordingService._();
 
   final FlutterSoundRecorder _recorder = FlutterSoundRecorder();
   bool _isInitialized = false;
-
   bool _isRecording = false;
   bool _isPaused = false;
   String? _currentPath;
+
+  // Stream controller for live amplitude data (0.0–1.0)
+  final StreamController<double> _amplitudeController =
+      StreamController<double>.broadcast();
+  Stream<double> get amplitudeStream => _amplitudeController.stream;
 
   bool get isRecording => _isRecording;
   bool get isPaused => _isPaused;
   String? get currentPath => _currentPath;
 
-  /// Initialize the recorder (must be called before recording).
   Future<void> _ensureInitialized() async {
     if (!_isInitialized) {
       await _recorder.openRecorder();
@@ -33,23 +35,22 @@ class AudioRecordingService {
     }
   }
 
-  /// Request microphone permission.
   Future<bool> requestPermission() async {
     final status = await Permission.microphone.request();
     return status.isGranted;
   }
 
-  /// Start recording audio. Returns the file path where audio is saved.
-  /// Throws if already recording or permission denied.
-  Future<String> startRecording() async {
-    if (_isRecording) {
-      throw StateError('Already recording');
-    }
+  Future<bool> hasPermission() async {
+    return Permission.microphone.isGranted;
+  }
 
-    final hasPermission = await requestPermission();
-    if (!hasPermission) {
-      throw StateError('Microphone permission denied');
-    }
+  /// Start recording. Returns the file path.
+  /// Throws on permission denied or recorder error.
+  Future<String> startRecording() async {
+    if (_isRecording) throw StateError('Already recording');
+
+    final granted = await requestPermission();
+    if (!granted) throw StateError('Microphone permission denied');
 
     await _ensureInitialized();
 
@@ -67,24 +68,31 @@ class AudioRecordingService {
     _isRecording = true;
     _isPaused = false;
     _currentPath = path;
+
+    // Stream real amplitude data from the recorder's onProgress callback
+    _recorder.onProgress!.listen((e) {
+      if (!_isRecording || _isPaused) return;
+
+      // e.decibels gives dB level (typically -160 to 0)
+      // Convert to 0.0-1.0 range: normalize from -60dB to 0dB
+      final db = e.decibels ?? -80.0;
+      final normalized = ((db + 80) / 80).clamp(0.0, 1.0);
+      _amplitudeController.add(normalized);
+    });
+
     return path;
   }
 
-  /// Pause an in-progress recording (used when the locked bar's pause
-  /// button is tapped). The file keeps its contents so far; resume
-  /// appends more audio to the same file.
   Future<void> pauseRecording() async {
     if (!_isRecording || _isPaused) return;
     try {
       await _recorder.pauseRecorder();
       _isPaused = true;
     } catch (_) {
-      // Some platforms/codecs may not support pausing — ignore and
-      // keep recording rather than crash the flow.
+      // Some platforms don't support pause — keep recording
     }
   }
 
-  /// Resume a paused recording.
   Future<void> resumeRecording() async {
     if (!_isRecording || !_isPaused) return;
     try {
@@ -94,8 +102,8 @@ class AudioRecordingService {
     }
   }
 
-  /// Stop recording and return the file path.
-  /// Returns null if not recording.
+  /// Stop recording and return the file path. Returns null if not recording
+  /// or if the file doesn't exist on disk.
   Future<String?> stopRecording() async {
     if (!_isRecording) return null;
 
@@ -103,46 +111,37 @@ class AudioRecordingService {
     _isRecording = false;
     _isPaused = false;
     _currentPath = null;
+
+    if (path != null && !File(path).existsSync()) {
+      return null;
+    }
     return path;
   }
 
-  /// Cancel recording and delete the file.
+  /// Cancel recording and delete the temp file.
   Future<void> cancelRecording() async {
     if (_isRecording) {
-      await _recorder.stopRecorder();
+      try {
+        await _recorder.stopRecorder();
+      } catch (_) {}
       _isRecording = false;
       _isPaused = false;
+    }
+
+    if (_currentPath != null) {
+      try {
+        final file = File(_currentPath!);
+        if (file.existsSync()) file.deleteSync();
+      } catch (_) {}
     }
     _currentPath = null;
   }
 
-  /// Get the amplitude of the current recording (for waveform).
-  /// Returns a value 0.0 - 1.0.
-  Future<double> getAmplitude() async {
-    if (!_isRecording || _isPaused) return 0.0;
-    try {
-      // flutter_sound doesn't have a direct amplitude API,
-      // but we can use the recorder's onProgress stream
-      return 0.5; // placeholder — waveform handled via stream
-    } catch (_) {
-      return 0.0;
-    }
-  }
-
-  /// Check if the microphone permission is granted.
-  Future<bool> hasPermission() async {
-    return await Permission.microphone.isGranted;
-  }
-
-  /// Stream of recording progress (duration + dB level) for waveform display.
-  Stream<RecordingDisposition>? getDispositionStream() {
-    if (!_isRecording || !_isInitialized) return null;
-    return _recorder.onProgress;
-  }
-
   void dispose() {
     if (_isInitialized) {
-      _recorder.closeRecorder();
+      try {
+        _recorder.closeRecorder();
+      } catch (_) {}
       _isInitialized = false;
     }
   }

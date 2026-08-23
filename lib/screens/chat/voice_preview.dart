@@ -3,12 +3,11 @@ import 'package:flutter/material.dart';
 import '../../theme/kora_colors.dart';
 import '../../widgets/kora_waveform.dart';
 import '../../services/audio_playback_service.dart';
-import 'package:just_audio/just_audio.dart';
 
-/// Kora's voice preview bar — shown after recording, before sending.
+/// Voice preview bar — shown after recording, before sending.
+/// Lets the user play back, discard, or send the recorded voice note.
 ///
-/// Uses [AudioPlaybackService] to play the actual recorded audio file
-/// with real position/duration streams for the waveform progress.
+/// Uses the unified [AudioPlaybackService.stateStream].
 class VoicePreviewBar extends StatefulWidget {
   final String duration;
   final String? filePath;
@@ -28,15 +27,13 @@ class VoicePreviewBar extends StatefulWidget {
 }
 
 class _VoicePreviewBarState extends State<VoicePreviewBar>
-    with TickerProviderStateMixin {
-  final _playbackService = AudioPlaybackService.instance;
+    with SingleTickerProviderStateMixin {
+  final _playback = AudioPlaybackService.instance;
+  StreamSubscription<PlaybackState>? _sub;
+  late AnimationController _slideController;
 
   bool _isPlaying = false;
   double _progress = 0.0;
-  late AnimationController _slideController;
-  StreamSubscription? _positionSub;
-  StreamSubscription? _stateSub;
-  Duration? _audioDuration;
 
   @override
   void initState() {
@@ -47,21 +44,14 @@ class _VoicePreviewBarState extends State<VoicePreviewBar>
     );
     _slideController.forward();
 
-    // Listen to position updates for waveform progress
-    _positionSub = _playbackService.positionStream.listen((pos) {
-      if (_audioDuration != null && _audioDuration!.inMilliseconds > 0 && mounted) {
+    _sub = _playback.stateStream.listen((state) {
+      if (!mounted) return;
+      // Only update if this preview's file is the active one
+      if (state.playingId == 'preview') {
         setState(() {
-          _progress = pos.inMilliseconds / _audioDuration!.inMilliseconds;
-        });
-      }
-    });
-
-    // Listen to playback state changes
-    _stateSub = _playbackService.playerStateStream.listen((state) {
-      if (state.processingState == ProcessingState.completed && mounted) {
-        setState(() {
-          _isPlaying = false;
-          _progress = 0.0;
+          _isPlaying = state.isPlaying;
+          _progress = state.progress;
+          if (state.isCompleted) _progress = 0.0;
         });
       }
     });
@@ -69,18 +59,15 @@ class _VoicePreviewBarState extends State<VoicePreviewBar>
 
   @override
   void dispose() {
-    _positionSub?.cancel();
-    _stateSub?.cancel();
-    if (_isPlaying) _playbackService.stop();
+    _sub?.cancel();
+    _playback.stopIfActive('preview');
     _slideController.dispose();
     super.dispose();
   }
 
   int _parseDuration(String d) {
     final parts = d.split(':');
-    if (parts.length == 2) {
-      return int.parse(parts[0]) * 60 + int.parse(parts[1]);
-    }
+    if (parts.length == 2) return int.parse(parts[0]) * 60 + int.parse(parts[1]);
     return int.tryParse(d) ?? 5;
   }
 
@@ -93,41 +80,14 @@ class _VoicePreviewBarState extends State<VoicePreviewBar>
   }
 
   void _togglePlay() async {
-    if (widget.filePath == null) {
-      // Fallback to simulation if no file
-      setState(() => _isPlaying = !_isPlaying);
-      if (_isPlaying) _simulatePlayback();
-      return;
-    }
+    final path = widget.filePath;
+    if (path == null) return;
 
     if (_isPlaying) {
-      await _playbackService.pause();
-      setState(() => _isPlaying = false);
+      await _playback.pause();
     } else {
-      await _playbackService.play(widget.filePath!);
-      _audioDuration = _playbackService.duration;
-      setState(() => _isPlaying = true);
+      await _playback.play(path, messageId: 'preview');
     }
-  }
-
-  void _simulatePlayback() {
-    if (_progress >= 1.0) _progress = 0.0;
-    final totalSecs = _parseDuration(widget.duration);
-    const stepMs = 80;
-    final step = stepMs / 1000.0 / totalSecs;
-
-    Future.doWhile(() async {
-      await Future.delayed(const Duration(milliseconds: stepMs));
-      if (!mounted || !_isPlaying) return false;
-      setState(() {
-        _progress += step;
-        if (_progress >= 1.0) {
-          _progress = 1.0;
-          _isPlaying = false;
-        }
-      });
-      return _isPlaying;
-    });
   }
 
   @override
@@ -151,7 +111,7 @@ class _VoicePreviewBarState extends State<VoicePreviewBar>
         ),
         child: Row(
           children: [
-            // ── Delete ──
+            // Delete
             GestureDetector(
               onTap: widget.onDiscard,
               child: Container(
@@ -169,7 +129,7 @@ class _VoicePreviewBarState extends State<VoicePreviewBar>
               ),
             ),
             const SizedBox(width: 12),
-            // ── Play/Pause ──
+            // Play/Pause
             GestureDetector(
               onTap: _togglePlay,
               child: Container(
@@ -187,23 +147,40 @@ class _VoicePreviewBarState extends State<VoicePreviewBar>
               ),
             ),
             const SizedBox(width: 12),
-            // ── Waveform + duration ──
+            // Waveform + duration
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SizedBox(
-                    height: 30,
-                    child: KoraWaveform(
-                      isLive: false,
-                      progress: _progress,
-                      barCount: 40,
-                      height: 30,
-                      barWidth: 2.5,
-                      barGap: 2.5,
-                      playedColor: KoraColors.purple,
-                      unplayedColor: KoraColors.purple.withValues(alpha: 0.2),
-                    ),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final waveWidth = constraints.maxWidth.isFinite
+                          ? constraints.maxWidth
+                          : 200.0;
+                      return GestureDetector(
+                        onTapDown: (details) {
+                          final fraction =
+                              (details.localPosition.dx / waveWidth)
+                                  .clamp(0.0, 1.0);
+                          _playback.seekToFraction(fraction);
+                        },
+                        child: SizedBox(
+                          width: waveWidth,
+                          height: 30,
+                          child: KoraWaveform(
+                            isLive: false,
+                            progress: _progress,
+                            barCount: 40,
+                            height: 30,
+                            barWidth: 2.5,
+                            barGap: 2.5,
+                            playedColor: KoraColors.purple,
+                            unplayedColor:
+                                KoraColors.purple.withValues(alpha: 0.2),
+                          ),
+                        ),
+                      );
+                    },
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -221,7 +198,7 @@ class _VoicePreviewBarState extends State<VoicePreviewBar>
               ),
             ),
             const SizedBox(width: 12),
-            // ── Send ──
+            // Send
             GestureDetector(
               onTap: widget.onSend,
               child: Container(
