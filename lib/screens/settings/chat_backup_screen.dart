@@ -207,7 +207,7 @@ class _ChatBackupScreenState extends State<ChatBackupScreen> {
                 // Backup now
                 _actionTile(
                   icon: Icons.backup_rounded,
-                  iconBg: purple.withOpacity(0.1),
+                  iconBg: purple.withValues(alpha: 0.1),
                   title: 'Back up now',
                   subtitle: 'Sync all chats to the cloud immediately',
                   onTap: _backingUp ? null : _performBackup,
@@ -225,7 +225,7 @@ class _ChatBackupScreenState extends State<ChatBackupScreen> {
                 // Restore
                 _actionTile(
                   icon: Icons.restore_rounded,
-                  iconBg: Colors.blue.withOpacity(0.1),
+                  iconBg: Colors.blue.withValues(alpha: 0.1),
                   title: 'Restore from cloud',
                   subtitle: 'Download all chats from cloud backup',
                   onTap: _restoring ? null : _restoreFromCloud,

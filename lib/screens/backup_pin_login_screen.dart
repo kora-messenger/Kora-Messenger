@@ -163,9 +163,9 @@ class _BackupPinLoginScreenState extends State<BackupPinLoginScreen> {
         await SessionManager.instance.saveSession(result.user!);
         await ChatThemeProvider.instance.load();
         // Set user email for cloud chat sync
-        final _session = await SessionManager.instance.loadSession();
-        if (_session != null && _session['email'] != null) {
-          ChatSyncService.instance.setUserEmail(_session['email'] as String);
+        final session = await SessionManager.instance.loadSession();
+        if (session != null && session['email'] != null) {
+          ChatSyncService.instance.setUserEmail(session['email'] as String);
         } // Refresh owner/premium status for badge + gating
 
         // Save last email for next time
