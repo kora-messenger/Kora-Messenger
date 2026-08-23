@@ -75,6 +75,7 @@ class KoraApi {
   static const String privacyPolicyUrl = '$legalBaseUrl/privacy-policy.html';
   static const String termsOfServiceUrl = '$legalBaseUrl/terms-of-service.html';
   static const String communityGuidelinesUrl = '$legalBaseUrl/community-guidelines.html';
+  static const String aiPolicyUrl = '$legalBaseUrl/ai-policy.html';
   static const String learnMoreUrl = '$legalBaseUrl/index.html';
 
   /// Link shared when inviting a friend to Kora — swap this for the

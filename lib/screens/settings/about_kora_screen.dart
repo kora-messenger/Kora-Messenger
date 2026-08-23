@@ -148,6 +148,17 @@ class AboutKoraScreen extends StatelessWidget {
             border: border,
             onTap: () => _launchUrl(KoraApi.communityGuidelinesUrl),
           ),
+          _linkTile(
+            context,
+            icon: Icons.smart_toy_outlined,
+            title: 'AI Policy',
+            card: card,
+            textPrimary: textPrimary,
+            textSecondary: textSecondary,
+            textMuted: textMuted,
+            border: border,
+            onTap: () => _launchUrl(KoraApi.aiPolicyUrl),
+          ),
           const SizedBox(height: 20),
 
           // Credits
