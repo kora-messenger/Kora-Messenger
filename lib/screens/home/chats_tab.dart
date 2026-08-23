@@ -42,6 +42,11 @@ class _ChatsTabState extends State<ChatsTab> {
     _initMessages();
   }
 
+  Future<void> _initMessages() async {
+    _chats = await ChatService.instance.getChats();
+    if (mounted) setState(() {});
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
