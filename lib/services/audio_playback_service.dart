@@ -5,8 +5,9 @@ import 'package:just_audio/just_audio.dart';
 /// Clean audio playback service for Kora Messenger voice notes.
 ///
 /// Uses just_audio. Single player, single active message at a time.
-/// Exposes a simple state notifier instead of raw streams — the UI
-/// just listens to [stateStream] and gets everything it needs.
+/// Tracks playing state with an explicit flag (not computed from the
+/// player's internal state) to avoid race conditions where the
+/// processingState lags behind the actual play/pause command.
 class AudioPlaybackService {
   static final AudioPlaybackService instance = AudioPlaybackService._();
   AudioPlaybackService._();
@@ -15,6 +16,11 @@ class AudioPlaybackService {
 
   String? _currentFile;
   String? _currentPlayingId;
+
+  // Explicit playing flag — set BEFORE the async player call so
+  // _emitState() always reflects the correct state, even if the
+  // player's internal processingState hasn't caught up yet.
+  bool _playing = false;
 
   // Unified state for the UI
   final StreamController<PlaybackState> _stateController =
@@ -30,9 +36,6 @@ class AudioPlaybackService {
   /// Total duration in milliseconds (null if not loaded yet).
   int? get durationMs => _player.duration?.inMilliseconds;
 
-  bool get isPlaying =>
-      _player.playing && _player.processingState != ProcessingState.completed;
-
   // Internal listener wiring
   StreamSubscription? _positionSub;
   StreamSubscription? _stateSub;
@@ -42,12 +45,13 @@ class AudioPlaybackService {
     if (_listenersWired) return;
     _listenersWired = true;
 
-    _positionSub = _player.positionStream.listen((pos) {
+    _positionSub = _player.positionStream.listen((_) {
       _emitState();
     });
 
     _stateSub = _player.playerStateStream.listen((state) {
       if (state.processingState == ProcessingState.completed) {
+        _playing = false;
         _currentPlayingId = null;
         _player.seek(Duration.zero);
       }
@@ -60,7 +64,7 @@ class AudioPlaybackService {
     final pos = _player.position.inMilliseconds;
     _stateController.add(PlaybackState(
       playingId: _currentPlayingId,
-      isPlaying: isPlaying,
+      isPlaying: _playing,
       positionMs: pos,
       durationMs: dur,
       isCompleted: _player.processingState == ProcessingState.completed,
@@ -73,13 +77,15 @@ class AudioPlaybackService {
     _wireListeners();
 
     // If same file and already playing, do nothing
-    if (_currentFile == path && isPlaying) return;
+    if (_currentFile == path && _playing) return;
 
     // If same file but paused or completed, resume from current position
-    if (_currentFile == path && !isPlaying) {
+    if (_currentFile == path && !_playing) {
       if (_player.processingState == ProcessingState.completed) {
         await _player.seek(Duration.zero);
       }
+      // Set flag BEFORE async call so stream listener emits correct state
+      _playing = true;
       _currentPlayingId = messageId;
       await _player.play();
       _emitState();
@@ -87,6 +93,7 @@ class AudioPlaybackService {
     }
 
     // New file — stop current, load new
+    _playing = false; // not playing yet during load
     await _player.stop();
 
     if (!File(path).existsSync()) {
@@ -97,10 +104,13 @@ class AudioPlaybackService {
     try {
       await _player.setFilePath(path);
       _currentFile = path;
+      // Set flag BEFORE async call so stream listener emits correct state
+      _playing = true;
       _currentPlayingId = messageId;
       await _player.play();
       _emitState();
     } catch (_) {
+      _playing = false;
       _currentPlayingId = null;
       _emitState();
     }
@@ -108,15 +118,17 @@ class AudioPlaybackService {
 
   /// Pause playback. Position is kept.
   Future<void> pause() async {
+    _playing = false;
     await _player.pause();
     _emitState();
   }
 
   /// Stop playback and reset position.
   Future<void> stop() async {
+    _playing = false;
+    _currentPlayingId = null;
     await _player.stop();
     await _player.seek(Duration.zero);
-    _currentPlayingId = null;
     _emitState();
   }
 
@@ -137,7 +149,7 @@ class AudioPlaybackService {
   /// Toggle play/pause for a given file + message ID.
   /// Returns true if now playing, false if paused.
   Future<bool> toggle(String path, {String? messageId}) async {
-    if (isPlaying && _currentFile == path) {
+    if (_playing && _currentFile == path) {
       await pause();
       return false;
     } else {
