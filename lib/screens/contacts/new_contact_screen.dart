@@ -409,12 +409,53 @@ class _NewContactScreenState extends State<NewContactScreen> {
     final label = fullName.isNotEmpty ? fullName : identifier;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('$label added to contacts'),
+        content: Row(
+          children: [
+            Expanded(
+              child: Text(
+                '$label added to contacts',
+                style: const TextStyle(fontSize: 14),
+              ),
+            ),
+            GestureDetector(
+              onTap: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                Navigator.pop(context); // Close NewContactScreen
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => KoraChatScreen(
+                      chatId: phoneNumber.isNotEmpty ? phoneNumber : (identifier.isNotEmpty ? identifier : label),
+                      name: label,
+                      badge: KoraBadgeType.none,
+                      isOnline: false,
+                    ),
+                  ),
+                );
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Text(
+                  'Message',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
         backgroundColor: KoraColors.purple,
         behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 6),
       ),
     );
-    Navigator.pop(context);
   }
 
   void _showSuccessSnackbar(String label, Map<String, dynamic> user) {
