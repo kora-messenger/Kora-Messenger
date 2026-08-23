@@ -6,6 +6,7 @@ import '../theme/kora_colors.dart';
 import '../theme/chat_theme_provider.dart';
 import '../services/auth_service.dart';
 import '../services/session_manager.dart';
+import '../services/chat_sync_service.dart';
 import 'profile_setup_screen.dart';
 import 'kora_home_screen.dart';
 import '../services/crash_logger.dart';
@@ -220,7 +221,12 @@ class _LoginVerificationScreenState extends State<LoginVerificationScreen>
         } catch (_) {
           await SessionManager.instance.saveSession(result.user!);
         }
-        await ChatThemeProvider.instance.load(); // Refresh owner/premium status for badge + gating
+        await ChatThemeProvider.instance.load();
+        // Set user email for cloud chat sync
+        final _session = await SessionManager.instance.loadSession();
+        if (_session != null && _session['email'] != null) {
+          ChatSyncService.instance.setUserEmail(_session['email'] as String);
+        } // Refresh owner/premium status for badge + gating
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('kora_last_email', widget.email);
         if (!mounted) return;

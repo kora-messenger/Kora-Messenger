@@ -54,6 +54,11 @@ class KoraApi {
   /// Future: 'https://api.koramessenger.com/payment/verify' (or your domain)
   static const String paymentVerifyEndpoint = '$baseUrl/koraVerifyPayment';
 
+  /// Chat sync endpoint — persist messages & conversations to the database.
+  /// Temporary: Base44 backend function.
+  /// Future: 'https://api.koramessenger.com/chat-sync' (or your domain)
+  static const String chatSyncEndpoint = '$baseUrl/koraChatSync';
+
   /// Kora AI Server base URL.
   /// Temporary: local dev server for testing.
   /// Future: 'https://ai.koramessenger.com' (or your domain)

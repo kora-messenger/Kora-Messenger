@@ -159,6 +159,8 @@ class PaymentService {
     final duration = plan == 'yearly' ? 365 : 30; // days
     final expiry = now + (duration * 24 * 60 * 60 * 1000);
 
+    await prefs.setBool('kora_is_premium', true);
+    // Keep the legacy key in sync too (some older code reads 'is_premium')
     await prefs.setBool('is_premium', true);
     await prefs.setString('premium_plan', plan);
     await prefs.setInt('premium_expiry', expiry);
@@ -172,14 +174,17 @@ class PaymentService {
   /// Check if the user has active premium.
   static Future<bool> isPremium() async {
     final prefs = await SharedPreferences.getInstance();
-    final isPremium = prefs.getBool('is_premium') ?? false;
+    final isPremium = prefs.getBool('kora_is_premium') ?? prefs.getBool('is_premium') ?? false;
     if (!isPremium) return false;
 
     final expiry = prefs.getInt('premium_expiry') ?? 0;
     final now = DateTime.now().millisecondsSinceEpoch;
     if (now > expiry) {
-      // Premium expired
+      // Premium expired — revoke across all systems
+      await prefs.setBool('kora_is_premium', false);
       await prefs.setBool('is_premium', false);
+      // Notify ChatThemeProvider so all premium-gated UI updates immediately
+      ChatThemeProvider.instance.revokePremium();
       return false;
     }
     return true;
@@ -201,7 +206,8 @@ class PaymentService {
     };
     if (ownerEmails.contains(email.toLowerCase())) {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('is_premium', true);
+      await prefs.setBool('kora_is_premium', true);
+      await prefs.setBool('is_premium', true); // legacy sync
       await prefs.setString('premium_plan', 'owner');
       await prefs.setInt('premium_expiry', 0); // 0 = never expires
       return true;

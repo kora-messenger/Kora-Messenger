@@ -294,6 +294,22 @@ class ChatThemeProvider extends ChangeNotifier {
     _isOwnerAccount = _isOwnerSession(prefs);
     if (_isOwnerAccount) {
       _isPremium = true;
+    } else if (_isPremium) {
+      // Non-owner: check if premium has expired.
+      // PaymentService stores expiry as millisecondsSinceEpoch in 'premium_expiry'.
+      // MessageService trial stores it the same way.
+      // A value of 0 means "never expires" (owner override set elsewhere).
+      final expiryMs = prefs.getInt('premium_expiry') ?? 0;
+      if (expiryMs > 0) {
+        final now = DateTime.now().millisecondsSinceEpoch;
+        if (now > expiryMs) {
+          // Premium expired — lock all premium features.
+          _isPremium = false;
+          prefs.setBool(_kIsPremium, false);
+          // Also clear the legacy key if present.
+          prefs.setBool('is_premium', false);
+        }
+      }
     }
 
     notifyListeners();

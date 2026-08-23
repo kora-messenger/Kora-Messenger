@@ -5,6 +5,7 @@ import '../models/chat_models.dart';
 import 'connectivity_service.dart';
 import 'offline_voice_sync.dart';
 import 'conversation_directory.dart';
+import 'chat_sync_service.dart';
 
 /// Manages all Kora conversations with local persistence.
 ///
@@ -105,6 +106,37 @@ class MessageService {
     await prefs.setString(
       '$_kPrefix$chatId',
       jsonEncode(msgs.map((m) => m.toJson()).toList()),
+    );
+
+    // Cloud sync — fire and forget, best-effort
+    if (msgs.isNotEmpty) {
+      ChatSyncService.instance.syncMessage(chatId, msgs.last);
+    }
+  }
+
+  /// Whether the cache already has this chat loaded.
+  bool isChatCached(String chatId) => _cache.containsKey(chatId);
+
+  /// Whether a specific message ID already exists in this chat.
+  bool hasMessage(String chatId, String messageId) {
+    final msgs = _cache[chatId];
+    if (msgs == null) return false;
+    return msgs.any((m) => m.id == messageId);
+  }
+
+  /// Add a message restored from the cloud (used during restoreFromCloud).
+  /// Appends to the cache and persists locally — does NOT trigger cloud sync
+  /// (the message came FROM the cloud, no need to send it back).
+  Future<void> addRestoredMessage(String chatId, KoraMessage msg) async {
+    final messages = _cache.putIfAbsent(chatId, () => <KoraMessage>[]);
+    messages.add(msg);
+    // Sort by timestamp to maintain order after restore
+    messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    // Persist locally without triggering cloud sync
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      '$_kPrefix$chatId',
+      jsonEncode(messages.map((m) => m.toJson()).toList()),
     );
   }
 

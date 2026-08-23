@@ -1,19 +1,17 @@
-import '../channel_landing_screen.dart';
-import '../contacts/select_contact_screen.dart';
 import 'package:flutter/material.dart';
 import '../../models/chat_models.dart';
 import '../../services/chat_service.dart';
-import '../../services/message_service.dart';
-import '../../services/call_service.dart';
 import '../../theme/kora_colors.dart';
 import '../../widgets/chat_list_item.dart';
 import '../../widgets/kora_empty_state.dart';
 import '../../widgets/kora_menu_sheet.dart';
+import '../../widgets/new_chat_sheet.dart';
 import '../chat/kora_chat_screen.dart';
 import '../new_group_screen.dart';
 import '../settings/privacy_screen.dart';
 import '../archived_chats_screen.dart';
 import '../starred_messages_screen.dart';
+import 'profile_tab.dart';
 
 /// The "Chats" tab — Kora's central conversation list.
 /// Owns the Home header (branding, avatar, search, three-dot menu).
@@ -22,7 +20,11 @@ class ChatsTab extends StatefulWidget {
   final VoidCallback? onProfileTap;
   final VoidCallback? onGoToChannels;
 
-  const ChatsTab({super.key, this.onProfileTap, this.onGoToChannels});
+  const ChatsTab({
+    super.key,
+    this.onProfileTap,
+    this.onGoToChannels,
+  });
 
   @override
   State<ChatsTab> createState() => _ChatsTabState();
@@ -37,19 +39,7 @@ class _ChatsTabState extends State<ChatsTab> {
   @override
   void initState() {
     super.initState();
-    _initMessages();
-  }
-
-  Future<void> _initMessages() async {
-    await MessageService.instance.init();
-    await CallService.instance.init();
-    // Load messages for all known chats so ChatService can build previews
-    await MessageService.instance.loadMessages('kora_support');
-    await MessageService.instance.loadMessages('kora_ai');
-    if (mounted) {
-      _chats = await ChatService.instance.getChats();
-      if (mounted) setState(() {});
-    }
+    _chats = ChatService.instance.getChats();
   }
 
   @override
@@ -71,14 +61,7 @@ class _ChatsTabState extends State<ChatsTab> {
           lastSeen: chat.isOnline ? null : 'last seen recently',
         ),
       ),
-    ).then((_) async {
-      // Refresh unread badges/bold state after returning — the chat
-      // screen marks incoming messages as viewed while it's open.
-      if (mounted) {
-        _chats = await ChatService.instance.getChats();
-        setState(() {});
-      }
-    });
+    );
   }
 
   void _toggleSearch() {
@@ -91,17 +74,29 @@ class _ChatsTabState extends State<ChatsTab> {
     });
   }
 
-  Future<void> _readAll() async {
-    // Persist: mark every incoming message in every chat as viewed,
-    // so the badges stay cleared after the next refresh too.
-    for (final c in _chats) {
-      await MessageService.instance.markChatViewed(c.id);
-    }
-    if (mounted) {
-      _chats = await ChatService.instance.getChats();
-      setState(() {});
-    }
-    if (!mounted) return;
+  void _readAll() {
+    setState(() {
+      _chats = _chats.map((c) {
+        // Can't mutate ChatPreview directly since it's immutable,
+        // but we mark unread as 0 visually — when we wire real data
+        // this will call the backend
+        return ChatPreview(
+          id: c.id,
+          name: c.name,
+          avatarAsset: c.avatarAsset,
+          avatarUrl: c.avatarUrl,
+          lastMessage: c.lastMessage,
+          timestamp: c.timestamp,
+          unreadCount: 0,
+          status: c.status,
+          badge: c.badge,
+          isMuted: c.isMuted,
+          isPinned: c.isPinned,
+          isOnline: c.isOnline,
+          isTyping: c.isTyping,
+        );
+      }).toList();
+    });
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Text('All messages marked as read'),
@@ -126,13 +121,7 @@ class _ChatsTabState extends State<ChatsTab> {
         icon: Icons.campaign_outlined,
         label: 'New Channel',
         onTap: () {
-          if (widget.onGoToChannels != null) {
-            widget.onGoToChannels!();
-          } else {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const ChannelLandingScreen()),
-            );
-          }
+          widget.onGoToChannels?.call();
         },
       ),
       KoraMenuOption(
@@ -171,9 +160,9 @@ class _ChatsTabState extends State<ChatsTab> {
         icon: Icons.settings_outlined,
         label: 'Settings',
         onTap: () {
-          if (widget.onProfileTap != null) {
-            widget.onProfileTap!();
-          }
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const ProfileTab()),
+          );
         },
       ),
     ]);
@@ -216,16 +205,12 @@ class _ChatsTabState extends State<ChatsTab> {
                       title: 'No conversations yet',
                       message: 'Start a chat with friends, family, or Kora Support to see it here.',
                       actionLabel: 'Start a Chat',
-                      onAction: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const SelectContactScreen()),
-                      ),
+                      onAction: () => NewChatSheet.show(context),
                     )
                   : RefreshIndicator(
                       color: KoraColors.purple,
                       onRefresh: () async {
-                        _chats = await ChatService.instance.getChats();
-                        setState(() {});
+                        setState(() => _chats = ChatService.instance.getChats());
                       },
                       child: _filteredChats.isEmpty
                           ? ListView(
@@ -263,17 +248,14 @@ class _ChatsTabState extends State<ChatsTab> {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const SelectContactScreen()),
-          );
-        },
-        backgroundColor: KoraColors.purple,
-        elevation: 4,
-        child: const Icon(Icons.chat_bubble, color: Colors.white, size: 24),
-      ),
+      floatingActionButton: _chats.isEmpty
+          ? null
+          : FloatingActionButton(
+              onPressed: () => NewChatSheet.show(context),
+              backgroundColor: KoraColors.purple,
+              elevation: 4,
+              child: const Icon(Icons.chat_bubble, color: Colors.white, size: 24),
+            ),
     );
   }
 
@@ -286,12 +268,17 @@ class _ChatsTabState extends State<ChatsTab> {
             width: 30,
             height: 30,
             decoration: const BoxDecoration(
+              gradient: KoraColors.brandGradient,
               shape: BoxShape.circle,
             ),
-            child: ClipOval(
-              child: Image.asset(
-                'assets/images/kora_logo_lockup.png',
-                fit: BoxFit.cover,
+            child: const Center(
+              child: Text(
+                'K',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ),
           ),

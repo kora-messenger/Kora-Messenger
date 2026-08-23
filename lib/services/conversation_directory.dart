@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/chat_models.dart';
+import 'chat_sync_service.dart';
 
 /// Lightweight directory mapping a chatId → the display metadata needed
 /// to render it as a Home screen row (name, avatar, badge, online state).
@@ -43,6 +44,18 @@ class ConversationDirectoryService {
     await prefs.setString(_kKey, jsonEncode(_entries));
   }
 
+  /// Sync all conversations to the cloud (called after upsert).
+  Future<void> _syncToCloud(String chatId, Map<String, dynamic> meta) async {
+    await ChatSyncService.instance.syncConversation(
+      chatId: chatId,
+      name: meta['name'] as String? ?? chatId,
+      avatarAsset: meta['avatarAsset'] as String?,
+      avatarUrl: meta['avatarUrl'] as String?,
+      badge: KoraBadgeType.values[meta['badge'] as int? ?? 0],
+      isOnline: meta['isOnline'] as bool? ?? false,
+    );
+  }
+
   /// Registers/updates a conversation's display metadata. Safe to call
   /// every time a chat screen opens — it's a cheap upsert.
   Future<void> upsert({
@@ -62,6 +75,7 @@ class ConversationDirectoryService {
       'isOnline': isOnline,
     };
     await _persist();
+    _syncToCloud(chatId, _entries[chatId]!);
   }
 
   /// Returns all known chatIds with their metadata.

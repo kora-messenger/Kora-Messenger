@@ -11,6 +11,7 @@ import '../widgets/kora_input.dart';
 import '../services/auth_service.dart';
 import '../config/kora_api.dart';
 import '../services/session_manager.dart';
+import '../services/chat_sync_service.dart';
 import 'kora_home_screen.dart';
 
 /// Profile Setup — shown after successful registration verification.
@@ -306,7 +307,12 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       // Save the updated session so the app remembers login on restart
       if (result.user != null) {
         await SessionManager.instance.saveSession(result.user!);
-        await ChatThemeProvider.instance.load(); // Refresh owner/premium status for badge + gating
+        await ChatThemeProvider.instance.load();
+        // Set user email for cloud chat sync
+        final _session = await SessionManager.instance.loadSession();
+        if (_session != null && _session['email'] != null) {
+          ChatSyncService.instance.setUserEmail(_session['email'] as String);
+        } // Refresh owner/premium status for badge + gating
       }
       _navigateHome();
     } else {

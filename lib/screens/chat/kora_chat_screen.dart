@@ -31,6 +31,7 @@ import '../../config/subscription_pricing.dart';
 import '../../services/session_manager.dart';
 import '../../services/conversation_directory.dart';
 import '../suspension_screen.dart';
+import '../settings/chat_backup_screen.dart';
 
 /// Kora's main conversation screen.
 /// Opens when a user taps any conversation from the Home/Chats list.
@@ -1177,6 +1178,9 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
                 KoraMenuOption(icon: Icons.palette_outlined, label: 'Chat theme', onTap: () {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const DefaultChatThemeScreen()));
                 }),
+                KoraMenuOption(icon: Icons.cloud_backup_outlined, label: 'Chat backup', onTap: () {
+  Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatBackupScreen()));
+}),
                 KoraMenuOption(icon: Icons.cleaning_services_outlined, label: 'Clear chat', onTap: () => _showClearChatDialog()),
                 if (!_isAiChat) ...[
                   KoraMenuOption(icon: Icons.block, label: 'Block', onTap: () => _showBlockDialog(), color: Colors.red),
