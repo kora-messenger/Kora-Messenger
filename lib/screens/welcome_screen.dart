@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../theme/kora_colors.dart';
 import 'signup_screen.dart';
@@ -5,8 +6,93 @@ import 'login_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../config/kora_api.dart';
 
-class WelcomeScreen extends StatelessWidget {
+/// Paints a glowing star with a gradient trail that orbits around a center
+/// point — reused on the Welcome screen to echo the splash screen's motif.
+class _OrbitingStarPainter extends CustomPainter {
+  final double progress;
+
+  _OrbitingStarPainter(this.progress);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final orbitRadius = size.width * 0.46;
+
+    final angle = progress * 2 * math.pi - math.pi / 2;
+
+    // Trail — fading segments behind the star
+    const trailSteps = 20;
+    for (int i = trailSteps; i >= 1; i--) {
+      final trailAngle = angle - (i * 0.07);
+      final tx = center.dx + orbitRadius * math.cos(trailAngle);
+      final ty = center.dy + orbitRadius * math.sin(trailAngle);
+      final alpha = (1.0 - i / trailSteps) * 0.45;
+      final trailPaint = Paint()
+        ..color = KoraColors.purple.withValues(alpha: alpha)
+        ..style = PaintingStyle.fill;
+      canvas.drawCircle(Offset(tx, ty), (1.0 - i / trailSteps) * 2.2, trailPaint);
+    }
+
+    // Outer glow
+    final glowPaint = Paint()
+      ..color = KoraColors.purple.withValues(alpha: 0.2)
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(
+      Offset(center.dx + orbitRadius * math.cos(angle),
+             center.dy + orbitRadius * math.sin(angle)),
+      9, glowPaint,
+    );
+
+    // Star body
+    final starPaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(
+      Offset(center.dx + orbitRadius * math.cos(angle),
+             center.dy + orbitRadius * math.sin(angle)),
+      3.5, starPaint,
+    );
+
+    // Core
+    final corePaint = Paint()
+      ..color = KoraColors.blue
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(
+      Offset(center.dx + orbitRadius * math.cos(angle),
+             center.dy + orbitRadius * math.sin(angle)),
+      1.8, corePaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_OrbitingStarPainter old) => old.progress != progress;
+}
+
+class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
+
+  @override
+  State<WelcomeScreen> createState() => _WelcomeScreenState();
+}
+
+class _WelcomeScreenState extends State<WelcomeScreen>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _starController;
+
+  @override
+  void initState() {
+    super.initState();
+    _starController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 6),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _starController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,26 +116,46 @@ class WelcomeScreen extends StatelessWidget {
             children: [
               SizedBox(height: screenHeight * 0.045),
 
-              // Logo lockup — K mark + chat bubble + "KORA" / "MESSENGER"
-              Container(
-                width: 96,
-                height: 96,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(22),
-                  boxShadow: [
-                    BoxShadow(
-                      color: KoraColors.purple.withValues(alpha: 0.35),
-                      blurRadius: 30,
-                      offset: const Offset(0, 10),
+              // Logo lockup with orbiting star animation
+              SizedBox(
+                width: 160,
+                height: 160,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    // Orbiting star layer
+                    AnimatedBuilder(
+                      animation: _starController,
+                      builder: (context, child) {
+                        return CustomPaint(
+                          size: const Size(160, 160),
+                          painter: _OrbitingStarPainter(_starController.value),
+                        );
+                      },
+                    ),
+                    // Kora logo
+                    Container(
+                      width: 96,
+                      height: 96,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(22),
+                        boxShadow: [
+                          BoxShadow(
+                            color: KoraColors.purple.withValues(alpha: 0.35),
+                            blurRadius: 30,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(22),
+                        child: Image.asset(
+                          'assets/images/kora_logo_lockup.png',
+                          fit: BoxFit.cover,
+                        ),
+                      ),
                     ),
                   ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(22),
-                  child: Image.asset(
-                    'assets/images/kora_logo_lockup.png',
-                    fit: BoxFit.cover,
-                  ),
                 ),
               ),
               const SizedBox(height: 24),
