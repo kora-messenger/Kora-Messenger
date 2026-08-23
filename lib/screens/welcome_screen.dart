@@ -80,7 +80,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     _starController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 4),
-    )..forward();
+    )..repeat();
   }
 
   @override
