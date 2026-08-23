@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:speech_to_text/speech_to_text.dart';
+import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import '../config/kora_api.dart';
 
@@ -97,7 +98,7 @@ class LiveTranslationService {
 
   /// Initialize TTS — set up the engine.
   Future<void> _initTts() async {
-    await _tts.setAwaitSpeakCompletion(false);
+    _tts.awaitSpeakCompletion = false;
     _tts.setStartHandler(() {
       _isSpeaking = true;
     });
@@ -145,9 +146,9 @@ class LiveTranslationService {
     _isListening = true;
     _stt.listen(
       onResult: (result) => _onSpeechResult(result),
-      listenFor: null, // continuous
+      listenFor: null,
       pauseFor: const Duration(seconds: 3),
-      partialResults: false, // only final results
+      partialResults: false,
       localeId: _toTtsLocale(_sourceLanguage),
       onSoundLevelChange: (level) {
         // Could be used for UI waveform
