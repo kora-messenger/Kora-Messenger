@@ -9,12 +9,14 @@ import 'language_picker_screen.dart';
 /// Kora's text translation bottom sheet.
 ///
 /// Shows original message + translated text. Supports:
-/// - Language switching (retranslates to new language)
+/// - Free choice of BOTH source and target language (not just auto-detect)
+/// - Swap button — instantly flips source ⇄ target (and their text)
+/// - Refresh — re-runs translation against the backend
 /// - Show/hide original toggle
 /// - Copy translated text
 /// - Loading states ("Translating...")
 /// - Offline error handling
-/// - Auto-detected source language display
+/// - Auto-detected source language shown by default until changed
 ///
 /// Designed to feel native to Kora — uses Kora colors, typography,
 /// icons, and rounded surfaces throughout.
@@ -43,6 +45,11 @@ class _TranslateSheetState extends State<TranslateSheet>
     with SingleTickerProviderStateMixin {
   final _translationService = TranslationService.instance;
 
+  // The text currently shown as "original" — mutable so swap can flip it
+  // with the translated text, just like a real two-way translator.
+  late String _displayOriginalText;
+
+  KoraLanguage? _sourceLanguage; // null until auto-detected or user-picked
   KoraLanguage? _targetLanguage;
   TranslationResult? _result;
   bool _isTranslating = true;
@@ -54,6 +61,7 @@ class _TranslateSheetState extends State<TranslateSheet>
   @override
   void initState() {
     super.initState();
+    _displayOriginalText = widget.originalText;
     _targetLanguage = _translationService.preferredLanguage;
     _showOriginal = _translationService.showOriginal;
 
@@ -89,21 +97,25 @@ class _TranslateSheetState extends State<TranslateSheet>
       return;
     }
 
-    if (_spinController.isAnimating) {
-      _spinController.repeat();
-    } else {
-      _spinController.repeat();
-    }
+    _spinController.repeat();
 
     try {
       final result = await _translationService.translate(
-        widget.originalText,
+        _displayOriginalText,
         _targetLanguage!.code,
+        // Once the source language is known (auto-detected or user-picked),
+        // always pass it explicitly so the user's own choice of source is
+        // respected instead of re-detecting every time.
+        sourceCode: _sourceLanguage?.code,
       );
       if (mounted) {
         setState(() {
           _result = result;
           _isTranslating = false;
+          // Populate the source chip from detection the first time.
+          _sourceLanguage ??= _translationService.languageByCode(
+            result.detectedLanguageCode,
+          );
         });
       }
     } catch (e) {
@@ -119,7 +131,29 @@ class _TranslateSheetState extends State<TranslateSheet>
     }
   }
 
-  void _changeLanguage() async {
+  /// Manual refresh — re-runs translation with the current language pair.
+  void _refreshTranslate() {
+    HapticFeedback.selectionClick();
+    _doTranslate();
+  }
+
+  void _changeSourceLanguage() async {
+    final result = await Navigator.push<KoraLanguage>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LanguagePickerScreen(
+          selectedCode: _sourceLanguage?.code,
+          title: 'Translate from',
+        ),
+      ),
+    );
+    if (result != null && result.code != _sourceLanguage?.code) {
+      setState(() => _sourceLanguage = result);
+      _doTranslate();
+    }
+  }
+
+  void _changeTargetLanguage() async {
     final result = await Navigator.push<KoraLanguage>(
       context,
       MaterialPageRoute(
@@ -133,6 +167,41 @@ class _TranslateSheetState extends State<TranslateSheet>
       setState(() => _targetLanguage = result);
       _doTranslate();
     }
+  }
+
+  /// Swaps the source and target sides — e.g. "English > German" becomes
+  /// "German > English" — flipping both the selected languages AND which
+  /// text block is shown as "original" vs "translation", exactly like a
+  /// standard two-way translator swap button.
+  void _swapLanguages() {
+    if (_sourceLanguage == null || _isTranslating) return;
+
+    HapticFeedback.mediumImpact();
+
+    final oldSource = _sourceLanguage!;
+    final oldTarget = _targetLanguage!;
+    final oldOriginalText = _displayOriginalText;
+    final oldTranslatedText = _result?.translatedText ?? '';
+
+    setState(() {
+      _sourceLanguage = oldTarget;
+      _targetLanguage = oldSource;
+      _displayOriginalText = oldTranslatedText.isNotEmpty ? oldTranslatedText : oldOriginalText;
+
+      if (_result != null) {
+        _result = TranslationResult(
+          originalText: _displayOriginalText,
+          translatedText: oldOriginalText,
+          detectedLanguageCode: oldTarget.code,
+          detectedLanguageName: oldTarget.name,
+          targetLanguageCode: oldSource.code,
+          targetLanguageName: oldSource.name,
+          translatedAt: DateTime.now(),
+        );
+      }
+    });
+
+    _translationService.addRecentLanguage(oldSource.code);
   }
 
   void _copyTranslation() {
@@ -170,7 +239,7 @@ class _TranslateSheetState extends State<TranslateSheet>
       padding: EdgeInsets.only(bottom: bottomInset),
       child: ConstrainedBox(
         constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.72,
+          maxHeight: MediaQuery.of(context).size.height * 0.76,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -201,6 +270,17 @@ class _TranslateSheetState extends State<TranslateSheet>
                     ),
                   ),
                   const Spacer(),
+                  // Refresh — re-runs the translation
+                  IconButton(
+                    icon: RotationTransition(
+                      turns: _spinController,
+                      child: Icon(Icons.refresh_rounded, color: textMuted, size: 20),
+                    ),
+                    onPressed: _isTranslating ? null : _refreshTranslate,
+                    tooltip: 'Refresh translation',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                  ),
                   IconButton(
                     icon: Icon(Icons.close_rounded, color: textMuted, size: 22),
                     onPressed: () => Navigator.pop(context),
@@ -212,70 +292,69 @@ class _TranslateSheetState extends State<TranslateSheet>
             ),
             Divider(height: 1, color: border),
 
-            // ── Language selector row ──
+            // ── Language selector row: Source ⇄ Target ──
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+              padding: const EdgeInsets.fromLTRB(20, 14, 20, 8),
               child: Row(
                 children: [
-                  // Detected language badge
-                  if (_result != null && !_isTranslating) ...[
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: KoraColors.purple.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.travel_explore_rounded, size: 14, color: KoraColors.purple),
-                          const SizedBox(width: 4),
-                          Text(
-                            _result!.detectedLanguageName,
-                            style: TextStyle(
-                              color: KoraColors.purple,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
+                  // Source language chip — freely selectable, not locked to
+                  // auto-detection.
+                  Expanded(
+                    child: _buildLangChip(
+                      language: _sourceLanguage,
+                      placeholder: 'Detecting...',
+                      onTap: _changeSourceLanguage,
+                      surface: surface,
+                      textPrimary: textPrimary,
+                      textMuted: textMuted,
+                      border: border,
+                      isAutoDetected: _sourceLanguage != null &&
+                          _result != null &&
+                          _sourceLanguage!.code == _result!.detectedLanguageCode,
                     ),
-                    const SizedBox(width: 8),
-                    Icon(Icons.arrow_forward_rounded, size: 16, color: textMuted),
-                    const SizedBox(width: 8),
-                  ],
-                  // Target language selector
+                  ),
+                  const SizedBox(width: 8),
+                  // Swap button — flips source ⇄ target
                   GestureDetector(
-                    onTap: _changeLanguage,
+                    onTap: _swapLanguages,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                      width: 34,
+                      height: 34,
                       decoration: BoxDecoration(
-                        color: surface,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: border, width: 0.5),
+                        color: KoraColors.purple.withValues(alpha: 0.1),
+                        shape: BoxShape.circle,
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(_targetLanguage?.flag ?? '', style: const TextStyle(fontSize: 14)),
-                          const SizedBox(width: 6),
-                          Text(
-                            _targetLanguage?.name ?? 'Select',
-                            style: TextStyle(
-                              color: textPrimary,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: textMuted),
-                        ],
+                      child: Icon(
+                        Icons.swap_horiz_rounded,
+                        size: 18,
+                        color: KoraColors.purple,
                       ),
                     ),
                   ),
-                  const Spacer(),
-                  // Show original toggle
+                  const SizedBox(width: 8),
+                  // Target language chip
+                  Expanded(
+                    child: _buildLangChip(
+                      language: _targetLanguage,
+                      placeholder: 'Select',
+                      onTap: _changeTargetLanguage,
+                      surface: surface,
+                      textPrimary: textPrimary,
+                      textMuted: textMuted,
+                      border: border,
+                      isAutoDetected: false,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // ── Show original toggle ──
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
                   GestureDetector(
                     onTap: () {
                       setState(() => _showOriginal = !_showOriginal);
@@ -324,7 +403,7 @@ class _TranslateSheetState extends State<TranslateSheet>
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          widget.originalText,
+                          _displayOriginalText,
                           style: TextStyle(
                             color: textPrimary,
                             fontSize: 15,
@@ -383,9 +462,16 @@ class _TranslateSheetState extends State<TranslateSheet>
                           ),
                           const SizedBox(width: 16),
                           _buildAction(
-                            Icons.language_rounded,
-                            'Change language',
-                            _changeLanguage,
+                            Icons.refresh_rounded,
+                            'Refresh',
+                            _refreshTranslate,
+                            textSecondary,
+                          ),
+                          const SizedBox(width: 16),
+                          _buildAction(
+                            Icons.swap_horiz_rounded,
+                            'Swap',
+                            _swapLanguages,
                             textSecondary,
                           ),
                         ],
@@ -395,6 +481,63 @@ class _TranslateSheetState extends State<TranslateSheet>
                 ),
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLangChip({
+    required KoraLanguage? language,
+    required String placeholder,
+    required VoidCallback onTap,
+    required Color surface,
+    required Color textPrimary,
+    required Color textMuted,
+    required Color border,
+    required bool isAutoDetected,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: surface,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: border, width: 0.5),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(language?.flag ?? '🌐', style: const TextStyle(fontSize: 15)),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    language?.name ?? placeholder,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: textPrimary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  if (isAutoDetected)
+                    Text(
+                      'Detected',
+                      style: TextStyle(
+                        color: KoraColors.purple.withValues(alpha: 0.8),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: textMuted),
           ],
         ),
       ),

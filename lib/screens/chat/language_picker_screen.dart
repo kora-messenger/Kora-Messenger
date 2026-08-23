@@ -62,6 +62,19 @@ class _LanguagePickerScreenState extends State<LanguagePickerScreen> {
     final recent = TranslationService.instance.recentLanguages;
     final preferred = TranslationService.instance.preferredLanguage;
 
+    // Languages already shown under Preferred / Recently Used should not
+    // also appear again in the All Languages / Results list below.
+    final excludedCodes = <String>{
+      preferred.code,
+      ...recent.map((l) => l.code),
+    };
+    // Only hide duplicates from the default "All Languages" view — while
+    // actively searching, show every match so users can still find and
+    // re-select a language that's already Preferred/Recent.
+    final visibleLanguages = _query.isEmpty
+        ? _filtered.where((l) => !excludedCodes.contains(l.code)).toList()
+        : _filtered;
+
     return Scaffold(
       backgroundColor: bg,
       appBar: AppBar(
@@ -136,20 +149,22 @@ class _LanguagePickerScreenState extends State<LanguagePickerScreen> {
                 )),
           ],
 
-          // ── All languages ──
-          _buildSectionHeader(
-            _query.isEmpty ? 'ALL LANGUAGES' : 'RESULTS (${_filtered.length})',
-            textMuted,
-          ),
-          ..._filtered.map((lang) => _buildLanguageTile(
-                context,
-                lang,
-                card: card,
-                textPrimary: textPrimary,
-                textSecondary: textSecondary,
-                textMuted: textMuted,
-                border: border,
-              )),
+          // ── All languages (excludes anything already listed above) ──
+          if (visibleLanguages.isNotEmpty) ...[
+            _buildSectionHeader(
+              _query.isEmpty ? 'ALL LANGUAGES' : 'RESULTS (${visibleLanguages.length})',
+              textMuted,
+            ),
+            ...visibleLanguages.map((lang) => _buildLanguageTile(
+                  context,
+                  lang,
+                  card: card,
+                  textPrimary: textPrimary,
+                  textSecondary: textSecondary,
+                  textMuted: textMuted,
+                  border: border,
+                )),
+          ],
 
           if (_filtered.isEmpty && _query.isNotEmpty)
             Padding(
