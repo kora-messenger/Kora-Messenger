@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../theme/kora_colors.dart';
 import '../../widgets/kora_empty_state.dart';
 
-/// "Channels" tab — placeholder until channels/broadcast are built.
+/// "Community" tab — placeholder until communities/broadcast are built.
 class ChannelsTab extends StatelessWidget {
   const ChannelsTab({super.key});
 
@@ -22,7 +22,7 @@ class ChannelsTab extends StatelessWidget {
               child: Row(
                 children: [
                   Text(
-                    'Channels',
+                    'Community',
                     style: TextStyle(
                       color: textPrimary,
                       fontSize: 24,

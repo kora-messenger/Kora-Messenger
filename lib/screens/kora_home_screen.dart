@@ -106,7 +106,7 @@ class _KoraHomeScreenState extends State<KoraHomeScreen> {
                 _navItem(0, Icons.chat_bubble_outline, Icons.chat_bubble, 'Chats', textSecondary),
                 _navItem(1, Icons.call_outlined, Icons.call, 'Calls', textSecondary),
                 _navItem(2, Icons.donut_large_outlined, Icons.donut_large, 'Status', textSecondary),
-                _navItem(3, Icons.campaign_outlined, Icons.campaign, 'Channels', textSecondary),
+                _navItem(3, Icons.groups_outlined, Icons.groups, 'Community', textSecondary),
                 _navItem(4, Icons.person_outline, Icons.person, 'Profile', textSecondary),
               ],
             ),
