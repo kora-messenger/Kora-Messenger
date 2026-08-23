@@ -82,12 +82,10 @@ class _KoraHomeScreenState extends State<KoraHomeScreen> {
 
   /// Jump to a tab programmatically (used by child tabs that need
   /// to navigate the user to another section).
+  /// Jump to a tab instantly — used by nav bar taps so they feel
+  /// the same as before the swipe feature was added.
   void _goToTab(int index) {
-    _pageController.animateToPage(
-      index,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-    );
+    _pageController.jumpToPage(index);
   }
 
   @override
