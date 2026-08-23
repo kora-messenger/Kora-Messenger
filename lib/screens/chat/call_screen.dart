@@ -60,6 +60,7 @@ class _CallScreenState extends State<CallScreen> {
   bool _translationOn = false;
   bool _captionsOn = true;
   bool _translationSheetOpen = false;
+  bool _showMorePanel = false;
   DateTime? _callStartTime;
 
   // Call translation: STT + data channel caption streams
@@ -355,6 +356,7 @@ class _CallScreenState extends State<CallScreen> {
                 ? _buildVideoCallView()
                 : _buildVoiceCallView(),
             if (_translationOn) _buildTranslationOverlay(),
+            if (_showMorePanel) _buildMorePanel(widget.isVideoCall),
           ],
         ),
       ),
@@ -609,14 +611,8 @@ class _CallScreenState extends State<CallScreen> {
               _buildControlButton(
                 icon: Icons.more_horiz_rounded,
                 label: 'More',
-                isActive: false,
-                onTap: () => _showMoreSheet(isVideo),
-              ),
-              _buildControlButton(
-                icon: Icons.translate_rounded,
-                label: 'Translate',
-                isActive: _translationOn,
-                onTap: _toggleTranslation,
+                isActive: _showMorePanel,
+                onTap: () => setState(() => _showMorePanel = !_showMorePanel),
               ),
               _buildControlButton(
                 icon: Icons.call_end_rounded,
@@ -632,55 +628,145 @@ class _CallScreenState extends State<CallScreen> {
     );
   }
 
-  /// "More" overflow sheet — houses less-frequent actions (flip camera on
-  /// video calls, live-captions toggle) without cluttering the main grid.
-  void _showMoreSheet(bool isVideo) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: KoraColors.darkCard,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (sheetContext) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 8),
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(2),
+  /// Inline "More" popup — a small floating card that appears above the
+  /// bottom control panel inside the call screen (not a separate modal
+  /// route). Houses Translation, Flip Camera (video), and Live Captions.
+  Widget _buildMorePanel(bool isVideo) {
+    return Positioned(
+      left: 0,
+      right: 0,
+      bottom: 0,
+      child: GestureDetector(
+        // Tap the dimmed backdrop outside the card to dismiss
+        behavior: HitTestBehavior.opaque,
+        onTap: () => setState(() => _showMorePanel = false),
+        child: Container(
+          color: Colors.black.withValues(alpha: 0.5),
+          alignment: Alignment.bottomCenter,
+          child: GestureDetector(
+            onTap: () {}, // swallow taps on the card itself
+            child: Container(
+              width: double.infinity,
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              decoration: BoxDecoration(
+                color: KoraColors.darkCard,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.08),
+                  width: 0.5,
                 ),
               ),
-              const SizedBox(height: 12),
-              if (isVideo)
-                ListTile(
-                  leading: const Icon(Icons.flip_camera_ios_rounded, color: Colors.white),
-                  title: const Text('Flip camera', style: TextStyle(color: Colors.white)),
-                  onTap: () {
-                    Navigator.pop(sheetContext);
-                    _webrtcService.switchCamera();
-                  },
-                ),
-              ListTile(
-                leading: Icon(
-                  _captionsOn ? Icons.closed_caption_rounded : Icons.closed_caption_off_rounded,
-                  color: Colors.white,
-                ),
-                title: const Text('Live captions', style: TextStyle(color: Colors.white)),
-                onTap: () {
-                  setState(() => _captionsOn = !_captionsOn);
-                  Navigator.pop(sheetContext);
-                },
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Drag handle
+                  Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Translation toggle
+                  _buildMoreOption(
+                    icon: Icons.translate_rounded,
+                    label: 'Translate',
+                    isActive: _translationOn,
+                    onTap: () {
+                      _toggleTranslation();
+                      if (!_translationOn) setState(() => _showMorePanel = false);
+                    },
+                  ),
+
+                  const Divider(height: 1, color: Color(0xFF2E2E42)),
+
+                  // Flip camera (video calls only)
+                  if (isVideo) ...[
+                    _buildMoreOption(
+                      icon: Icons.flip_camera_ios_rounded,
+                      label: 'Flip camera',
+                      isActive: false,
+                      onTap: () {
+                        _webrtcService.switchCamera();
+                        setState(() => _showMorePanel = false);
+                      },
+                    ),
+                    const Divider(height: 1, color: Color(0xFF2E2E42)),
+                  ],
+
+                  // Live captions toggle
+                  _buildMoreOption(
+                    icon: _captionsOn
+                        ? Icons.closed_caption_rounded
+                        : Icons.closed_caption_off_rounded,
+                    label: 'Live captions',
+                    isActive: _captionsOn,
+                    onTap: () {
+                      setState(() {
+                        _captionsOn = !_captionsOn;
+                        _showMorePanel = false;
+                      });
+                    },
+                  ),
+                ],
               ),
-              const SizedBox(height: 8),
-            ],
+            ),
           ),
-        );
-      },
+        ),
+      ),
+    );
+  }
+
+  /// A single row inside the More popup card.
+  Widget _buildMoreOption({
+    required IconData icon,
+    required String label,
+    required bool isActive,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        child: Row(
+          children: [
+            Icon(icon, size: 22,
+              color: isActive ? KoraColors.purple : Colors.white),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(label,
+                style: TextStyle(
+                  color: isActive ? KoraColors.purple : Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            if (isActive)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                decoration: BoxDecoration(
+                  color: KoraColors.purple.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text(
+                  'ON',
+                  style: TextStyle(
+                    color: KoraColors.purple,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 
