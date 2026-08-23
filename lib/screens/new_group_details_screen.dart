@@ -342,17 +342,8 @@ class _NewGroupDetailsScreenState extends State<NewGroupDetailsScreen> {
       return;
     }
 
-    if (_members.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Add at least one member to the group.'),
-          backgroundColor: KoraColors.purple,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
-
+    // No minimum member count required — creating solo is allowed;
+    // more people can be added to the group afterward.
     setState(() => _creating = true);
 
     // TODO: persist the group once the Group entity/backend exists.

@@ -63,17 +63,8 @@ class _NewGroupScreenState extends State<NewGroupScreen> {
   }
 
   void _continue() {
-    if (_selectedIds.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Select at least one contact to continue.'),
-          backgroundColor: KoraColors.purple,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
-
+    // No minimum selection required — the user can create a group
+    // solo and add members later from the group's own screen.
     final selectedContacts =
         _contacts.where((c) => _selectedIds.contains(c['koraId'])).toList();
 

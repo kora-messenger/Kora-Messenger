@@ -24,6 +24,7 @@ dependencies:
   cached_network_image: ^3.4.1
   flutter_local_notifications: ^20.0.0
   mobile_scanner: ^7.0.0
+  screen_brightness: ^1.0.1
   connectivity_plus: ^7.0.0
   flutter_sound: ^9.16.3
   just_audio: ^0.10.6
