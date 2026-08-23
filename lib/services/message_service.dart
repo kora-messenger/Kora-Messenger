@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'session_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/message_model.dart';
 import '../models/chat_models.dart';
@@ -434,17 +435,19 @@ class MessageService {
 
   void _seedWelcomeMessage() {
     final now = DateTime.now();
+    final userName = _getUserName();
+
+    // Kora Support welcome message
     _cache['kora_support'] = [
       KoraMessage(
         id: 'welcome_1',
-        text: 'Welcome to Kora Messenger! 🎉\n\n'
-            'Congratulations — you\'ve been given 7 days of Kora Premium for free!\n\n'
-            'With Premium you get: custom app icons, premium wallpapers, '
-            'custom chat bubbles, animated emoji, real-time translation, '
-            'infinite reactions, faster download speeds, a profile badge, '
-            'priority support, and no ads.\n\n'
-            'Your free Premium trial will expire in 7 days. '
-            'Enjoy! ✨',
+        text: '👋 Welcome to Kora, $userName!\n\n'
+            'We\'re happy to have you here.\n\n'
+            '🎁 You\'ve received 7 days of Kora Premium — FREE!\n\n'
+            'Your Premium experience is now active and ready for you to explore.\n\n'
+            'If you ever need help with Kora, you can contact us here.\n\n'
+            'Welcome to Kora! 💜\n\n'
+            '— Kora Support',
         timestamp: now,
         isMe: false,
         isAi: true,
@@ -452,6 +455,33 @@ class MessageService {
       ),
     ];
     _persist('kora_support');
+
+    // Kora AI Assistant welcome message
+    _cache['kora_ai'] = [
+      KoraMessage(
+        id: 'ai_welcome_1',
+        text: '🤖 Hello, $userName!\n\n'
+            'I\'m your Kora AI Assistant.\n\n'
+            'I\'m here to help you explore Kora, answer questions, '
+            'translate supported content, and help you understand Kora\'s features.\n\n'
+            'Whenever you need help, you can chat with me here.\n\n'
+            'Welcome to Kora! 🚀',
+        timestamp: now.add(const Duration(seconds: 1)),
+        isMe: false,
+        isAi: true,
+        status: MessageStatus.none,
+      ),
+    ];
+    _persist('kora_ai');
+  }
+
+  /// Gets the current user's full name from the session for personalization.
+  /// Falls back to a generic greeting if the name isn't available yet.
+  String _getUserName() {
+    final user = SessionManager.instance.currentUser;
+    final name = user?.fullName ?? '';
+    if (name.trim().isNotEmpty) return name.trim();
+    return 'there';
   }
 
   void _seedExpiryMessage() {

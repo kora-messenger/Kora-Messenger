@@ -269,6 +269,7 @@ class _VerificationScreenState extends State<VerificationScreen>
 
       await SessionManager.instance.saveSession(mergedUser);
       await ChatThemeProvider.instance.load(); // Refresh owner/premium status for badge + gating
+      await ChatThemeProvider.instance.syncPremiumFromSession(mergedUser);
       if (!mounted) return;
 
       Navigator.of(context).pushReplacement(
@@ -316,6 +317,13 @@ class _VerificationScreenState extends State<VerificationScreen>
     if (!mounted) return;
     setState(() => _isVerifying = false);
 
+    // Sync premium from the saved session before navigating home
+    final session = await SessionManager.instance.loadSession();
+    if (session != null) {
+      await ChatThemeProvider.instance.syncPremiumFromSession(session);
+    }
+
+    if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const KoraHomeScreen()),
       (route) => false,

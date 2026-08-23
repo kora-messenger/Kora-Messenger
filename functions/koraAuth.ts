@@ -153,6 +153,42 @@ async function sendSecurityAlertEmail(toEmail: string, deviceName: string, actio
   });
 }
 
+// ── Welcome email for new users ────────────────────────
+async function sendWelcomeEmail(toEmail: string, fullName: string) {
+  const subject = 'Welcome to Kora Messenger 🎉';
+  const displayName = fullName || 'there';
+
+  const bodyHtml = `<p style="margin:0 0 16px;">Welcome to Kora, ${displayName}! 👋</p>
+    <p style="margin:0 0 16px;">We're excited to have you with us.</p>
+    <p style="margin:0 0 16px;">Your Kora account has been successfully created.</p>
+    <div style="background:linear-gradient(135deg,rgba(139,92,246,0.12) 0%,rgba(59,130,246,0.12) 100%);border:1px solid rgba(139,92,246,0.2);border-radius:16px;padding:20px;margin:0 0 20px;text-align:center;">
+      <p style="margin:0 0 8px;font-size:20px;">🎁</p>
+      <p style="margin:0 0 4px;color:#FFFFFF;font-size:18px;font-weight:700;">7 Days of Kora Premium — FREE</p>
+      <p style="margin:0;color:#A0A0B8;font-size:14px;">Your Premium experience is now available through your Kora account.</p>
+    </div>
+    <p style="margin:0 0 8px;">Open Kora and start exploring.</p>
+    <div style="text-align:center;margin:24px 0;">
+      <a href="https://koramessenger.app" style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#8B5CF6 0%,#3B82F6 100%);border-radius:14px;color:#FFFFFF;text-decoration:none;font-size:16px;font-weight:600;box-shadow:0 4px 20px rgba(99,102,241,0.3);">Open Kora Messenger</a>
+    </div>
+    <p style="margin:16px 0 0;color:#A0A0B8;font-size:15px;">Welcome to the Kora community. 💜</p>
+    <p style="margin:8px 0 0;color:#6B6B80;font-size:14px;font-style:italic;">The Kora Team</p>
+    <p style="margin:4px 0 0;color:#4A4A5E;font-size:13px;">Connect. Communicate. Create. Translate. Share.</p>`;
+
+  const html = premiumEmailTemplate('Welcome to Kora!', bodyHtml);
+
+  await getTransporter().sendMail({
+    from: EMAIL_FROM,
+    to: toEmail,
+    subject,
+    html,
+    headers: {
+      'Date': new Date().toUTCString(),
+      'Message-ID': `<${Date.now()}.${Math.random().toString(36).substring(2)}@koramessenger.app>`,
+      'Reply-To': EMAIL_FROM,
+    },
+  });
+}
+
 function jsonResponse(data: any, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
@@ -186,6 +222,8 @@ function getUserFromRecord(record: any) {
     profileCompleted: record.data?.profileCompleted ?? record.profileCompleted ?? false,
     phoneNumber: record.data?.phoneNumber ?? record.phoneNumber ?? '',
     isPremium: computeIsPremium(record),
+    premiumExpiresAt: record.data?.premiumExpiresAt ?? record.premiumExpiresAt ?? null,
+    premiumSource: record.data?.premiumSource ?? record.premiumSource ?? '',
   };
 }
 
@@ -285,10 +323,24 @@ Deno.serve(async (req: Request) => {
       const passwordHash = crypto.createHash('sha256').update(userData.password || '').digest('hex');
       const koraId = `KM-${String(Math.floor(100000000 + Math.random() * 900000000))}`;
 
+      // Activate the existing 7-day Premium trial on the user's account.
+      // This is tied to the account, not the device — it persists across
+      // logins and devices.
+      const trialStart = new Date();
+      const trialExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
       const newUser = await db.entities.KoraUser.create({
         email, passwordHash, username: userData.username, koraId,
         fullName: userData.fullName || '', phoneNumber: userData.phoneNumber || '', bio: '', avatarUrl: '', isVerified: true, profileCompleted: false,
+        isPremium: true, premiumExpiresAt: trialExpiry.toISOString(), premiumSource: 'trial',
       });
+
+      // Send welcome email (non-blocking — don't fail signup if email fails)
+      try {
+        await sendWelcomeEmail(email, userData.fullName || '');
+      } catch (e) {
+        console.error('Failed to send welcome email:', e);
+      }
 
       return jsonResponse({ success: true, user: getUserFromRecord(newUser) });
     }

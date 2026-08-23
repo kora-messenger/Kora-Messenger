@@ -290,11 +290,14 @@ class _LogInScreenState extends State<LogInScreen> {
           await SessionManager.instance.saveSession(result.user!);
         }
         await ChatThemeProvider.instance.load();
-        // Set user email for cloud chat sync
+        // Sync premium from backend session
         final session = await SessionManager.instance.loadSession();
-        if (session != null && session['email'] != null) {
-          ChatSyncService.instance.setUserEmail(session['email'] as String);
-        } // Refresh owner/premium status for badge + gating
+        if (session != null) {
+          await ChatThemeProvider.instance.syncPremiumFromSession(session);
+          if (session['email'] != null) {
+            ChatSyncService.instance.setUserEmail(session['email'] as String);
+          }
+        }
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('kora_last_email', email);
         if (prefs.getString('kora_device_id') == null || prefs.getString('kora_device_id')!.isEmpty) {

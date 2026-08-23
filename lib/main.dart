@@ -285,6 +285,7 @@ class _SplashScreenState extends State<SplashScreen>
           final fresh = await auth.getProfile(userId: userId);
           if (fresh.success && fresh.user != null) {
             await SessionManager.instance.saveSession(fresh.user!);
+            await ChatThemeProvider.instance.syncPremiumFromSession(fresh.user!);
           }
         }
       } catch (_) {}

@@ -308,11 +308,13 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       if (result.user != null) {
         await SessionManager.instance.saveSession(result.user!);
         await ChatThemeProvider.instance.load();
+        // Sync premium status from the backend session to local storage
+        await ChatThemeProvider.instance.syncPremiumFromSession(result.user!);
         // Set user email for cloud chat sync
         final session = await SessionManager.instance.loadSession();
         if (session != null && session['email'] != null) {
           ChatSyncService.instance.setUserEmail(session['email'] as String);
-        } // Refresh owner/premium status for badge + gating
+        }
       }
       _navigateHome();
     } else {
@@ -323,7 +325,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
   void _navigateHome() {
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const KoraHomeScreen()),
+      MaterialPageRoute(
+        builder: (_) => const KoraHomeScreen(isNewUser: true),
+      ),
       (route) => false,
     );
   }

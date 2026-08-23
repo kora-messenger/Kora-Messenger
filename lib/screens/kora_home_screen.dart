@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/kora_colors.dart';
+import '../theme/chat_theme_provider.dart';
+import '../widgets/new_user_welcome_popup.dart';
+import '../services/session_manager.dart';
 import 'home/calls_tab.dart';
 import 'home/channels_tab.dart';
 import 'home/chats_tab.dart';
@@ -10,7 +14,9 @@ import '../services/permission_service.dart';
 /// Main Kora experience — hosts the bottom navigation and switches
 /// between Chats, Calls, Status, Channels, and Profile.
 class KoraHomeScreen extends StatefulWidget {
-  const KoraHomeScreen({super.key});
+  final bool isNewUser;
+
+  const KoraHomeScreen({super.key, this.isNewUser = false});
 
   @override
   State<KoraHomeScreen> createState() => _KoraHomeScreenState();
@@ -24,6 +30,39 @@ class _KoraHomeScreenState extends State<KoraHomeScreen> {
     super.initState();
     // Ask for essential permissions once on first Home visit.
     KoraPermissionService.requestEssentialOnce();
+    // Show the new-user welcome popup if this is a first-time visitor.
+    if (widget.isNewUser) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showWelcomePopup();
+      });
+    }
+  }
+
+  Future<void> _showWelcomePopup() async {
+    if (!mounted) return;
+
+    // Per-account flag so the popup only shows once per user.
+    final prefs = await SharedPreferences.getInstance();
+    final session = await SessionManager.instance.loadSession();
+    final email = session?['email'] as String? ?? '';
+    final popupKey = 'kora_welcome_popup_shown_$email';
+    if (prefs.getBool(popupKey) == true) return;
+
+    await prefs.setBool(popupKey, true);
+
+    if (!mounted) return;
+
+    final userName = (session?['fullName'] as String?) ?? '';
+    if (mounted) {
+      Navigator.of(context).push(
+        PageRouteBuilder(
+          opaque: false,
+          barrierDismissible: false,
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              NewUserWelcomePopup(userFullName: userName),
+        ),
+      );
+    }
   }
 
   void _goToProfile() => setState(() => _tabIndex = 4);

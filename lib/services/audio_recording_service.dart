@@ -19,6 +19,11 @@ class AudioRecordingService {
   bool _isPaused = false;
   String? _currentPath;
 
+  // Track the onProgress subscription so we can cancel it cleanly
+  // before stopping the recorder — prevents the
+  // "No active stream to cancel" PlatformException.
+  StreamSubscription? _onProgressSub;
+
   // Stream controller for live amplitude data (0.0–1.0)
   final StreamController<double> _amplitudeController =
       StreamController<double>.broadcast();
@@ -69,8 +74,15 @@ class AudioRecordingService {
     _isPaused = false;
     _currentPath = path;
 
+    // Cancel any previous onProgress subscription before starting a new one.
+    // flutter_sound reuses the same EventChannel — without this, multiple
+    // listen() calls accumulate and cause "No active stream to cancel"
+    // PlatformException when stopRecorder() is called.
+    await _onProgressSub?.cancel();
+    _onProgressSub = null;
+
     // Stream real amplitude data from the recorder's onProgress callback
-    _recorder.onProgress!.listen((e) {
+    _onProgressSub = _recorder.onProgress!.listen((e) {
       if (!_isRecording || _isPaused) return;
 
       // e.decibels gives dB level (typically -160 to 0)
@@ -107,19 +119,39 @@ class AudioRecordingService {
   Future<String?> stopRecording() async {
     if (!_isRecording) return null;
 
-    final path = await _recorder.stopRecorder();
-    _isRecording = false;
-    _isPaused = false;
-    _currentPath = null;
+    // Cancel the onProgress subscription BEFORE stopping the recorder.
+    // This prevents the "No active stream to cancel" PlatformException
+    // that occurs when flutter_sound tries to cancel its internal
+    // EventChannel stream after it has already been torn down.
+    await _onProgressSub?.cancel();
+    _onProgressSub = null;
 
-    if (path != null && !File(path).existsSync()) {
+    try {
+      final path = await _recorder.stopRecorder();
+      _isRecording = false;
+      _isPaused = false;
+      _currentPath = null;
+
+      if (path != null && !File(path).existsSync()) {
+        return null;
+      }
+      return path;
+    } catch (e) {
+      // Recorder may already be stopped — reset state gracefully
+      _isRecording = false;
+      _isPaused = false;
+      _currentPath = null;
       return null;
     }
-    return path;
   }
 
   /// Cancel recording and delete the temp file.
   Future<void> cancelRecording() async {
+    // Cancel the onProgress subscription first to avoid
+    // "No active stream to cancel" PlatformException.
+    await _onProgressSub?.cancel();
+    _onProgressSub = null;
+
     if (_isRecording) {
       try {
         await _recorder.stopRecorder();
@@ -138,6 +170,8 @@ class AudioRecordingService {
   }
 
   void dispose() {
+    _onProgressSub?.cancel();
+    _onProgressSub = null;
     if (_isInitialized) {
       try {
         _recorder.closeRecorder();

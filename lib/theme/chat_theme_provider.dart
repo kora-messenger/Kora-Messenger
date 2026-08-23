@@ -241,6 +241,43 @@ class ChatThemeProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Syncs premium status from the backend session into local storage.
+  /// Called after login/registration to ensure the device reflects the
+  /// account's premium state (trial, paid, or expired).
+  /// Only activates premium — never revokes it if already active from
+  /// a local source (e.g. MessageService trial or PaymentService).
+  Future<void> syncPremiumFromSession(Map<String, dynamic> userData) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    // Owner accounts are always premium
+    final email = (userData['email'] as String?)?.toLowerCase().trim() ?? '';
+    if (kOwnerEmails.contains(email)) {
+      _isPremium = true;
+      _isOwnerAccount = true;
+      await prefs.setBool(_kIsPremium, true);
+      notifyListeners();
+      return;
+    }
+
+    final isPremium = userData['isPremium'] == true;
+    final premiumExpiresAt = userData['premiumExpiresAt'] as String?;
+    final premiumSource = userData['premiumSource'] as String? ?? '';
+
+    if (isPremium) {
+      _isPremium = true;
+      await prefs.setBool(_kIsPremium, true);
+      // Sync the expiry from the backend so it persists across devices
+      if (premiumExpiresAt != null) {
+        final expiryMs = DateTime.parse(premiumExpiresAt).millisecondsSinceEpoch;
+        await prefs.setInt('premium_expiry', expiryMs);
+      }
+      if (premiumSource.isNotEmpty) {
+        await prefs.setString('premium_plan', premiumSource);
+      }
+    }
+    notifyListeners();
+  }
+
   ChatThemePreset get activeTheme {
     final preset = kDefaultChatThemes.firstWhere(
       (t) => t.id == _themeId,
