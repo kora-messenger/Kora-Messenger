@@ -368,7 +368,7 @@ class _CallScreenState extends State<CallScreen> {
     return Positioned(
       left: 0,
       right: 0,
-      bottom: widget.isVideoCall ? 150 : 170,
+      bottom: widget.isVideoCall ? 210 : 260,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -425,26 +425,25 @@ class _CallScreenState extends State<CallScreen> {
     );
   }
 
-  /// Voice call view — gradient background, avatar, controls.
+  /// Voice call view — Kora's deep navy/black surface, top bar with
+  /// contact info + encryption lock, large centered avatar, and a
+  /// rounded bottom panel with the 2×3 control grid.
   Widget _buildVoiceCallView() {
     return Container(
-      decoration: const BoxDecoration(
-        gradient: KoraColors.brandGradient,
-      ),
+      color: KoraColors.deepNavy,
       child: Column(
         children: [
-          const Spacer(flex: 2),
+          const SizedBox(height: 8),
+          _buildTopBar(),
+          const Spacer(flex: 3),
 
           // Avatar
           Container(
-            width: 120,
-            height: 120,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 3),
-            ),
+            width: 140,
+            height: 140,
+            decoration: const BoxDecoration(shape: BoxShape.circle),
             child: CircleAvatar(
-              backgroundColor: Colors.white.withValues(alpha: 0.15),
+              backgroundColor: KoraColors.darkCard,
               backgroundImage: widget.avatarUrl != null
                   ? NetworkImage(widget.avatarUrl!)
                   : null,
@@ -455,7 +454,7 @@ class _CallScreenState extends State<CallScreen> {
                           : '?',
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 48,
+                        fontSize: 52,
                         fontWeight: FontWeight.w600,
                       ),
                     )
@@ -463,37 +462,225 @@ class _CallScreenState extends State<CallScreen> {
             ),
           ),
 
-          const SizedBox(height: 24),
+          const Spacer(flex: 4),
 
-          // Name
-          Text(
-            widget.contactName,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 28,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-
-          const SizedBox(height: 8),
-
-          // Status
-          Text(
-            _statusText,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.7),
-              fontSize: 16,
-            ),
-          ),
-
-          const Spacer(flex: 3),
-
-          // Controls
-          _buildControls(false),
-
-          const SizedBox(height: 48),
+          // Bottom rounded control panel
+          _buildBottomControlPanel(false),
         ],
       ),
+    );
+  }
+
+  /// Top bar — minimize (left), contact name + encryption/status lock
+  /// line (center), add-person (right). Mirrors WhatsApp's call header.
+  Widget _buildTopBar() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Minimize — pops this screen without ending the call.
+          _buildTopBarIcon(
+            icon: Icons.close_fullscreen_rounded,
+            onTap: () => Navigator.of(context).pop(),
+          ),
+          Expanded(
+            child: Column(
+              children: [
+                const SizedBox(height: 6),
+                Text(
+                  widget.contactName,
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.lock_rounded,
+                      size: 11,
+                      color: Colors.white.withValues(alpha: 0.55),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      _callState == 'connected'
+                          ? _durationString
+                          : 'End-to-end encrypted',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.55),
+                        fontSize: 12.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          // Add participant — group calling isn't available yet.
+          _buildTopBarIcon(
+            icon: Icons.person_add_alt_1_rounded,
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Group calls are coming soon')),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTopBarIcon({required IconData icon, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.12),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: Colors.white, size: 18),
+      ),
+    );
+  }
+
+  /// Rounded bottom panel with a 2×3 control grid, matching the
+  /// requested call-screen layout (Speaker/Video/Mute, More/Translate/End).
+  Widget _buildBottomControlPanel(bool isVideo) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(20, 26, 20, 40),
+      decoration: const BoxDecoration(
+        color: KoraColors.darkCard,
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(28),
+          topRight: Radius.circular(28),
+        ),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildControlButton(
+                icon: Icons.volume_up_rounded,
+                label: 'Speaker',
+                isActive: _isSpeakerOn,
+                onTap: _toggleSpeaker,
+              ),
+              if (isVideo)
+                _buildControlButton(
+                  icon: _isCameraOn ? Icons.videocam_rounded : Icons.videocam_off_rounded,
+                  label: 'Video',
+                  isActive: _isCameraOn,
+                  onTap: _toggleCamera,
+                )
+              else
+                _buildControlButton(
+                  icon: Icons.videocam_rounded,
+                  label: 'Video',
+                  isActive: false,
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Video calling isn't available for this call yet")),
+                    );
+                  },
+                ),
+              _buildControlButton(
+                icon: _isMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
+                label: _isMuted ? 'Unmute' : 'Mute',
+                isActive: _isMuted,
+                onTap: _toggleMute,
+              ),
+            ],
+          ),
+          const SizedBox(height: 22),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildControlButton(
+                icon: Icons.more_horiz_rounded,
+                label: 'More',
+                isActive: false,
+                onTap: () => _showMoreSheet(isVideo),
+              ),
+              _buildControlButton(
+                icon: Icons.translate_rounded,
+                label: 'Translate',
+                isActive: _translationOn,
+                onTap: _toggleTranslation,
+              ),
+              _buildControlButton(
+                icon: Icons.call_end_rounded,
+                label: 'End',
+                isActive: false,
+                isEndCall: true,
+                onTap: _endCall,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// "More" overflow sheet — houses less-frequent actions (flip camera on
+  /// video calls, live-captions toggle) without cluttering the main grid.
+  void _showMoreSheet(bool isVideo) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: KoraColors.darkCard,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 8),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 12),
+              if (isVideo)
+                ListTile(
+                  leading: const Icon(Icons.flip_camera_ios_rounded, color: Colors.white),
+                  title: const Text('Flip camera', style: TextStyle(color: Colors.white)),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _webrtcService.switchCamera();
+                  },
+                ),
+              ListTile(
+                leading: Icon(
+                  _captionsOn ? Icons.closed_caption_rounded : Icons.closed_caption_off_rounded,
+                  color: Colors.white,
+                ),
+                title: const Text('Live captions', style: TextStyle(color: Colors.white)),
+                onTap: () {
+                  setState(() => _captionsOn = !_captionsOn);
+                  Navigator.pop(sheetContext);
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -530,31 +717,12 @@ class _CallScreenState extends State<CallScreen> {
           ),
         ),
 
-        // Top info bar
+        // Top bar — same minimize / name+lock / add-person header as voice calls.
         Positioned(
-          top: 16,
+          top: 8,
           left: 0,
           right: 0,
-          child: Column(
-            children: [
-              Text(
-                widget.contactName,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                _statusText,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.7),
-                  fontSize: 14,
-                ),
-              ),
-            ],
-          ),
+          child: SafeArea(bottom: false, child: _buildTopBar()),
         ),
 
         // Local video PiP
@@ -578,93 +746,12 @@ class _CallScreenState extends State<CallScreen> {
             ),
           ),
 
-        // Bottom controls
+        // Bottom rounded control panel — same grid style as voice calls.
         Positioned(
           bottom: 0,
           left: 0,
           right: 0,
-          child: Container(
-            padding: const EdgeInsets.only(bottom: 48, top: 40),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.bottomCenter,
-                end: Alignment.topCenter,
-                colors: [
-                  Colors.black.withValues(alpha: 0.7),
-                  Colors.transparent,
-                ],
-              ),
-            ),
-            child: _buildControls(true),
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// Call control buttons.
-  Widget _buildControls(bool isVideo) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        // Mute
-        _buildControlButton(
-          icon: _isMuted ? Icons.mic_off : Icons.mic,
-          label: _isMuted ? 'Unmute' : 'Mute',
-          isActive: _isMuted,
-          onTap: _toggleMute,
-        ),
-
-        // Speaker (voice) / Camera (video)
-        if (isVideo)
-          _buildControlButton(
-            icon: _isCameraOn ? Icons.videocam : Icons.videocam_off,
-            label: _isCameraOn ? 'Camera' : 'Off',
-            isActive: !_isCameraOn,
-            onTap: _toggleCamera,
-          )
-        else
-          _buildControlButton(
-            icon: Icons.volume_up,
-            label: 'Speaker',
-            isActive: _isSpeakerOn,
-            onTap: _toggleSpeaker,
-          ),
-
-        // Switch camera (video only)
-        if (isVideo)
-          _buildControlButton(
-            icon: Icons.flip_camera_ios,
-            label: 'Flip',
-            isActive: false,
-            onTap: () => _webrtcService.switchCamera(),
-          ),
-
-        // Translate — opens/closes a bottom-sheet overlay above this
-        // same call screen. Never navigates away, never ends the call.
-        _buildControlButton(
-          icon: Icons.translate_rounded,
-          label: 'Translate',
-          isActive: _translationOn,
-          onTap: _toggleTranslation,
-        ),
-
-        // End call
-        GestureDetector(
-          onTap: _endCall,
-          child: Container(
-            width: 64,
-            height: 64,
-            decoration: const BoxDecoration(
-              color: KoraColors.red,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.call_end,
-              color: Colors.white,
-              size: 30,
-            ),
-          ),
+          child: _buildBottomControlPanel(true),
         ),
       ],
     );
@@ -675,6 +762,7 @@ class _CallScreenState extends State<CallScreen> {
     required String label,
     required bool isActive,
     required VoidCallback onTap,
+    bool isEndCall = false,
   }) {
     return GestureDetector(
       onTap: onTap,
@@ -685,9 +773,11 @@ class _CallScreenState extends State<CallScreen> {
             width: 56,
             height: 56,
             decoration: BoxDecoration(
-              color: isActive
-                  ? Colors.white.withValues(alpha: 0.25)
-                  : Colors.white.withValues(alpha: 0.1),
+              color: isEndCall
+                  ? KoraColors.red
+                  : (isActive
+                      ? Colors.white.withValues(alpha: 0.2)
+                      : Colors.white.withValues(alpha: 0.08)),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: Colors.white, size: 24),
