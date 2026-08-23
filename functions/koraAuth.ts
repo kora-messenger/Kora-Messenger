@@ -160,6 +160,19 @@ function jsonResponse(data: any, status = 200) {
   });
 }
 
+// Premium is true if isPremium is set AND (no expiry, or expiry is in
+// the future). Owner-override grants (premiumSource: 'owner_override')
+// never expire regardless of premiumExpiresAt.
+function computeIsPremium(record: any): boolean {
+  const isPremium = record.data?.isPremium ?? record.isPremium ?? false;
+  if (!isPremium) return false;
+  const source = record.data?.premiumSource ?? record.premiumSource ?? '';
+  if (source === 'owner_override') return true;
+  const expiresAt = record.data?.premiumExpiresAt ?? record.premiumExpiresAt ?? null;
+  if (!expiresAt) return true;
+  return new Date(expiresAt).getTime() > Date.now();
+}
+
 function getUserFromRecord(record: any) {
   return {
     id: record.id,
@@ -172,6 +185,7 @@ function getUserFromRecord(record: any) {
     isVerified: record.data?.isVerified ?? record.isVerified ?? true,
     profileCompleted: record.data?.profileCompleted ?? record.profileCompleted ?? false,
     phoneNumber: record.data?.phoneNumber ?? record.phoneNumber ?? '',
+    isPremium: computeIsPremium(record),
   };
 }
 
@@ -1053,3 +1067,8 @@ Deno.serve(async (req: Request) => {
     }
 
     return jsonResponse({ success: false, error: `Unknown action: ${action}` });
+
+  } catch (e: any) {
+    return jsonResponse({ success: false, error: e?.message || 'Internal server error' }, 500);
+  }
+});

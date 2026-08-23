@@ -470,6 +470,7 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
     final bio = (user?['bio'] as String?)?.trim();
     final subtitle = (bio != null && bio.isNotEmpty) ? bio : 'Hey there! I\'m on Kora.';
     final avatarUrl = user?['avatarUrl'] as String?;
+    final isPremium = user?['isPremium'] == true;
 
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
@@ -477,6 +478,9 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
         name: merged.displayName,
         imageUrl: (avatarUrl != null && avatarUrl.isNotEmpty) ? avatarUrl : null,
         size: 46,
+        // Small blue star badge for Kora Premium subscribers — no
+        // badge at all for regular users.
+        isPremium: isPremium,
       ),
       title: Text(
         merged.displayName,
