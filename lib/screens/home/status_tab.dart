@@ -10,16 +10,14 @@ class _ChannelSuggestion {
   final String followers;
   final Color color;
   final IconData icon;
-  bool following;
-  bool dismissed;
+  bool following = false;
+  bool dismissed = false;
 
   _ChannelSuggestion({
     required this.name,
     required this.followers,
     required this.color,
     required this.icon,
-    this.following = false,
-    this.dismissed = false,
   });
 }
 
