@@ -1,49 +1,60 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_contacts/flutter_contacts.dart';
-import 'package:http/http.dart' as http;
-import 'package:permission_handler/permission_handler.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../config/kora_api.dart';
 import '../../models/chat_models.dart';
 import '../../theme/kora_colors.dart';
 import '../../widgets/kora_avatar.dart';
+import '../chat/call_screen.dart';
 import '../chat/contact_info_screen.dart';
-import '../chat/kora_chat_screen.dart';
 import '../new_community_screen.dart';
 import '../new_group_screen.dart';
 import 'new_contact_screen.dart';
 import 'qr_code_screen.dart';
 
-/// A merged entry combining a device contact with its Kora registration
-/// status (if any).
-class _MergedContact {
-  final Contact contact;
-  final bool onKora;
-  final Map<String, dynamic>? koraUser;
-  final String matchedPhone;
+/// A Kora contact the user has explicitly added (via "New contact"),
+/// loaded straight from local storage — never a device/phone contact.
+class _RecentContact {
+  final String name;
+  final String koraId;
+  final String username;
+  final String phoneNumber;
 
-  _MergedContact({
-    required this.contact,
-    required this.onKora,
-    this.koraUser,
-    required this.matchedPhone,
+  _RecentContact({
+    required this.name,
+    required this.koraId,
+    required this.username,
+    required this.phoneNumber,
   });
 
   String get displayName {
-    final name = contact.displayName ?? '';
-    return name.trim().isEmpty ? matchedPhone : name.trim();
+    if (name.trim().isNotEmpty) return name.trim();
+    if (username.isNotEmpty) return '@$username';
+    return phoneNumber;
+  }
+
+  String get subtitle {
+    if (username.isNotEmpty) return '@$username';
+    if (phoneNumber.isNotEmpty) return phoneNumber;
+    return koraId;
+  }
+
+  /// Unique-ish key used to de-duplicate the list (most recent wins).
+  String get dedupeKey {
+    if (koraId.isNotEmpty) return 'k:$koraId';
+    if (username.isNotEmpty) return 'u:${username.toLowerCase()}';
+    return 'p:$phoneNumber';
   }
 }
 
 /// Kora's "Select contact" screen — the entry point for starting a new
-/// chat, group, or community. Mirrors the familiar contact-picker layout
-/// (quick actions up top, then a synced contacts list) but built in
-/// Kora's own visual identity: purple-to-blue gradient action icons
-/// instead of flat green ones, and real backend-verified "on Kora"
-/// status per contact instead of a static placeholder.
+/// call. Opens straight into search (keyboard up, ready to type) just
+/// like the reference flow; a back arrow closes the search and reveals
+/// the user's own "Recently added" Kora contacts — never the device's
+/// phone contact list.
 class SelectContactScreen extends StatefulWidget {
   const SelectContactScreen({super.key});
 
@@ -52,147 +63,133 @@ class SelectContactScreen extends StatefulWidget {
 }
 
 class _SelectContactScreenState extends State<SelectContactScreen> {
+  static const _kContactsKey = 'kora_contacts';
+
   bool _isLoading = true;
-  bool _permissionDenied = false;
-  bool _isSearching = false;
+  bool _isSearching = true; // Opens straight into search, keyboard up.
 
   final _searchController = TextEditingController();
+  final _searchFocusNode = FocusNode();
   String _query = '';
 
-  List<_MergedContact> _koraContacts = [];
-  List<_MergedContact> _inviteContacts = [];
+  List<_RecentContact> _recentContacts = [];
 
   @override
   void initState() {
     super.initState();
-    _loadContacts();
+    _loadRecentContacts();
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
   }
 
-  Future<void> _loadContacts() async {
-    setState(() {
-      _isLoading = true;
-      _permissionDenied = false;
-    });
+  Future<void> _loadRecentContacts() async {
+    setState(() => _isLoading = true);
 
-    final status = await Permission.contacts.request();
-    if (!status.isGranted) {
-      if (!mounted) return;
-      setState(() {
-        _isLoading = false;
-        _permissionDenied = true;
-      });
-      return;
-    }
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getStringList(_kContactsKey) ?? [];
 
-    List<Contact> deviceContacts = [];
-    try {
-      deviceContacts = await FlutterContacts.getAll(properties: ContactProperties.all);
-    } catch (_) {
-      deviceContacts = [];
-    }
-
-    // Only keep contacts that have at least one phone number.
-    final withPhones = deviceContacts.where((c) => c.phones.isNotEmpty).toList();
-    withPhones.sort((a, b) =>
-        (a.displayName ?? '').toLowerCase().compareTo((b.displayName ?? '').toLowerCase()));
-
-    final koraMatches = <_MergedContact>[];
-    final inviteMatches = <_MergedContact>[];
-
-    // Single bulk request checks every contact's phone number against
-    // the Kora backend in one round trip (backend loads the users
-    // table once and matches all numbers server-side), instead of one
-    // request per contact. This is what made syncing hundreds of
-    // contacts feel like it hung.
-    final phoneNumbers = withPhones.map((c) => c.phones.first.number).toList();
-    Map<String, dynamic> results = {};
-    try {
-      final res = await http.post(
-        Uri.parse(KoraApi.authEndpoint),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'action': 'checkPhoneNumbers', 'phoneNumbers': phoneNumbers}),
-      ).timeout(const Duration(seconds: 20));
-
-      final data = jsonDecode(res.body);
-      if (data['success'] == true) {
-        results = data['results'] as Map<String, dynamic>? ?? {};
-      }
-    } catch (_) {
-      // Network hiccup — everyone falls back to "not on Kora" below.
-    }
-
-    for (final c in withPhones) {
-      final phone = c.phones.first.number;
-      final entry = results[phone] as Map<String, dynamic>?;
-      if (entry != null && entry['registered'] == true) {
-        koraMatches.add(_MergedContact(
-          contact: c,
-          onKora: true,
-          koraUser: entry['user'] as Map<String, dynamic>?,
-          matchedPhone: phone,
+    final parsed = <_RecentContact>[];
+    for (final json in raw) {
+      try {
+        final map = jsonDecode(json) as Map<String, dynamic>;
+        parsed.add(_RecentContact(
+          name: (map['name'] as String? ?? '').trim(),
+          koraId: (map['koraId'] as String? ?? '').trim(),
+          username: (map['username'] as String? ?? '').trim(),
+          phoneNumber: (map['phoneNumber'] as String? ?? '').trim(),
         ));
-      } else {
-        inviteMatches.add(_MergedContact(contact: c, onKora: false, matchedPhone: phone));
+      } catch (_) {
+        // Skip malformed entries.
       }
+    }
+
+    // Most recently added first (entries are appended on save).
+    final reversed = parsed.reversed.toList();
+
+    // De-duplicate, keeping the most recent occurrence of each contact.
+    final seen = <String>{};
+    final deduped = <_RecentContact>[];
+    for (final c in reversed) {
+      if (seen.add(c.dedupeKey)) deduped.add(c);
     }
 
     if (!mounted) return;
     setState(() {
+      _recentContacts = deduped;
       _isLoading = false;
-      _koraContacts = koraMatches;
-      _inviteContacts = inviteMatches;
     });
   }
 
-  List<_MergedContact> _filtered(List<_MergedContact> source) {
-    if (_query.isEmpty) return source;
+  List<_RecentContact> get _filteredRecent {
+    if (_query.isEmpty) return _recentContacts;
     final q = _query.toLowerCase();
-    return source.where((m) {
-      final name = m.displayName.toLowerCase();
-      final phone = m.matchedPhone.toLowerCase();
-      final username = (m.koraUser?['username'] as String? ?? '').toLowerCase();
-      final koraId = (m.koraUser?['koraId'] as String? ?? '').toLowerCase();
-      return name.contains(q) || phone.contains(q) || username.contains(q) || koraId.contains(q);
+    return _recentContacts.where((c) {
+      return c.name.toLowerCase().contains(q) ||
+          c.username.toLowerCase().contains(q) ||
+          c.koraId.toLowerCase().contains(q) ||
+          c.phoneNumber.toLowerCase().contains(q);
     }).toList();
   }
 
-  void _openContact(_MergedContact merged) {
-    final user = merged.koraUser;
+  // ── Actions ──────────────────────────────────────────────────
+
+  void _openContact(_RecentContact contact) {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => ContactInfoScreen(
-          name: (user?['fullName'] as String?)?.isNotEmpty == true
-              ? user!['fullName'] as String
-              : merged.displayName,
-          koraId: user?['koraId'] as String?,
-          username: user?['username'] as String?,
-          about: (user?['bio'] as String?)?.isNotEmpty == true
-              ? user!['bio'] as String
-              : 'Hey there! I\'m on Kora.',
-          avatarUrl: (user?['avatarUrl'] as String?)?.isNotEmpty == true
-              ? user!['avatarUrl'] as String
-              : null,
+          name: contact.displayName,
+          koraId: contact.koraId.isNotEmpty ? contact.koraId : null,
+          username: contact.username.isNotEmpty ? contact.username : null,
+          about: 'Hey there! I\'m on Kora.',
           badge: KoraBadgeType.none,
           isOnline: true,
-          phone: merged.matchedPhone,
+          phone: contact.phoneNumber.isNotEmpty ? contact.phoneNumber : null,
         ),
       ),
     );
   }
 
-  void _inviteContact(_MergedContact merged) {
-    Share.share(
-      'Hey ${merged.displayName.split(' ').first}! I\'m on Kora Messenger — join me here: ${KoraApi.inviteDownloadUrl}',
-      subject: 'Join me on Kora Messenger',
+  void _callContact(_RecentContact contact, {bool isVideo = false}) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CallScreen(
+          contactName: contact.displayName,
+          isVideoCall: isVideo,
+          isOutgoing: true,
+          badge: KoraBadgeType.none,
+        ),
+      ),
     );
   }
+
+  void _closeSearchOrPop() {
+    if (_isSearching) {
+      setState(() {
+        _isSearching = false;
+        _query = '';
+        _searchController.clear();
+      });
+    } else {
+      Navigator.pop(context);
+    }
+  }
+
+  void _openSearch() {
+    setState(() => _isSearching = true);
+    // Re-focus so the keyboard reliably pops back up.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _searchFocusNode.requestFocus();
+    });
+  }
+
+  // ── Build ────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -203,9 +200,7 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
     final textMuted = KoraColors.textMutedFor(brightness);
     final border = KoraColors.borderFor(brightness);
 
-    final totalContacts = _koraContacts.length + _inviteContacts.length;
-    final filteredKora = _filtered(_koraContacts);
-    final filteredInvite = _filtered(_inviteContacts);
+    final filteredRecent = _filteredRecent;
 
     return Scaffold(
       backgroundColor: bg,
@@ -214,27 +209,18 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
         elevation: 0,
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: textPrimary),
-          onPressed: () {
-            if (_isSearching) {
-              setState(() {
-                _isSearching = false;
-                _query = '';
-                _searchController.clear();
-              });
-            } else {
-              Navigator.pop(context);
-            }
-          },
+          onPressed: _closeSearchOrPop,
         ),
         titleSpacing: 0,
         title: _isSearching
             ? TextField(
                 controller: _searchController,
+                focusNode: _searchFocusNode,
                 autofocus: true,
                 style: TextStyle(color: textPrimary, fontSize: 17),
                 cursorColor: KoraColors.purple,
                 decoration: InputDecoration(
-                  hintText: 'Search contacts',
+                  hintText: 'Search name or number',
                   hintStyle: TextStyle(color: textMuted, fontSize: 17),
                   border: InputBorder.none,
                 ),
@@ -250,7 +236,7 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
                   ),
                   if (!_isLoading)
                     Text(
-                      '$totalContacts contacts',
+                      '${_recentContacts.length} recently added',
                       style: TextStyle(color: KoraColors.purple, fontSize: 12.5, fontWeight: FontWeight.w600),
                     ),
                 ],
@@ -259,7 +245,7 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
           if (!_isSearching)
             IconButton(
               icon: Icon(Icons.search, color: textPrimary),
-              onPressed: () => setState(() => _isSearching = true),
+              onPressed: _openSearch,
             ),
           if (!_isSearching)
             PopupMenuButton<String>(
@@ -267,7 +253,7 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
               color: KoraColors.cardFor(brightness),
               onSelected: (value) {
                 if (value == 'refresh') {
-                  _loadContacts();
+                  _loadRecentContacts();
                 } else if (value == 'invite') {
                   Share.share(
                     'Join me on Kora Messenger: ${KoraApi.inviteDownloadUrl}',
@@ -278,7 +264,7 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
               itemBuilder: (_) => [
                 PopupMenuItem(
                   value: 'refresh',
-                  child: Text('Refresh contacts', style: TextStyle(color: textPrimary)),
+                  child: Text('Refresh', style: TextStyle(color: textPrimary)),
                 ),
                 PopupMenuItem(
                   value: 'invite',
@@ -291,70 +277,79 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
       body: SafeArea(
         child: _isLoading
             ? _buildLoading(textSecondary)
-            : _permissionDenied
-                ? _buildPermissionDenied(textPrimary, textSecondary)
-                : ListView(
-                    padding: EdgeInsets.zero,
-                    children: [
-                      if (!_isSearching) ...[
-                        _actionRow(
-                          gradient: true,
-                          icon: Icons.group_add_rounded,
-                          label: 'New group',
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => const NewGroupScreen()),
-                          ),
+            : ListView(
+                padding: EdgeInsets.zero,
+                children: [
+                  if (!_isSearching) ...[
+                    _actionRow(
+                      icon: Icons.person_add_rounded,
+                      label: 'New contact',
+                      trailing: IconButton(
+                        icon: Icon(Icons.qr_code_2_rounded, color: textSecondary, size: 24),
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const QrCodeScreen()),
                         ),
-                        _actionRow(
-                          gradient: true,
-                          icon: Icons.person_add_rounded,
-                          label: 'New contact',
-                          trailing: IconButton(
-                            icon: Icon(Icons.qr_code_2_rounded, color: textSecondary, size: 24),
-                            onPressed: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => const QrCodeScreen()),
-                            ),
-                          ),
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => const NewContactScreen()),
-                          ),
-                        ),
-                        _actionRow(
-                          gradient: true,
-                          icon: Icons.groups_rounded,
-                          label: 'New community',
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => const NewCommunityScreen()),
-                          ),
-                        ),
-                        Divider(height: 1, color: border, indent: 20, endIndent: 20),
-                        const SizedBox(height: 4),
-                      ],
-                      if (filteredKora.isNotEmpty) ...[
-                        _sectionHeader('Contacts on Kora', textMuted),
-                        ...filteredKora.map((m) => _contactTile(m, textPrimary, textSecondary)),
-                      ],
-                      if (filteredInvite.isNotEmpty) ...[
-                        _sectionHeader('Invite to Kora', textMuted),
-                        ...filteredInvite.map((m) => _inviteTile(m, textPrimary, textSecondary)),
-                      ],
-                      if (!_isLoading && filteredKora.isEmpty && filteredInvite.isEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 60),
-                          child: Center(
-                            child: Text(
-                              _isSearching ? 'No contacts found' : 'No contacts with phone numbers found',
+                      ),
+                      onTap: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const NewContactScreen()),
+                        );
+                        _loadRecentContacts();
+                      },
+                    ),
+                    _actionRow(
+                      icon: Icons.group_add_rounded,
+                      label: 'New group',
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const NewGroupScreen()),
+                      ),
+                    ),
+                    _actionRow(
+                      icon: Icons.groups_rounded,
+                      label: 'New community',
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const NewCommunityScreen()),
+                      ),
+                    ),
+                    Divider(height: 1, color: border, indent: 20, endIndent: 20),
+                    const SizedBox(height: 4),
+                  ],
+                  if (filteredRecent.isNotEmpty) ...[
+                    _sectionHeader('Recently added', textMuted),
+                    ...filteredRecent.map((c) => _recentContactTile(c, textPrimary, textSecondary)),
+                  ] else
+                    Padding(
+                      padding: const EdgeInsets.only(top: 60),
+                      child: Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.person_search_outlined, size: 40, color: textMuted),
+                            const SizedBox(height: 12),
+                            Text(
+                              _isSearching || _query.isNotEmpty
+                                  ? 'No contacts found'
+                                  : 'No recently added Kora contacts yet',
                               style: TextStyle(color: textSecondary, fontSize: 14),
                             ),
-                          ),
+                            if (!_isSearching && _query.isEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                'Tap "New contact" to add someone',
+                                style: TextStyle(color: textMuted, fontSize: 12.5),
+                              ),
+                            ],
+                          ],
                         ),
-                      const SizedBox(height: 24),
-                    ],
-                  ),
+                      ),
+                    ),
+                  const SizedBox(height: 24),
+                ],
+              ),
       ),
     );
   }
@@ -370,46 +365,8 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
             child: CircularProgressIndicator(strokeWidth: 2.6, color: KoraColors.purple),
           ),
           const SizedBox(height: 16),
-          Text('Syncing contacts…', style: TextStyle(color: textSecondary, fontSize: 14)),
+          Text('Loading contacts…', style: TextStyle(color: textSecondary, fontSize: 14)),
         ],
-      ),
-    );
-  }
-
-  Widget _buildPermissionDenied(Color textPrimary, Color textSecondary) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.contacts_outlined, color: textSecondary, size: 48),
-            const SizedBox(height: 16),
-            Text(
-              'Kora needs access to your contacts to show who\'s already on Kora.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: textPrimary, fontSize: 15, height: 1.5),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: KoraColors.purple,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              ),
-              onPressed: () async {
-                final result = await Permission.contacts.request();
-                if (result.isGranted) {
-                  _loadContacts();
-                } else {
-                  openAppSettings();
-                }
-              },
-              child: const Text('Grant access'),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -424,14 +381,12 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
     );
   }
 
-  /// A quick-action row (New group / New contact / New community) with
-  /// a Kora-branded gradient circle icon — replaces WhatsApp's flat
-  /// green circles with Kora's purple-to-blue identity.
+  /// A quick-action row (New contact / New group / New community) with
+  /// a Kora-branded gradient circle icon.
   Widget _actionRow({
     required IconData icon,
     required String label,
     required VoidCallback onTap,
-    bool gradient = true,
     Widget? trailing,
   }) {
     final brightness = Theme.of(context).brightness;
@@ -466,72 +421,33 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
     );
   }
 
-  Widget _contactTile(_MergedContact merged, Color textPrimary, Color textSecondary) {
-    final user = merged.koraUser;
-    final bio = (user?['bio'] as String?)?.trim();
-    final subtitle = (bio != null && bio.isNotEmpty) ? bio : 'Hey there! I\'m on Kora.';
-    final avatarUrl = user?['avatarUrl'] as String?;
-    final isPremium = user?['isPremium'] == true;
-    final koraId = user?['koraId'] as String?;
-    final fullName = (user?['fullName'] as String?) ?? merged.displayName;
-
+  Widget _recentContactTile(_RecentContact contact, Color textPrimary, Color textSecondary) {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
-      leading: KoraAvatar(
-        name: merged.displayName,
-        imageUrl: (avatarUrl != null && avatarUrl.isNotEmpty) ? avatarUrl : null,
-        size: 46,
-        isPremium: isPremium,
-      ),
+      leading: KoraAvatar(name: contact.displayName, size: 46),
       title: Text(
-        merged.displayName,
+        contact.displayName,
         style: TextStyle(color: textPrimary, fontSize: 15.5, fontWeight: FontWeight.w600),
       ),
       subtitle: Text(
-        subtitle,
+        contact.subtitle,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: TextStyle(color: textSecondary, fontSize: 13),
       ),
-      trailing: TextButton(
-        onPressed: () {
-          final chatId = (koraId != null && koraId.isNotEmpty) ? koraId : merged.matchedPhone;
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => KoraChatScreen(
-                chatId: chatId,
-                name: fullName,
-                avatarUrl: (avatarUrl != null && avatarUrl.isNotEmpty) ? avatarUrl : null,
-                isOnline: true,
-              ),
-            ),
-          );
-        },
-        style: TextButton.styleFrom(foregroundColor: KoraColors.purple),
-        child: const Text('Message', style: TextStyle(fontWeight: FontWeight.w700)),
+      trailing: GestureDetector(
+        onTap: () => _callContact(contact),
+        child: Container(
+          width: 38,
+          height: 38,
+          decoration: const BoxDecoration(
+            gradient: KoraColors.brandGradient,
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(Icons.call_rounded, color: Colors.white, size: 18),
+        ),
       ),
-      onTap: () => _openContact(merged),
-    );
-  }
-
-  Widget _inviteTile(_MergedContact merged, Color textPrimary, Color textSecondary) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
-      leading: KoraAvatar(name: merged.displayName, size: 46),
-      title: Text(
-        merged.displayName,
-        style: TextStyle(color: textPrimary, fontSize: 15.5, fontWeight: FontWeight.w600),
-      ),
-      subtitle: Text(
-        merged.matchedPhone,
-        style: TextStyle(color: textSecondary, fontSize: 13),
-      ),
-      trailing: TextButton(
-        onPressed: () => _inviteContact(merged),
-        style: TextButton.styleFrom(foregroundColor: KoraColors.purple),
-        child: const Text('Invite', style: TextStyle(fontWeight: FontWeight.w700)),
-      ),
+      onTap: () => _openContact(contact),
     );
   }
 }
