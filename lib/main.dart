@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -89,11 +90,67 @@ class KoraMessengerApp extends StatelessWidget {
   }
 }
 
+/// ─── Shooting Star Painter ──────────────────────────────────────────────
+/// Draws a shooting star with a gradient trail that orbits around the logo.
+class ShootingStarPainter extends CustomPainter {
+  final double progress; // 0.0 → 1.0 for one full orbit
+
+  ShootingStarPainter(this.progress);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final orbitRadius = size.width * 0.42;
+
+    // Current angle — full 2π rotation over progress
+    final angle = progress * 2 * math.pi - math.pi / 2; // start at top
+    final starX = center.dx + orbitRadius * math.cos(angle);
+    final starY = center.dy + orbitRadius * math.sin(angle);
+    final starPos = Offset(starX, starY);
+
+    // Trail — 8 segments behind the star
+    const trailSteps = 18;
+    for (int i = trailSteps; i >= 1; i--) {
+      final trailAngle = angle - (i * 0.08);
+      final tx = center.dx + orbitRadius * math.cos(trailAngle);
+      final ty = center.dy + orbitRadius * math.sin(trailAngle);
+      final tPos = Offset(tx, ty);
+      final alpha = (1.0 - i / trailSteps) * 0.5;
+      final trailPaint = Paint()
+        ..color = KoraColors.purple.withValues(alpha: alpha)
+        ..style = PaintingStyle.fill;
+      canvas.drawCircle(tPos, (1.0 - i / trailSteps) * 2.5, trailPaint);
+    }
+
+    // The star itself — bright glowing dot
+    final glowPaint = Paint()
+      ..color = KoraColors.purple.withValues(alpha: 0.25)
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(starPos, 10, glowPaint);
+
+    final starPaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(starPos, 4, starPaint);
+
+    // Inner star core — brand color
+    final corePaint = Paint()
+      ..color = KoraColors.blue
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(starPos, 2, corePaint);
+  }
+
+  @override
+  bool shouldRepaint(ShootingStarPainter old) => old.progress != progress;
+}
+
 /// Checks for a saved session on startup and routes accordingly:
 /// - Unread crash → CrashReportScreen (then proceed to normal routing)
 /// - No session → WelcomeScreen
 /// - Session with profileCompleted → KoraHomeScreen
 /// - Session without profileCompleted → ProfileSetupScreen
+///
+/// The splash screen displays for exactly 5 seconds before routing.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -101,11 +158,27 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
   @override
   void initState() {
     super.initState();
-    _boot();
+    // 5-second animation — one complete orbit of the shooting star
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 5),
+    )..forward();
+
+    // Start the boot/routing process after the splash duration
+    Timer(const Duration(seconds: 5), _boot);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
   Future<void> _boot() async {
@@ -237,41 +310,75 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: isDark ? KoraColors.deepNavy : KoraColors.lightBackground,
+      // Kora brand background — deep near-black
+      backgroundColor: KoraColors.trueBlack,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              width: 72,
-              height: 72,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: KoraColors.purple.withValues(alpha: 0.35),
-                    blurRadius: 24,
-                    offset: const Offset(0, 8),
+            // ── Square logo with shooting star orbit ──
+            SizedBox(
+              width: 200,
+              height: 200,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // Shooting star animation layer
+                  AnimatedBuilder(
+                    animation: _controller,
+                    builder: (context, child) {
+                      return CustomPaint(
+                        size: const Size(200, 200),
+                        painter: ShootingStarPainter(_controller.value),
+                      );
+                    },
+                  ),
+                  // Square logo
+                  Container(
+                    width: 88,
+                    height: 88,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.zero,
+                      gradient: KoraColors.brandGradient,
+                      boxShadow: [
+                        BoxShadow(
+                          color: KoraColors.purple.withValues(alpha: 0.4),
+                          blurRadius: 30,
+                          spreadRadius: 2,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: ClipRect(
+                      child: Image.asset(
+                        'assets/images/kora_logo_lockup.png',
+                        fit: BoxFit.cover,
+                      ),
+                    ),
                   ),
                 ],
               ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: Image.asset(
-                  'assets/images/kora_logo_lockup.png',
-                  fit: BoxFit.cover,
-                ),
+            ),
+            const SizedBox(height: 28),
+            // Kora wordmark
+            const Text(
+              'Kora Messenger',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+                letterSpacing: 0.5,
               ),
             ),
-            const SizedBox(height: 16),
-            const SizedBox(
-              width: 24,
-              height: 24,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: KoraColors.purple,
+            const SizedBox(height: 8),
+            // Tagline
+            Text(
+              'Connect. Communicate. Create.',
+              style: TextStyle(
+                fontSize: 13,
+                color: KoraColors.purple.withValues(alpha: 0.7),
+                letterSpacing: 0.3,
               ),
             ),
           ],
