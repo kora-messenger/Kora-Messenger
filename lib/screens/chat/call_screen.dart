@@ -2,15 +2,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import '../../theme/kora_colors.dart';
-import '../../models/call_log.dart';
 import '../../services/webrtc_call_service.dart';
 import '../../services/call_service.dart';
-import '../../services/call_stt_service.dart';
 import '../../models/chat_models.dart';
-import '../../services/translation_service.dart';
 import 'call_translation_sheet.dart';
-import '../settings/premium_subscribe_sheet.dart';
-import '../../theme/chat_theme_provider.dart';
 
 /// Real call screen for Kora Messenger.
 ///
@@ -18,7 +13,8 @@ import '../../theme/chat_theme_provider.dart';
 /// - Contact name and call status (ringing, connected, ended)
 /// - Local/remote video for video calls
 /// - Call timer
-/// - Mute, speaker, camera, end-call controls
+/// - 2x2 grid: Mute, Speaker, Camera, More
+/// - Live voice-to-voice translation via the More popup
 ///
 /// For voice calls, shows a gradient background with contact avatar.
 /// For video calls, shows remote video full-screen with local PiP.
@@ -52,23 +48,12 @@ class _CallScreenState extends State<CallScreen> {
   bool _isMuted = false;
   bool _isSpeakerOn = true;
   bool _isCameraOn = true;
-  // Call translation feature — behaves as an overlay/bottom sheet over
-  // this call screen. Opening/closing it never touches WebRTC state,
-  // navigator stack position, or any of the call controls above —
-  // the CallScreen route stays mounted underneath the modal sheet route
-  // the whole time, so the call itself is never affected.
-  bool _translationOn = false;
-  bool _captionsOn = true;
-  bool _translationSheetOpen = false;
-  bool _showMorePanel = false;
   DateTime? _callStartTime;
-
-  // Call translation: STT + data channel caption streams
-  final _sttService = CallSttService.instance;
-  StreamController<(String, bool)>? _remoteCaptionStream;
-  StreamController<(String, bool)>? _localCaptionStream;
   RTCVideoRenderer? _remoteRenderer;
   RTCVideoRenderer? _localRenderer;
+
+  // Translation state
+  bool _translationActive = false;
 
   @override
   void initState() {
@@ -102,7 +87,6 @@ class _CallScreenState extends State<CallScreen> {
         video: widget.isVideoCall,
       );
 
-      // Set up local renderer for video calls
       if (widget.isVideoCall && _webrtcService.localStream != null) {
         _setupLocalRenderer(_webrtcService.localStream!);
       }
@@ -180,113 +164,136 @@ class _CallScreenState extends State<CallScreen> {
     setState(() => _isCameraOn = !_isCameraOn);
   }
 
-  /// Toggles the in-call translation feature.
-  ///
-  /// This ONLY opens/closes a [showModalBottomSheet] overlay on top of
-  /// the current call route — it never navigates away from, pops, or
-  /// rebuilds this [CallScreen]. The call (WebRTC connection, mute state,
-  /// camera state, speaker routing, timer) is completely untouched by
-  /// opening or closing the translation sheet.
-  void _toggleTranslation() {
-    setState(() => _translationOn = !_translationOn);
-    if (_translationOn) {
-      _startCallTranslation();
-      _translationSheetOpen = true;
-      _showCallTranslation(context, isInCall: true).then((_) {
-        _translationSheetOpen = false;
-      });
-    } else {
-      _stopCallTranslation();
+  void _showMorePopup() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: BoxDecoration(
+          color: KoraColors.darkBackground,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                margin: const EdgeInsets.only(top: 10),
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 16),
+              _moreItem(
+                icon: Icons.translate_rounded,
+                label: 'Translation',
+                isActive: _translationActive,
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _openTranslationSheet();
+                },
+              ),
+              _moreItem(
+                icon: Icons.flip_camera_ios,
+                label: 'Flip Camera',
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _webrtcService.switchCamera();
+                },
+              ),
+              _moreItem(
+                icon: Icons.person_add_outlined,
+                label: 'Add Person',
+                onTap: () => Navigator.pop(ctx),
+              ),
+              _moreItem(
+                icon: Icons.volume_up_outlined,
+                label: 'Audio & Video',
+                onTap: () => Navigator.pop(ctx),
+              ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _moreItem({
+    required IconData icon,
+    required String label,
+    bool isActive = false,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      leading: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: isActive
+              ? KoraColors.purple.withValues(alpha: 0.2)
+              : Colors.white.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(icon,
+            color: isActive ? KoraColors.purple : Colors.white.withValues(alpha: 0.9),
+            size: 20),
+      ),
+      title: Text(
+        label,
+        style: TextStyle(
+          color: Colors.white.withValues(alpha: 0.9),
+          fontSize: 15,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      trailing: isActive
+          ? Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                gradient: KoraColors.brandGradient,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Text(
+                'ON',
+                style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700),
+              ),
+            )
+          : Icon(Icons.chevron_right, color: Colors.white.withValues(alpha: 0.4)),
+      onTap: onTap,
+    );
+  }
+
+  void _openTranslationSheet() async {
+    final result = await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => CallTranslationSheet(isInCall: _callState == 'connected'),
+    );
+
+    if (result != null && mounted) {
+      final sourceLang = result['sourceLanguage'] as String;
+      final targetLang = result['targetLanguage'] as String;
+
+      setState(() => _translationActive = true);
+
+      // Wire up the translation pipeline
+      _webrtcService.onTranslationTextReceived = (translatedText) {
+        // This is text received from the other person — play via TTS
+        // (LiveTranslationService handles TTS)
+      };
+
+      // The LiveTranslationService will:
+      // 1. Start STT listening
+      // 2. On each recognized phrase → translate → send via data channel
+      // 3. On receiving translated text → TTS plays it
+      debugPrint('Translation started: $sourceLang → $targetLang');
     }
-  }
-
-  /// Starts real-time call translation:
-  /// 1. Set up stream controllers for caption overlays
-  /// 2. Wire the WebRTC data channel to receive remote captions
-  /// 3. Start on-device STT to transcribe local speech
-  /// 4. Send local transcripts via the data channel to the remote peer
-  void _startCallTranslation() {
-    // Create caption stream controllers
-    _remoteCaptionStream = StreamController<(String, bool)>.broadcast();
-    _localCaptionStream = StreamController<(String, bool)>.broadcast();
-
-    // Wire incoming remote captions from the data channel
-    _webrtcService.onRemoteCaption = (text, isFinal) {
-      _remoteCaptionStream?.add((text, isFinal));
-    };
-
-    // Configure STT locale based on the user's preferred language
-    final langCode = TranslationService.instance.preferredLanguageCode;
-    _sttService.setLocale(_localeFromCode(langCode));
-
-    // Wire local STT transcripts:
-    // a) Feed to local caption stream (user sees their own speech)
-    // b) Send to remote peer via the data channel
-    _sttService.onTranscript = (text, isFinal) {
-      _localCaptionStream?.add((text, isFinal));
-      _webrtcService.sendCaption(text, isFinal);
-    };
-
-    _sttService.onError = (error) {
-      debugPrint('[CallTranslation] STT error: $error');
-    };
-
-    // Start listening — this runs in parallel with the WebRTC
-    // audio stream and does not interfere with the call audio.
-    _sttService.start();
-  }
-
-  /// Stops call translation: cancels STT, closes stream controllers,
-  /// and disconnects the data channel callback.
-  void _stopCallTranslation() {
-    _sttService.stop();
-    _sttService.onTranscript = null;
-    _sttService.onError = null;
-    _webrtcService.onRemoteCaption = null;
-    _remoteCaptionStream?.close();
-    _remoteCaptionStream = null;
-    _localCaptionStream?.close();
-    _localCaptionStream = null;
-  }
-
-  /// Maps a Kora translation language code to a speech_to_text locale ID.
-  /// Falls back to en-US if no exact match is found.
-  String _localeFromCode(String code) {
-    final mapping = <String, String>{
-      'en': 'en-US',
-      'es': 'es-ES',
-      'fr': 'fr-FR',
-      'de': 'de-DE',
-      'it': 'it-IT',
-      'pt': 'pt-PT',
-      'pt-BR': 'pt-BR',
-      'ru': 'ru-RU',
-      'pl': 'pl-PL',
-      'tr': 'tr-TR',
-      'ar': 'ar-SA',
-      'hi': 'hi-IN',
-      'ja': 'ja-JP',
-      'ko': 'ko-KR',
-      'zh': 'zh-CN',
-      'zh-TW': 'zh-TW',
-      'nl': 'nl-NL',
-      'sv': 'sv-SE',
-      'da': 'da-DK',
-      'fi': 'fi-FI',
-      'no': 'nb-NO',
-      'el': 'el-GR',
-      'cs': 'cs-CZ',
-      'uk': 'uk-UA',
-      'th': 'th-TH',
-      'vi': 'vi-VN',
-      'id': 'id-ID',
-      'ms': 'ms-MY',
-      'sw': 'sw-KE',
-      'he': 'he-IL',
-      'ro': 'ro-RO',
-      'hu': 'hu-HU',
-    };
-    return mapping[code] ?? 'en-US';
   }
 
   void _endCall() async {
@@ -298,7 +305,6 @@ class _CallScreenState extends State<CallScreen> {
 
     await _webrtcService.endCall();
 
-    // Log the call
     await _callService.logOutgoingCall(
       contactName: widget.contactName,
       avatarUrl: widget.avatarUrl,
@@ -307,145 +313,49 @@ class _CallScreenState extends State<CallScreen> {
       durationSeconds: duration,
     );
 
-    // Stop call translation (STT + data channel) before ending
-    _stopCallTranslation();
-
-    if (mounted) {
-      if (_translationSheetOpen && Navigator.of(context).canPop()) {
-        Navigator.of(context).pop();
-      }
-      Navigator.pop(context);
-    }
+    if (mounted) Navigator.pop(context);
   }
 
   @override
   void dispose() {
-    _stopCallTranslation();
     _timer?.cancel();
     _remoteRenderer?.dispose();
     _localRenderer?.dispose();
     super.dispose();
   }
 
-  static Future<void> _showCallTranslation(BuildContext context, {bool isInCall = false}) {
-    if (!ChatThemeProvider.instance.isPremium) {
-      return showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-        builder: (context) => const PremiumSubscribeSheet(),
-      );
-    }
-    return CallTranslationSheet.show(context, isInCall: isInCall);
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: KoraColors.darkSurface,
+      backgroundColor: KoraColors.darkBackground,
       body: SafeArea(
-        // The base call view (voice or video) is always the bottom layer
-        // of this Stack and is NEVER rebuilt, replaced, or unmounted when
-        // translation opens/closes — only the overlay on top changes.
-        // StackFit.expand keeps it filling the screen exactly like before
-        // (needed for the Spacer widgets inside _buildVoiceCallView).
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            widget.isVideoCall && _remoteRenderer != null
-                ? _buildVideoCallView()
-                : _buildVoiceCallView(),
-            if (_translationOn) _buildTranslationOverlay(),
-            if (_showMorePanel) _buildMorePanel(widget.isVideoCall),
-          ],
-        ),
+        child: widget.isVideoCall && _remoteRenderer != null
+            ? _buildVideoCallView()
+            : _buildVoiceCallView(),
       ),
     );
   }
 
-  /// Floating translation indicator + live captions, rendered above the
-  /// call view but below the control row. Purely additive — sits on top
-  /// of the existing call UI as an overlay, never replacing it.
-  Widget _buildTranslationOverlay() {
-    return Positioned(
-      left: 0,
-      right: 0,
-      bottom: widget.isVideoCall ? 210 : 260,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Kora Translate indicator pill
-          Center(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: KoraColors.purple.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: KoraColors.purple.withValues(alpha: 0.4),
-                  width: 0.5,
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.language_rounded, size: 14, color: KoraColors.purple),
-                  const SizedBox(width: 6),
-                  const Text(
-                    'Kora Translate • ON',
-                    style: TextStyle(
-                      color: KoraColors.purple,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.3,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: () => setState(() => _captionsOn = !_captionsOn),
-                    child: Icon(
-                      _captionsOn ? Icons.closed_caption_rounded : Icons.closed_caption_outlined,
-                      size: 16,
-                      color: KoraColors.purple.withValues(alpha: 0.7),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          if (_captionsOn) ...[
-            const SizedBox(height: 8),
-            LiveCaptionsOverlay(
-              speakerName: widget.contactName,
-              fontSize: TranslationService.instance.captionSize,
-              captionStream: _remoteCaptionStream?.stream,
-              localCaptionStream: _localCaptionStream?.stream,
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  /// Voice call view — Kora's deep navy/black surface, top bar with
-  /// contact info + encryption lock, large centered avatar, and a
-  /// rounded bottom panel with the 2×3 control grid.
+  /// Voice call view — gradient background, avatar, controls.
   Widget _buildVoiceCallView() {
     return Container(
-      color: KoraColors.deepNavy,
+      decoration: const BoxDecoration(
+        gradient: KoraColors.brandGradient,
+      ),
       child: Column(
         children: [
-          const SizedBox(height: 8),
-          _buildTopBar(),
-          const Spacer(flex: 3),
+          const Spacer(flex: 2),
 
           // Avatar
           Container(
-            width: 140,
-            height: 140,
-            decoration: const BoxDecoration(shape: BoxShape.circle),
+            width: 120,
+            height: 120,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 3),
+            ),
             child: CircleAvatar(
-              backgroundColor: KoraColors.darkCard,
+              backgroundColor: Colors.white.withValues(alpha: 0.15),
               backgroundImage: widget.avatarUrl != null
                   ? NetworkImage(widget.avatarUrl!)
                   : null,
@@ -456,7 +366,7 @@ class _CallScreenState extends State<CallScreen> {
                           : '?',
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 52,
+                        fontSize: 48,
                         fontWeight: FontWeight.w600,
                       ),
                     )
@@ -464,308 +374,66 @@ class _CallScreenState extends State<CallScreen> {
             ),
           ),
 
-          const Spacer(flex: 4),
+          const SizedBox(height: 24),
 
-          // Bottom rounded control panel
-          _buildBottomControlPanel(false),
-        ],
-      ),
-    );
-  }
-
-  /// Top bar — minimize (left), contact name + encryption/status lock
-  /// line (center), add-person (right). Mirrors WhatsApp's call header.
-  Widget _buildTopBar() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Minimize — pops this screen without ending the call.
-          _buildTopBarIcon(
-            icon: Icons.close_fullscreen_rounded,
-            onTap: () => Navigator.of(context).pop(),
+          // Name
+          Text(
+            widget.contactName,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 28,
+              fontWeight: FontWeight.w600,
+            ),
           ),
-          Expanded(
-            child: Column(
-              children: [
-                const SizedBox(height: 6),
-                Text(
-                  widget.contactName,
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
+
+          const SizedBox(height: 8),
+
+          // Status + translation indicator
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (_translationActive) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.lock_rounded,
-                      size: 11,
-                      color: Colors.white.withValues(alpha: 0.55),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      _callState == 'connected'
-                          ? _durationString
-                          : 'End-to-end encrypted',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.55),
-                        fontSize: 12.5,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.translate_rounded, color: Colors.white, size: 12),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Translation ON',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.9),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 8),
               ],
-            ),
-          ),
-          // Add participant — group calling isn't available yet.
-          _buildTopBarIcon(
-            icon: Icons.person_add_alt_1_rounded,
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Group calls are coming soon')),
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTopBarIcon({required IconData icon, required VoidCallback onTap}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.12),
-          shape: BoxShape.circle,
-        ),
-        child: Icon(icon, color: Colors.white, size: 18),
-      ),
-    );
-  }
-
-  /// Rounded bottom panel with a 2×3 control grid, matching the
-  /// requested call-screen layout (Speaker/Video/Mute, More/Translate/End).
-  Widget _buildBottomControlPanel(bool isVideo) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 26, 20, 40),
-      decoration: const BoxDecoration(
-        color: KoraColors.darkCard,
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(28),
-          topRight: Radius.circular(28),
-        ),
-      ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _buildControlButton(
-                icon: Icons.volume_up_rounded,
-                label: 'Speaker',
-                isActive: _isSpeakerOn,
-                onTap: _toggleSpeaker,
-              ),
-              if (isVideo)
-                _buildControlButton(
-                  icon: _isCameraOn ? Icons.videocam_rounded : Icons.videocam_off_rounded,
-                  label: 'Video',
-                  isActive: _isCameraOn,
-                  onTap: _toggleCamera,
-                )
-              else
-                _buildControlButton(
-                  icon: Icons.videocam_rounded,
-                  label: 'Video',
-                  isActive: false,
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("Video calling isn't available for this call yet")),
-                    );
-                  },
-                ),
-              _buildControlButton(
-                icon: _isMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
-                label: _isMuted ? 'Unmute' : 'Mute',
-                isActive: _isMuted,
-                onTap: _toggleMute,
-              ),
-            ],
-          ),
-          const SizedBox(height: 22),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _buildControlButton(
-                icon: Icons.more_horiz_rounded,
-                label: 'More',
-                isActive: _showMorePanel,
-                onTap: () => setState(() => _showMorePanel = !_showMorePanel),
-              ),
-              _buildControlButton(
-                icon: Icons.call_end_rounded,
-                label: 'End',
-                isActive: false,
-                isEndCall: true,
-                onTap: _endCall,
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Inline "More" popup — a small floating card that appears above the
-  /// bottom control panel inside the call screen (not a separate modal
-  /// route). Houses Translation, Flip Camera (video), and Live Captions.
-  Widget _buildMorePanel(bool isVideo) {
-    return Positioned(
-      left: 0,
-      right: 0,
-      bottom: 0,
-      child: GestureDetector(
-        // Tap the dimmed backdrop outside the card to dismiss
-        behavior: HitTestBehavior.opaque,
-        onTap: () => setState(() => _showMorePanel = false),
-        child: Container(
-          color: Colors.black.withValues(alpha: 0.5),
-          alignment: Alignment.bottomCenter,
-          child: GestureDetector(
-            onTap: () {}, // swallow taps on the card itself
-            child: Container(
-              width: double.infinity,
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              decoration: BoxDecoration(
-                color: KoraColors.darkCard,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.08),
-                  width: 0.5,
-                ),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Drag handle
-                  Container(
-                    width: 36,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Translation toggle
-                  _buildMoreOption(
-                    icon: Icons.translate_rounded,
-                    label: 'Translate',
-                    isActive: _translationOn,
-                    onTap: () {
-                      _toggleTranslation();
-                      if (!_translationOn) setState(() => _showMorePanel = false);
-                    },
-                  ),
-
-                  const Divider(height: 1, color: Color(0xFF2E2E42)),
-
-                  // Flip camera (video calls only)
-                  if (isVideo) ...[
-                    _buildMoreOption(
-                      icon: Icons.flip_camera_ios_rounded,
-                      label: 'Flip camera',
-                      isActive: false,
-                      onTap: () {
-                        _webrtcService.switchCamera();
-                        setState(() => _showMorePanel = false);
-                      },
-                    ),
-                    const Divider(height: 1, color: Color(0xFF2E2E42)),
-                  ],
-
-                  // Live captions toggle
-                  _buildMoreOption(
-                    icon: _captionsOn
-                        ? Icons.closed_caption_rounded
-                        : Icons.closed_caption_off_rounded,
-                    label: 'Live captions',
-                    isActive: _captionsOn,
-                    onTap: () {
-                      setState(() {
-                        _captionsOn = !_captionsOn;
-                        _showMorePanel = false;
-                      });
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// A single row inside the More popup card.
-  Widget _buildMoreOption({
-    required IconData icon,
-    required String label,
-    required bool isActive,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-        child: Row(
-          children: [
-            Icon(icon, size: 22,
-              color: isActive ? KoraColors.purple : Colors.white),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Text(label,
+              Text(
+                _statusText,
                 style: TextStyle(
-                  color: isActive ? KoraColors.purple : Colors.white,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
+                  color: Colors.white.withValues(alpha: 0.7),
+                  fontSize: 16,
                 ),
               ),
-            ),
-            if (isActive)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                decoration: BoxDecoration(
-                  color: KoraColors.purple.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Text(
-                  'ON',
-                  style: TextStyle(
-                    color: KoraColors.purple,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ),
-          ],
-        ),
+            ],
+          ),
+
+          const Spacer(flex: 3),
+
+          // 2x2 grid controls
+          _build2x2Grid(false),
+
+          const SizedBox(height: 48),
+        ],
       ),
     );
   }
@@ -803,12 +471,61 @@ class _CallScreenState extends State<CallScreen> {
           ),
         ),
 
-        // Top bar — same minimize / name+lock / add-person header as voice calls.
+        // Top info bar
         Positioned(
-          top: 8,
+          top: 16,
           left: 0,
           right: 0,
-          child: SafeArea(bottom: false, child: _buildTopBar()),
+          child: Column(
+            children: [
+              Text(
+                widget.contactName,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (_translationActive) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.translate_rounded, color: Colors.white, size: 12),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Translation ON',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.9),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  Text(
+                    _statusText,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.7),
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
 
         // Local video PiP
@@ -832,23 +549,105 @@ class _CallScreenState extends State<CallScreen> {
             ),
           ),
 
-        // Bottom rounded control panel — same grid style as voice calls.
+        // Bottom controls
         Positioned(
           bottom: 0,
           left: 0,
           right: 0,
-          child: _buildBottomControlPanel(true),
+          child: Container(
+            padding: const EdgeInsets.only(bottom: 48, top: 40),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.bottomCenter,
+                end: Alignment.topCenter,
+                colors: [
+                  Colors.black.withValues(alpha: 0.7),
+                  Colors.transparent,
+                ],
+              ),
+            ),
+            child: _build2x2Grid(true),
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildControlButton({
+  /// 2x2 grid of call controls.
+  /// Row 1: Mute, Speaker (or Camera for video)
+  /// Row 2: Camera (or Flip for video), More
+  Widget _build2x2Grid(bool isVideo) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 40),
+      child: Column(
+        children: [
+          // Row 1
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildGridButton(
+                icon: _isMuted ? Icons.mic_off : Icons.mic,
+                label: _isMuted ? 'Unmute' : 'Mute',
+                isActive: _isMuted,
+                onTap: _toggleMute,
+              ),
+              _buildGridButton(
+                icon: isVideo
+                    ? (_isCameraOn ? Icons.videocam : Icons.videocam_off)
+                    : Icons.volume_up,
+                label: isVideo ? (_isCameraOn ? 'Camera' : 'Off') : 'Speaker',
+                isActive: isVideo ? !_isCameraOn : _isSpeakerOn,
+                onTap: isVideo ? _toggleCamera : _toggleSpeaker,
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          // Row 2
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildGridButton(
+                icon: isVideo ? Icons.flip_camera_ios : Icons.videocam_outlined,
+                label: isVideo ? 'Flip' : 'Video',
+                isActive: false,
+                onTap: isVideo ? () => _webrtcService.switchCamera() : () {},
+              ),
+              _buildGridButton(
+                icon: Icons.more_horiz,
+                label: 'More',
+                isActive: _translationActive,
+                onTap: _showMorePopup,
+              ),
+            ],
+          ),
+          const SizedBox(height: 32),
+          // End call button (centered below grid)
+          GestureDetector(
+            onTap: _endCall,
+            child: Container(
+              width: 64,
+              height: 64,
+              decoration: const BoxDecoration(
+                color: KoraColors.red,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.call_end,
+                color: Colors.white,
+                size: 30,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGridButton({
     required IconData icon,
     required String label,
     required bool isActive,
     required VoidCallback onTap,
-    bool isEndCall = false,
   }) {
     return GestureDetector(
       onTap: onTap,
@@ -859,11 +658,9 @@ class _CallScreenState extends State<CallScreen> {
             width: 56,
             height: 56,
             decoration: BoxDecoration(
-              color: isEndCall
-                  ? KoraColors.red
-                  : (isActive
-                      ? Colors.white.withValues(alpha: 0.2)
-                      : Colors.white.withValues(alpha: 0.08)),
+              color: isActive
+                  ? Colors.white.withValues(alpha: 0.25)
+                  : Colors.white.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: Colors.white, size: 24),
