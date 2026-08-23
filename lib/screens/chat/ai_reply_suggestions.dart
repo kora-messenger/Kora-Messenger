@@ -72,15 +72,15 @@ class _AiReplySuggestionsState extends State<AiReplySuggestions> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       decoration: BoxDecoration(
-        color: surface.withOpacity(0.95),
+        color: surface.withValues(alpha: 0.95),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: KoraColors.purple.withOpacity(0.3),
+          color: KoraColors.purple.withValues(alpha: 0.3),
           width: 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.15),
+            color: Colors.black.withValues(alpha: 0.15),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -97,7 +97,7 @@ class _AiReplySuggestionsState extends State<AiReplySuggestions> {
                 Container(
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
-                    color: KoraColors.purple.withOpacity(0.15),
+                    color: KoraColors.purple.withValues(alpha: 0.15),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
@@ -135,7 +135,7 @@ class _AiReplySuggestionsState extends State<AiReplySuggestions> {
                       vertical: 2,
                     ),
                     decoration: BoxDecoration(
-                      color: KoraColors.purple.withOpacity(0.2),
+                      color: KoraColors.purple.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
@@ -180,7 +180,7 @@ class _AiReplySuggestionsState extends State<AiReplySuggestions> {
 
           // Expanded view with suggestion chips
           if (_isExpanded) ...[
-            Divider(height: 1, color: border.withOpacity(0.5)),
+            Divider(height: 1, color: border.withValues(alpha: 0.5)),
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
               child: _isLoading
@@ -213,7 +213,7 @@ class _AiReplySuggestionsState extends State<AiReplySuggestions> {
                                   color: cardColor,
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
-                                    color: KoraColors.purple.withOpacity(0.4),
+                                    color: KoraColors.purple.withValues(alpha: 0.4),
                                     width: 1,
                                   ),
                                 ),

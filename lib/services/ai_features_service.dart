@@ -214,7 +214,7 @@ class AiFeaturesService {
       case AiWritingMode.makeShorter:
         final words = clean.split(RegExp(r'\s+'));
         if (words.length > 4) {
-          return words.take((words.length * 0.6).round().clamp(1, words.length)).join(' ') + '...';
+          return "\${words.take((words.length * 0.6).round().clamp(1, words.length)).join(' ')}...";
         }
         return clean;
       case AiWritingMode.makeLonger:

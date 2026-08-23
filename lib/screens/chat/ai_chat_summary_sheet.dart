@@ -93,7 +93,7 @@ class _AiChatSummarySheetState extends State<AiChatSummarySheet> {
         border: Border.all(color: border, width: 0.5),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.4),
+            color: Colors.black.withValues(alpha: 0.4),
             blurRadius: 24,
             offset: const Offset(0, -6),
           ),
@@ -108,7 +108,7 @@ class _AiChatSummarySheetState extends State<AiChatSummarySheet> {
               height: 4,
               margin: const EdgeInsets.only(top: 10, bottom: 6),
               decoration: BoxDecoration(
-                color: textMuted.withOpacity(0.3),
+                color: textMuted.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -154,7 +154,7 @@ class _AiChatSummarySheetState extends State<AiChatSummarySheet> {
                                 vertical: 2,
                               ),
                               decoration: BoxDecoration(
-                                color: KoraColors.purple.withOpacity(0.2),
+                                color: KoraColors.purple.withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
                                   color: KoraColors.purple,

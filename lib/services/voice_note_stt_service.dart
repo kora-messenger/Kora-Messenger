@@ -74,7 +74,7 @@ class VoiceNoteSttService {
         onResult: (result) {
           if (result.recognizedWords.isNotEmpty) {
             if (_baseTranscript.isNotEmpty) {
-              _transcript = '${_baseTranscript} ${result.recognizedWords}'.trim();
+              _transcript = '$_baseTranscript ${result.recognizedWords}'.trim();
             } else {
               _transcript = result.recognizedWords;
             }
@@ -107,7 +107,7 @@ class VoiceNoteSttService {
         onResult: (result) {
           if (result.recognizedWords.isNotEmpty) {
             if (_baseTranscript.isNotEmpty) {
-              _transcript = '${_baseTranscript} ${result.recognizedWords}'.trim();
+              _transcript = '$_baseTranscript ${result.recognizedWords}'.trim();
             } else {
               _transcript = result.recognizedWords;
             }
