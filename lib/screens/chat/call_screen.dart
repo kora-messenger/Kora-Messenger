@@ -4,7 +4,9 @@ import 'package:flutter_webrtc/flutter_webrtc.dart';
 import '../../theme/kora_colors.dart';
 import '../../services/webrtc_call_service.dart';
 import '../../services/call_service.dart';
+import '../../services/live_translation_service.dart';
 import '../../models/chat_models.dart';
+import '../../models/call_log.dart';
 import 'call_translation_sheet.dart';
 
 /// Real call screen for Kora Messenger.
@@ -41,6 +43,7 @@ class CallScreen extends StatefulWidget {
 class _CallScreenState extends State<CallScreen> {
   final _webrtcService = WebRTCCallService.instance;
   final _callService = CallService.instance;
+  final _liveTranslation = LiveTranslationService.instance;
 
   String _callState = 'connecting';
   int _callDuration = 0;
@@ -54,6 +57,8 @@ class _CallScreenState extends State<CallScreen> {
 
   // Translation state
   bool _translationActive = false;
+  String _lastRecognized = '';
+  String _lastReceived = '';
 
   @override
   void initState() {
@@ -78,6 +83,12 @@ class _CallScreenState extends State<CallScreen> {
       if (mounted && widget.isVideoCall) {
         _setupRemoteRenderer(stream);
       }
+    };
+
+    // Wire up: when we receive translated text from the other person,
+    // pass it to LiveTranslationService to play via TTS
+    _webrtcService.onTranslationTextReceived = (text) {
+      _liveTranslation.onTranslatedTextReceived(text);
     };
 
     try {
@@ -170,7 +181,7 @@ class _CallScreenState extends State<CallScreen> {
       backgroundColor: Colors.transparent,
       builder: (ctx) => Container(
         decoration: BoxDecoration(
-          color: KoraColors.darkBackground,
+          color: KoraColors.deepNavy,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: SafeArea(
@@ -269,6 +280,13 @@ class _CallScreenState extends State<CallScreen> {
   }
 
   void _openTranslationSheet() async {
+    // If translation is already active, stop it
+    if (_translationActive) {
+      await _liveTranslation.stop();
+      setState(() => _translationActive = false);
+      return;
+    }
+
     final result = await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -280,24 +298,41 @@ class _CallScreenState extends State<CallScreen> {
       final sourceLang = result['sourceLanguage'] as String;
       final targetLang = result['targetLanguage'] as String;
 
-      setState(() => _translationActive = true);
-
-      // Wire up the translation pipeline
-      _webrtcService.onTranslationTextReceived = (translatedText) {
-        // This is text received from the other person — play via TTS
-        // (LiveTranslationService handles TTS)
+      // Wire up LiveTranslationService callbacks
+      _liveTranslation.onSpeechRecognized = (text) {
+        if (mounted) setState(() => _lastRecognized = text);
       };
 
-      // The LiveTranslationService will:
-      // 1. Start STT listening
-      // 2. On each recognized phrase → translate → send via data channel
-      // 3. On receiving translated text → TTS plays it
-      debugPrint('Translation started: $sourceLang → $targetLang');
+      _liveTranslation.onTranslationReceived = (text) {
+        if (mounted) setState(() => _lastReceived = text);
+      };
+
+      // When translated text is ready, send it via WebRTC data channel
+      _liveTranslation.onSendTranslatedText = (translatedText) {
+        _webrtcService.sendTranslationText(translatedText);
+      };
+
+      _liveTranslation.onError = (error) {
+        debugPrint('Translation error: $error');
+      };
+
+      // Start the translation pipeline
+      await _liveTranslation.start(
+        sourceLanguage: sourceLang,
+        targetLanguage: targetLang,
+      );
+
+      setState(() => _translationActive = true);
     }
   }
 
   void _endCall() async {
     _timer?.cancel();
+
+    // Stop translation if active
+    if (_translationActive) {
+      await _liveTranslation.stop();
+    }
 
     final duration = _callStartTime != null
         ? DateTime.now().difference(_callStartTime!).inSeconds
@@ -319,6 +354,9 @@ class _CallScreenState extends State<CallScreen> {
   @override
   void dispose() {
     _timer?.cancel();
+    if (_translationActive) {
+      _liveTranslation.stop();
+    }
     _remoteRenderer?.dispose();
     _localRenderer?.dispose();
     super.dispose();
@@ -327,7 +365,7 @@ class _CallScreenState extends State<CallScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: KoraColors.darkBackground,
+      backgroundColor: KoraColors.deepNavy,
       body: SafeArea(
         child: widget.isVideoCall && _remoteRenderer != null
             ? _buildVideoCallView()
@@ -426,6 +464,21 @@ class _CallScreenState extends State<CallScreen> {
               ),
             ],
           ),
+
+          // Translation subtitle (what was recognized / received)
+          if (_translationActive && (_lastRecognized.isNotEmpty || _lastReceived.isNotEmpty))
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                _lastReceived.isNotEmpty ? '🔊 $_lastReceived' : '🗣️ $_lastRecognized',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.5),
+                  fontSize: 13,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
 
           const Spacer(flex: 3),
 
