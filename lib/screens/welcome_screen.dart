@@ -20,18 +20,12 @@ class _OrbitingStarPainter extends CustomPainter {
 
     final angle = progress * 2 * math.pi - math.pi / 2;
 
-    // Trail — fading segments behind the star
-    const trailSteps = 20;
-    for (int i = trailSteps; i >= 1; i--) {
-      final trailAngle = angle - (i * 0.07);
-      final tx = center.dx + orbitRadius * math.cos(trailAngle);
-      final ty = center.dy + orbitRadius * math.sin(trailAngle);
-      final alpha = (1.0 - i / trailSteps) * 0.45;
-      final trailPaint = Paint()
-        ..color = KoraColors.purple.withValues(alpha: alpha)
-        ..style = PaintingStyle.fill;
-      canvas.drawCircle(Offset(tx, ty), (1.0 - i / trailSteps) * 2.2, trailPaint);
-    }
+    // Faint orbit ring — shows the circular path
+    final ringPaint = Paint()
+      ..color = KoraColors.purple.withValues(alpha: 0.12)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    canvas.drawCircle(center, orbitRadius, ringPaint);
 
     // Outer glow
     final glowPaint = Paint()
@@ -82,10 +76,11 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   @override
   void initState() {
     super.initState();
+    // One full round (orbit) then settle at the top — no cycling.
     _starController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 6),
-    )..repeat();
+      duration: const Duration(seconds: 4),
+    )..forward();
   }
 
   @override
