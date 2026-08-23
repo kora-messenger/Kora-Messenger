@@ -345,6 +345,14 @@ class TranslationService {
     return 'en';
   }
 
+  /// Transcribes a voice note to text.
+  /// Uses on-device STT (handled by the calling widget/service).
+  /// This is a placeholder — the actual STT is done by the recorder/playback service.
+  Future<String> transcribeVoiceNote(String voiceId) async {
+    // Placeholder — real STT is done on-device by the calling service
+    return voiceId;
+  }
+
   /// Full voice translation pipeline.
   Future<VoiceTranslationResult> translateVoiceNote(
     String transcript,
