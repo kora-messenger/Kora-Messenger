@@ -114,6 +114,11 @@ class _TranslationSettingsScreenState extends State<TranslationSettingsScreen> {
                   builder: (_) => LanguagePickerScreen(
                     selectedCode: _service.preferredLanguageCode,
                     title: 'Preferred Translation Language',
+                    // Keep this screen's original full list — a language
+                    // already shown under Preferred/Recently Used still
+                    // also appears in All Languages here (unlike the
+                    // Translate to/from pickers, which de-duplicate).
+                    hideDuplicatesInAllLanguages: false,
                   ),
                 ),
               );

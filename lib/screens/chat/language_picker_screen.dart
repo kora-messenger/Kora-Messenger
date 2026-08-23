@@ -15,10 +15,20 @@ class LanguagePickerScreen extends StatefulWidget {
   final String? selectedCode;
   final String title;
 
+  /// When true (default — used by the "Translate to" / "Translate from"
+  /// pickers), a language already shown under Preferred or Recently Used
+  /// is hidden from the All Languages list below so it isn't duplicated.
+  ///
+  /// The "Preferred Translation Language" settings screen sets this to
+  /// false so every language always appears in All Languages too — the
+  /// full, un-deduped list, matching its original design.
+  final bool hideDuplicatesInAllLanguages;
+
   const LanguagePickerScreen({
     super.key,
     this.selectedCode,
     this.title = 'Select Language',
+    this.hideDuplicatesInAllLanguages = true,
   });
 
   @override
@@ -63,7 +73,8 @@ class _LanguagePickerScreenState extends State<LanguagePickerScreen> {
     final preferred = TranslationService.instance.preferredLanguage;
 
     // Languages already shown under Preferred / Recently Used should not
-    // also appear again in the All Languages / Results list below.
+    // also appear again in the All Languages / Results list below —
+    // unless this instance opted out (Preferred Translation Language).
     final excludedCodes = <String>{
       preferred.code,
       ...recent.map((l) => l.code),
@@ -71,7 +82,7 @@ class _LanguagePickerScreenState extends State<LanguagePickerScreen> {
     // Only hide duplicates from the default "All Languages" view — while
     // actively searching, show every match so users can still find and
     // re-select a language that's already Preferred/Recent.
-    final visibleLanguages = _query.isEmpty
+    final visibleLanguages = (widget.hideDuplicatesInAllLanguages && _query.isEmpty)
         ? _filtered.where((l) => !excludedCodes.contains(l.code)).toList()
         : _filtered;
 
