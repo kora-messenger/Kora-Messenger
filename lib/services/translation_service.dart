@@ -8,7 +8,7 @@ import '../config/kora_api.dart';
 /// Central translation service for Kora Messenger.
 ///
 /// Handles:
-/// - Text translation (real, via Kora backend → Google Translate + MyMemory fallback)
+/// - Real text translation via koraTranslate backend (Google → MyMemory → OpenRouter LLM fallback)
 /// - Language detection
 /// - Voice note transcription + translation
 /// - User translation preferences (persisted)
@@ -19,10 +19,6 @@ import '../config/kora_api.dart';
 class TranslationService {
   static final TranslationService instance = TranslationService._();
   TranslationService._();
-
-  // ── Config ──────────────────────────────────────────────────
-  // Translation endpoint — deployed and live (Google Translate + MyMemory fallback).
-  // All translation runs through the koraTranslate backend function.
 
   // ── Keys ───────────────────────────────────────────────────
   static const _kPreferredLang = 'kora_translation_pref_lang';
@@ -44,13 +40,11 @@ class TranslationService {
 
   bool _initialized = false;
 
-  // Settings change stream
   final StreamController<String> _settingsController =
       StreamController<String>.broadcast();
   Stream<String> get settingsStream => _settingsController.stream;
 
-  // ── Supported Languages ────────────────────────────────────
-  /// 100+ supported languages for translation.
+  // ── Supported Languages (100+) ────────────────────────────
   static const List<KoraLanguage> _allLanguages = [
     KoraLanguage(code: 'en', name: 'English', flag: '🇬🇧', nativeName: 'English'),
     KoraLanguage(code: 'es', name: 'Spanish', flag: '🇪🇸', nativeName: 'Español'),
@@ -107,36 +101,17 @@ class TranslationService {
     KoraLanguage(code: 'zh-TW', name: 'Chinese (Traditional)', flag: '🇹🇼', nativeName: '繁體中文'),
     KoraLanguage(code: 'ja', name: 'Japanese', flag: '🇯🇵', nativeName: '日本語'),
     KoraLanguage(code: 'ko', name: 'Korean', flag: '🇰🇷', nativeName: '한국어'),
-    KoraLanguage(code: 'mn', name: 'Mongolian', flag: '🇲🇳', nativeName: 'Монгол'),
-    KoraLanguage(code: 'kk', name: 'Kazakh', flag: '🇰🇿', nativeName: 'Қазақ'),
-    KoraLanguage(code: 'uz', name: 'Uzbek', flag: '🇺🇿', nativeName: 'Oʻzbek'),
-    KoraLanguage(code: 'ky', name: 'Kyrgyz', flag: '🇰🇬', nativeName: 'Кыргызча'),
-    KoraLanguage(code: 'tg', name: 'Tajik', flag: '🇹🇯', nativeName: 'Тоҷикӣ'),
-    KoraLanguage(code: 'tk', name: 'Turkmen', flag: '🇹🇲', nativeName: 'Türkmen'),
-    KoraLanguage(code: 'az', name: 'Azerbaijani', flag: '🇦🇿', nativeName: 'Azərbaycan'),
-    KoraLanguage(code: 'ka', name: 'Georgian', flag: '🇬🇪', nativeName: 'ქართული'),
-    KoraLanguage(code: 'hy', name: 'Armenian', flag: '🇦🇲', nativeName: 'Հայերեն'),
     KoraLanguage(code: 'sw', name: 'Swahili', flag: '🇰🇪', nativeName: 'Kiswahili'),
     KoraLanguage(code: 'am', name: 'Amharic', flag: '🇪🇹', nativeName: 'አማርኛ'),
     KoraLanguage(code: 'yo', name: 'Yoruba', flag: '🇳🇬', nativeName: 'Yorùbá'),
     KoraLanguage(code: 'ig', name: 'Igbo', flag: '🇳🇬', nativeName: 'Igbo'),
     KoraLanguage(code: 'ha', name: 'Hausa', flag: '🇳🇬', nativeName: 'Hausa'),
     KoraLanguage(code: 'zu', name: 'Zulu', flag: '🇿🇦', nativeName: 'isiZulu'),
-    KoraLanguage(code: 'xh', name: 'Xhosa', flag: '🇿🇦', nativeName: 'isiXhosa'),
     KoraLanguage(code: 'af', name: 'Afrikaans', flag: '🇿🇦', nativeName: 'Afrikaans'),
-    KoraLanguage(code: 'st', name: 'Sesotho', flag: '🇱🇸', nativeName: 'Sesotho'),
     KoraLanguage(code: 'rw', name: 'Kinyarwanda', flag: '🇷🇼', nativeName: 'Kinyarwanda'),
-    KoraLanguage(code: 'om', name: 'Oromo', flag: '🇪🇹', nativeName: 'Oromoo'),
-    KoraLanguage(code: 'sn', name: 'Shona', flag: '🇿🇼', nativeName: 'ChiShona'),
-    KoraLanguage(code: 'ny', name: 'Chichewa', flag: '🇲🇼', nativeName: 'Chichewa'),
-    KoraLanguage(code: 'mg', name: 'Malagasy', flag: '🇲🇬', nativeName: 'Malagasy'),
     KoraLanguage(code: 'so', name: 'Somali', flag: '🇸🇴', nativeName: 'Soomaali'),
-    KoraLanguage(code: 'rn', name: 'Kirundi', flag: '🇧🇮', nativeName: 'Ikirundi'),
     KoraLanguage(code: 'lg', name: 'Luganda', flag: '🇺🇬', nativeName: 'Luganda'),
-    KoraLanguage(code: 'ts', name: 'Tsonga', flag: '🇿🇦', nativeName: 'Xitsonga'),
-    KoraLanguage(code: 'tn', name: 'Tswana', flag: '🇧🇼', nativeName: 'Setswana'),
-    KoraLanguage(code: 'fo', name: 'Faroese', flag: '🇫🇴', nativeName: 'Føroyskt'),
-    KoraLanguage(code: 'gd', name: 'Gaelic', flag: '🇬🇧', nativeName: 'Gàidhlig'),
+    KoraLanguage(code: 'sv-FI', name: 'Finnish (Finland)', flag: '🇫🇮', nativeName: 'Suomi'),
     KoraLanguage(code: 'cy', name: 'Welsh', flag: '🏴', nativeName: 'Cymraeg'),
     KoraLanguage(code: 'ga', name: 'Irish', flag: '🇮🇪', nativeName: 'Gaeilge'),
     KoraLanguage(code: 'mt', name: 'Maltese', flag: '🇲🇹', nativeName: 'Malti'),
@@ -146,23 +121,16 @@ class TranslationService {
     KoraLanguage(code: 'eu', name: 'Basque', flag: '🇪🇸', nativeName: 'Euskara'),
     KoraLanguage(code: 'ca', name: 'Catalan', flag: '🇪🇸', nativeName: 'Català'),
     KoraLanguage(code: 'gl', name: 'Galician', flag: '🇪🇸', nativeName: 'Galego'),
-    KoraLanguage(code: 'cy-GB', name: 'Welsh (UK)', flag: '🏴', nativeName: 'Cymraeg'),
-    KoraLanguage(code: 'lb', name: 'Luxembourgish', flag: '🇱🇺', nativeName: 'Lëtzebuergesch'),
-    KoraLanguage(code: 'af-ZA', name: 'Afrikaans (SA)', flag: '🇿🇦', nativeName: 'Afrikaans'),
     KoraLanguage(code: 'haw', name: 'Hawaiian', flag: '🇺🇸', nativeName: 'ʻŌlelo Hawaiʻi'),
     KoraLanguage(code: 'sm', name: 'Samoan', flag: '🇼🇸', nativeName: 'Gagana Samoa'),
-    KoraLanguage(code: 'to', name: 'Tongan', flag: '🇹🇴', nativeName: 'Lea Faka-Tonga'),
     KoraLanguage(code: 'mi', name: 'Maori', flag: '🇳🇿', nativeName: 'Te Reo Māori'),
     KoraLanguage(code: 'la', name: 'Latin', flag: '🏛️', nativeName: 'Latina'),
     KoraLanguage(code: 'eo', name: 'Esperanto', flag: '🌍', nativeName: 'Esperanto'),
     KoraLanguage(code: 'jv', name: 'Javanese', flag: '🇮🇩', nativeName: 'Basa Jawa'),
-    KoraLanguage(code: 'su', name: 'Sundanese', flag: '🇮🇩', nativeName: 'Basa Sunda'),
     KoraLanguage(code: 'yi', name: 'Yiddish', flag: '✡️', nativeName: 'ייִדיש'),
     KoraLanguage(code: 'sd', name: 'Sindhi', flag: '🇵🇰', nativeName: 'سنڌي'),
     KoraLanguage(code: 'ne', name: 'Nepali', flag: '🇳🇵', nativeName: 'नेपाली'),
     KoraLanguage(code: 'si', name: 'Sinhala', flag: '🇱🇰', nativeName: 'සිංහල'),
-    KoraLanguage(code: 'dv', name: 'Dhivehi', flag: '🇲🇻', nativeName: 'ދިވެހި'),
-    KoraLanguage(code: 'ps-AF', name: 'Pashto (Afghanistan)', flag: '🇦🇫', nativeName: 'پښتو'),
   ];
 
   // ── Initialization ───────────────────────────────────────────
@@ -189,34 +157,27 @@ class TranslationService {
   String get preferredLanguageCode => _preferredLangCode;
   KoraLanguage get preferredLanguage =>
       languageByCode(_preferredLangCode) ?? _allLanguages.first;
-
   AutoTranslateMode get autoTranslateMode => _autoMode;
   bool get showOriginal => _showOriginal;
   bool get translateVoice => _translateVoice;
   bool get callTranslationEnabled => _callTranslationEnabled;
   double get captionSize => _captionSize;
 
-  List<KoraLanguage> get recentLanguages {
-    return _recentLangCodes
-        .map((c) => languageByCode(c))
-        .whereType<KoraLanguage>()
-        .toList();
-  }
+  List<KoraLanguage> get recentLanguages =>
+      _recentLangCodes.map(languageByCode).whereType<KoraLanguage>().toList();
 
   List<KoraLanguage> get allLanguages => _allLanguages;
 
-  KoraLanguage? languageByCode(String code) {
-    return _allLanguages.where((l) => l.code == code).firstOrNull;
-  }
+  KoraLanguage? languageByCode(String code) =>
+      _allLanguages.where((l) => l.code == code).firstOrNull;
 
   List<KoraLanguage> searchLanguages(String query) {
     final q = query.toLowerCase().trim();
     if (q.isEmpty) return _allLanguages;
-    return _allLanguages.where((l) {
-      return l.name.toLowerCase().contains(q) ||
-          l.nativeName.toLowerCase().contains(q) ||
-          l.code.toLowerCase().contains(q);
-    }).toList();
+    return _allLanguages.where((l) =>
+      l.name.toLowerCase().contains(q) ||
+      l.nativeName.toLowerCase().contains(q) ||
+      l.code.toLowerCase().contains(q)).toList();
   }
 
   // ── Settings Setters ────────────────────────────────────────
@@ -266,9 +227,7 @@ class TranslationService {
   Future<void> addRecentLanguage(String code) async {
     _recentLangCodes.remove(code);
     _recentLangCodes.insert(0, code);
-    if (_recentLangCodes.length > 5) {
-      _recentLangCodes = _recentLangCodes.sublist(0, 5);
-    }
+    if (_recentLangCodes.length > 5) _recentLangCodes = _recentLangCodes.sublist(0, 5);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(_kRecentLangs, _recentLangCodes);
   }
@@ -279,33 +238,32 @@ class TranslationService {
     _settingsController.add('historyCleared');
   }
 
-  // ── Translation ──────────────────────────────────────────────
+  // ── Real Translation (koraTranslate backend) ────────────────
   /// Translates [text] to the language specified by [targetCode].
   ///
-  /// Calls the Kora translation backend function, which proxies to
-  /// MyMemory Translation API (free, no key needed). Domain-swappable
-  /// via [KoraApi.translateEndpoint].
+  /// Calls the koraTranslate backend which uses a 3-engine fallback:
+  /// Google Translate → MyMemory → OpenRouter free LLM.
   Future<TranslationResult> translate(
     String text,
     String targetCode, {
     String? sourceCode,
   }) async {
-    final detectedCode = sourceCode ?? await detectLanguage(text) ?? 'en';
-    final targetLang = languageByCode(targetCode) ?? _allLanguages.first;
-    final detectedLang = languageByCode(detectedCode) ?? _allLanguages.first;
-
-    // Same language — no translation needed
-    if (detectedCode == targetCode) {
+    if (text.trim().isEmpty) {
+      final targetLang = languageByCode(targetCode) ?? _allLanguages.first;
       return TranslationResult(
         originalText: text,
         translatedText: text,
-        detectedLanguageCode: detectedCode,
-        detectedLanguageName: detectedLang.name,
+        detectedLanguageCode: sourceCode ?? 'en',
+        detectedLanguageName: languageByCode(sourceCode ?? 'en')?.name ?? 'English',
         targetLanguageCode: targetCode,
         targetLanguageName: targetLang.name,
         translatedAt: DateTime.now(),
       );
     }
+
+    final detectedCode = sourceCode ?? await detectLanguage(text) ?? 'en';
+    final targetLang = languageByCode(targetCode) ?? _allLanguages.first;
+    final detectedLang = languageByCode(detectedCode) ?? _allLanguages.first;
 
     try {
       final response = await http
@@ -314,40 +272,38 @@ class TranslationService {
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({
               'text': text,
-              'sourceLang': detectedCode,
               'targetLang': targetCode,
+              'sourceLang': detectedCode,
             }),
           )
           .timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
-        final translatedText = data['translatedText'] as String? ?? text;
-        final apiDetectedLang = data['detectedLanguage'] as String?;
-
-        return TranslationResult(
-          originalText: text,
-          translatedText: translatedText,
-          detectedLanguageCode: apiDetectedLang ?? detectedCode,
-          detectedLanguageName: languageByCode(apiDetectedLang ?? detectedCode)?.name ?? detectedLang.name,
-          targetLanguageCode: targetCode,
-          targetLanguageName: targetLang.name,
-          translatedAt: DateTime.now(),
-        );
-      } else {
-        // API error — fall back to original text
-        return TranslationResult(
-          originalText: text,
-          translatedText: text,
-          detectedLanguageCode: detectedCode,
-          detectedLanguageName: detectedLang.name,
-          targetLanguageCode: targetCode,
-          targetLanguageName: targetLang.name,
-          translatedAt: DateTime.now(),
-        );
+        if (data['success'] == true && data['translatedText'] != null) {
+          return TranslationResult(
+            originalText: text,
+            translatedText: data['translatedText'] as String,
+            detectedLanguageCode: detectedCode,
+            detectedLanguageName: detectedLang.name,
+            targetLanguageCode: targetCode,
+            targetLanguageName: targetLang.name,
+            translatedAt: DateTime.now(),
+          );
+        }
       }
+      // Fallback
+      return TranslationResult(
+        originalText: text,
+        translatedText: text,
+        detectedLanguageCode: detectedCode,
+        detectedLanguageName: detectedLang.name,
+        targetLanguageCode: targetCode,
+        targetLanguageName: targetLang.name,
+        translatedAt: DateTime.now(),
+      );
     } catch (e) {
-      // Network error — fall back to original text
+      // Fallback on network error
       return TranslationResult(
         originalText: text,
         translatedText: text,
@@ -360,85 +316,42 @@ class TranslationService {
     }
   }
 
-  /// Detects the language of [text].
-  ///
-  /// Uses a heuristic based on Unicode character ranges for instant detection.
-  /// The backend also has its own detection as a secondary check.
+  /// Detects the language of [text] using Unicode character ranges.
   Future<String?> detectLanguage(String text) async {
-    await Future.delayed(const Duration(milliseconds: 300));
-
     if (text.isEmpty) return null;
-
-    // Check for specific script ranges
-    // Arabic
     if (RegExp(r'[\u0600-\u06FF]').hasMatch(text)) return 'ar';
-    // Hebrew
     if (RegExp(r'[\u0590-\u05FF]').hasMatch(text)) return 'he';
-    // Cyrillic (Russian, Ukrainian, etc.)
     if (RegExp(r'[\u0400-\u04FF]').hasMatch(text)) return 'ru';
-    // CJK (Chinese, Japanese, Korean)
     if (RegExp(r'[\u4E00-\u9FFF]').hasMatch(text)) return 'zh';
-    // Japanese Hiragana/Katakana
     if (RegExp(r'[\u3040-\u309F\u30A0-\u30FF]').hasMatch(text)) return 'ja';
-    // Korean Hangul
     if (RegExp(r'[\uAC00-\uD7AF]').hasMatch(text)) return 'ko';
-    // Thai
     if (RegExp(r'[\u0E00-\u0E7F]').hasMatch(text)) return 'th';
-    // Devanagari (Hindi, Marathi, etc.)
     if (RegExp(r'[\u0900-\u097F]').hasMatch(text)) return 'hi';
-    // Bengali
     if (RegExp(r'[\u0980-\u09FF]').hasMatch(text)) return 'bn';
-    // Tamil
     if (RegExp(r'[\u0B80-\u0BFF]').hasMatch(text)) return 'ta';
-    // Telugu
     if (RegExp(r'[\u0C00-\u0C7F]').hasMatch(text)) return 'te';
-    // Amharic (Ge'ez script)
     if (RegExp(r'[\u1200-\u137F]').hasMatch(text)) return 'am';
-    // Yoruba
-    if (RegExp(r'[\u1DC0-\u1DFF\u0060\u00B4]').hasMatch(text)) return 'yo';
-    // Greek
     if (RegExp(r'[\u0370-\u03FF]').hasMatch(text)) return 'el';
-    // Georgian
     if (RegExp(r'[\u10A0-\u10FF]').hasMatch(text)) return 'ka';
-    // Armenian
     if (RegExp(r'[\u0530-\u058F]').hasMatch(text)) return 'hy';
-    // Latin with accents — try to guess European language
     if (RegExp(r'[àâäçéèêëîïôöùûüÿñ]').hasMatch(text)) {
       if (RegExp(r'[ñ¿¡]').hasMatch(text)) return 'es';
-      if (RegExp(r'[àâäéèêëîïôöùûüç]').hasMatch(text)) return 'fr';
       if (RegExp(r'[äöüß]').hasMatch(text)) return 'de';
+      if (RegExp(r'[àâéèêëîïôöùûüç]').hasMatch(text)) return 'fr';
       if (RegExp(r'[àèéìòù]').hasMatch(text)) return 'it';
       if (RegExp(r'[ãõçáâéêíôó]').hasMatch(text)) return 'pt';
       return 'fr';
     }
-
-    // Default: English (Latin script without distinctive accents)
     return 'en';
   }
 
-  /// Transcribes a voice note to text.
-  ///
-  /// If the voice note was recorded with on-device STT (speech_to_text),
-  /// the transcript is stored on the message and passed directly.
-  /// For cloud transcription, calls the Kora backend function which
-  /// proxies to a speech-to-text API.
-  Future<String> transcribeVoiceNote(String voiceId, {String? filePath}) async {
-    // On-device transcription (speech_to_text) captures the transcript
-    // during recording and stores it on the message.
-    // This method is a fallback for messages without a stored transcript.
-    await Future.delayed(const Duration(milliseconds: 500));
-    return '';
-  }
-
-  /// Full voice translation: transcribe + detect + translate.
+  /// Full voice translation pipeline.
   Future<VoiceTranslationResult> translateVoiceNote(
-    String voiceId,
+    String transcript,
     String targetCode,
   ) async {
-    final transcript = await transcribeVoiceNote(voiceId);
     final detectedCode = await detectLanguage(transcript) ?? 'en';
     final translation = await translate(transcript, targetCode, sourceCode: detectedCode);
-
     return VoiceTranslationResult(
       transcript: transcript,
       detectedLanguageCode: detectedCode,
