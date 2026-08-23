@@ -39,7 +39,7 @@ class _ChatsTabState extends State<ChatsTab> {
   @override
   void initState() {
     super.initState();
-    _chats = ChatService.instance.getChats();
+    _initMessages();
   }
 
   @override
@@ -210,7 +210,8 @@ class _ChatsTabState extends State<ChatsTab> {
                   : RefreshIndicator(
                       color: KoraColors.purple,
                       onRefresh: () async {
-                        setState(() => _chats = ChatService.instance.getChats());
+                        _chats = await ChatService.instance.getChats();
+                        setState(() {});
                       },
                       child: _filteredChats.isEmpty
                           ? ListView(

@@ -1178,7 +1178,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
                 KoraMenuOption(icon: Icons.palette_outlined, label: 'Chat theme', onTap: () {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const DefaultChatThemeScreen()));
                 }),
-                KoraMenuOption(icon: Icons.cloud_backup_outlined, label: 'Chat backup', onTap: () {
+                KoraMenuOption(icon: Icons.cloud_outlined, label: 'Chat backup', onTap: () {
   Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatBackupScreen()));
 }),
                 KoraMenuOption(icon: Icons.cleaning_services_outlined, label: 'Clear chat', onTap: () => _showClearChatDialog()),
