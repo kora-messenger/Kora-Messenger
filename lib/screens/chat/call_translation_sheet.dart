@@ -1,19 +1,17 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../theme/kora_colors.dart';
 import '../../services/translation_service.dart';
 import '../../models/translation_models.dart';
 import 'language_picker_screen.dart';
 
-/// Pre-call translation configuration sheet.
+/// Call translation configuration sheet — audio voice-to-voice mode.
 ///
-/// Shows before starting a call when call translation is enabled.
 /// Lets users pick:
 /// - Their language (what they speak)
-/// - Incoming translation language (what they want to hear/read)
-/// - Outgoing translation language (what the other person receives)
+/// - Target language (what the other person hears)
 ///
-/// Also accessible during a call to change languages without ending it.
+/// No captions — translation is audio-only. The other person hears
+/// your speech translated into their language via TTS.
 class CallTranslationSheet extends StatefulWidget {
   final bool isInCall;
 
@@ -22,13 +20,8 @@ class CallTranslationSheet extends StatefulWidget {
     this.isInCall = false,
   });
 
-  /// Shows the translation sheet as a modal bottom sheet ABOVE whatever
-  /// screen called it (e.g. the active CallScreen) without navigating
-  /// away from or rebuilding that screen. Returns the sheet's close
-  /// [Future] so callers (like CallScreen) can know when it's dismissed —
-  /// e.g. to make sure it's closed cleanly if the call ends while open.
-  static Future<void> show(BuildContext context, {bool isInCall = false}) {
-    return showModalBottomSheet(
+  static void show(BuildContext context, {bool isInCall = false}) {
+    showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -43,24 +36,19 @@ class CallTranslationSheet extends StatefulWidget {
 class _CallTranslationSheetState extends State<CallTranslationSheet> {
   final _service = TranslationService.instance;
   late KoraLanguage _yourLanguage;
-  late KoraLanguage _incomingLanguage;
-  late KoraLanguage _outgoingLanguage;
-  bool _captionsOn = true;
+  late KoraLanguage _targetLanguage;
 
   @override
   void initState() {
     super.initState();
     _yourLanguage = _service.preferredLanguage;
-    _incomingLanguage = _service.preferredLanguage;
-    _outgoingLanguage = _service.preferredLanguage;
+    _targetLanguage = _service.preferredLanguage;
   }
 
   Future<KoraLanguage?> _pickLanguage(String title) async {
     return Navigator.push<KoraLanguage>(
       context,
-      MaterialPageRoute(
-        builder: (_) => LanguagePickerScreen(title: title),
-      ),
+      MaterialPageRoute(builder: (_) => LanguagePickerScreen(title: title)),
     );
   }
 
@@ -68,7 +56,6 @@ class _CallTranslationSheetState extends State<CallTranslationSheet> {
   Widget build(BuildContext context) {
     final brightness = Theme.of(context).brightness;
     final card = KoraColors.cardFor(brightness);
-    final surface = KoraColors.surfaceFor(brightness);
     final textPrimary = KoraColors.textPrimaryFor(brightness);
     final textSecondary = KoraColors.textSecondaryFor(brightness);
     final textMuted = KoraColors.textMutedFor(brightness);
@@ -94,12 +81,13 @@ class _CallTranslationSheetState extends State<CallTranslationSheet> {
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
+
             // Header
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 16, 12),
               child: Row(
                 children: [
-                  Icon(Icons.phone_in_talk_rounded, color: KoraColors.purple, size: 22),
+                  Icon(Icons.translate_rounded, color: KoraColors.purple, size: 22),
                   const SizedBox(width: 8),
                   Text(
                     'Call Translation',
@@ -121,124 +109,134 @@ class _CallTranslationSheetState extends State<CallTranslationSheet> {
             ),
             Divider(height: 1, color: border),
 
-            // Body
+            // Info card
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Kora Translate indicator
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: KoraColors.purple.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(10),
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: KoraColors.purple.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: KoraColors.purple.withValues(alpha: 0.12),
+                    width: 0.5,
+                  ),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.graphic_eq_rounded, size: 18, color: KoraColors.purple),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Voice-to-voice translation. You speak your language, they hear theirs. Audio only — no text on screen.',
+                        style: TextStyle(
+                          color: textSecondary,
+                          fontSize: 13,
+                          height: 1.5,
+                        ),
+                      ),
                     ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Language selectors
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              child: Column(
+                children: [
+                  // Your language
+                  _languageTile(
+                    title: 'You speak',
+                    subtitle: _yourLanguage.name,
+                    flag: _yourLanguage.flag,
+                    onTap: () async {
+                      final lang = await _pickLanguage('Your Language');
+                      if (lang != null && mounted) {
+                        setState(() => _yourLanguage = lang);
+                      }
+                    },
+                    textPrimary: textPrimary,
+                    textSecondary: textSecondary,
+                    textMuted: textMuted,
+                    border: border,
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // Swap icon
+                  Center(
+                    child: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: KoraColors.purple.withValues(alpha: 0.08),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(Icons.swap_vert_rounded, color: KoraColors.purple, size: 20),
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // Target language
+                  _languageTile(
+                    title: 'They hear',
+                    subtitle: _targetLanguage.name,
+                    flag: _targetLanguage.flag,
+                    onTap: () async {
+                      final lang = await _pickLanguage('Their Language');
+                      if (lang != null && mounted) {
+                        setState(() => _targetLanguage = lang);
+                      }
+                    },
+                    textPrimary: textPrimary,
+                    textSecondary: textSecondary,
+                    textMuted: textMuted,
+                    border: border,
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // Start/Apply button
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+              child: GestureDetector(
+                onTap: () {
+                  Navigator.pop(context, (
+                    sourceLanguage: _yourLanguage.code,
+                    targetLanguage: _targetLanguage.code,
+                  ));
+                },
+                child: Container(
+                  height: 50,
+                  decoration: BoxDecoration(
+                    gradient: KoraColors.brandGradient,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Center(
                     child: Row(
-                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.language_rounded, size: 16, color: KoraColors.purple),
+                        Icon(Icons.play_arrow_rounded, color: Colors.white, size: 20),
                         const SizedBox(width: 6),
                         Text(
-                          'Kora Translate • ON',
-                          style: TextStyle(
-                            color: KoraColors.purple,
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.3,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Your language
-                  _langRow(
-                    'Your language',
-                    'What you speak',
-                    _yourLanguage,
-                    surface,
-                    textPrimary,
-                    textSecondary,
-                    textMuted,
-                    border,
-                    () async {
-                      final result = await _pickLanguage('Your Language');
-                      if (result != null) setState(() => _yourLanguage = result);
-                    },
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Incoming
-                  _langRow(
-                    'Translate incoming to',
-                    'What you want to hear/read',
-                    _incomingLanguage,
-                    surface,
-                    textPrimary,
-                    textSecondary,
-                    textMuted,
-                    border,
-                    () async {
-                      final result = await _pickLanguage('Translate Incoming To');
-                      if (result != null) setState(() => _incomingLanguage = result);
-                    },
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Outgoing
-                  _langRow(
-                    'Translate your speech to',
-                    'What the other person receives',
-                    _outgoingLanguage,
-                    surface,
-                    textPrimary,
-                    textSecondary,
-                    textMuted,
-                    border,
-                    () async {
-                      final result = await _pickLanguage('Translate Your Speech To');
-                      if (result != null) setState(() => _outgoingLanguage = result);
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Captions toggle
-                  _switchRow(
-                    'Live Captions',
-                    'Show translated text during the call',
-                    _captionsOn,
-                    surface,
-                    textPrimary,
-                    textSecondary,
-                    border,
-                    (v) => setState(() => _captionsOn = v),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Start/Apply button
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: Container(
-                      height: 48,
-                      decoration: BoxDecoration(
-                        gradient: KoraColors.brandGradient,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Center(
-                        child: Text(
-                          widget.isInCall ? 'Apply Changes' : 'Start Call',
+                          widget.isInCall ? 'Apply Translation' : 'Start Translation',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
-                      ),
+                      ],
                     ),
                   ),
-                ],
+                ),
               ),
             ),
           ],
@@ -247,28 +245,29 @@ class _CallTranslationSheetState extends State<CallTranslationSheet> {
     );
   }
 
-  Widget _langRow(
-    String title,
-    String subtitle,
-    KoraLanguage lang,
-    Color surface,
-    Color textPrimary,
-    Color textSecondary,
-    Color textMuted,
-    Color border,
-    VoidCallback onTap,
-  ) {
+  Widget _languageTile({
+    required String title,
+    required String subtitle,
+    required String flag,
+    required VoidCallback onTap,
+    required Color textPrimary,
+    required Color textSecondary,
+    required Color textMuted,
+    required Color border,
+  }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         decoration: BoxDecoration(
-          color: surface,
-          borderRadius: BorderRadius.circular(12),
+          color: KoraColors.purple.withValues(alpha: 0.03),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(color: border, width: 0.5),
         ),
         child: Row(
           children: [
+            Text(flag, style: const TextStyle(fontSize: 28)),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -277,287 +276,23 @@ class _CallTranslationSheetState extends State<CallTranslationSheet> {
                     title,
                     style: TextStyle(
                       color: textMuted,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.3,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Text(lang.flag, style: const TextStyle(fontSize: 16)),
-                      const SizedBox(width: 8),
-                      Text(
-                        lang.name,
-                        style: TextStyle(
-                          color: textPrimary,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
                   ),
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: TextStyle(color: textSecondary, fontSize: 12),
+                    style: TextStyle(
+                      color: textPrimary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ],
               ),
             ),
-            Icon(Icons.keyboard_arrow_down_rounded, color: textMuted, size: 22),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _switchRow(
-    String title,
-    String subtitle,
-    bool value,
-    Color surface,
-    Color textPrimary,
-    Color textSecondary,
-    Color border,
-    ValueChanged<bool> onChanged,
-  ) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: border, width: 0.5),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    color: textPrimary,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 1),
-                Text(
-                  subtitle,
-                  style: TextStyle(color: textSecondary, fontSize: 12),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Switch(
-            value: value,
-            onChanged: onChanged,
-            activeThumbColor: KoraColors.purple,
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Live captions overlay for in-call translation.
-///
-/// Shows as a floating panel at the bottom of the call screen.
-/// Displays:
-/// - Speaker name
-/// - Original speech text
-/// - Translated text
-///
-/// Used by [_CallScreen] when call translation is active.
-class LiveCaptionsOverlay extends StatefulWidget {
-  final String speakerName;
-  final double fontSize;
-  /// Stream of incoming captions from the remote peer (via WebRTC data channel).
-  /// Each event is a (text, isFinal) pair.
-  final Stream<(String, bool)>? captionStream;
-  /// Stream of the local user's own captions (for display on their own device).
-  final Stream<(String, bool)>? localCaptionStream;
-
-  const LiveCaptionsOverlay({
-    super.key,
-    required this.speakerName,
-    this.fontSize = 14,
-    this.captionStream,
-    this.localCaptionStream,
-  });
-
-  @override
-  State<LiveCaptionsOverlay> createState() => _LiveCaptionsOverlayState();
-}
-
-class _LiveCaptionsOverlayState extends State<LiveCaptionsOverlay>
-    with SingleTickerProviderStateMixin {
-  String _originalText = '';
-  String _translatedText = '';
-  late AnimationController _fadeController;
-  StreamSubscription<(String, bool)>? _remoteSub;
-  StreamSubscription<(String, bool)>? _localSub;
-  Timer? _clearTimer;
-
-  @override
-  void initState() {
-    super.initState();
-    _fadeController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 300),
-    );
-    _fadeController.forward();
-    _showWaitingMessage();
-
-    // Subscribe to remote captions (from the other peer via data channel)
-    if (widget.captionStream != null) {
-      _remoteSub = widget.captionStream!.listen((data) {
-        final (text, isFinal) = data;
-        if (text.isNotEmpty) {
-          _onRemoteCaption(text, isFinal);
-        }
-      });
-    }
-
-    // Subscribe to local captions (the user's own speech, for their reference)
-    if (widget.localCaptionStream != null) {
-      _localSub = widget.localCaptionStream!.listen((data) {
-        final (text, isFinal) = data;
-        if (text.isNotEmpty && mounted) {
-          setState(() => _originalText = text);
-          _resetClearTimer();
-        }
-      });
-    }
-  }
-
-  void _showWaitingMessage() {
-    if (!mounted) return;
-    setState(() {
-      _originalText = 'Listening…';
-      _translatedText = '';
-    });
-  }
-
-  /// Handle incoming remote caption — translate and display.
-  void _onRemoteCaption(String text, bool isFinal) {
-    if (!mounted) return;
-    setState(() => _originalText = text);
-    _resetClearTimer();
-
-    if (isFinal) {
-      // Translate the final utterance
-      TranslationService.instance
-          .translate(text, TranslationService.instance.preferredLanguageCode)
-          .then((result) {
-        if (mounted) {
-          setState(() => _translatedText = result.translatedText);
-          _fadeController.reset();
-          _fadeController.forward();
-        }
-      });
-    }
-  }
-
-  /// Auto-clear captions after 5 seconds of silence so the overlay
-  /// doesn't show stale text indefinitely.
-  void _resetClearTimer() {
-    _clearTimer?.cancel();
-    _clearTimer = Timer(const Duration(seconds: 5), () {
-      if (mounted) _showWaitingMessage();
-    });
-  }
-
-  @override
-  void dispose() {
-    _remoteSub?.cancel();
-    _localSub?.cancel();
-    _clearTimer?.cancel();
-    _fadeController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FadeTransition(
-      opacity: _fadeController,
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.7),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: KoraColors.purple.withValues(alpha: 0.3),
-            width: 0.5,
-          ),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Speaker + Kora Translate indicator
-            Row(
-              children: [
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    color: KoraColors.purple,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  widget.speakerName,
-                  style: const TextStyle(
-                    color: KoraColors.purple,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Icon(Icons.language_rounded, size: 12, color: Colors.white.withValues(alpha: 0.4)),
-                const SizedBox(width: 4),
-                Text(
-                  'Kora Translate',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.4),
-                    fontSize: 10,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            // Original text
-            if (_originalText.isNotEmpty)
-              Text(
-                _originalText,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.6),
-                  fontSize: widget.fontSize - 1,
-                  height: 1.4,
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-            // Translated text
-            if (_translatedText.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Text(
-                _translatedText,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: widget.fontSize,
-                  height: 1.4,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
+            Icon(Icons.chevron_right, color: textMuted),
           ],
         ),
       ),
