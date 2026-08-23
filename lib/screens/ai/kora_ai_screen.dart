@@ -1,21 +1,36 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../theme/kora_colors.dart';
+import '../../services/ai_features_service.dart';
 import '../../services/kora_ai_service.dart';
+import '../../theme/kora_colors.dart';
 
 /// Kora AI — general-purpose intelligent assistant.
 ///
-/// Supports text, image understanding, web research, and conversation memory.
+/// Supports text, image understanding, file analysis, web research, and conversation memory.
 /// Free for all Kora Messenger users.
 class KoraAiScreen extends StatefulWidget {
   const KoraAiScreen({super.key});
 
   @override
   State<KoraAiScreen> createState() => _KoraAiScreenState();
+}
+
+class _QuickActionItem {
+  final String label;
+  final IconData icon;
+  final String templatePrompt;
+
+  const _QuickActionItem({
+    required this.label,
+    required this.icon,
+    required this.templatePrompt,
+  });
 }
 
 class _KoraAiScreenState extends State<KoraAiScreen>
@@ -34,11 +49,40 @@ class _KoraAiScreenState extends State<KoraAiScreen>
   String? _pendingImageBase64;
   File? _pendingImageFile;
 
+  // Pending file attachment
+  String? _pendingFileName;
+  String? _pendingFileContent;
+
   static const List<String> _suggestions = [
     'What can you do?',
+    'Help me write a message',
     'Translate a sentence',
-    'Help me write an email',
+    'Summarize this text for me',
+    'Fix my grammar',
     'Explain a concept',
+  ];
+
+  static const List<_QuickActionItem> _quickActions = [
+    _QuickActionItem(
+      label: 'Write',
+      icon: Icons.auto_awesome,
+      templatePrompt: 'Help me write a message: ',
+    ),
+    _QuickActionItem(
+      label: 'Translate',
+      icon: Icons.language,
+      templatePrompt: 'Translate this to French: ',
+    ),
+    _QuickActionItem(
+      label: 'Summarize',
+      icon: Icons.subject,
+      templatePrompt: 'Summarize this text for me: ',
+    ),
+    _QuickActionItem(
+      label: 'Grammar',
+      icon: Icons.edit,
+      templatePrompt: 'Fix my grammar in this text: ',
+    ),
   ];
 
   @override
@@ -98,6 +142,8 @@ class _KoraAiScreenState extends State<KoraAiScreen>
       setState(() {
         _pendingImageFile = file;
         _pendingImageBase64 = base64Str;
+        _pendingFileName = null;
+        _pendingFileContent = null;
       });
     } catch (_) {
       // Silently ignore — user may have cancelled
@@ -111,46 +157,120 @@ class _KoraAiScreenState extends State<KoraAiScreen>
     });
   }
 
+  Future<void> _pickFile() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['txt', 'md', 'json', 'csv'],
+      );
+      if (result == null || result.files.isEmpty) return;
+
+      final file = result.files.first;
+      if (file.path == null) return;
+
+      final ioFile = File(file.path!);
+      final sizeInBytes = await ioFile.length();
+      if (sizeInBytes > 100 * 1024) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('File is too large (>100KB). Please select a smaller file.'),
+              backgroundColor: KoraColors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      final content = await ioFile.readAsString();
+      setState(() {
+        _pendingFileName = file.name;
+        _pendingFileContent = content;
+        _pendingImageFile = null;
+        _pendingImageBase64 = null;
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error picking file: $e'),
+            backgroundColor: KoraColors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _removePendingFile() {
+    setState(() {
+      _pendingFileName = null;
+      _pendingFileContent = null;
+    });
+  }
+
   Future<void> _sendMessage([String? overrideText]) async {
     final text = (overrideText ?? _inputController.text).trim();
-    if (text.isEmpty && _pendingImageBase64 == null) return;
+    if (text.isEmpty && _pendingImageBase64 == null && _pendingFileContent == null) return;
     if (_isSending) return;
 
     _inputController.clear();
     final hasImage = _pendingImageBase64 != null;
-    final displayText = hasImage && text.isEmpty ? '[Image]' : text;
+    final hasFile = _pendingFileContent != null;
+
+    String displayText = text;
+    if (displayText.isEmpty) {
+      if (hasImage) displayText = '[Image]';
+      if (hasFile) displayText = '[File: $_pendingFileName]';
+    } else if (hasFile) {
+      displayText = '[File: $_pendingFileName] $text';
+    }
+
+    final fileContent = _pendingFileContent;
+    final fileName = _pendingFileName;
+    final imageBase64 = _pendingImageBase64;
 
     setState(() {
       _messages.add(KoraAiMessage(role: 'user', content: displayText));
       _isSending = true;
+      _pendingImageFile = null;
+      _pendingImageBase64 = null;
+      _pendingFileName = null;
+      _pendingFileContent = null;
     });
     _scrollToBottom();
 
-    final result = await KoraAiService.instance.sendAiMessage(
-      message: text.isEmpty ? 'What do you see in this image?' : text,
-      conversationId: _conversationId,
-      imageBase64: _pendingImageBase64,
-    );
-
-    // Clear pending image
-    setState(() {
-      _pendingImageFile = null;
-      _pendingImageBase64 = null;
-      _isSending = false;
-    });
-
-    if (result.success) {
-      setState(() {
-        _messages.add(KoraAiMessage(role: 'assistant', content: result.response));
-      });
+    KoraAiResult result;
+    if (hasFile && fileContent != null && fileName != null) {
+      result = await AiFeaturesService.instance.analyzeFile(
+        fileContent,
+        fileName,
+        text,
+        conversationId: _conversationId,
+      );
+    } else if (hasImage && imageBase64 != null) {
+      result = await AiFeaturesService.instance.analyzeImage(
+        imageBase64,
+        text,
+        conversationId: _conversationId,
+      );
     } else {
-      setState(() {
+      result = await KoraAiService.instance.sendAiMessage(
+        message: text,
+        conversationId: _conversationId,
+      );
+    }
+
+    setState(() {
+      _isSending = false;
+      if (result.success) {
+        _messages.add(KoraAiMessage(role: 'assistant', content: result.response));
+      } else {
         _messages.add(KoraAiMessage(
           role: 'assistant',
           content: 'Sorry, I couldn\'t connect. ${result.error ?? ''}',
         ));
-      });
-    }
+      }
+    });
     _scrollToBottom();
   }
 
@@ -188,6 +308,49 @@ class _KoraAiScreenState extends State<KoraAiScreen>
     setState(() => _messages.clear());
   }
 
+  void _showContextMenu(BuildContext context, String content) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: KoraColors.darkCard,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 36,
+              height: 4,
+              margin: const EdgeInsets.symmetric(vertical: 8),
+              decoration: BoxDecoration(
+                color: KoraColors.borderFor(Brightness.dark),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.copy, color: KoraColors.purple),
+              title: const Text(
+                'Copy',
+                style: TextStyle(color: Colors.white, fontSize: 15),
+              ),
+              onTap: () {
+                Navigator.pop(ctx);
+                Clipboard.setData(ClipboardData(text: content));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Message copied to clipboard'),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -199,6 +362,8 @@ class _KoraAiScreenState extends State<KoraAiScreen>
               children: [
                 Expanded(child: _buildChatArea()),
                 if (_pendingImageFile != null) _buildImagePreview(),
+                if (_pendingFileName != null) _buildFilePreview(),
+                _buildQuickActionsRow(),
                 _buildInputBar(),
               ],
             ),
@@ -277,8 +442,9 @@ class _KoraAiScreenState extends State<KoraAiScreen>
 
   Widget _buildWelcome() {
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32),
+      child: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -357,66 +523,69 @@ class _KoraAiScreenState extends State<KoraAiScreen>
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        mainAxisAlignment: isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (!isUser) ...[
-            _buildAiAvatar(),
-            const SizedBox(width: 8),
-          ],
-          Flexible(
-            child: Container(
-              constraints: BoxConstraints(
-                maxWidth: MediaQuery.of(context).size.width * 0.75,
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                gradient: isUser
-                    ? const LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [KoraColors.purple, KoraColors.blue],
-                      )
-                    : null,
-                color: isUser ? null : KoraColors.darkCard,
-                borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(18),
-                  topRight: const Radius.circular(18),
-                  bottomLeft: isUser ? const Radius.circular(18) : Radius.zero,
-                  bottomRight: isUser ? Radius.zero : const Radius.circular(18),
+      child: GestureDetector(
+        onLongPress: !isUser ? () => _showContextMenu(context, msg.content) : null,
+        child: Row(
+          mainAxisAlignment: isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (!isUser) ...[
+              _buildAiAvatar(),
+              const SizedBox(width: 8),
+            ],
+            Flexible(
+              child: Container(
+                constraints: BoxConstraints(
+                  maxWidth: MediaQuery.of(context).size.width * 0.75,
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  gradient: isUser
+                      ? const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [KoraColors.purple, KoraColors.blue],
+                        )
+                      : null,
+                  color: isUser ? null : KoraColors.darkCard,
+                  borderRadius: BorderRadius.only(
+                    topLeft: const Radius.circular(18),
+                    topRight: const Radius.circular(18),
+                    bottomLeft: isUser ? const Radius.circular(18) : Radius.zero,
+                    bottomRight: isUser ? Radius.zero : const Radius.circular(18),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      msg.content,
+                      style: TextStyle(
+                        color: isUser ? Colors.white : KoraColors.textPrimaryFor(Brightness.dark),
+                        fontSize: 15,
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _formatTime(msg.timestamp),
+                      style: TextStyle(
+                        color: isUser
+                            ? Colors.white.withValues(alpha: 0.6)
+                            : KoraColors.textMutedFor(Brightness.dark),
+                        fontSize: 10,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    msg.content,
-                    style: TextStyle(
-                      color: isUser ? Colors.white : KoraColors.textPrimaryFor(Brightness.dark),
-                      fontSize: 15,
-                      height: 1.4,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _formatTime(msg.timestamp),
-                    style: TextStyle(
-                      color: isUser
-                          ? Colors.white.withValues(alpha: 0.6)
-                          : KoraColors.textMutedFor(Brightness.dark),
-                      fontSize: 10,
-                    ),
-                  ),
-                ],
-              ),
             ),
-          ),
-          if (isUser) ...[
-            const SizedBox(width: 8),
-            _buildUserAvatar(),
+            if (isUser) ...[
+              const SizedBox(width: 8),
+              _buildUserAvatar(),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -425,9 +594,9 @@ class _KoraAiScreenState extends State<KoraAiScreen>
     return Container(
       width: 32,
       height: 32,
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         shape: BoxShape.circle,
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [KoraColors.purple, KoraColors.blue],
@@ -441,7 +610,7 @@ class _KoraAiScreenState extends State<KoraAiScreen>
     return Container(
       width: 32,
       height: 32,
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         shape: BoxShape.circle,
         color: KoraColors.darkCard,
       ),
@@ -458,9 +627,9 @@ class _KoraAiScreenState extends State<KoraAiScreen>
           const SizedBox(width: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: KoraColors.darkCard,
-              borderRadius: const BorderRadius.only(
+              borderRadius: BorderRadius.only(
                 topLeft: Radius.circular(18),
                 topRight: Radius.circular(18),
                 bottomRight: Radius.circular(18),
@@ -475,15 +644,15 @@ class _KoraAiScreenState extends State<KoraAiScreen>
 
   Widget _buildImagePreview() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
       child: Row(
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: Image.file(
               _pendingImageFile!,
-              width: 56,
-              height: 56,
+              width: 48,
+              height: 48,
               fit: BoxFit.cover,
             ),
           ),
@@ -509,6 +678,85 @@ class _KoraAiScreenState extends State<KoraAiScreen>
     );
   }
 
+  Widget _buildFilePreview() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: KoraColors.darkCard,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: KoraColors.purple.withValues(alpha: 0.4)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.insert_drive_file, color: KoraColors.purple, size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                _pendingFileName ?? 'Attached File',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: _removePendingFile,
+              child: Icon(
+                Icons.close,
+                color: KoraColors.textSecondaryFor(Brightness.dark),
+                size: 20,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickActionsRow() {
+    return Container(
+      height: 36,
+      margin: const EdgeInsets.only(top: 4, bottom: 4),
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        itemCount: _quickActions.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final action = _quickActions[index];
+          return ActionChip(
+            avatar: Icon(action.icon, size: 15, color: KoraColors.purple),
+            label: Text(
+              action.label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            backgroundColor: KoraColors.darkCard,
+            side: BorderSide(color: KoraColors.borderFor(Brightness.dark)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            onPressed: () {
+              _inputController.text = action.templatePrompt;
+              _inputController.selection = TextSelection.fromPosition(
+                TextPosition(offset: _inputController.text.length),
+              );
+              _focusNode.requestFocus();
+            },
+          );
+        },
+      ),
+    );
+  }
+
   Widget _buildInputBar() {
     return SafeArea(
       child: Container(
@@ -521,13 +769,31 @@ class _KoraAiScreenState extends State<KoraAiScreen>
         ),
         child: Row(
           children: [
-            // Image attach button
+            // Image picker button
             GestureDetector(
               onTap: _pickImage,
               child: Container(
                 width: 40,
                 height: 40,
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
+                  color: KoraColors.darkCard,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.image_outlined,
+                  color: KoraColors.textSecondaryFor(Brightness.dark),
+                  size: 20,
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            // Paperclip/attach file button
+            GestureDetector(
+              onTap: _pickFile,
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: const BoxDecoration(
                   color: KoraColors.darkCard,
                   shape: BoxShape.circle,
                 ),

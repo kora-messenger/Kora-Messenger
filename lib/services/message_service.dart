@@ -283,6 +283,8 @@ class MessageService {
   Future<void> sendVoiceMessage(String chatId, String duration, {
     String? filePath,
     String? transcript,
+    String? translatedLanguageCode,
+    String? translatedLanguageName,
   }) async {
     final messages = _cache.putIfAbsent(chatId, () => <KoraMessage>[]);
     final msgId = 'voice_${DateTime.now().millisecondsSinceEpoch}';
@@ -304,6 +306,8 @@ class MessageService {
       voiceTransferState:
           isOnline ? VoiceTransferState.uploading : VoiceTransferState.notSent,
       voiceTranscript: transcript,
+      translatedLanguageCode: translatedLanguageCode,
+      translatedLanguageName: translatedLanguageName,
     ));
     await _persist(chatId);
 

@@ -32,6 +32,7 @@ import '../../services/session_manager.dart';
 import '../../services/conversation_directory.dart';
 import '../suspension_screen.dart';
 import '../settings/chat_backup_screen.dart';
+import 'ai_chat_summary_sheet.dart';
 
 /// Kora's main conversation screen.
 /// Opens when a user taps any conversation from the Home/Chats list.
@@ -377,11 +378,20 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
     await _getAiResponse('[ISSUE]${issue.id}');
   }
 
-  void _sendVoice(String duration, {String? filePath}) async {
+  void _sendVoice(
+    String duration, {
+    String? filePath,
+    String? transcript,
+    String? translatedLanguageCode,
+    String? translatedLanguageName,
+  }) async {
     await _messageService.sendVoiceMessage(
       widget.chatId,
       duration,
       filePath: filePath,
+      transcript: transcript,
+      translatedLanguageCode: translatedLanguageCode,
+      translatedLanguageName: translatedLanguageName,
     );
     setState(() {
       _messages = List.from(_messageService.getMessages(widget.chatId));
@@ -1181,6 +1191,8 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
                 KoraMenuOption(icon: Icons.cloud_outlined, label: 'Chat backup', onTap: () {
   Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatBackupScreen()));
 }),
+                KoraMenuOption(icon: Icons.auto_awesome, label: 'Summarize chat', onTap: () => _showChatSummary()),
+                KoraMenuOption(icon: Icons.access_time, label: 'Catch me up', onTap: () => _showCatchMeUp()),
                 KoraMenuOption(icon: Icons.cleaning_services_outlined, label: 'Clear chat', onTap: () => _showClearChatDialog()),
                 if (!_isAiChat) ...[
                   KoraMenuOption(icon: Icons.block, label: 'Block', onTap: () => _showBlockDialog(), color: Colors.red),
@@ -1337,6 +1349,57 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
         ),
       ),
     );
+  }
+
+  /// Show AI chat summary sheet.
+  void _showChatSummary() {
+    final messages = _messages
+        .where((m) => m.type != KoraMessageType.action && m.type != KoraMessageType.issueList)
+        .map((m) => {
+              'sender': m.isMe ? 'Me' : widget.name,
+              'text': m.text,
+              'timestamp': m.timestamp.toIso8601String(),
+            })
+        .toList();
+
+    if (messages.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No messages to summarize.'),
+          backgroundColor: KoraColors.purple,
+        ),
+      );
+      return;
+    }
+
+    AiChatSummarySheet.show(context, messages, isCatchMeUp: false);
+  }
+
+  /// Show AI Catch Me Up sheet.
+  void _showCatchMeUp() {
+    final messages = _messages
+        .where((m) => m.type != KoraMessageType.action && m.type != KoraMessageType.issueList)
+        .map((m) => {
+              'sender': m.isMe ? 'Me' : widget.name,
+              'text': m.text,
+              'timestamp': m.timestamp.toIso8601String(),
+            })
+        .toList();
+
+    if (messages.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No messages to catch up on.'),
+          backgroundColor: KoraColors.purple,
+        ),
+      );
+      return;
+    }
+
+    // Count messages that aren't from the user (missed messages)
+    final missedCount = _messages.where((m) => !m.isMe && m.type != KoraMessageType.action).length;
+
+    AiChatSummarySheet.show(context, messages, isCatchMeUp: true, missedCount: missedCount);
   }
 
   /// The blocked-state bar shown at the bottom of a chat when the

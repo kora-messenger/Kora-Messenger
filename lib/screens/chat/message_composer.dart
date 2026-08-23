@@ -5,8 +5,13 @@ import 'package:permission_handler/permission_handler.dart';
 import '../../theme/kora_colors.dart';
 import '../../services/audio_recording_service.dart';
 import 'attachment_sheet.dart';
+import 'ai_writing_sheet.dart';
 import 'voice_recorder.dart';
 import 'voice_recorder_locked.dart';
+import '../../services/translation_service.dart';
+import '../../models/translation_models.dart';
+import '../../services/voice_note_stt_service.dart';
+import '../../services/voice_translation_pipeline.dart';
 
 /// Kora's message composer — the bottom input bar.
 ///
@@ -22,8 +27,15 @@ import 'voice_recorder_locked.dart';
 /// real microphone amplitude, not a placeholder.
 class MessageComposer extends StatefulWidget {
   final Function(String) onSend;
-  final Function(String duration, {String? filePath}) onSendVoice;
+  final Function(
+    String duration, {
+    String? filePath,
+    String? transcript,
+    String? translatedLanguageCode,
+    String? translatedLanguageName,
+  }) onSendVoice;
   final VoidCallback? onAttachment;
+  final Function(String)? onAiWriting;
 
   const MessageComposer({
     super.key,
@@ -60,6 +72,11 @@ class _MessageComposerState extends State<MessageComposer>
   static const double _kCancelThreshold = 120.0;
   static const double _kLockThreshold = 80.0;
   bool _gestureResolved = false;
+
+  // ── Translation state ──
+  String? _selectedTranslateCode;
+  String? _selectedTranslateName;
+  bool _isTranslating = false;
 
   late AnimationController _pulseController;
 
@@ -202,6 +219,44 @@ class _MessageComposerState extends State<MessageComposer>
 
   // ── Recording ──
 
+  /// A quick tap on the mic button (no hold) starts recording and goes
+  /// straight into the hands-free "locked" bar — trash, timer, waveform,
+  /// pause, translate and send — matching the reference recording UI.
+  /// Only a press-and-hold enters the slide-to-cancel / swipe-up-to-lock
+  /// gesture flow via [_onHoldStart].
+  Future<void> _onTapRecord() async {
+    if (_hasText || _state != _ComposerState.idle) return;
+
+    final granted = await _ensureMicPermission();
+    if (!granted || !mounted) return;
+
+    _seconds = 0;
+    _isPaused = false;
+    _waveformSamples.clear();
+
+    try {
+      _filePath = await _recordingService.startRecording();
+    } catch (_) {
+      return;
+    }
+    if (!mounted) return;
+
+    // Start on-device STT capture alongside audio recording
+    VoiceNoteSttService.instance.start();
+
+    _amplitudeSub?.cancel();
+    _amplitudeSub = _recordingService.amplitudeStream.listen((amp) {
+      if (!mounted || !_recordingService.isRecording || _isPaused) return;
+      setState(() {
+        _waveformSamples.add(amp);
+        if (_waveformSamples.length > 60) _waveformSamples.removeAt(0);
+      });
+    });
+
+    setState(() => _state = _ComposerState.locked);
+    _startTimer();
+  }
+
   Future<void> _onHoldStart(LongPressStartDetails details) async {
     final granted = await _ensureMicPermission();
     if (!granted || !mounted) return;
@@ -229,6 +284,9 @@ class _MessageComposerState extends State<MessageComposer>
         if (_waveformSamples.length > 60) _waveformSamples.removeAt(0);
       });
     });
+
+    // Start on-device STT capture alongside audio recording
+    VoiceNoteSttService.instance.start();
 
     setState(() => _state = _ComposerState.holding);
     _pulseController.repeat(reverse: true);
@@ -278,6 +336,7 @@ class _MessageComposerState extends State<MessageComposer>
     _timer?.cancel();
     _amplitudeSub?.cancel();
     _pulseController.stop();
+    await VoiceNoteSttService.instance.stop();
     await _recordingService.cancelRecording();
     if (mounted) setState(() => _state = _ComposerState.idle);
   }
@@ -302,6 +361,25 @@ class _MessageComposerState extends State<MessageComposer>
     final path = await _recordingService.stopRecording();
     final duration = _durationString;
     if (mounted) setState(() => _state = _ComposerState.idle);
+
+    // If translation is selected, run the pipeline before sending
+    if (_selectedTranslateCode != null) {
+      final result = await _translateVoiceNote(path ?? _filePath ?? '');
+      if (result != null) {
+        widget.onSendVoice(
+          duration,
+          filePath: result.audioPath,
+          transcript: result.transcript,
+          translatedLanguageCode: result.langCode,
+          translatedLanguageName: result.langName,
+        );
+        _clearTranslation();
+        return;
+      }
+      // Translation failed — don't send the original, let user retry
+      return;
+    }
+
     widget.onSendVoice(duration, filePath: path ?? _filePath);
   }
 
@@ -319,6 +397,7 @@ class _MessageComposerState extends State<MessageComposer>
   void _discardLocked() async {
     _timer?.cancel();
     _amplitudeSub?.cancel();
+    await VoiceNoteSttService.instance.stop();
     await _recordingService.cancelRecording();
     if (mounted) setState(() => _state = _ComposerState.idle);
   }
@@ -329,7 +408,174 @@ class _MessageComposerState extends State<MessageComposer>
     final path = await _recordingService.stopRecording();
     final duration = _durationString;
     if (mounted) setState(() => _state = _ComposerState.idle);
+
+    // If translation is selected, run the pipeline before sending
+    if (_selectedTranslateCode != null) {
+      final result = await _translateVoiceNote(path ?? _filePath ?? '');
+      if (result != null) {
+        widget.onSendVoice(
+          duration,
+          filePath: result.audioPath,
+          transcript: result.transcript,
+          translatedLanguageCode: result.langCode,
+          translatedLanguageName: result.langName,
+        );
+        _clearTranslation();
+        return;
+      }
+      // Translation failed — don't send the original
+      return;
+    }
+
     widget.onSendVoice(duration, filePath: path ?? _filePath);
+  }
+
+  // ── Voice note translation ──
+
+  /// Opens the language picker so the user can choose a target language
+  /// for their voice note before sending. When set, the voice note is
+  /// transcribed on-device, translated, synthesized to a new audio file,
+  /// and the recipient hears the translated version.
+  void _openTranslatePicker() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LanguagePickerScreen(
+          selectedCode: _selectedTranslateCode,
+          title: 'Translate voice note to',
+        ),
+      ),
+    ).then((result) {
+      if (result != null && result is KoraLanguage) {
+        setState(() {
+          _selectedTranslateCode = result.code;
+          _selectedTranslateName = result.name;
+        });
+      }
+    });
+  }
+
+  /// Clears the selected translation language.
+  void _clearTranslation() {
+    setState(() {
+      _selectedTranslateCode = null;
+      _selectedTranslateName = null;
+    });
+  }
+
+  /// Translates a voice note: transcribes on-device, translates the text,
+  /// synthesizes TTS audio in the target language. Returns the translated
+  /// audio path + transcript, or null on failure (with a snackbar message).
+  Future<({String audioPath, String transcript, String langCode, String langName})?>
+  _translateVoiceNote(String originalFilePath) async {
+    if (_selectedTranslateCode == null) return null;
+
+    setState(() => _isTranslating = true);
+
+    try {
+      // Step 1: On-device transcription
+      final stt = VoiceNoteSttService.instance;
+      final transcript = await stt.stop();
+
+      if (transcript.trim().isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text(
+                'No speech detected. Please try again and speak clearly.',
+              ),
+              backgroundColor: KoraColors.cardFor(Theme.of(context).brightness),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+        return null;
+      }
+
+      // Step 2: Translate text
+      final result = await TranslationService.instance.translate(
+        transcript,
+        _selectedTranslateCode!,
+      );
+
+      final translatedText = result.translatedText;
+      if (translatedText.trim().isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Translation failed. Please try again.'),
+              backgroundColor: KoraColors.cardFor(Theme.of(context).brightness),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+        return null;
+      }
+
+      // Step 3: TTS synthesis
+      final tts = VoiceTranslationPipeline.instance;
+      final outcome = await tts.translateAndSynthesize(
+        transcript: transcript,
+        targetLanguageCode: _selectedTranslateCode!,
+      );
+
+      if (!outcome.success || outcome.audioFilePath == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(outcome.errorMessage ??
+                  'Could not generate translated audio. Please try again.'),
+              backgroundColor: KoraColors.cardFor(Theme.of(context).brightness),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+        return null;
+      }
+
+      // Show success popup
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.green, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Translation successful → $_selectedTranslateName',
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: KoraColors.cardFor(Theme.of(context).brightness),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+
+      return (
+        audioPath: outcome.audioFilePath!,
+        transcript: translatedText,
+        langCode: _selectedTranslateCode!,
+        langName: _selectedTranslateName ?? _selectedTranslateCode!,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Translation failed. Please try again.'),
+            backgroundColor: KoraColors.cardFor(Theme.of(context).brightness),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return null;
+    } finally {
+      if (mounted) setState(() => _isTranslating = false);
+    }
   }
 
   void _openAttachments() {
@@ -394,6 +640,9 @@ class _MessageComposerState extends State<MessageComposer>
             onDiscard: _discardLocked,
             onTogglePause: _toggleLockedPause,
             onSend: _sendLocked,
+            onTranslate: _openTranslatePicker,
+            selectedTranslateName: _selectedTranslateName,
+            isTranslating: _isTranslating,
           ),
         ),
       );
@@ -429,6 +678,24 @@ class _MessageComposerState extends State<MessageComposer>
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(
                               minWidth: 40, minHeight: 40),
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.auto_awesome,
+                              color: KoraColors.purple, size: 22),
+                          onPressed: () {
+                            AiWritingSheet.show(
+                              context,
+                              _controller.text,
+                              (result) {
+                                _controller.text = result;
+                                setState(() => _hasText = result.isNotEmpty);
+                                _focusNode.requestFocus();
+                              },
+                            );
+                          },
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(
+                              minWidth: 36, minHeight: 36),
                         ),
                         Expanded(
                           child: TextField(
@@ -490,7 +757,7 @@ class _MessageComposerState extends State<MessageComposer>
                       child: VoiceLockHint(progress: _lockProgress),
                     ),
                   GestureDetector(
-                    onTap: _hasText ? _send : null,
+                    onTap: _hasText ? _send : _onTapRecord,
                     onLongPressStart:
                         (!_hasText && !isHolding) ? _onHoldStart : null,
                     onLongPressMoveUpdate: isHolding ? _onHoldMove : null,

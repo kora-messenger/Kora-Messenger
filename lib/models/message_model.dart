@@ -63,6 +63,14 @@ class KoraMessage {
   /// dialog — starring itself isn't exposed in the UI yet.
   final bool isStarred;
 
+  /// For voice messages translated by the SENDER before sending —
+  /// the language code/name the note was translated to. When set,
+  /// [voiceFilePath] points to the TRANSLATED audio (the recipient
+  /// hears the translation, not the original recording) and
+  /// [voiceTranscript] holds the translated text.
+  final String? translatedLanguageCode;
+  final String? translatedLanguageName;
+
   const KoraMessage({
     required this.id,
     required this.text,
@@ -86,6 +94,8 @@ class KoraMessage {
     this.isWebSearch = false,
     this.isSeen = false,
     this.isStarred = false,
+    this.translatedLanguageCode,
+    this.translatedLanguageName,
   });
 
   KoraMessage copyWith({
@@ -111,6 +121,8 @@ class KoraMessage {
     bool? isWebSearch,
     bool? isSeen,
     bool? isStarred,
+    String? translatedLanguageCode,
+    String? translatedLanguageName,
   }) {
     return KoraMessage(
       id: id ?? this.id,
@@ -135,6 +147,8 @@ class KoraMessage {
       isWebSearch: isWebSearch ?? this.isWebSearch,
       isSeen: isSeen ?? this.isSeen,
       isStarred: isStarred ?? this.isStarred,
+      translatedLanguageCode: translatedLanguageCode ?? this.translatedLanguageCode,
+      translatedLanguageName: translatedLanguageName ?? this.translatedLanguageName,
     );
   }
 
@@ -162,6 +176,8 @@ class KoraMessage {
     'isWebSearch': isWebSearch,
     'isSeen': isSeen,
     'isStarred': isStarred,
+    'translatedLanguageCode': translatedLanguageCode,
+    'translatedLanguageName': translatedLanguageName,
   };
 
   /// Deserialise from JSON.
@@ -199,6 +215,8 @@ class KoraMessage {
     isWebSearch: j['isWebSearch'] as bool? ?? false,
     isSeen: j['isSeen'] as bool? ?? true,
     isStarred: j['isStarred'] as bool? ?? false,
+    translatedLanguageCode: j['translatedLanguageCode'] as String?,
+    translatedLanguageName: j['translatedLanguageName'] as String?,
   );
 
   /// Estimated on-disk size of this message in bytes — used to show

@@ -69,6 +69,14 @@ class KoraApi {
   static const String aiSupportEndpoint = '$aiServerUrl/api/ai/support';
   static const String aiHealthEndpoint = '$aiServerUrl/api/ai/health';
 
+  /// Kora AI feature endpoints (writing assistant, reply suggestions, etc.)
+  static const String aiWritingEndpoint = '$aiServerUrl/api/ai/writing';
+  static const String aiReplySuggestionsEndpoint = '$aiServerUrl/api/ai/reply-suggestions';
+  static const String aiSummarizeChatEndpoint = '$aiServerUrl/api/ai/summarize-chat';
+  static const String aiTranscribeEndpoint = '$aiServerUrl/api/ai/transcribe';
+  static const String aiAnalyzeImageEndpoint = '$aiServerUrl/api/ai/analyze-image';
+  static const String aiAnalyzeFileEndpoint = '$aiServerUrl/api/ai/analyze-file';
+
   /// Auth token for the AI server.
   /// Must match KORA_AUTH_TOKEN in the server's .env file.
   static const String aiAuthToken = 'kora-ai-server-token';

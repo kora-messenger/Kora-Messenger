@@ -212,6 +212,36 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
+        // Translated badge (if sender translated the voice note)
+        if (widget.message.translatedLanguageName != null) ...[
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            margin: const EdgeInsets.only(bottom: 4),
+            decoration: BoxDecoration(
+              color: KoraColors.purple.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.language_rounded,
+                  size: 12,
+                  color: KoraColors.purple.withValues(alpha: 0.8),
+                ),
+                const SizedBox(width: 3),
+                Text(
+                  'Translated to ${widget.message.translatedLanguageName}',
+                  style: TextStyle(
+                    color: KoraColors.purple.withValues(alpha: 0.8),
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
