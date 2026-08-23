@@ -11,8 +11,12 @@ import 'home/profile_tab.dart';
 import 'home/status_tab.dart';
 import '../services/permission_service.dart';
 
-/// Main Kora experience — hosts the bottom navigation and switches
-/// between Chats, Calls, Status, Channels, and Profile.
+/// Main Kora experience — hosts the bottom navigation and a
+/// horizontally swipeable [PageView] that lets the user scroll
+/// between Chats, Calls, Status, Community, and Profile.
+///
+/// Swiping left/right changes the active tab; tapping a nav item
+/// animates the page to that tab. Both stay in sync.
 class KoraHomeScreen extends StatefulWidget {
   final bool isNewUser;
 
@@ -23,11 +27,13 @@ class KoraHomeScreen extends StatefulWidget {
 }
 
 class _KoraHomeScreenState extends State<KoraHomeScreen> {
+  late final PageController _pageController;
   int _tabIndex = 0;
 
   @override
   void initState() {
     super.initState();
+    _pageController = PageController(initialPage: 0);
     // Ask for essential permissions once on first Home visit.
     KoraPermissionService.requestEssentialOnce();
     // Show the new-user welcome popup if this is a first-time visitor.
@@ -36,6 +42,12 @@ class _KoraHomeScreenState extends State<KoraHomeScreen> {
         _showWelcomePopup();
       });
     }
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
   }
 
   Future<void> _showWelcomePopup() async {
@@ -65,8 +77,18 @@ class _KoraHomeScreenState extends State<KoraHomeScreen> {
     }
   }
 
-  void _goToProfile() => setState(() => _tabIndex = 4);
-  void _goToChannels() => setState(() => _tabIndex = 3);
+  void _goToProfile() => _goToTab(4);
+  void _goToChannels() => _goToTab(3);
+
+  /// Jump to a tab programmatically (used by child tabs that need
+  /// to navigate the user to another section).
+  void _goToTab(int index) {
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -75,7 +97,7 @@ class _KoraHomeScreenState extends State<KoraHomeScreen> {
     final card = KoraColors.cardFor(brightness);
     final textSecondary = KoraColors.textSecondaryFor(brightness);
 
-    final tabs = [
+    final pages = [
       ChatsTab(onProfileTap: _goToProfile, onGoToChannels: _goToChannels),
       const CallsTab(),
       const StatusTab(),
@@ -85,7 +107,12 @@ class _KoraHomeScreenState extends State<KoraHomeScreen> {
 
     return Scaffold(
       backgroundColor: bg,
-      body: IndexedStack(index: _tabIndex, children: tabs),
+      body: PageView(
+        controller: _pageController,
+        physics: const BouncingScrollPhysics(),
+        onPageChanged: (index) => setState(() => _tabIndex = index),
+        children: pages,
+      ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: card,
@@ -129,7 +156,7 @@ class _KoraHomeScreenState extends State<KoraHomeScreen> {
     return Expanded(
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: () => setState(() => _tabIndex = index),
+        onTap: () => _goToTab(index),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           child: Column(
