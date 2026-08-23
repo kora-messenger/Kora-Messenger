@@ -407,7 +407,12 @@ class _NewContactScreenState extends State<NewContactScreen> {
     setState(() => _isSaving = false);
 
     final label = fullName.isNotEmpty ? fullName : identifier;
-    ScaffoldMessenger.of(context).showSnackBar(
+    // Capture navigator + messenger BEFORE showing the snackbar so the
+    // "Message" button's onTap closure doesn't access State.context after
+    // the widget is disposed (which causes a null check crash).
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
       SnackBar(
         content: Row(
           children: [
@@ -419,10 +424,9 @@ class _NewContactScreenState extends State<NewContactScreen> {
             ),
             GestureDetector(
               onTap: () {
-                ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                Navigator.pop(context); // Close NewContactScreen
-                Navigator.push(
-                  context,
+                messenger.hideCurrentSnackBar();
+                navigator.pop(); // Close NewContactScreen
+                navigator.push(
                   MaterialPageRoute(
                     builder: (_) => KoraChatScreen(
                       chatId: phoneNumber.isNotEmpty ? phoneNumber : (identifier.isNotEmpty ? identifier : label),
@@ -464,8 +468,13 @@ class _NewContactScreenState extends State<NewContactScreen> {
     final username = user['username'] as String? ?? '';
     final userPhone = user['phoneNumber'] as String? ?? '';
 
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
+    // Capture navigator + messenger BEFORE showing the snackbar so the
+    // "Message" button's onTap closure doesn't access State.context after
+    // the widget is disposed (which causes a null check crash).
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
       SnackBar(
         content: Row(
           children: [
@@ -477,10 +486,9 @@ class _NewContactScreenState extends State<NewContactScreen> {
             ),
             GestureDetector(
               onTap: () {
-                ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                Navigator.pop(context); // Close NewContactScreen
-                Navigator.push(
-                  context,
+                messenger.hideCurrentSnackBar();
+                navigator.pop(); // Close NewContactScreen
+                navigator.push(
                   MaterialPageRoute(
                     builder: (_) => KoraChatScreen(
                       chatId: koraId.isNotEmpty ? koraId : username,
@@ -515,9 +523,11 @@ class _NewContactScreenState extends State<NewContactScreen> {
       ),
     );
 
-    // Pop after a short delay so the user sees the snackbar
+    // Pop after a short delay so the user sees the snackbar.
+    // Use the captured navigator — NOT State.context — to avoid the
+    // null check crash if the widget is disposed before this fires.
     Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) Navigator.pop(context);
+      if (mounted) navigator.pop();
     });
   }
 
