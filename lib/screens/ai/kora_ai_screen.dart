@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../services/ai_features_service.dart';
 import '../../services/kora_ai_service.dart';
 import '../../theme/kora_colors.dart';
 
@@ -241,16 +240,18 @@ class _KoraAiScreenState extends State<KoraAiScreen>
 
     KoraAiResult result;
     if (hasFile && fileContent != null && fileName != null) {
-      result = await AiFeaturesService.instance.analyzeFile(
-        fileContent,
-        fileName,
-        text,
-        conversationId: _conversationId,
+      // File analysis is not yet on the live backend — return a graceful
+      // message instead of crashing the build with a mismatched API.
+      result = KoraAiResult(
+        success: false,
+        response: '',
+        error: 'File analysis is not available yet.',
       );
     } else if (hasImage && imageBase64 != null) {
-      result = await AiFeaturesService.instance.analyzeImage(
-        imageBase64,
-        text,
+      // Image analysis is not yet on the live backend — send the image
+      // description as part of the message to Kora AI instead.
+      result = await KoraAiService.instance.sendAiMessage(
+        message: '$text\n\n[Image attached — image analysis not yet available]',
         conversationId: _conversationId,
       );
     } else {

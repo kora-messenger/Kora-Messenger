@@ -8,6 +8,7 @@ import 'attachment_sheet.dart';
 import 'ai_writing_sheet.dart';
 import 'voice_recorder.dart';
 import 'voice_recorder_locked.dart';
+import 'language_picker_screen.dart';
 import '../../services/translation_service.dart';
 import '../../models/translation_models.dart';
 import '../../services/voice_note_stt_service.dart';
@@ -42,6 +43,7 @@ class MessageComposer extends StatefulWidget {
     required this.onSend,
     required this.onSendVoice,
     this.onAttachment,
+    this.onAiWriting,
   });
 
   @override
