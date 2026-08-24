@@ -5,6 +5,7 @@ import '../../services/conversation_directory.dart';
 import '../../services/message_service.dart';
 import '../../theme/kora_colors.dart';
 import '../../widgets/chat_list_item.dart';
+import '../../widgets/chat_peek_overlay.dart';
 import '../../widgets/kora_empty_state.dart';
 import '../../widgets/kora_menu_sheet.dart';
 import '../../widgets/new_chat_sheet.dart';
@@ -63,6 +64,87 @@ class _ChatsTabState extends State<ChatsTab> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  // ── Chat Peek (Telegram-style avatar long-press) ────────────
+
+  List<PeekAction> _buildPeekActions(ChatPreview chat) {
+    return [
+      PeekAction(
+        icon: chat.isPinned ? Icons.push_pin : Icons.push_pin_outlined,
+        activeIcon: Icons.push_pin,
+        label: chat.isPinned ? 'Unpin' : 'Pin',
+        isActive: chat.isPinned,
+        onTrigger: () async {
+          await ConversationDirectoryService.instance.setPinned(chat.id, !chat.isPinned);
+          await _refresh();
+        },
+      ),
+      PeekAction(
+        icon: Icons.mark_chat_read_outlined,
+        label: 'Read',
+        onTrigger: () async {
+          await MessageService.instance.markChatViewed(chat.id);
+          await _refresh();
+        },
+      ),
+      PeekAction(
+        icon: Icons.cleaning_services_outlined,
+        label: 'Clear',
+        onTrigger: () async {
+          await MessageService.instance.clearChat(chat.id);
+          await _refresh();
+        },
+      ),
+      PeekAction(
+        icon: chat.isMuted ? Icons.notifications_outlined : Icons.notifications_off_outlined,
+        activeIcon: Icons.notifications_off_outlined,
+        label: chat.isMuted ? 'Unmute' : 'Mute',
+        isActive: chat.isMuted,
+        onTrigger: () async {
+          await ConversationDirectoryService.instance.setMuted(chat.id, !chat.isMuted);
+          await _refresh();
+        },
+      ),
+      PeekAction(
+        icon: Icons.archive_outlined,
+        label: 'Archive',
+        onTrigger: () async {
+          await ConversationDirectoryService.instance.setArchived(chat.id, true);
+          await _refresh();
+        },
+      ),
+      PeekAction(
+        icon: Icons.delete_outline,
+        label: 'Delete',
+        isDestructive: true,
+        onTrigger: () async {
+          await MessageService.instance.deleteChat(chat.id);
+          await ConversationDirectoryService.instance.remove(chat.id);
+          await _refresh();
+        },
+      ),
+    ];
+  }
+
+  void _onAvatarPeekStart(ChatPreview chat, Offset globalPosition) {
+    ChatPeekOverlay.show(
+      context,
+      chat,
+      actions: _buildPeekActions(chat),
+      onOpenChat: () {
+        ChatPeekOverlay.hide();
+        _openChat(chat);
+      },
+    );
+  }
+
+  void _onAvatarPeekMove(Offset globalPosition) {
+    ChatPeekOverlay.updatePointer(globalPosition);
+  }
+
+  void _onAvatarPeekEnd() {
+    ChatPeekOverlay.commitAndHide();
   }
 
   void _openChat(ChatPreview chat) {
@@ -429,6 +511,9 @@ class _ChatsTabState extends State<ChatsTab> {
                                   isSelected: _selectedIds.contains(chat.id),
                                   onTap: () => _onChatTap(chat),
                                   onLongPress: () => _onChatLongPress(chat),
+                                  onAvatarPeekStart: (pos) => _onAvatarPeekStart(chat, pos),
+                                  onAvatarPeekMove: _onAvatarPeekMove,
+                                  onAvatarPeekEnd: _onAvatarPeekEnd,
                                 );
                               },
                             ),
