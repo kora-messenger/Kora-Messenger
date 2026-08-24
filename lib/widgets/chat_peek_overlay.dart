@@ -148,10 +148,11 @@ class _ChatPeekViewState extends State<_ChatPeekView> {
       type: MaterialType.transparency,
       child: Stack(
         children: [
-          // Dimmed background — tapping anywhere opens the full chat.
+          // Dimmed background — tapping outside the peek panel dismisses
+          // it and returns to the normal Home screen (does NOT open chat).
           Positioned.fill(
             child: GestureDetector(
-              onTap: _handleTap,
+              onTap: ChatPeekOverlay.hide,
               behavior: HitTestBehavior.opaque,
               child: AnimatedOpacity(
                 opacity: _visible ? 1 : 0,
