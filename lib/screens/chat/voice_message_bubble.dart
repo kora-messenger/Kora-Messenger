@@ -30,6 +30,11 @@ class VoiceMessageBubble extends StatefulWidget {
   final VoidCallback? onShare;
   final Future<void> Function(String localPath)? onMarkPlayed;
 
+  /// Called when a play-once voice note has finished playing and should
+  /// be auto-deleted from the conversation. Only fires for incoming
+  /// play-once notes — the sender sees their own note as normal.
+  final VoidCallback? onSelfDestruct;
+
   const VoiceMessageBubble({
     super.key,
     required this.message,
@@ -40,6 +45,7 @@ class VoiceMessageBubble extends StatefulWidget {
     this.onDelete,
     this.onShare,
     this.onMarkPlayed,
+    this.onSelfDestruct,
   });
 
   @override
@@ -109,6 +115,10 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
             if (!_hasBeenPlayed && !widget.message.isMe) {
               _hasBeenPlayed = true;
               widget.onMarkPlayed?.call(widget.message.id);
+            }
+            // Auto-delete play-once notes after playback finishes
+            if (widget.message.isPlayOnce && !widget.message.isMe) {
+              widget.onSelfDestruct?.call();
             }
           }
         }
@@ -410,6 +420,36 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
+          // Play-once badge
+          if (widget.message.isPlayOnce) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              margin: const EdgeInsets.only(bottom: 4),
+              decoration: BoxDecoration(
+                color: KoraColors.purple.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.lock_clock_rounded,
+                    size: 12,
+                    color: KoraColors.purple.withValues(alpha: 0.8),
+                  ),
+                  const SizedBox(width: 3),
+                  Text(
+                    isMe ? 'Play once' : 'View once',
+                    style: TextStyle(
+                      color: KoraColors.purple.withValues(alpha: 0.8),
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           // Translated badge
           if (widget.message.translatedLanguageName != null) ...[
             Container(
@@ -523,38 +563,40 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
               ),
             ],
           ),
-          const SizedBox(height: 6),
-          // Translate / Transcribe actions
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildAction(
-                isMe: isMe,
-                icon: Icons.mic_outlined,
-                label: 'Transcribe',
-                onTap: () => _showVoiceTranslation(
-                  context,
-                  voiceDuration: _totalDuration,
-                  autoTranslate: false,
-                  voiceId: widget.message.id,
-                  transcript: widget.message.voiceTranscript,
+          if (!widget.message.isPlayOnce) ...[
+            const SizedBox(height: 6),
+            // Translate / Transcribe actions
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildAction(
+                  isMe: isMe,
+                  icon: Icons.mic_outlined,
+                  label: 'Transcribe',
+                  onTap: () => _showVoiceTranslation(
+                    context,
+                    voiceDuration: _totalDuration,
+                    autoTranslate: false,
+                    voiceId: widget.message.id,
+                    transcript: widget.message.voiceTranscript,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              _buildAction(
-                isMe: isMe,
-                icon: Icons.translate_rounded,
-                label: 'Translate Voice',
-                onTap: () => _showVoiceTranslation(
-                  context,
-                  voiceDuration: _totalDuration,
-                  autoTranslate: true,
-                  voiceId: widget.message.id,
-                  transcript: widget.message.voiceTranscript,
+                const SizedBox(width: 12),
+                _buildAction(
+                  isMe: isMe,
+                  icon: Icons.translate_rounded,
+                  label: 'Translate Voice',
+                  onTap: () => _showVoiceTranslation(
+                    context,
+                    voiceDuration: _totalDuration,
+                    autoTranslate: true,
+                    voiceId: widget.message.id,
+                    transcript: widget.message.voiceTranscript,
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
+          ],
         ],
       ),
     );
