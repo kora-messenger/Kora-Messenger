@@ -16,7 +16,6 @@ class MessageBubble extends StatelessWidget {
   final VoidCallback? onLongPress;
   final VoidCallback? onReplyTap;
   final VoidCallback? onActionTap;
-  final void Function(IssueOption)? onIssueTap;
 
   /// Voice note upload retry flow — only relevant while
   /// [MessageStatus.pendingOffline]. See [VoiceMessageBubble].
@@ -35,7 +34,6 @@ class MessageBubble extends StatelessWidget {
     this.onLongPress,
     this.onReplyTap,
     this.onActionTap,
-    this.onIssueTap,
     this.onCancelVoiceUpload,
     this.onRetryVoiceUpload,
     this.onSelfDestruct,
@@ -383,7 +381,7 @@ class MessageBubble extends StatelessWidget {
 
   Widget _buildIssueTile(IssueOption issue, Brightness brightness) {
     return GestureDetector(
-      onTap: onIssueTap != null ? () => onIssueTap!(issue) : null,
+      onTap: null,
       child: Container(
         width: double.infinity,
         margin: const EdgeInsets.only(bottom: 6),
