@@ -7,6 +7,7 @@ import '../models/message_model.dart';
 import '../models/chat_models.dart';
 import 'message_service.dart';
 import 'conversation_directory.dart';
+import 'notification_service.dart';
 
 /// Syncs Kora chats and messages to/from the Base44 database.
 ///
@@ -23,6 +24,7 @@ class ChatSyncService {
 
   String? _userEmail;
   bool _syncing = false;
+  bool _restoring = false;
   Timer? _pollTimer;
 
   /// Callback invoked when new incoming messages are detected via polling.
@@ -67,17 +69,16 @@ class ChatSyncService {
     if (_userEmail == null || _syncing) return;
 
     _syncing = true;
-    int newMsgCount = 0;
     final pollStartTime = DateTime.now();
+    final newMessages = <String, List<KoraMessage>>{}; // chatId -> new messages
 
     try {
       final body = <String, dynamic>{
-        'action': 'fetch',
+        'action': 'fetchNew',
         'userEmail': _userEmail,
       };
       if (lastPollTime != null) {
-        body['since'] = lastPollTime!.toIso8601String();
-        body['lastPollTime'] = lastPollTime!.toIso8601String();
+        body['sinceTimestamp'] = lastPollTime!.toIso8601String();
       }
 
       final response = await http.post(
@@ -100,6 +101,7 @@ class ChatSyncService {
             name: conv['name'] as String? ?? chatId,
             avatarAsset: conv['avatarAsset'] as String?,
             avatarUrl: conv['avatarUrl'] as String?,
+            recipientEmail: conv['recipientEmail'] as String?,
             badge: KoraBadgeType.values[(conv['badge'] as num?)?.toInt() ?? 0],
             isOnline: (conv['isOnline'] as bool?) ?? false,
           );
@@ -149,7 +151,11 @@ class ChatSyncService {
           );
 
           await ms.addRestoredMessage(chatId, koraMsg);
-          newMsgCount++;
+
+          // Track new incoming (non-self) messages for notifications
+          if (!koraMsg.isMe) {
+            newMessages.putIfAbsent(chatId, () => []).add(koraMsg);
+          }
         }
 
         lastPollTime = pollStartTime;
@@ -160,7 +166,28 @@ class ChatSyncService {
       _syncing = false;
     }
 
-    if (newMsgCount > 0) {
+    // Fire local notifications for new incoming messages
+    if (newMessages.isNotEmpty) {
+      // Look up conversation names for notification text
+      final directory = await ConversationDirectoryService.instance.getAll();
+
+      for (final entry in newMessages.entries) {
+        final chatId = entry.key;
+        final msgs = entry.value;
+        final meta = directory[chatId];
+        final senderName = meta?['name'] as String? ?? 'New message';
+        final lastMsg = msgs.last;
+        final preview = lastMsg.type == KoraMessageType.voice
+            ? 'Voice message'
+            : lastMsg.text;
+
+        await KoraNotificationService.instance.showMessageNotification(
+          senderName: senderName,
+          message: preview,
+          chatId: chatId,
+        );
+      }
+
       onNewMessages?.call();
     }
   }
@@ -170,7 +197,7 @@ class ChatSyncService {
     String? recipientName,
   }) async {
     if (_userEmail == null) return;
-    if (_syncing) return; // don't sync during bulk restore
+    if (_restoring) return; // only block during bulk restore, not polling
 
     try {
       await http.post(
@@ -204,6 +231,7 @@ class ChatSyncService {
     String? lastMessageType,
     String? lastVoiceDuration,
     int unreadCount = 0,
+    String? recipientEmail,
   }) async {
     if (_userEmail == null) return;
 
@@ -221,6 +249,7 @@ class ChatSyncService {
             'avatarUrl': avatarUrl,
             'badge': badge.index,
             'isOnline': isOnline,
+            'recipientEmail': recipientEmail,
             'lastMessageText': lastMessageText ?? '',
             'lastMessageTimestamp': lastMessageTimestamp?.toIso8601String() ?? DateTime.now().toIso8601String(),
             'lastMessageType': lastMessageType ?? 'text',
@@ -241,6 +270,7 @@ class ChatSyncService {
     if (_userEmail == null) return (conversations: 0, messages: 0);
 
     _syncing = true;
+    _restoring = true;
     int convCount = 0;
     int msgCount = 0;
     final restoreTime = DateTime.now();
@@ -332,6 +362,7 @@ class ChatSyncService {
     }
 
     _syncing = false;
+    _restoring = false;
     return (conversations: convCount, messages: msgCount);
   }
 
