@@ -171,19 +171,19 @@ class ContactInfoScreen extends StatelessWidget {
       child: Column(
         children: [
           if (about != null)
-            _infoTile(Icons.info_outline, 'About', about!, textPrimary, textSecondary, border),
+            _infoTile(context, Icons.info_outline, 'About', about!, textPrimary, textSecondary, border),
           if (phone != null)
-            _infoTile(Icons.phone_outlined, 'Phone', phone!, textPrimary, textSecondary, border),
+            _infoTile(context, Icons.phone_outlined, 'Phone', phone!, textPrimary, textSecondary, border),
           if (username != null)
-            _infoTile(Icons.alternate_email, 'Username', '@$username', textPrimary, textSecondary, border, isCopyable: true, copyLabel: 'Username'),
+            _infoTile(context, Icons.alternate_email, 'Username', '@$username', textPrimary, textSecondary, border, isCopyable: true, copyLabel: 'Username'),
           if (koraId != null)
-            _infoTile(Icons.badge_outlined, 'Kora ID', koraId!, textPrimary, textSecondary, border, isLast: true, isCopyable: true, copyLabel: 'Kora ID'),
+            _infoTile(context, Icons.badge_outlined, 'Kora ID', koraId!, textPrimary, textSecondary, border, isLast: true, isCopyable: true, copyLabel: 'Kora ID'),
         ],
       ),
     );
   }
 
-  Widget _infoTile(IconData icon, String label, String value, Color textPrimary, Color textSecondary, Color border, {bool isLast = false, bool isCopyable = false, String? copyLabel}) {
+  Widget _infoTile(BuildContext context, IconData icon, String label, String value, Color textPrimary, Color textSecondary, Color border, {bool isLast = false, bool isCopyable = false, String? copyLabel}) {
     return Column(
       children: [
         ListTile(
