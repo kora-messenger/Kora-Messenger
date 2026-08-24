@@ -286,6 +286,7 @@ class MessageService {
     String? transcript,
     String? translatedLanguageCode,
     String? translatedLanguageName,
+    bool isPlayOnce = false,
   }) async {
     final messages = _cache.putIfAbsent(chatId, () => <KoraMessage>[]);
     final msgId = 'voice_${DateTime.now().millisecondsSinceEpoch}';
@@ -309,6 +310,7 @@ class MessageService {
       voiceTranscript: transcript,
       translatedLanguageCode: translatedLanguageCode,
       translatedLanguageName: translatedLanguageName,
+      isPlayOnce: isPlayOnce,
     ));
     await _persist(chatId);
 
