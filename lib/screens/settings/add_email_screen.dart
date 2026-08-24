@@ -1,22 +1,24 @@
 import 'package:flutter/material.dart';
 import '../../theme/kora_colors.dart';
 import '../../services/auth_service.dart';
-import 'add_email_verify_screen.dart';
+import 'email_change_verify_screen.dart';
 
-/// "Add your email" screen — mirrors the reference design (WhatsApp-style)
-/// but themed with Kora's purple-to-blue brand identity.
+/// "Add your email" screen — user enters a new email address.
 ///
-/// Lets the user set or change the email address tied to their account.
-/// The "Next" button enables once a valid email is entered, then sends
-/// a verification code to that address before applying the change.
+/// On "Next":
+/// 1. A loading popup appears.
+/// 2. The backend sends a verification code to the OLD email.
+/// 3. The user is taken to [EmailChangeVerifyScreen] (step 1 of 2).
+///
+/// The full flow is: old email code → new email code → email updated.
 class AddEmailScreen extends StatefulWidget {
   final String userId;
-  final String? currentEmail;
+  final String currentEmail;
 
   const AddEmailScreen({
     super.key,
     required this.userId,
-    this.currentEmail,
+    required this.currentEmail,
   });
 
   @override
@@ -55,8 +57,7 @@ class _AddEmailScreenState extends State<AddEmailScreen> {
 
     final newEmail = _controller.text.trim().toLowerCase();
 
-    if (widget.currentEmail != null &&
-        newEmail == widget.currentEmail!.trim().toLowerCase()) {
+    if (newEmail == widget.currentEmail.trim().toLowerCase()) {
       setState(() => _errorMessage = 'This is already your current email.');
       return;
     }
@@ -66,30 +67,65 @@ class _AddEmailScreenState extends State<AddEmailScreen> {
       _errorMessage = null;
     });
 
+    // Show loading popup
+    if (mounted) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        barrierColor: Colors.black54,
+        builder: (_) => PopScope(
+          canPop: false,
+          child: Center(
+            child: Container(
+              padding: const EdgeInsets.all(28),
+              decoration: BoxDecoration(
+                color: KoraColors.cardFor(Theme.of(context).brightness),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 28, height: 28,
+                    child: CircularProgressIndicator(color: KoraColors.purple, strokeWidth: 2.8),
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    'Sending code...',
+                    style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     try {
-      final result = await AuthService.instance.sendVerificationCode(
-        newEmail,
-        type: 'changeEmail',
+      final result = await AuthService.instance.initiateEmailChange(
+        userId: widget.userId,
+        oldEmail: widget.currentEmail,
+        newEmail: newEmail,
       );
 
       if (!mounted) return;
+      Navigator.of(context).pop(); // pop loading dialog
 
       if (result.success) {
-        final confirmed = await Navigator.of(context).push<bool>(
+        Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (_) => AddEmailVerifyScreen(
+            builder: (_) => EmailChangeVerifyScreen(
               userId: widget.userId,
+              oldEmail: widget.currentEmail,
               newEmail: newEmail,
             ),
           ),
-        );
-
-        if (!mounted) return;
-        setState(() => _isSending = false);
-
-        if (confirmed == true) {
-          Navigator.of(context).pop(newEmail);
-        }
+        ).then((confirmed) {
+          if (confirmed == true && mounted) {
+            Navigator.of(context).pop(newEmail);
+          }
+        });
       } else {
         setState(() {
           _isSending = false;
@@ -98,6 +134,7 @@ class _AddEmailScreenState extends State<AddEmailScreen> {
       }
     } catch (_) {
       if (!mounted) return;
+      Navigator.of(context).pop(); // pop loading dialog
       setState(() {
         _isSending = false;
         _errorMessage = 'Something went wrong. Please try again.';
@@ -126,11 +163,7 @@ class _AddEmailScreenState extends State<AddEmailScreen> {
         ),
         title: Text(
           'Add your email',
-          style: TextStyle(
-            color: textPrimary,
-            fontSize: 19,
-            fontWeight: FontWeight.w700,
-          ),
+          style: TextStyle(color: textPrimary, fontSize: 19, fontWeight: FontWeight.w700),
         ),
       ),
       body: SafeArea(
@@ -151,10 +184,7 @@ class _AddEmailScreenState extends State<AddEmailScreen> {
                     ),
                     TextSpan(
                       text: 'Learn more',
-                      style: TextStyle(
-                        color: KoraColors.purple,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: TextStyle(color: KoraColors.purple, fontWeight: FontWeight.w600),
                     ),
                   ],
                 ),
@@ -192,10 +222,7 @@ class _AddEmailScreenState extends State<AddEmailScreen> {
               ),
               if (_errorMessage != null) ...[
                 const SizedBox(height: 10),
-                Text(
-                  _errorMessage!,
-                  style: const TextStyle(color: Colors.redAccent, fontSize: 13),
-                ),
+                Text(_errorMessage!, style: const TextStyle(color: Colors.redAccent, fontSize: 13)),
               ],
               const Spacer(),
               Padding(
@@ -217,20 +244,14 @@ class _AddEmailScreenState extends State<AddEmailScreen> {
                         disabledBackgroundColor: Colors.transparent,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
                       ),
-                      child: _isSending
-                          ? const SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
-                            )
-                          : Text(
-                              'Next',
-                              style: TextStyle(
-                                color: _isValid ? Colors.white : hint,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
+                      child: Text(
+                        'Next',
+                        style: TextStyle(
+                          color: _isValid ? Colors.white : hint,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
                   ),
                 ),
