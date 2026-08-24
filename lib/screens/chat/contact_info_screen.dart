@@ -123,7 +123,7 @@ class ContactInfoScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 28),
                       // ── Info section ──
-                      _infoSection(card, textPrimary, textSecondary, border),
+                      _infoSection(context, card, textPrimary, textSecondary, border),
                       const SizedBox(height: 16),
                       // ── Action row ──
                       _actionRow(context, card, textPrimary, textSecondary, border),
@@ -161,7 +161,7 @@ class ContactInfoScreen extends StatelessWidget {
     );
   }
 
-  Widget _infoSection(Color card, Color textPrimary, Color textSecondary, Color border) {
+  Widget _infoSection(BuildContext context, Color card, Color textPrimary, Color textSecondary, Color border) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
