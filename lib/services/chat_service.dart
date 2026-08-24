@@ -11,6 +11,8 @@ import 'conversation_directory.dart';
 /// runs. All other chats are built from the messages stored by
 /// [MessageService] and the display metadata registered in
 /// [ConversationDirectoryService] when a chat screen opens.
+enum _ChatListFilter { main, archived, locked }
+
 class ChatService {
   static final ChatService instance = ChatService._();
   ChatService._();
@@ -48,15 +50,22 @@ class ChatService {
   }
 
   /// Returns the current chat list, sorted: pinned chats first, then
-  /// everything else by most recent message timestamp. Archived chats
-  /// are excluded — see [getArchivedChats].
+  /// everything else by most recent message timestamp. Archived and
+  /// locked chats are excluded — see [getArchivedChats]/[getLockedChats].
   Future<List<ChatPreview>> getChats() async {
-    return _buildChats(archived: false);
+    return _buildChats(_ChatListFilter.main);
   }
 
-  /// Returns chats the user has archived, most recent first.
+  /// Returns chats the user has archived, most recent first. Locked
+  /// chats never show here even if also archived — Lock always wins.
   Future<List<ChatPreview>> getArchivedChats() async {
-    return _buildChats(archived: true);
+    return _buildChats(_ChatListFilter.archived);
+  }
+
+  /// Returns chats the user has locked — only reachable through the
+  /// biometric-gated Locked Chats screen, regardless of archive state.
+  Future<List<ChatPreview>> getLockedChats() async {
+    return _buildChats(_ChatListFilter.locked);
   }
 
   /// A mute set with a duration (8 hours / 1 week) can expire. This
@@ -75,7 +84,18 @@ class ChatService {
     return false;
   }
 
-  Future<List<ChatPreview>> _buildChats({required bool archived}) async {
+  /// "Mark as unread" from the overflow menu sets a `forcedUnread`
+  /// flag rather than a real unseen message — this surfaces it as an
+  /// unread badge (1) until the chat is opened again, without lying
+  /// about actual message read-receipts.
+  int _effectiveUnreadCount(String chatId, Map<String, dynamic> meta) {
+    final real = MessageService.instance.unreadCountFor(chatId);
+    if (real > 0) return real;
+    final forced = meta['forcedUnread'] as bool? ?? false;
+    return forced ? 1 : 0;
+  }
+
+  Future<List<ChatPreview>> _buildChats(_ChatListFilter filter) async {
     await _ensureBuiltinChatsRegistered();
 
     final ms = MessageService.instance;
@@ -86,7 +106,18 @@ class ChatService {
       final chatId = entry.key;
       final meta = entry.value;
       final isArchived = meta['isArchived'] as bool? ?? false;
-      if (isArchived != archived) continue;
+      final isLocked = meta['isLocked'] as bool? ?? false;
+      switch (filter) {
+        case _ChatListFilter.main:
+          if (isArchived || isLocked) continue;
+          break;
+        case _ChatListFilter.archived:
+          if (!isArchived || isLocked) continue;
+          break;
+        case _ChatListFilter.locked:
+          if (!isLocked) continue;
+          break;
+      }
 
       final isBuiltinAi = _builtinAiChats.containsKey(chatId);
 
@@ -115,7 +146,7 @@ class ChatService {
         avatarUrl: meta['avatarUrl'] as String?,
         lastMessage: lastMessageText,
         timestamp: timestamp,
-        unreadCount: ms.unreadCountFor(chatId),
+        unreadCount: _effectiveUnreadCount(chatId, meta),
         badge: KoraBadgeType.values[meta['badge'] as int? ?? 0],
         isOnline: meta['isOnline'] as bool? ?? false,
         isPinned: meta['isPinned'] as bool? ?? false,
