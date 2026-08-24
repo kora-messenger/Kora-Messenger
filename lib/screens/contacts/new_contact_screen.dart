@@ -468,6 +468,7 @@ class _NewContactScreenState extends State<NewContactScreen> {
     final username = user['username'] as String? ?? '';
     final userPhone = user['phoneNumber'] as String? ?? '';
     final recipientEmail = user['email'] as String? ?? '';
+    final isPremium = user['isPremium'] as bool? ?? false;
 
     // Capture navigator + messenger BEFORE showing the snackbar so the
     // "Message" button's onTap closure doesn't access State.context after
@@ -494,7 +495,7 @@ class _NewContactScreenState extends State<NewContactScreen> {
                     builder: (_) => KoraChatScreen(
                       chatId: koraId.isNotEmpty ? koraId : username,
                       name: name,
-                      badge: KoraBadgeType.none,
+                      badge: isPremium ? KoraBadgeType.premiumBlue : KoraBadgeType.none,
                       isOnline: false,
                       recipientEmail: recipientEmail,
                     ),
@@ -537,6 +538,7 @@ class _NewContactScreenState extends State<NewContactScreen> {
     final koraId = user['koraId'] as String? ?? '';
     final username = user['username'] as String? ?? '';
     final userPhone = user['phoneNumber'] as String? ?? '';
+    final isPremium = user['isPremium'] as bool? ?? false;
 
     Navigator.push(
       context,
@@ -546,7 +548,7 @@ class _NewContactScreenState extends State<NewContactScreen> {
           koraId: koraId,
           username: username,
           phone: userPhone,
-          badge: KoraBadgeType.none,
+          badge: isPremium ? KoraBadgeType.premiumBlue : KoraBadgeType.none,
           isOnline: true,
           about: 'Hey there! I\'m on Kora.',
         ),
