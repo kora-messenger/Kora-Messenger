@@ -49,6 +49,7 @@ class KoraChatScreen extends StatefulWidget {
   final KoraBadgeType badge;
   final bool isOnline;
   final String? lastSeen;
+  final String? recipientEmail;
 
   const KoraChatScreen({
     super.key,
@@ -59,6 +60,7 @@ class KoraChatScreen extends StatefulWidget {
     this.badge = KoraBadgeType.none,
     this.isOnline = false,
     this.lastSeen,
+    this.recipientEmail,
   });
 
   @override
@@ -224,6 +226,8 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
       replyToId: _replyTarget?.id,
       replyToText: _replyTarget?.text,
       replyToName: _replyTarget != null ? (_replyTarget!.isMe ? 'You' : widget.name) : null,
+      recipientEmail: widget.recipientEmail,
+      recipientName: widget.name,
     );
     setState(() {
       _messages = List.from(_messageService.getMessages(widget.chatId));
