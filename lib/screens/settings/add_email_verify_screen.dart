@@ -11,11 +11,13 @@ import '../../services/session_manager.dart';
 /// entered — there is no manual submit button.
 class AddEmailVerifyScreen extends StatefulWidget {
   final String userId;
+  final String oldEmail;
   final String newEmail;
 
   const AddEmailVerifyScreen({
     super.key,
     required this.userId,
+    required this.oldEmail,
     required this.newEmail,
   });
 
@@ -166,6 +168,7 @@ class _AddEmailVerifyScreenState extends State<AddEmailVerifyScreen> {
     try {
       final result = await AuthService.instance.verifyAndUpdateEmail(
         userId: widget.userId,
+        oldEmail: widget.oldEmail,
         newEmail: widget.newEmail,
         code: _enteredCode,
       );
