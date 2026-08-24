@@ -68,6 +68,7 @@ class ConversationDirectoryService {
     required String name,
     String? avatarAsset,
     String? avatarUrl,
+    String? recipientEmail,
     KoraBadgeType badge = KoraBadgeType.none,
     bool isOnline = false,
   }) async {
@@ -78,6 +79,7 @@ class ConversationDirectoryService {
       'name': name,
       'avatarAsset': avatarAsset,
       'avatarUrl': avatarUrl,
+      'recipientEmail': recipientEmail ?? existing['recipientEmail'],
       'badge': badge.index,
       'isOnline': isOnline,
     };
