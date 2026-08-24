@@ -540,6 +540,37 @@ class AuthService {
     }
   }
 
+  // ── Add / change email ────────────────────────────────────────
+
+  /// Verifies the code sent to [newEmail] and updates the account's
+  /// email address. Used by the "Add your email" flow.
+  Future<({bool success, String? error, Map<String, dynamic>? user})> verifyAndUpdateEmail({
+    required String userId,
+    required String newEmail,
+    required String code,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse(_endpoint),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'action': 'verifyAndUpdateEmail',
+          'userId': userId,
+          'newEmail': newEmail,
+          'code': code,
+        }),
+      ).timeout(const Duration(seconds: 15));
+      final data = jsonDecode(response.body);
+
+      if (data['success'] == true) {
+        return (success: true, error: null, user: data['user'] as Map<String, dynamic>?);
+      }
+      return (success: false, error: data['error'] as String?, user: null);
+    } catch (e) {
+      return (success: false, error: _friendlyError(e), user: null);
+    }
+  }
+
   // ── Passkeys ─────────────────────────────────────────────────
 
   /// Turns the Passkeys feature on/off for the account.
