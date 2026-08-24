@@ -21,6 +21,8 @@ class LockedRecorderBar extends StatelessWidget {
   final VoidCallback? onTranslate;
   final String? selectedTranslateName;
   final bool isTranslating;
+  final bool isPlayOnce;
+  final VoidCallback? onTogglePlayOnce;
 
   const LockedRecorderBar({
     super.key,
@@ -33,6 +35,8 @@ class LockedRecorderBar extends StatelessWidget {
     this.onTranslate,
     this.selectedTranslateName,
     this.isTranslating = false,
+    this.isPlayOnce = false,
+    this.onTogglePlayOnce,
   });
 
   String get _durationString {
@@ -52,22 +56,37 @@ class LockedRecorderBar extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (selectedTranslateName != null)
+        if (selectedTranslateName != null || isPlayOnce)
           Padding(
             padding: const EdgeInsets.only(left: 58, bottom: 6),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.language_rounded, size: 13, color: KoraColors.purple),
-                const SizedBox(width: 4),
-                Text(
-                  'Translating to $selectedTranslateName',
-                  style: const TextStyle(
-                    color: KoraColors.purple,
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w600,
+                if (isPlayOnce) ...[
+                  Icon(Icons.lock_clock_rounded, size: 13, color: KoraColors.purple),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Play once',
+                    style: const TextStyle(
+                      color: KoraColors.purple,
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
+                  if (selectedTranslateName != null) const SizedBox(width: 12),
+                ],
+                if (selectedTranslateName != null) ...[
+                  Icon(Icons.language_rounded, size: 13, color: KoraColors.purple),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Translating to $selectedTranslateName',
+                    style: const TextStyle(
+                      color: KoraColors.purple,
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -180,6 +199,33 @@ class LockedRecorderBar extends StatelessWidget {
                       ),
                     ),
                   ],
+                ),
+              ),
+            ),
+
+            // ── Play-once / self-destruct toggle ──
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: onTogglePlayOnce,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: isPlayOnce
+                      ? KoraColors.purple.withValues(alpha: 0.18)
+                      : KoraColors.surfaceFor(brightness),
+                  shape: BoxShape.circle,
+                  border: isPlayOnce
+                      ? null
+                      : Border.all(color: border, width: 0.6),
+                ),
+                child: Icon(
+                  isPlayOnce ? Icons.lock_clock_rounded : Icons.timer_outlined,
+                  color: isPlayOnce
+                      ? KoraColors.purple
+                      : KoraColors.textMutedFor(brightness),
+                  size: 19,
                 ),
               ),
             ),
