@@ -296,6 +296,11 @@ class _LogInScreenState extends State<LogInScreen> {
           await ChatThemeProvider.instance.syncPremiumFromSession(session);
           if (session['email'] != null) {
             ChatSyncService.instance.setUserEmail(session['email'] as String);
+            ChatSyncService.instance.setSenderName(
+              (session?['fullName'] as String?) ?? '',
+            );
+            await ChatSyncService.instance.restoreFromCloud();
+            ChatSyncService.instance.startPolling();
           }
         }
         final prefs = await SharedPreferences.getInstance();
