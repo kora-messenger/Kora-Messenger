@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../theme/kora_colors.dart';
 import '../../models/chat_models.dart';
 import '../../widgets/kora_avatar.dart';
@@ -86,23 +87,29 @@ class ContactInfoScreen extends StatelessWidget {
                       const SizedBox(height: 6),
                       // Username
                       if (username != null)
-                        Text(
-                          username!,
-                          style: TextStyle(
-                            color: textSecondary,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
+                        GestureDetector(
+                          onLongPress: () => _copyToClipboard(context, '@${username!}', 'Username'),
+                          child: Text(
+                            '@$username',
+                            style: TextStyle(
+                              color: textSecondary,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ),
                       const SizedBox(height: 4),
                       // Kora ID
                       if (koraId != null)
-                        Text(
-                          koraId!,
-                          style: TextStyle(
-                            color: textMuted,
-                            fontSize: 13,
-                            letterSpacing: 0.5,
+                        GestureDetector(
+                          onLongPress: () => _copyToClipboard(context, koraId!, 'Kora ID'),
+                          child: Text(
+                            koraId!,
+                            style: TextStyle(
+                              color: textMuted,
+                              fontSize: 13,
+                              letterSpacing: 0.5,
+                            ),
                           ),
                         ),
                       const SizedBox(height: 8),
@@ -168,24 +175,39 @@ class ContactInfoScreen extends StatelessWidget {
           if (phone != null)
             _infoTile(Icons.phone_outlined, 'Phone', phone!, textPrimary, textSecondary, border),
           if (username != null)
-            _infoTile(Icons.alternate_email, 'Username', username!, textPrimary, textSecondary, border),
+            _infoTile(Icons.alternate_email, 'Username', '@$username', textPrimary, textSecondary, border, isCopyable: true, copyLabel: 'Username'),
           if (koraId != null)
-            _infoTile(Icons.badge_outlined, 'Kora ID', koraId!, textPrimary, textSecondary, border, isLast: true),
+            _infoTile(Icons.badge_outlined, 'Kora ID', koraId!, textPrimary, textSecondary, border, isLast: true, isCopyable: true, copyLabel: 'Kora ID'),
         ],
       ),
     );
   }
 
-  Widget _infoTile(IconData icon, String label, String value, Color textPrimary, Color textSecondary, Color border, {bool isLast = false}) {
+  Widget _infoTile(IconData icon, String label, String value, Color textPrimary, Color textSecondary, Color border, {bool isLast = false, bool isCopyable = false, String? copyLabel}) {
     return Column(
       children: [
         ListTile(
           leading: Icon(icon, color: KoraColors.purple, size: 22),
           title: Text(label, style: TextStyle(color: textSecondary, fontSize: 13)),
           subtitle: Text(value, style: TextStyle(color: textPrimary, fontSize: 15, fontWeight: FontWeight.w500)),
+          onLongPress: isCopyable
+              ? () => _copyToClipboard(context, value, copyLabel ?? label)
+              : null,
         ),
         if (!isLast) Divider(height: 1, indent: 56, color: border),
       ],
+    );
+  }
+
+  void _copyToClipboard(BuildContext context, String value, String label) {
+    Clipboard.setData(ClipboardData(text: value));
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$label copied to clipboard'),
+        duration: const Duration(seconds: 1),
+        behavior: SnackBarBehavior.floating,
+      ),
     );
   }
 
