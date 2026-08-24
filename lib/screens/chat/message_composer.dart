@@ -397,12 +397,77 @@ class _MessageComposerState extends State<MessageComposer>
     if (mounted) setState(() => _isPaused = !_isPaused);
   }
 
+  /// Deletes the current recording. Only asks for confirmation when
+  /// there's meaningful audio to lose (more than ~2 seconds) — a quick
+  /// accidental tap right after starting is discarded silently.
   void _discardLocked() async {
+    final wasPaused = _isPaused;
+    if (!wasPaused) await _recordingService.pauseRecording();
+
+    if (_seconds > 2) {
+      final confirmed = await _confirmDiscard();
+      if (!confirmed) {
+        if (!wasPaused && mounted) await _recordingService.resumeRecording();
+        return;
+      }
+    }
+
     _timer?.cancel();
     _amplitudeSub?.cancel();
     await VoiceNoteSttService.instance.stop();
     await _recordingService.cancelRecording();
+    _clearTranslation();
     if (mounted) setState(() => _state = _ComposerState.idle);
+  }
+
+  Future<bool> _confirmDiscard() async {
+    if (!mounted) return false;
+    final brightness = Theme.of(context).brightness;
+    final surface = KoraColors.cardFor(brightness);
+    final textPrimary = KoraColors.textPrimaryFor(brightness);
+    final textSecondary = KoraColors.textSecondaryFor(brightness);
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        backgroundColor: surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Delete this recording?',
+                style: TextStyle(color: textPrimary, fontSize: 18, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Your voice note will be discarded and won\'t be sent.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: textSecondary, fontSize: 14, height: 1.4),
+              ),
+              const SizedBox(height: 18),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(dialogContext, false),
+                    child: const Text('Cancel', style: TextStyle(color: KoraColors.purple, fontWeight: FontWeight.w700)),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(dialogContext, true),
+                    child: const Text('Delete', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w700)),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    return confirmed == true;
   }
 
   void _sendLocked() async {
@@ -430,6 +495,9 @@ class _MessageComposerState extends State<MessageComposer>
       return;
     }
 
+    // No translation requested — stop the on-device STT capture
+    // (its transcript isn't needed) and send immediately.
+    unawaited(VoiceNoteSttService.instance.stop());
     widget.onSendVoice(duration, filePath: path ?? _filePath);
   }
 
