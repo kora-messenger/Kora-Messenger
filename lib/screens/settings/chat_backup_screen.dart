@@ -36,23 +36,12 @@ class _ChatBackupScreenState extends State<ChatBackupScreen> {
     int msgCount = 0;
     for (final entry in directory.entries) {
       final chatId = entry.key;
-      if (chatId == 'kora_support' || chatId == 'kora_ai') {
-        final msgs = MessageService.instance.getMessages(chatId);
-        msgCount += msgs.length;
-        continue;
-      }
       final msgs = await MessageService.instance.loadMessages(chatId);
       msgCount += msgs.length;
     }
-    // Also count AI chats
-    for (final chatId in ['kora_support', 'kora_ai']) {
-      final msgs = await MessageService.instance.loadMessages(chatId);
-      // Already counted above if in directory, but AI chats might not be
-      // in the directory — they're always present
-    }
 
     setState(() {
-      _localChatCount = directory.length + 2; // +2 for Kora Support & AI
+      _localChatCount = directory.length;
       _localMessageCount = msgCount;
     });
 
