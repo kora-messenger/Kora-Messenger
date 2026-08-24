@@ -495,7 +495,7 @@ class _NewContactScreenState extends State<NewContactScreen> {
                       chatId: koraId.isNotEmpty ? koraId : username,
                       name: name,
                       badge: KoraBadgeType.none,
-                      isOnline: true,
+                      isOnline: false,
                       recipientEmail: recipientEmail,
                     ),
                   ),
