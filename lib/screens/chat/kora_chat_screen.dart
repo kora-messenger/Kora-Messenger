@@ -110,6 +110,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
       avatarUrl: widget.avatarUrl,
       badge: widget.badge,
       isOnline: widget.isOnline,
+      recipientEmail: widget.recipientEmail,
     );
     _loadMessages();
     _scrollController.addListener(_onScrollChanged);
