@@ -54,6 +54,7 @@ class ConversationDirectoryService {
       avatarUrl: meta['avatarUrl'] as String?,
       badge: KoraBadgeType.values[meta['badge'] as int? ?? 0],
       isOnline: meta['isOnline'] as bool? ?? false,
+      recipientEmail: meta['recipientEmail'] as String?,
     );
   }
 
