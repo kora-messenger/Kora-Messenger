@@ -1,5 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../theme/kora_colors.dart';
 import '../../services/session_manager.dart';
 import '../../config/kora_api.dart';
@@ -98,8 +99,8 @@ class _AccountScreenState extends State<AccountScreen> {
                 ),
                 const SizedBox(height: 18),
                 _infoRow('Name', _session!['fullName']?.toString() ?? 'N/A', textPrimary, textSecondary),
-                _infoRow('Username', '@${_session!['username']?.toString() ?? 'N/A'}', textPrimary, textSecondary),
-                _infoRow('Kora ID', _session!['koraId']?.toString() ?? 'N/A', textPrimary, textSecondary),
+                _copyableInfoRow('Username', '@${_session!['username']?.toString() ?? 'N/A'}', textPrimary, textSecondary, 'Username'),
+                _copyableInfoRow('Kora ID', _session!['koraId']?.toString() ?? 'N/A', textPrimary, textSecondary, 'Kora ID'),
                 _infoRow('Email', _session!['email']?.toString() ?? 'N/A', textPrimary, textSecondary),
                 _infoRow('Account Created', data['accountCreated']?.toString() ?? 'N/A', textPrimary, textSecondary),
                 _infoRow('Devices', data['deviceCount']?.toString() ?? '1', textPrimary, textSecondary),
@@ -138,6 +139,23 @@ class _AccountScreenState extends State<AccountScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _copyableInfoRow(String label, String value, Color textPrimary, Color textSecondary, String copyLabel) {
+    return GestureDetector(
+      onLongPress: () {
+        Clipboard.setData(ClipboardData(text: value));
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('$copyLabel copied to clipboard'),
+            duration: const Duration(seconds: 1),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      },
+      child: _infoRow(label, value, textPrimary, textSecondary),
     );
   }
 
@@ -697,6 +715,20 @@ class _AccountScreenState extends State<AccountScreen> {
                     title: '@ Username',
                     subtitle: '@${_session?['username']?.toString() ?? 'user'}',
                     onTap: () => _showComingSoon('Username editing'),
+                    onLongPress: () {
+                      final username = _session?['username']?.toString() ?? '';
+                      if (username.isNotEmpty) {
+                        Clipboard.setData(ClipboardData(text: '@$username'));
+                        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: const Text('Username copied to clipboard'),
+                            duration: const Duration(seconds: 1),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      }
+                    },
                     trailing: Icon(Icons.chevron_right, color: textMuted),
                   ),
                   _actionTile(
@@ -794,6 +826,7 @@ class _AccountScreenState extends State<AccountScreen> {
     required String title,
     required String subtitle,
     VoidCallback? onTap,
+    VoidCallback? onLongPress,
     Color? titleColor,
     Widget? trailing,
   }) {
@@ -807,6 +840,7 @@ class _AccountScreenState extends State<AccountScreen> {
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: InkWell(
         onTap: onTap,
+        onLongPress: onLongPress,
         borderRadius: BorderRadius.circular(14),
         child: Container(
           padding: const EdgeInsets.all(16),
