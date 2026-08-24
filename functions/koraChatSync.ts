@@ -1,10 +1,12 @@
 /**
  * Kora Chat Sync — Backend persistence for all chats and messages.
  *
- * This function handles three actions:
+ * This function handles actions:
  * 1. "sync" — Save new/updated messages + conversations to the database
  * 2. "fetch" — Load all conversations + messages for a user (on login/reinstall)
- * 3. "backup" — Export all chat data for the user (for Chat Backup screen)
+ * 3. "fetchNew" — Load conversations + messages updated after a timestamp (for polling)
+ * 4. "backup" — Export all chat data for the user (for Chat Backup screen)
+ * 5. "clearChat" — Delete all messages for a specific chat
  *
  * Messages and conversations are scoped by userEmail (row-level security).
  * Even if the user deletes and reinstalls the app, logging in with the same
@@ -15,10 +17,52 @@
 
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
 
+// Helper functions to map entity records to standard response schema
+function mapConversation(c: any) {
+  return {
+    chatId: c.chatId,
+    name: c.name,
+    avatarAsset: c.avatarAsset,
+    avatarUrl: c.avatarUrl,
+    badge: c.badge,
+    isOnline: c.isOnline,
+    lastMessageText: c.lastMessageText,
+    lastMessageTimestamp: c.lastMessageTimestamp,
+    lastMessageType: c.lastMessageType,
+    lastVoiceDuration: c.lastVoiceDuration,
+    unreadCount: c.unreadCount,
+  };
+}
+
+function mapMessage(m: any) {
+  return {
+    chatId: m.chatId,
+    messageId: m.messageId,
+    text: m.text,
+    timestamp: m.timestamp,
+    isMe: m.isMe,
+    type: m.type,
+    status: m.status,
+    replyToId: m.replyToId,
+    replyToText: m.replyToText,
+    replyToName: m.replyToName,
+    reaction: m.reaction,
+    voiceDuration: m.voiceDuration,
+    voiceFilePath: m.voiceFilePath,
+    voiceTranscript: m.voiceTranscript,
+    isAi: m.isAi,
+    isWebSearch: m.isWebSearch,
+    isSeen: m.isSeen,
+    isStarred: m.isStarred,
+    actionLabel: m.actionLabel,
+    actionType: m.actionType,
+  };
+}
+
 Deno.serve(async (req) => {
   try {
     const body = await req.json();
-    const { action, userEmail, recipientEmail, recipientName, senderName, messages, conversations, chatId } = body;
+    const { action, userEmail, recipientEmail, recipientName, senderName, messages, conversations, chatId, sinceTimestamp } = body;
 
     if (!userEmail) {
       return new Response(
@@ -263,41 +307,95 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: true,
-          conversations: allConversations.map(c => ({
-            chatId: c.chatId,
-            name: c.name,
-            avatarAsset: c.avatarAsset,
-            avatarUrl: c.avatarUrl,
-            badge: c.badge,
-            isOnline: c.isOnline,
-            lastMessageText: c.lastMessageText,
-            lastMessageTimestamp: c.lastMessageTimestamp,
-            lastMessageType: c.lastMessageType,
-            lastVoiceDuration: c.lastVoiceDuration,
-            unreadCount: c.unreadCount,
-          })),
-          messages: allMessages.map(m => ({
-            chatId: m.chatId,
-            messageId: m.messageId,
-            text: m.text,
-            timestamp: m.timestamp,
-            isMe: m.isMe,
-            type: m.type,
-            status: m.status,
-            replyToId: m.replyToId,
-            replyToText: m.replyToText,
-            replyToName: m.replyToName,
-            reaction: m.reaction,
-            voiceDuration: m.voiceDuration,
-            voiceFilePath: m.voiceFilePath,
-            voiceTranscript: m.voiceTranscript,
-            isAi: m.isAi,
-            isWebSearch: m.isWebSearch,
-            isSeen: m.isSeen,
-            isStarred: m.isStarred,
-            actionLabel: m.actionLabel,
-            actionType: m.actionType,
-          })),
+          conversations: allConversations.map(mapConversation),
+          messages: allMessages.map(mapMessage),
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    // ── ACTION: FETCH_NEW ─────────────────────────────────────
+    // Fetch conversations + messages updated after sinceTimestamp.
+    // Used for lightweight, efficient polling.
+    if (action === "fetchNew") {
+      // Build filter for conversations updated after sinceTimestamp
+      const convFilter: Record<string, any> = { userEmail: userEmail };
+      if (sinceTimestamp) {
+        convFilter.updated_date = { $gt: sinceTimestamp };
+      }
+
+      const allConversations: any[] = [];
+      let skipConv = 0;
+      let hasMoreConv = true;
+      while (hasMoreConv) {
+        const batch = await base44.entities.Conversation.list({
+          filter: convFilter,
+          limit: 500,
+          skip: skipConv,
+          sort: "-lastMessageTimestamp",
+        });
+        if (batch && batch.length > 0) {
+          allConversations.push(...batch);
+          skipConv += batch.length;
+        }
+        hasMoreConv = batch && batch.length === 500;
+      }
+
+      // Code filter in case base44 SDK filter needs in-memory verification
+      let filteredConversations = allConversations;
+      if (sinceTimestamp) {
+        const sinceTime = new Date(sinceTimestamp).getTime();
+        filteredConversations = allConversations.filter(c => {
+          const rawDate = c.updated_date || c.lastMessageTimestamp;
+          if (!rawDate) return true;
+          const convTime = new Date(rawDate).getTime();
+          return !isNaN(sinceTime) && !isNaN(convTime)
+            ? convTime > sinceTime
+            : rawDate > sinceTimestamp;
+        });
+      }
+
+      // Build filter for messages created/updated after sinceTimestamp
+      const msgFilter: Record<string, any> = { userEmail: userEmail };
+      if (sinceTimestamp) {
+        msgFilter.timestamp = { $gt: sinceTimestamp };
+      }
+
+      const allMessages: any[] = [];
+      let skipMsg = 0;
+      let hasMoreMsg = true;
+      while (hasMoreMsg) {
+        const batch = await base44.entities.ChatMessage.list({
+          filter: msgFilter,
+          limit: 500,
+          skip: skipMsg,
+          sort: "timestamp",
+        });
+        if (batch && batch.length > 0) {
+          allMessages.push(...batch);
+          skipMsg += batch.length;
+        }
+        hasMoreMsg = batch && batch.length === 500;
+      }
+
+      // Code filter in case base44 SDK filter needs in-memory verification
+      let filteredMessages = allMessages;
+      if (sinceTimestamp) {
+        const sinceTime = new Date(sinceTimestamp).getTime();
+        filteredMessages = allMessages.filter(m => {
+          if (!m.timestamp) return false;
+          const msgTime = new Date(m.timestamp).getTime();
+          return !isNaN(sinceTime) && !isNaN(msgTime)
+            ? msgTime > sinceTime
+            : m.timestamp > sinceTimestamp;
+        });
+      }
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          conversations: filteredConversations.map(mapConversation),
+          messages: filteredMessages.map(mapMessage),
         }),
         { status: 200, headers: { "Content-Type": "application/json" } }
       );
@@ -384,7 +482,7 @@ Deno.serve(async (req) => {
       JSON.stringify({ error: `Unknown action: ${action}` }),
       { status: 400, headers: { "Content-Type": "application/json" } }
     );
-  } catch (err) {
+  } catch (err: any) {
     return new Response(
       JSON.stringify({ error: `Chat sync failed: ${err.message || "Unknown error"}` }),
       { status: 500, headers: { "Content-Type": "application/json" } }
