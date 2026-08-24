@@ -10,6 +10,7 @@ import '../../widgets/kora_empty_state.dart';
 import '../../widgets/kora_menu_sheet.dart';
 import '../../widgets/new_chat_sheet.dart';
 import '../chat/kora_chat_screen.dart';
+import '../chat/contact_info_screen.dart';
 import '../new_group_screen.dart';
 import '../settings/privacy_screen.dart';
 import 'package:local_auth/local_auth.dart';
@@ -91,7 +92,32 @@ class _ChatsTabState extends State<ChatsTab> {
       context,
       chat,
       onOpenChat: () => _openChat(chat),
-      onMarkedRead: () => _refresh(),
+      onOpenProfile: () => _openProfile(chat),
+      onRefresh: () => _refresh(),
+    );
+  }
+
+  /// Opens [chat]'s Profile / Contact info screen — used when the
+  /// user taps the header (avatar/name) inside the Chat Peek.
+  void _openProfile(ChatPreview chat) {
+    final lowerName = chat.name.toLowerCase().replaceAll(' ', '_');
+    final koraId = 'KM-${chat.name.hashCode.abs().toString().padLeft(9, '0')}';
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ContactInfoScreen(
+          name: chat.name,
+          avatarAsset: chat.avatarAsset,
+          avatarUrl: chat.avatarUrl,
+          badge: chat.badge,
+          isOnline: chat.isOnline,
+          lastSeen: chat.isOnline ? null : 'last seen recently',
+          koraId: koraId,
+          username: '@$lowerName',
+          about: 'Hey there! I am using Kora Messenger.',
+          phone: '+123 456 7890',
+          isAiChat: false,
+        ),
+      ),
     );
   }
 
