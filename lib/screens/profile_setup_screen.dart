@@ -314,6 +314,11 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         final session = await SessionManager.instance.loadSession();
         if (session != null && session['email'] != null) {
           ChatSyncService.instance.setUserEmail(session['email'] as String);
+          ChatSyncService.instance.setSenderName(
+            (session?['fullName'] as String?) ?? '',
+          );
+          await ChatSyncService.instance.restoreFromCloud();
+          ChatSyncService.instance.startPolling();
         }
       }
       _navigateHome();
