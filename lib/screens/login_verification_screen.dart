@@ -227,6 +227,12 @@ class _LoginVerificationScreenState extends State<LoginVerificationScreen>
         final session = await SessionManager.instance.loadSession();
         if (session != null && session['email'] != null) {
           ChatSyncService.instance.setUserEmail(session['email'] as String);
+          ChatSyncService.instance.setSenderName(
+            (session['fullName'] as String?) ?? '',
+          );
+          // Restore cloud chats/messages, then start live polling
+          await ChatSyncService.instance.restoreFromCloud();
+          ChatSyncService.instance.startPolling();
         } // Refresh owner/premium status for badge + gating
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('kora_last_email', widget.email);
