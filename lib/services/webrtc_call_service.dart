@@ -370,17 +370,10 @@ class WebRTCCallService {
   Future<void> setSpeakerOn(bool enabled) async {
     _isSpeakerOn = enabled;
     try {
-      final audioTrack = _localStream?.getAudioTracks().firstOrNull;
-      if (audioTrack != null) {
-        await audioTrack.setSpeakerphoneOn(enabled);
-      }
+      await Helper.setSpeakerphoneOn(enabled);
     } catch (e) {
       debugPrint('Speaker routing error: $e');
-      // Fallback: try the platform-level audio session
-      try {
-        // flutter_webrtc Helper is available on the track via setSpeakerphoneOn
-        // If that fails, we still update state — UI follows the flag
-      } catch (_) {}
+      // Fallback: still update the flag — UI follows _isSpeakerOn
     }
   }
 
