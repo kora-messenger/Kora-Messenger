@@ -4,6 +4,7 @@ import '../theme/kora_colors.dart';
 import '../theme/chat_theme_provider.dart';
 import '../widgets/new_user_welcome_popup.dart';
 import '../services/session_manager.dart';
+import '../services/chat_sync_service.dart';
 import 'home/calls_tab.dart';
 import 'home/channels_tab.dart';
 import 'home/chats_tab.dart';
@@ -36,6 +37,8 @@ class _KoraHomeScreenState extends State<KoraHomeScreen> {
     _pageController = PageController(initialPage: 0);
     // Ask for essential permissions once on first Home visit.
     KoraPermissionService.requestEssentialOnce();
+    // Start polling for incoming messages (if not already running).
+    ChatSyncService.instance.startPolling();
     // Show the new-user welcome popup if this is a first-time visitor.
     if (widget.isNewUser) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -46,6 +49,7 @@ class _KoraHomeScreenState extends State<KoraHomeScreen> {
 
   @override
   void dispose() {
+    ChatSyncService.instance.stopPolling();
     _pageController.dispose();
     super.dispose();
   }
