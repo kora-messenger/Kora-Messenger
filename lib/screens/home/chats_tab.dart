@@ -809,22 +809,20 @@ class _ChatsTabState extends State<ChatsTab> {
       children: [
         if (_lockedCount > 0)
           _buildShortcutRow(
-            icon: Icons.lock_outline,
+            iconWidget: _buildLockedChatIcon(textMuted),
             label: 'Locked chats',
             count: null,
             textPrimary: textPrimary,
             textMuted: textMuted,
-            border: border,
             onTap: _openLockedChats,
           ),
         if (_archivedCount > 0)
           _buildShortcutRow(
-            icon: Icons.archive_outlined,
+            iconWidget: Icon(Icons.archive_outlined, size: 22, color: textMuted),
             label: 'Archived',
             count: _archivedCount,
             textPrimary: textPrimary,
             textMuted: textMuted,
-            border: border,
             onTap: () async {
               await Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const ArchivedChatsScreen()),
@@ -837,30 +835,41 @@ class _ChatsTabState extends State<ChatsTab> {
     );
   }
 
+  /// WhatsApp-style chat-bubble-with-lock icon for the "Locked chats"
+  /// shortcut row. A speech-bubble outline with a small lock at the
+  /// center, matching WhatsApp Business exactly.
+  Widget _buildLockedChatIcon(Color iconColor) {
+    return SizedBox(
+      width: 22,
+      height: 22,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Icon(Icons.chat_bubble_outline_rounded, size: 22, color: iconColor),
+          Positioned(
+            bottom: 3,
+            child: Icon(Icons.lock, size: 9, color: iconColor),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildShortcutRow({
-    required IconData icon,
+    required Widget iconWidget,
     required String label,
     required int? count,
     required Color textPrimary,
     required Color textMuted,
-    required Color border,
     required VoidCallback onTap,
   }) {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
         child: Row(
           children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: textMuted.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, size: 20, color: textMuted),
-            ),
+            SizedBox(width: 24, height: 24, child: Center(child: iconWidget)),
             const SizedBox(width: 16),
             Expanded(
               child: Text(
