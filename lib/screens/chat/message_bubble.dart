@@ -25,6 +25,10 @@ class MessageBubble extends StatelessWidget {
   final VoidCallback? onCancelVoiceUpload;
   final Future<bool> Function()? onRetryVoiceUpload;
 
+  /// Called when a play-once voice note finishes playing and should
+  /// be auto-deleted. Wired through to [VoiceMessageBubble.onSelfDestruct].
+  final VoidCallback? onSelfDestruct;
+
   const MessageBubble({
     super.key,
     required this.message,
@@ -34,6 +38,7 @@ class MessageBubble extends StatelessWidget {
     this.onIssueTap,
     this.onCancelVoiceUpload,
     this.onRetryVoiceUpload,
+    this.onSelfDestruct,
   });
 
   @override
@@ -310,6 +315,7 @@ class MessageBubble extends StatelessWidget {
                 },
           onCancelUpload: onCancelVoiceUpload,
           onRetryUpload: onRetryVoiceUpload,
+          onSelfDestruct: onSelfDestruct,
         ),
         const SizedBox(height: 4),
         // Timestamp + status indicator
