@@ -59,6 +59,22 @@ class ChatService {
     return _buildChats(archived: true);
   }
 
+  /// A mute set with a duration (8 hours / 1 week) can expire. This
+  /// checks the stored `mutedUntil` timestamp and, if it has passed,
+  /// auto-unmutes (persisting the change) so stale mutes don't linger.
+  /// "Always" mutes have no `mutedUntil` and never expire here.
+  bool _effectiveMuted(String chatId, Map<String, dynamic> meta) {
+    final rawMuted = meta['isMuted'] as bool? ?? false;
+    if (!rawMuted) return false;
+    final untilMs = meta['mutedUntil'] as int?;
+    if (untilMs == null) return true; // "Always"
+    final until = DateTime.fromMillisecondsSinceEpoch(untilMs);
+    if (DateTime.now().isBefore(until)) return true;
+    // Expired — fire-and-forget auto-unmute so the next read is clean.
+    ConversationDirectoryService.instance.setMuted(chatId, false);
+    return false;
+  }
+
   Future<List<ChatPreview>> _buildChats({required bool archived}) async {
     await _ensureBuiltinChatsRegistered();
 
@@ -103,7 +119,7 @@ class ChatService {
         badge: KoraBadgeType.values[meta['badge'] as int? ?? 0],
         isOnline: meta['isOnline'] as bool? ?? false,
         isPinned: meta['isPinned'] as bool? ?? false,
-        isMuted: meta['isMuted'] as bool? ?? false,
+        isMuted: _effectiveMuted(chatId, meta),
         status: last != null && last.isMe ? last.status : MessageStatus.none,
         isVoiceLastMessage: isVoice,
         lastVoiceDuration: last?.voiceDuration,
