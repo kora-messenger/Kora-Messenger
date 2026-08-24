@@ -6,108 +6,107 @@ import 'conversation_directory.dart';
 /// Builds the Home chat list from real persisted conversations.
 ///
 /// Kora Support and Kora AI appear in the chat list (not pinned) — they're
-/// the built-in AI assistants. All other chats are built from the
-/// messages stored by [MessageService] and the display metadata
-/// registered in [ConversationDirectoryService] when a chat screen
-/// opens.
+/// the built-in AI assistants. Every chat's pinned/muted/archived state
+/// lives in [ConversationDirectoryService] and is preserved across app
+/// runs. All other chats are built from the messages stored by
+/// [MessageService] and the display metadata registered in
+/// [ConversationDirectoryService] when a chat screen opens.
 class ChatService {
   static final ChatService instance = ChatService._();
   ChatService._();
 
-  /// Returns the current chat list, sorted: pinned official chats first,
-  /// then everything else by most recent message timestamp.
+  static const Map<String, String> _builtinAiChats = {
+    'kora_support': 'Kora Support',
+    'kora_ai': 'Kora AI',
+  };
+
+  static const Map<String, String> _builtinAiAvatars = {
+    'kora_support': 'assets/images/kora_ai_avatar.png',
+    'kora_ai': 'assets/images/kora_support_avatar.png',
+  };
+
+  static const Map<String, String> _builtinAiPlaceholders = {
+    'kora_support': 'Welcome to Kora Messenger!',
+    'kora_ai': 'Ask me anything — inside or outside Kora.',
+  };
+
+  /// Makes sure Kora Support and Kora AI always have a directory entry
+  /// so their pin/mute/archive state persists exactly like any other
+  /// chat instead of resetting on every app run.
+  Future<void> _ensureBuiltinChatsRegistered() async {
+    for (final chatId in _builtinAiChats.keys) {
+      final existing = await ConversationDirectoryService.instance.get(chatId);
+      if (existing == null) {
+        await ConversationDirectoryService.instance.upsert(
+          chatId: chatId,
+          name: _builtinAiChats[chatId]!,
+          avatarAsset: _builtinAiAvatars[chatId],
+          badge: KoraBadgeType.officialPurple,
+        );
+      }
+    }
+  }
+
+  /// Returns the current chat list, sorted: pinned chats first, then
+  /// everything else by most recent message timestamp. Archived chats
+  /// are excluded — see [getArchivedChats].
   Future<List<ChatPreview>> getChats() async {
+    return _buildChats(archived: false);
+  }
+
+  /// Returns chats the user has archived, most recent first.
+  Future<List<ChatPreview>> getArchivedChats() async {
+    return _buildChats(archived: true);
+  }
+
+  Future<List<ChatPreview>> _buildChats({required bool archived}) async {
+    await _ensureBuiltinChatsRegistered();
+
     final ms = MessageService.instance;
     final chats = <ChatPreview>[];
-
-    // Always show Kora Support (pinned, official purple badge)
-    final supportMsgs = ms.getMessages('kora_support');
-    chats.add(ChatPreview(
-      id: 'kora_support',
-      name: 'Kora Support',
-      avatarAsset: 'assets/images/kora_ai_avatar.png',
-      lastMessage: supportMsgs.isNotEmpty
-          ? (supportMsgs.last.type == KoraMessageType.voice
-              ? 'Voice message${supportMsgs.last.voiceDuration != null ? ' (${supportMsgs.last.voiceDuration})' : ''}'
-              : supportMsgs.last.text)
-          : 'Welcome to Kora Messenger!',
-      timestamp: supportMsgs.isNotEmpty
-          ? supportMsgs.last.timestamp
-          : DateTime.now(),
-      unreadCount: ms.unreadCountFor('kora_support'),
-      badge: KoraBadgeType.officialPurple,
-      isPinned: false,
-      status: supportMsgs.isNotEmpty && supportMsgs.last.isMe
-          ? supportMsgs.last.status
-          : MessageStatus.none,
-      isVoiceLastMessage: supportMsgs.isNotEmpty &&
-          supportMsgs.last.type == KoraMessageType.voice,
-      lastVoiceDuration: supportMsgs.isNotEmpty
-          ? supportMsgs.last.voiceDuration
-          : null,
-    ));
-
-    // Always show Kora AI (pinned, official purple badge)
-    final aiMsgs = ms.getMessages('kora_ai');
-    chats.add(ChatPreview(
-      id: 'kora_ai',
-      name: 'Kora AI',
-      avatarAsset: 'assets/images/kora_support_avatar.png',
-      lastMessage: aiMsgs.isNotEmpty
-          ? (aiMsgs.last.type == KoraMessageType.voice
-              ? 'Voice message${aiMsgs.last.voiceDuration != null ? ' (${aiMsgs.last.voiceDuration})' : ''}'
-              : aiMsgs.last.text)
-          : 'Ask me anything — inside or outside Kora.',
-      timestamp: aiMsgs.isNotEmpty
-          ? aiMsgs.last.timestamp
-          : DateTime.now().subtract(const Duration(hours: 1)),
-      unreadCount: ms.unreadCountFor('kora_ai'),
-      badge: KoraBadgeType.officialPurple,
-      isPinned: false,
-      status: aiMsgs.isNotEmpty && aiMsgs.last.isMe
-          ? aiMsgs.last.status
-          : MessageStatus.none,
-      isVoiceLastMessage: aiMsgs.isNotEmpty &&
-          aiMsgs.last.type == KoraMessageType.voice,
-      lastVoiceDuration: aiMsgs.isNotEmpty
-          ? aiMsgs.last.voiceDuration
-          : null,
-    ));
-
-    // Build real 1:1 / group chats from the conversation directory.
-    // Each entry has a chatId — we load its messages from MessageService
-    // to build the preview (last message, timestamp, unread, status).
     final directory = await ConversationDirectoryService.instance.getAll();
+
     for (final entry in directory.entries) {
       final chatId = entry.key;
       final meta = entry.value;
+      final isArchived = meta['isArchived'] as bool? ?? false;
+      if (isArchived != archived) continue;
 
-      // Skip the official chats — already handled above.
-      if (chatId == 'kora_support' || chatId == 'kora_ai') continue;
+      final isBuiltinAi = _builtinAiChats.containsKey(chatId);
 
-      // Ensure messages are loaded for this chat.
       final msgs = await ms.loadMessages(chatId);
-      if (msgs.isEmpty) continue; // no messages yet — don't show empty row
+      if (msgs.isEmpty && !isBuiltinAi) continue; // no messages yet — don't show empty row
 
-      final last = msgs.last;
-      final isVoice = last.type == KoraMessageType.voice;
+      final last = msgs.isNotEmpty ? msgs.last : null;
+      final isVoice = last?.type == KoraMessageType.voice;
+
+      final String lastMessageText;
+      final DateTime timestamp;
+      if (last != null) {
+        lastMessageText = isVoice
+            ? 'Voice message${last.voiceDuration != null ? ' (${last.voiceDuration})' : ''}'
+            : last.text;
+        timestamp = last.timestamp;
+      } else {
+        lastMessageText = _builtinAiPlaceholders[chatId] ?? '';
+        timestamp = DateTime.now();
+      }
 
       chats.add(ChatPreview(
         id: chatId,
         name: meta['name'] as String? ?? chatId,
         avatarAsset: meta['avatarAsset'] as String?,
         avatarUrl: meta['avatarUrl'] as String?,
-        lastMessage: isVoice
-            ? 'Voice message${last.voiceDuration != null ? ' (${last.voiceDuration})' : ''}'
-            : last.text,
-        timestamp: last.timestamp,
+        lastMessage: lastMessageText,
+        timestamp: timestamp,
         unreadCount: ms.unreadCountFor(chatId),
         badge: KoraBadgeType.values[meta['badge'] as int? ?? 0],
         isOnline: meta['isOnline'] as bool? ?? false,
-        isPinned: false,
-        status: last.isMe ? last.status : MessageStatus.none,
+        isPinned: meta['isPinned'] as bool? ?? false,
+        isMuted: meta['isMuted'] as bool? ?? false,
+        status: last != null && last.isMe ? last.status : MessageStatus.none,
         isVoiceLastMessage: isVoice,
-        lastVoiceDuration: last.voiceDuration,
+        lastVoiceDuration: last?.voiceDuration,
       ));
     }
 
