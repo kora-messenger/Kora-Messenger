@@ -6,6 +6,7 @@ import '../../config/kora_api.dart';
 import 'passkeys_screen.dart';
 import 'two_factor_screen.dart';
 import 'security_notifications_screen.dart';
+import 'add_email_screen.dart';
 
 /// Account settings screen — security shortcuts and account details.
 class AccountScreen extends StatefulWidget {
@@ -526,6 +527,29 @@ class _AccountScreenState extends State<AccountScreen> {
     Navigator.push(context, MaterialPageRoute(builder: (_) => const SecurityNotificationsScreen()));
   }
 
+  Future<void> _openAddEmail() async {
+    if (_session == null) return;
+
+    final userId = _session!['id']?.toString();
+    if (userId == null) return;
+
+    final newEmail = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AddEmailScreen(
+          userId: userId,
+          currentEmail: _session?['email']?.toString(),
+        ),
+      ),
+    );
+
+    if (newEmail != null && mounted) {
+      setState(() {
+        _session = {..._session!, 'email': newEmail};
+      });
+    }
+  }
+
   // ── Helpers ─────────────────────────────────────────────────
 
   void _showError(String message) {
@@ -636,7 +660,7 @@ class _AccountScreenState extends State<AccountScreen> {
                     iconColor: KoraColors.purple,
                     title: 'Email Address',
                     subtitle: _session?['email']?.toString() ?? 'N/A',
-                    onTap: () => _showComingSoon('Email management'),
+                    onTap: _openAddEmail,
                     trailing: Icon(Icons.chevron_right, color: textMuted),
                   ),
                   _actionTile(
