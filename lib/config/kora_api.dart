@@ -15,6 +15,11 @@ class KoraApi {
   /// Auth endpoint (handles signup, login, verification, password reset, profile)
   static const String authEndpoint = '$baseUrl/koraAuth';
 
+  /// Email change endpoint — two-step verification flow (old email → new email).
+  /// Temporary: Base44 backend function.
+  /// Future: 'https://api.koramessenger.com/email-change' (or your domain)
+  static const String emailChangeEndpoint = '$baseUrl/koraEmailChange';
+
   /// Call signaling endpoint — WebRTC offer/answer/ICE exchange.
   /// Temporary: Base44 backend function.
   /// Future: 'https://api.koramessenger.com/call-signal' (or your domain)
