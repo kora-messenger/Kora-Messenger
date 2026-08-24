@@ -540,34 +540,115 @@ class AuthService {
     }
   }
 
-  // ── Add / change email ────────────────────────────────────────
+  // ── Email change flow (two-step verification) ────────────────
+  // All three methods call the dedicated koraEmailChange backend
+  // function, not the main koraAuth endpoint.
 
-  /// Verifies the code sent to [newEmail] and updates the account's
-  /// email address. Used by the "Add your email" flow.
-  Future<({bool success, String? error, Map<String, dynamic>? user})> verifyAndUpdateEmail({
+  static const String _emailChangeEndpoint = KoraApi.emailChangeEndpoint;
+
+  /// Step 1: Initiates email change by sending a verification code
+  /// to the user's CURRENT (old) email address.
+  Future<({bool success, String? error})> initiateEmailChange({
     required String userId,
+    required String oldEmail,
+    required String newEmail,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse(_emailChangeEndpoint),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'action': 'initiateEmailChange',
+          'userId': userId,
+          'oldEmail': oldEmail,
+          'newEmail': newEmail,
+        }),
+      ).timeout(const Duration(seconds: 15));
+      final data = jsonDecode(response.body);
+      if (data['success'] == true) return (success: true, error: null);
+      return (success: false, error: data['error'] as String?);
+    } catch (e) {
+      return (success: false, error: _friendlyError(e));
+    }
+  }
+
+  /// Step 2: Verifies the code sent to the old email, then the
+  /// backend sends a new code to the new email address.
+  Future<({bool success, String? error})> verifyOldEmailForChange({
+    required String oldEmail,
     required String newEmail,
     required String code,
   }) async {
     try {
       final response = await http.post(
-        Uri.parse(_endpoint),
+        Uri.parse(_emailChangeEndpoint),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          'action': 'verifyAndUpdateEmail',
-          'userId': userId,
+          'action': 'verifyOldEmailForChange',
+          'oldEmail': oldEmail,
           'newEmail': newEmail,
           'code': code,
         }),
       ).timeout(const Duration(seconds: 15));
       final data = jsonDecode(response.body);
+      if (data['success'] == true) return (success: true, error: null);
+      return (success: false, error: data['error'] as String?);
+    } catch (e) {
+      return (success: false, error: _friendlyError(e));
+    }
+  }
 
+  /// Step 3: Verifies the code sent to the new email and updates
+  /// the account's email address. A security alert is sent to the
+  /// old email by the backend.
+  Future<({bool success, String? error, Map<String, dynamic>? user})> verifyAndUpdateEmail({
+    required String userId,
+    required String newEmail,
+    required String oldEmail,
+    required String code,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse(_emailChangeEndpoint),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'action': 'verifyAndUpdateEmail',
+          'userId': userId,
+          'newEmail': newEmail,
+          'oldEmail': oldEmail,
+          'code': code,
+        }),
+      ).timeout(const Duration(seconds: 15));
+      final data = jsonDecode(response.body);
       if (data['success'] == true) {
         return (success: true, error: null, user: data['user'] as Map<String, dynamic>?);
       }
       return (success: false, error: data['error'] as String?, user: null);
     } catch (e) {
       return (success: false, error: _friendlyError(e), user: null);
+    }
+  }
+
+  /// Resends the email change verification code.
+  Future<({bool success, String? error})> resendEmailChangeCode({
+    required String email,
+    required String type,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse(_emailChangeEndpoint),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'action': 'resendEmailChangeCode',
+          'email': email,
+          'type': type,
+        }),
+      ).timeout(const Duration(seconds: 15));
+      final data = jsonDecode(response.body);
+      if (data['success'] == true) return (success: true, error: null);
+      return (success: false, error: data['error'] as String?);
+    } catch (e) {
+      return (success: false, error: _friendlyError(e));
     }
   }
 
