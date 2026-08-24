@@ -15,6 +15,7 @@ import '../settings/chat_settings_screen.dart';
 import '../settings/notifications_settings_screen.dart';
 import '../settings/about_kora_screen.dart';
 import '../settings/premium_subscribe_sheet.dart';
+import '../ai/kora_support_screen.dart';
 import '../search_screen.dart';
 import '../contacts/qr_code_screen.dart';
 
@@ -106,7 +107,14 @@ class _ProfileTabState extends State<ProfileTab> {
     );
   }
 
-void _openAbout() {
+  void _openKoraSupport() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const KoraSupportScreen()),
+    );
+  }
+
+  void _openAbout() {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const AboutKoraScreen()),
@@ -272,6 +280,13 @@ void _openAbout() {
               'Kora Premium',
               _isPremium ? 'Premium active' : 'Unlock premium features',
               onTap: _openPremium,
+            ),
+            _tile(
+              context,
+              Icons.support_agent_outlined,
+              'Kora Support',
+              'Get help from the Kora team',
+              onTap: _openKoraSupport,
             ),
             _tile(
               context,
