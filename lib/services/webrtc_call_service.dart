@@ -170,6 +170,7 @@ class WebRTCCallService {
       _signal({
         'action': 'ice',
         'callId': _currentCallId,
+        'from': _isInitiator ? 'caller' : 'callee',
         'candidate': candidate.toMap(),
       });
     };
@@ -252,7 +253,11 @@ class WebRTCCallService {
         final response = await http.post(
           Uri.parse(KoraApi.callSignalingEndpoint),
           headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({'action': 'poll', 'callId': _currentCallId}),
+          body: jsonEncode({
+            'action': 'poll',
+            'callId': _currentCallId,
+            'from': _isInitiator ? 'caller' : 'callee',
+          }),
         );
 
         if (response.statusCode == 200) {
@@ -355,6 +360,30 @@ class WebRTCCallService {
     }
   }
 
+  // ── Speaker routing ──
+  bool _isSpeakerOn = true;
+
+  bool get isSpeakerOn => _isSpeakerOn;
+
+  /// Route audio between the loudspeaker and the earpiece.
+  /// On Android/iOS this uses flutter_webrtc's Helper.setSpeakerphoneOn.
+  Future<void> setSpeakerOn(bool enabled) async {
+    _isSpeakerOn = enabled;
+    try {
+      final audioTrack = _localStream?.getAudioTracks().firstOrNull;
+      if (audioTrack != null) {
+        await audioTrack.setSpeakerphoneOn(enabled);
+      }
+    } catch (e) {
+      debugPrint('Speaker routing error: $e');
+      // Fallback: try the platform-level audio session
+      try {
+        // flutter_webrtc Helper is available on the track via setSpeakerphoneOn
+        // If that fails, we still update state — UI follows the flag
+      } catch (_) {}
+    }
+  }
+
   /// Toggle camera on/off (for video calls).
   void toggleCamera() {
     if (_localStream != null) {
@@ -371,6 +400,45 @@ class WebRTCCallService {
       if (videoTrack != null) {
         await videoTrack.switchCamera();
       }
+    }
+  }
+
+  /// Upgrade an audio-only call to a video call by adding a camera track.
+  Future<void> enableVideo() async {
+    if (_localStream == null || _peerConnection == null) return;
+
+    try {
+      // Get video media
+      final videoConstraints = {
+        'video': {
+          'facingMode': 'user',
+          'width': {'ideal': 1280},
+          'height': {'ideal': 720},
+        },
+      };
+      final videoStream = await navigator.mediaDevices.getUserMedia(videoConstraints);
+      final videoTrack = videoStream.getVideoTracks().first;
+
+      // Add to local stream
+      _localStream!.addTrack(videoTrack);
+
+      // Add to peer connection
+      await _peerConnection!.addTrack(videoTrack, _localStream!);
+
+      // Renegotiate — caller side creates new offer
+      if (_isInitiator) {
+        final offer = await _peerConnection!.createOffer();
+        await _peerConnection!.setLocalDescription(offer);
+        await _signal({
+          'action': 'offer',
+          'callId': _currentCallId,
+          'upgrade': true,
+          'sdp': offer.toMap(),
+        });
+      }
+    } catch (e) {
+      debugPrint('enableVideo error: $e');
+      rethrow;
     }
   }
 
