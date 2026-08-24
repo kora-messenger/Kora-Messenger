@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../models/chat_models.dart';
 import '../../services/chat_service.dart';
+import '../../services/conversation_directory.dart';
+import '../../services/message_service.dart';
 import '../../theme/kora_colors.dart';
 import '../../widgets/chat_list_item.dart';
 import '../../widgets/kora_empty_state.dart';
@@ -14,8 +16,9 @@ import '../starred_messages_screen.dart';
 import 'profile_tab.dart';
 
 /// The "Chats" tab — Kora's central conversation list.
-/// Owns the Home header (branding, avatar, search, three-dot menu).
-/// Features inline search bar, Read all, New Group, New Channel.
+/// Owns the Home header (branding, avatar, search, three-dot menu) and,
+/// when the user long-presses a chat, a WhatsApp-style selection action
+/// bar (pin, delete, mute, archive, more).
 class ChatsTab extends StatefulWidget {
   final VoidCallback? onProfileTap;
   final VoidCallback? onGoToChannels;
@@ -36,6 +39,10 @@ class _ChatsTabState extends State<ChatsTab> {
   final _searchController = TextEditingController();
   String _searchQuery = '';
 
+  // ── Selection mode (long-press a chat) ──────────────────────
+  final Set<String> _selectedIds = {};
+  bool get _isSelecting => _selectedIds.isNotEmpty;
+
   @override
   void initState() {
     super.initState();
@@ -43,6 +50,11 @@ class _ChatsTabState extends State<ChatsTab> {
   }
 
   Future<void> _initMessages() async {
+    _chats = await ChatService.instance.getChats();
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _refresh() async {
     _chats = await ChatService.instance.getChats();
     if (mounted) setState(() {});
   }
@@ -67,6 +79,173 @@ class _ChatsTabState extends State<ChatsTab> {
         ),
       ),
     );
+  }
+
+  // ── Selection mode handlers ──────────────────────────────────
+
+  void _onChatTap(ChatPreview chat) {
+    if (_isSelecting) {
+      setState(() {
+        if (_selectedIds.contains(chat.id)) {
+          _selectedIds.remove(chat.id);
+        } else {
+          _selectedIds.add(chat.id);
+        }
+      });
+    } else {
+      _openChat(chat);
+    }
+  }
+
+  void _onChatLongPress(ChatPreview chat) {
+    setState(() {
+      if (_selectedIds.contains(chat.id)) {
+        _selectedIds.remove(chat.id);
+      } else {
+        _selectedIds.add(chat.id);
+      }
+    });
+  }
+
+  void _clearSelection() => setState(() => _selectedIds.clear());
+
+  List<ChatPreview> get _selectedChats =>
+      _chats.where((c) => _selectedIds.contains(c.id)).toList();
+
+  Future<void> _togglePinSelected() async {
+    final selected = _selectedChats;
+    if (selected.isEmpty) return;
+    final allPinned = selected.every((c) => c.isPinned);
+    for (final c in selected) {
+      await ConversationDirectoryService.instance.setPinned(c.id, !allPinned);
+    }
+    _clearSelection();
+    await _refresh();
+  }
+
+  Future<void> _toggleMuteSelected() async {
+    final selected = _selectedChats;
+    if (selected.isEmpty) return;
+    final allMuted = selected.every((c) => c.isMuted);
+    for (final c in selected) {
+      await ConversationDirectoryService.instance.setMuted(c.id, !allMuted);
+    }
+    _clearSelection();
+    await _refresh();
+  }
+
+  Future<void> _archiveSelected() async {
+    final ids = List<String>.from(_selectedIds);
+    if (ids.isEmpty) return;
+    for (final id in ids) {
+      await ConversationDirectoryService.instance.setArchived(id, true);
+    }
+    final count = ids.length;
+    _clearSelection();
+    await _refresh();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(count == 1 ? 'Chat archived' : '$count chats archived'),
+          backgroundColor: KoraColors.purple,
+          duration: const Duration(seconds: 1),
+        ),
+      );
+    }
+  }
+
+  Future<void> _markSelectedRead(bool read) async {
+    final selected = _selectedChats;
+    if (selected.isEmpty) return;
+    for (final c in selected) {
+      if (read) {
+        await MessageService.instance.markChatViewed(c.id);
+      }
+      // "Mark as unread" has no true backend flag today — Kora treats
+      // read state as derived from message.isSeen — so we only support
+      // marking read from here, matching what's actually persistable.
+    }
+    _clearSelection();
+    await _refresh();
+  }
+
+  Future<void> _deleteSelected() async {
+    final ids = List<String>.from(_selectedIds);
+    if (ids.isEmpty) return;
+    final count = ids.length;
+
+    final brightness = Theme.of(context).brightness;
+    final surface = KoraColors.cardFor(brightness);
+    final textPrimary = KoraColors.textPrimaryFor(brightness);
+    final textSecondary = KoraColors.textSecondaryFor(brightness);
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        backgroundColor: surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                count == 1 ? 'Delete this chat?' : 'Delete $count chats?',
+                style: TextStyle(color: textPrimary, fontSize: 18, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'This will permanently delete all messages in ${count == 1 ? 'this chat' : 'these chats'}. This cannot be undone.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: textSecondary, fontSize: 14, height: 1.4),
+              ),
+              const SizedBox(height: 18),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(dialogContext, false),
+                    child: const Text('Cancel', style: TextStyle(color: KoraColors.purple, fontWeight: FontWeight.w700)),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(dialogContext, true),
+                    child: const Text('Delete', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w700)),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    for (final id in ids) {
+      await MessageService.instance.deleteChat(id);
+      await ConversationDirectoryService.instance.remove(id);
+    }
+    _clearSelection();
+    await _refresh();
+  }
+
+  void _openSelectionOverflowMenu() {
+    KoraMenuSheet.show(context, [
+      KoraMenuOption(
+        icon: Icons.select_all,
+        label: 'Select all',
+        onTap: () {
+          setState(() {
+            _selectedIds.addAll(_filteredChats.map((c) => c.id));
+          });
+        },
+      ),
+      KoraMenuOption(
+        icon: Icons.mark_chat_read_outlined,
+        label: 'Mark as read',
+        onTap: () => _markSelectedRead(true),
+      ),
+    ]);
   }
 
   void _toggleSearch() {
@@ -102,6 +281,9 @@ class _ChatsTabState extends State<ChatsTab> {
         );
       }).toList();
     });
+    for (final c in _chats) {
+      MessageService.instance.markChatViewed(c.id);
+    }
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Text('All messages marked as read'),
@@ -132,10 +314,11 @@ class _ChatsTabState extends State<ChatsTab> {
       KoraMenuOption(
         icon: Icons.archive_outlined,
         label: 'Archived Chats',
-        onTap: () {
-          Navigator.of(context).push(
+        onTap: () async {
+          await Navigator.of(context).push(
             MaterialPageRoute(builder: (_) => const ArchivedChatsScreen()),
           );
+          await _refresh();
         },
       ),
       KoraMenuOption(
@@ -200,8 +383,10 @@ class _ChatsTabState extends State<ChatsTab> {
         bottom: false,
         child: Column(
           children: [
-            _buildHeader(context, textPrimary, surface, textMuted, border),
-            if (_showSearch)
+            _isSelecting
+                ? _buildSelectionHeader(context, textPrimary, surface)
+                : _buildHeader(context, textPrimary, surface, textMuted, border),
+            if (_showSearch && !_isSelecting)
               _buildInlineSearch(surface, textPrimary, textMuted, border),
             Expanded(
               child: _chats.isEmpty
@@ -214,10 +399,7 @@ class _ChatsTabState extends State<ChatsTab> {
                     )
                   : RefreshIndicator(
                       color: KoraColors.purple,
-                      onRefresh: () async {
-                        _chats = await ChatService.instance.getChats();
-                        setState(() {});
-                      },
+                      onRefresh: _refresh,
                       child: _filteredChats.isEmpty
                           ? ListView(
                               children: [
@@ -244,8 +426,9 @@ class _ChatsTabState extends State<ChatsTab> {
                                 final chat = _filteredChats[index];
                                 return ChatListItem(
                                   chat: chat,
-                                  onTap: () => _openChat(chat),
-                                  onLongPress: () {},
+                                  isSelected: _selectedIds.contains(chat.id),
+                                  onTap: () => _onChatTap(chat),
+                                  onLongPress: () => _onChatLongPress(chat),
                                 );
                               },
                             ),
@@ -254,7 +437,7 @@ class _ChatsTabState extends State<ChatsTab> {
           ],
         ),
       ),
-      floatingActionButton: _chats.isEmpty
+      floatingActionButton: (_chats.isEmpty || _isSelecting)
           ? null
           : FloatingActionButton(
               onPressed: () => NewChatSheet.show(context),
@@ -262,6 +445,63 @@ class _ChatsTabState extends State<ChatsTab> {
               elevation: 4,
               child: const Icon(Icons.chat_bubble, color: Colors.white, size: 24),
             ),
+    );
+  }
+
+  /// WhatsApp-style selection action bar shown when one or more chats
+  /// are long-pressed/selected on the Home screen: back arrow + count,
+  /// pin, delete, mute, archive, and an overflow menu.
+  Widget _buildSelectionHeader(BuildContext context, Color textPrimary, Color surface) {
+    final selected = _selectedChats;
+    final allPinned = selected.isNotEmpty && selected.every((c) => c.isPinned);
+    final allMuted = selected.isNotEmpty && selected.every((c) => c.isMuted);
+
+    return Container(
+      color: surface,
+      padding: const EdgeInsets.fromLTRB(4, 10, 8, 10),
+      child: Row(
+        children: [
+          IconButton(
+            icon: Icon(Icons.arrow_back, color: textPrimary),
+            onPressed: _clearSelection,
+          ),
+          Text(
+            '${_selectedIds.length}',
+            style: TextStyle(color: textPrimary, fontSize: 20, fontWeight: FontWeight.w700),
+          ),
+          const Spacer(),
+          IconButton(
+            tooltip: allPinned ? 'Unpin' : 'Pin',
+            icon: Icon(
+              allPinned ? Icons.push_pin : Icons.push_pin_outlined,
+              color: textPrimary,
+            ),
+            onPressed: _togglePinSelected,
+          ),
+          IconButton(
+            tooltip: 'Delete',
+            icon: Icon(Icons.delete_outline, color: textPrimary),
+            onPressed: _deleteSelected,
+          ),
+          IconButton(
+            tooltip: allMuted ? 'Unmute' : 'Mute',
+            icon: Icon(
+              allMuted ? Icons.notifications_outlined : Icons.notifications_off_outlined,
+              color: textPrimary,
+            ),
+            onPressed: _toggleMuteSelected,
+          ),
+          IconButton(
+            tooltip: 'Archive',
+            icon: Icon(Icons.archive_outlined, color: textPrimary),
+            onPressed: _archiveSelected,
+          ),
+          IconButton(
+            icon: Icon(Icons.more_vert, color: textPrimary),
+            onPressed: _openSelectionOverflowMenu,
+          ),
+        ],
+      ),
     );
   }
 
