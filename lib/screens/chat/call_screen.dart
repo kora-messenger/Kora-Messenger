@@ -98,6 +98,9 @@ class _CallScreenState extends State<CallScreen> {
         video: widget.isVideoCall,
       );
 
+      // Default: speaker on for voice calls, on for video calls too
+      await _webrtcService.setSpeakerOn(_isSpeakerOn);
+
       if (widget.isVideoCall && _webrtcService.localStream != null) {
         _setupLocalRenderer(_webrtcService.localStream!);
       }
@@ -166,13 +169,48 @@ class _CallScreenState extends State<CallScreen> {
     setState(() => _isMuted = !_isMuted);
   }
 
-  void _toggleSpeaker() {
-    setState(() => _isSpeakerOn = !_isSpeakerOn);
+  void _toggleSpeaker() async {
+    final newState = !_isSpeakerOn;
+    await _webrtcService.setSpeakerOn(newState);
+    setState(() => _isSpeakerOn = newState);
   }
 
   void _toggleCamera() {
     _webrtcService.toggleCamera();
     setState(() => _isCameraOn = !_isCameraOn);
+  }
+
+  /// Upgrade a voice call to a video call by enabling the local camera
+  /// and switching to the video call UI.
+  void _upgradeToVideoCall() async {
+    try {
+      await _webrtcService.enableVideo();
+      _localRenderer = RTCVideoRenderer();
+      await _localRenderer!.initialize();
+      _localRenderer!.srcObject = _webrtcService.localStream;
+      setState(() {
+        _isCameraOn = true;
+        // Switch to video view — the build method checks isVideoCall
+        // but we need to force a rebuild with video mode
+      });
+      // Replace this screen with a video call instance
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => CallScreen(
+              contactName: widget.contactName,
+              avatarUrl: widget.avatarUrl,
+              badge: widget.badge,
+              isVideoCall: true,
+              isOutgoing: false, // already connected
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Failed to upgrade to video: $e');
+    }
   }
 
   void _showMorePopup() {
@@ -339,6 +377,11 @@ class _CallScreenState extends State<CallScreen> {
         : null;
 
     await _webrtcService.endCall();
+
+    // Show "Call ended" briefly
+    if (mounted) {
+      setState(() => _callState = 'ended');
+    }
 
     await _callService.logOutgoingCall(
       contactName: widget.contactName,
@@ -662,8 +705,8 @@ class _CallScreenState extends State<CallScreen> {
               _buildGridButton(
                 icon: isVideo ? Icons.flip_camera_ios : Icons.videocam_outlined,
                 label: isVideo ? 'Flip' : 'Video',
-                isActive: false,
-                onTap: isVideo ? () => _webrtcService.switchCamera() : () {},
+                isActive: isVideo ? false : _isCameraOn,
+                onTap: isVideo ? () => _webrtcService.switchCamera() : _upgradeToVideoCall,
               ),
               _buildGridButton(
                 icon: Icons.more_horiz,
