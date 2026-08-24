@@ -106,12 +106,19 @@ class ConversationDirectoryService {
     await _persist();
   }
 
-  /// Mute/unmute notifications for [chatId].
-  Future<void> setMuted(String chatId, bool muted) async {
+  /// Mute/unmute notifications for [chatId]. When muting, [until]
+  /// sets an expiry (e.g. now + 8 hours, now + 1 week); leave it null
+  /// for "Always" (mutes indefinitely until manually unmuted).
+  Future<void> setMuted(String chatId, bool muted, {DateTime? until}) async {
     await _ensureLoaded();
     final existing = _entries[chatId];
     if (existing == null) return;
     existing['isMuted'] = muted;
+    if (muted && until != null) {
+      existing['mutedUntil'] = until.millisecondsSinceEpoch;
+    } else {
+      existing.remove('mutedUntil');
+    }
     await _persist();
   }
 
