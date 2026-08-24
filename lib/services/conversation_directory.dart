@@ -132,6 +132,37 @@ class ConversationDirectoryService {
     await _persist();
   }
 
+  /// Lock/unlock [chatId] — locked chats are hidden from BOTH the main
+  /// Home list and the Archived Chats screen, and only reachable via
+  /// the biometric-gated Locked Chats screen.
+  Future<void> setLocked(String chatId, bool locked) async {
+    await _ensureLoaded();
+    final existing = _entries[chatId];
+    if (existing == null) return;
+    existing['isLocked'] = locked;
+    await _persist();
+  }
+
+  /// Favorite/unfavorite [chatId].
+  Future<void> setFavorite(String chatId, bool favorite) async {
+    await _ensureLoaded();
+    final existing = _entries[chatId];
+    if (existing == null) return;
+    existing['isFavorite'] = favorite;
+    await _persist();
+  }
+
+  /// Manually forces [chatId] to show as unread on the Home screen
+  /// even though every message has actually been seen. Cleared
+  /// automatically the next time the chat is opened.
+  Future<void> setForcedUnread(String chatId, bool forced) async {
+    await _ensureLoaded();
+    final existing = _entries[chatId];
+    if (existing == null) return;
+    existing['forcedUnread'] = forced;
+    await _persist();
+  }
+
   /// Fully removes [chatId]'s directory entry (used alongside
   /// [MessageService.deleteChat] when the user deletes a conversation).
   Future<void> remove(String chatId) async {
