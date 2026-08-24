@@ -384,6 +384,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
     String? transcript,
     String? translatedLanguageCode,
     String? translatedLanguageName,
+    bool isPlayOnce = false,
   }) async {
     await _messageService.sendVoiceMessage(
       widget.chatId,
@@ -392,11 +393,20 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
       transcript: transcript,
       translatedLanguageCode: translatedLanguageCode,
       translatedLanguageName: translatedLanguageName,
+      isPlayOnce: isPlayOnce,
     );
     setState(() {
       _messages = List.from(_messageService.getMessages(widget.chatId));
     });
     _scrollToBottom();
+  }
+
+  /// Auto-deletes a play-once voice note after the recipient plays it.
+  void _onSelfDestructVoice(String messageId) async {
+    await _messageService.deleteMessage(widget.chatId, messageId);
+    setState(() {
+      _messages = List.from(_messageService.getMessages(widget.chatId));
+    });
   }
 
   /// Tap the "X" on an in-flight voice upload — cancels the attempt
@@ -1245,6 +1255,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
                                           onIssueTap: (issue) => _onIssueSelected(issue),
                                           onCancelVoiceUpload: () => _onCancelVoiceUpload(message.id),
                                           onRetryVoiceUpload: () => _onRetryVoiceUpload(message.id),
+                                          onSelfDestruct: () => _onSelfDestructVoice(message.id),
                                         ),
                                       ),
                                     ],
