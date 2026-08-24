@@ -21,9 +21,9 @@ class _ChannelSuggestion {
   });
 }
 
-/// "Updates" screen — Kora's own take on the merged Status + Channels
+/// "Updates" screen — Kora's own take on the merged Status + Community
 /// page: "Add status" up top (disappears after 24h, like the reference),
-/// then a "Channels" section with a dismissible "Find channels to
+/// then a "Community" section with a dismissible "Find channels to
 /// follow" suggestion list.
 ///
 /// Tapping the short chevron collapses/restores the suggested channels:
@@ -150,11 +150,11 @@ class _StatusTabState extends State<StatusTab> {
                     padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
                     child: Divider(color: border, height: 1),
                   ),
-                  _sectionLabel('Channels', textPrimary),
+                  _sectionLabel('Community', textPrimary),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
                     child: Text(
-                      'Stay updated on topics that matter to you. Find channels to follow below.',
+                      'Stay updated on topics that matter to you. Find communities to follow below.',
                       style: TextStyle(color: textSecondary, fontSize: 13.5, height: 1.4),
                     ),
                   ),
