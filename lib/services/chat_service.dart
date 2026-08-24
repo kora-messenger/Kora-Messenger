@@ -5,7 +5,7 @@ import 'conversation_directory.dart';
 
 /// Builds the Home chat list from real persisted conversations.
 ///
-/// Kora Support and Kora AI are always pinned at the top — they're
+/// Kora Support and Kora AI appear in the chat list (not pinned) — they're
 /// the built-in AI assistants. All other chats are built from the
 /// messages stored by [MessageService] and the display metadata
 /// registered in [ConversationDirectoryService] when a chat screen
@@ -36,7 +36,7 @@ class ChatService {
           : DateTime.now(),
       unreadCount: ms.unreadCountFor('kora_support'),
       badge: KoraBadgeType.officialPurple,
-      isPinned: true,
+      isPinned: false,
       status: supportMsgs.isNotEmpty && supportMsgs.last.isMe
           ? supportMsgs.last.status
           : MessageStatus.none,
@@ -63,7 +63,7 @@ class ChatService {
           : DateTime.now().subtract(const Duration(hours: 1)),
       unreadCount: ms.unreadCountFor('kora_ai'),
       badge: KoraBadgeType.officialPurple,
-      isPinned: true,
+      isPinned: false,
       status: aiMsgs.isNotEmpty && aiMsgs.last.isMe
           ? aiMsgs.last.status
           : MessageStatus.none,
