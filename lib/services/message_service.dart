@@ -101,7 +101,7 @@ class MessageService {
     return _cache[chatId]!;
   }
 
-  Future<void> _persist(String chatId) async {
+  Future<void> _persist(String chatId, {String? recipientEmail, String? recipientName}) async {
     final prefs = await SharedPreferences.getInstance();
     final msgs = _cache[chatId] ?? [];
     await prefs.setString(
@@ -111,7 +111,11 @@ class MessageService {
 
     // Cloud sync — fire and forget, best-effort
     if (msgs.isNotEmpty) {
-      ChatSyncService.instance.syncMessage(chatId, msgs.last);
+      ChatSyncService.instance.syncMessage(
+        chatId, msgs.last,
+        recipientEmail: recipientEmail,
+        recipientName: recipientName,
+      );
     }
   }
 
@@ -149,6 +153,8 @@ class MessageService {
     String? replyToId,
     String? replyToText,
     String? replyToName,
+    String? recipientEmail,
+    String? recipientName,
   }) async {
     final messages = _cache.putIfAbsent(chatId, () => <KoraMessage>[]);
     final msgId = 'msg_${DateTime.now().millisecondsSinceEpoch}';
@@ -162,7 +168,7 @@ class MessageService {
       replyToText: replyToText,
       replyToName: replyToName,
     ));
-    await _persist(chatId);
+    await _persist(chatId, recipientEmail: recipientEmail, recipientName: recipientName);
 
     _scheduleStatusProgress(chatId, msgId);
   }
