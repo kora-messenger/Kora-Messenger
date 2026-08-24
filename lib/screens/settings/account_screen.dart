@@ -6,7 +6,7 @@ import '../../config/kora_api.dart';
 import 'passkeys_screen.dart';
 import 'two_factor_screen.dart';
 import 'security_notifications_screen.dart';
-import 'add_email_screen.dart';
+import 'email_address_screen.dart';
 
 /// Account settings screen — security shortcuts and account details.
 class AccountScreen extends StatefulWidget {
@@ -533,12 +533,16 @@ class _AccountScreenState extends State<AccountScreen> {
     final userId = _session!['id']?.toString();
     if (userId == null) return;
 
+    final currentEmail = _session?['email']?.toString() ?? '';
+    final isVerified = _session?['isVerified'] == true;
+
     final newEmail = await Navigator.push<String>(
       context,
       MaterialPageRoute(
-        builder: (_) => AddEmailScreen(
+        builder: (_) => EmailAddressScreen(
           userId: userId,
-          currentEmail: _session?['email']?.toString(),
+          email: currentEmail,
+          isVerified: isVerified,
         ),
       ),
     );
