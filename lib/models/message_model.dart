@@ -83,6 +83,11 @@ class KoraMessage {
   final String? translatedLanguageCode;
   final String? translatedLanguageName;
 
+  /// When true, this voice note self-destructs after the recipient
+  /// plays it once. The bubble shows a clock badge and the audio is
+  /// deleted from both devices after the first playback completes.
+  final bool isPlayOnce;
+
   const KoraMessage({
     required this.id,
     required this.text,
@@ -110,6 +115,7 @@ class KoraMessage {
     this.isStarred = false,
     this.translatedLanguageCode,
     this.translatedLanguageName,
+    this.isPlayOnce = false,
   });
 
   KoraMessage copyWith({
@@ -139,6 +145,7 @@ class KoraMessage {
     bool? isStarred,
     String? translatedLanguageCode,
     String? translatedLanguageName,
+    bool? isPlayOnce,
   }) {
     return KoraMessage(
       id: id ?? this.id,
@@ -167,6 +174,7 @@ class KoraMessage {
       isStarred: isStarred ?? this.isStarred,
       translatedLanguageCode: translatedLanguageCode ?? this.translatedLanguageCode,
       translatedLanguageName: translatedLanguageName ?? this.translatedLanguageName,
+      isPlayOnce: isPlayOnce ?? this.isPlayOnce,
     );
   }
 
@@ -198,6 +206,7 @@ class KoraMessage {
     'isStarred': isStarred,
     'translatedLanguageCode': translatedLanguageCode,
     'translatedLanguageName': translatedLanguageName,
+    'isPlayOnce': isPlayOnce,
   };
 
   /// Deserialise from JSON.
@@ -239,6 +248,7 @@ class KoraMessage {
     isStarred: j['isStarred'] as bool? ?? false,
     translatedLanguageCode: j['translatedLanguageCode'] as String?,
     translatedLanguageName: j['translatedLanguageName'] as String?,
+    isPlayOnce: j['isPlayOnce'] as bool? ?? false,
   );
 
   /// Estimated on-disk size of this message in bytes — used to show
