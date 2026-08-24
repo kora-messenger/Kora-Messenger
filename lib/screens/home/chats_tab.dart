@@ -381,11 +381,26 @@ class _ChatsTabState extends State<ChatsTab> {
     _clearSelection();
     await _refresh();
     if (mounted) {
+      ScaffoldMessenger.of(context).clearSnackBars();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(count == 1 ? 'Chat archived' : '$count chats archived'),
-          backgroundColor: KoraColors.purple,
-          duration: const Duration(seconds: 1),
+          backgroundColor: KoraColors.darkSurface,
+          behavior: SnackBarBehavior.fixed,
+          duration: const Duration(seconds: 4),
+          content: Text(
+            count == 1 ? '1 chat archived' : '$count chats archived',
+            style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500),
+          ),
+          action: SnackBarAction(
+            label: 'UNDO',
+            textColor: KoraColors.purple,
+            onPressed: () async {
+              for (final id in ids) {
+                await ConversationDirectoryService.instance.setArchived(id, false);
+              }
+              await _refresh();
+            },
+          ),
         ),
       );
     }
