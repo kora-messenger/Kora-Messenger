@@ -38,6 +38,8 @@ class ChatsTab extends StatefulWidget {
 
 class _ChatsTabState extends State<ChatsTab> {
   List<ChatPreview> _chats = [];
+  int _archivedCount = 0;
+  int _lockedCount = 0;
   bool _showSearch = false;
   final _searchController = TextEditingController();
   String _searchQuery = '';
@@ -53,12 +55,22 @@ class _ChatsTabState extends State<ChatsTab> {
   }
 
   Future<void> _initMessages() async {
-    _chats = await ChatService.instance.getChats();
-    if (mounted) setState(() {});
+    await _loadAll();
   }
 
   Future<void> _refresh() async {
-    _chats = await ChatService.instance.getChats();
+    await _loadAll();
+  }
+
+  Future<void> _loadAll() async {
+    final results = await Future.wait([
+      ChatService.instance.getChats(),
+      ChatService.instance.getArchivedChats(),
+      ChatService.instance.getLockedChats(),
+    ]);
+    _chats = results[0];
+    _archivedCount = results[1].length;
+    _lockedCount = results[2].length;
     if (mounted) setState(() {});
   }
 
@@ -724,6 +736,8 @@ class _ChatsTabState extends State<ChatsTab> {
                 : _buildHeader(context, textPrimary, surface, textMuted, border),
             if (_showSearch && !_isSelecting)
               _buildInlineSearch(surface, textPrimary, textMuted, border),
+            if (!_showSearch && !_isSelecting && (_lockedCount > 0 || _archivedCount > 0))
+              _buildTopShortcuts(textPrimary, textMuted, border),
             Expanded(
               child: _chats.isEmpty
                   ? KoraEmptyState(
@@ -782,6 +796,86 @@ class _ChatsTabState extends State<ChatsTab> {
               elevation: 4,
               child: const Icon(Icons.chat_bubble, color: Colors.white, size: 24),
             ),
+    );
+  }
+
+  /// Fixed shortcut rows pinned to the very top of the Home screen
+  /// (above every chat, even pinned ones) — matches WhatsApp
+  /// Business's "Locked chats" / "Archived" rows. Only shown once
+  /// there's at least one chat in that state; tapping opens the
+  /// respective full-screen list.
+  Widget _buildTopShortcuts(Color textPrimary, Color textMuted, Color border) {
+    return Column(
+      children: [
+        if (_lockedCount > 0)
+          _buildShortcutRow(
+            icon: Icons.lock_outline,
+            label: 'Locked chats',
+            count: null,
+            textPrimary: textPrimary,
+            textMuted: textMuted,
+            border: border,
+            onTap: _openLockedChats,
+          ),
+        if (_archivedCount > 0)
+          _buildShortcutRow(
+            icon: Icons.archive_outlined,
+            label: 'Archived',
+            count: _archivedCount,
+            textPrimary: textPrimary,
+            textMuted: textMuted,
+            border: border,
+            onTap: () async {
+              await Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const ArchivedChatsScreen()),
+              );
+              await _refresh();
+            },
+          ),
+        Divider(height: 1, color: textMuted.withValues(alpha: 0.12)),
+      ],
+    );
+  }
+
+  Widget _buildShortcutRow({
+    required IconData icon,
+    required String label,
+    required int? count,
+    required Color textPrimary,
+    required Color textMuted,
+    required Color border,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: textMuted.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 20, color: textMuted),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(color: textPrimary, fontSize: 16, fontWeight: FontWeight.w500),
+              ),
+            ),
+            if (count != null)
+              Text(
+                '$count',
+                style: TextStyle(color: textMuted, fontSize: 14, fontWeight: FontWeight.w500),
+              ),
+          ],
+        ),
+      ),
     );
   }
 
