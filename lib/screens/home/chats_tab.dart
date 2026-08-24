@@ -12,7 +12,9 @@ import '../../widgets/new_chat_sheet.dart';
 import '../chat/kora_chat_screen.dart';
 import '../new_group_screen.dart';
 import '../settings/privacy_screen.dart';
+import 'package:local_auth/local_auth.dart';
 import '../archived_chats_screen.dart';
+import '../locked_chats_screen.dart';
 import '../starred_messages_screen.dart';
 import 'profile_tab.dart';
 
@@ -131,6 +133,8 @@ class _ChatsTabState extends State<ChatsTab> {
     );
 
     final hasUnread = chat.unreadCount > 0;
+    final dir = await ConversationDirectoryService.instance.get(chat.id);
+    final isLocked = dir?['isLocked'] as bool? ?? false;
 
     final action = await showMenu<String>(
       context: context,
@@ -146,15 +150,21 @@ class _ChatsTabState extends State<ChatsTab> {
           textPrimary,
         ),
         _quickActionItem(
+          'mute',
+          chat.isMuted ? Icons.notifications_active_outlined : Icons.notifications_off_outlined,
+          chat.isMuted ? 'Unmute' : 'Mute',
+          textPrimary,
+        ),
+        _quickActionItem(
           'pin',
           Icons.push_pin_outlined,
           chat.isPinned ? 'Unpin' : 'Pin',
           textPrimary,
         ),
         _quickActionItem(
-          'mute',
-          chat.isMuted ? Icons.notifications_active_outlined : Icons.notifications_off_outlined,
-          chat.isMuted ? 'Unmute' : 'Mute',
+          'lock',
+          isLocked ? Icons.lock_open_outlined : Icons.lock_outline,
+          isLocked ? 'Unlock chat' : 'Lock chat',
           textPrimary,
         ),
         _quickActionItem('archive', Icons.archive_outlined, 'Archive', textPrimary),
@@ -181,6 +191,9 @@ class _ChatsTabState extends State<ChatsTab> {
         break;
       case 'mute':
         await _toggleMuteSelected();
+        break;
+      case 'lock':
+        await _lockSelected(unlock: isLocked);
         break;
       case 'archive':
         await _archiveSelected();
@@ -453,6 +466,68 @@ class _ChatsTabState extends State<ChatsTab> {
     await _refresh();
   }
 
+  /// Lock/unlock selected chats. Locking hides a chat from BOTH the
+  /// Home list and Archived Chats — it's only reachable through the
+  /// biometric-gated Locked Chats screen.
+  Future<void> _lockSelected({bool unlock = false}) async {
+    final ids = List<String>.from(_selectedIds);
+    if (ids.isEmpty) return;
+
+    // Locking requires biometric confirmation first (unlocking from
+    // the long-press menu also gates here so nobody can unlock a chat
+    // just by long-pressing on the Home screen).
+    if (!unlock) {
+      final authed = await _authenticate('Lock chat');
+      if (!authed) return;
+    }
+
+    for (final id in ids) {
+      await ConversationDirectoryService.instance.setLocked(id, !unlock);
+    }
+    _clearSelection();
+    await _refresh();
+  }
+
+  /// Biometric gate for locked-chat features. Returns true if the
+  /// device has biometrics and the user authenticated, or false if
+  /// biometrics are unavailable / the user cancelled.
+  Future<bool> _authenticate(String reason) async {
+    try {
+      final localAuth = LocalAuthentication();
+      final available = await localAuth.canCheckBiometrics ||
+          await localAuth.isDeviceSupported();
+      if (!available) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Biometric authentication is not available on this device.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return false;
+      }
+      return await localAuth.authenticate(
+        localizedReason: '$reason requires biometric authentication',
+        biometricOnly: false,
+      );
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Opens the Locked Chats screen — biometric-gated, just like
+  /// WhatsApp's "Locked chats" entry point in the chat list header.
+  Future<void> _openLockedChats() async {
+    final authed = await _authenticate('Open Locked Chats');
+    if (!authed) return;
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const LockedChatsScreen()),
+    );
+    await _refresh();
+  }
+
   void _openSelectionOverflowMenu() {
     KoraMenuSheet.show(context, [
       KoraMenuOption(
@@ -469,7 +544,24 @@ class _ChatsTabState extends State<ChatsTab> {
         label: 'Mark as read',
         onTap: () => _markSelectedRead(true),
       ),
+      KoraMenuOption(
+        icon: Icons.mark_chat_unread_outlined,
+        label: 'Mark as unread',
+        onTap: () => _markSelectedUnread(),
+      ),
     ]);
+  }
+
+  /// "Mark as unread" — sets a forced-unread flag so the chat shows
+  /// a badge on Home even though every message was actually seen.
+  /// Cleared automatically when the chat is opened again.
+  Future<void> _markSelectedUnread() async {
+    final ids = List<String>.from(_selectedIds);
+    for (final id in ids) {
+      await ConversationDirectoryService.instance.setForcedUnread(id, true);
+    }
+    _clearSelection();
+    await _refresh();
   }
 
   void _toggleSearch() {
@@ -544,6 +636,11 @@ class _ChatsTabState extends State<ChatsTab> {
           );
           await _refresh();
         },
+      ),
+      KoraMenuOption(
+        icon: Icons.lock_outline,
+        label: 'Locked Chats',
+        onTap: _openLockedChats,
       ),
       KoraMenuOption(
         icon: Icons.star_outline,
