@@ -23,7 +23,6 @@ class ContactInfoScreen extends StatelessWidget {
   final String? username;
   final String? about;
   final String? phone;
-  final bool isAiChat;
 
   const ContactInfoScreen({
     super.key,
@@ -37,7 +36,6 @@ class ContactInfoScreen extends StatelessWidget {
     this.username,
     this.about,
     this.phone,
-    this.isAiChat = false,
   });
 
   @override
@@ -240,7 +238,7 @@ class ContactInfoScreen extends StatelessWidget {
               },
             ),
           ),
-          if (!isAiChat) ...[
+          [
             const SizedBox(width: 12),
             Expanded(
               child: _actionCard(
