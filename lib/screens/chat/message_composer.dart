@@ -690,6 +690,25 @@ class _MessageComposerState extends State<MessageComposer>
     }
   }
 
+  /// Cross-fades between the idle/holding composer and the locked
+  /// recorder bar so the swipe-up-to-lock moment reads as a deliberate,
+  /// smooth hand-off rather than an abrupt UI swap.
+  Widget _wrapTransition(Widget child) {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 220),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      transitionBuilder: (transitionChild, animation) => FadeTransition(
+        opacity: animation,
+        child: ScaleTransition(
+          scale: Tween<double>(begin: 0.97, end: 1.0).animate(animation),
+          child: transitionChild,
+        ),
+      ),
+      child: KeyedSubtree(key: ValueKey(_state), child: child),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final brightness = Theme.of(context).brightness;
@@ -700,20 +719,22 @@ class _MessageComposerState extends State<MessageComposer>
 
     // ── Locked state ──
     if (_state == _ComposerState.locked) {
-      return SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
-          child: LockedRecorderBar(
-            seconds: _seconds,
-            isPaused: _isPaused,
-            waveformSamples: _waveformSamples,
-            onDiscard: _discardLocked,
-            onTogglePause: _toggleLockedPause,
-            onSend: _sendLocked,
-            onTranslate: _openTranslatePicker,
-            selectedTranslateName: _selectedTranslateName,
-            isTranslating: _isTranslating,
+      return _wrapTransition(
+        SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
+            child: LockedRecorderBar(
+              seconds: _seconds,
+              isPaused: _isPaused,
+              waveformSamples: _waveformSamples,
+              onDiscard: _discardLocked,
+              onTogglePause: _toggleLockedPause,
+              onSend: _sendLocked,
+              onTranslate: _openTranslatePicker,
+              selectedTranslateName: _selectedTranslateName,
+              isTranslating: _isTranslating,
+            ),
           ),
         ),
       );
@@ -721,9 +742,10 @@ class _MessageComposerState extends State<MessageComposer>
 
     final isHolding = _state == _ComposerState.holding;
 
-    return SafeArea(
-      top: false,
-      child: Container(
+    return _wrapTransition(
+      SafeArea(
+        top: false,
+        child: Container(
         decoration: BoxDecoration(
           color: surface,
           border: Border(top: BorderSide(color: border, width: 0.5)),
@@ -879,6 +901,6 @@ class _MessageComposerState extends State<MessageComposer>
           ),
         ),
       ),
-    );
+    ));
   }
 }
