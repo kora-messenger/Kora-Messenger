@@ -8,11 +8,30 @@ import 'kora_badge.dart';
 /// Distinctly Kora: purple unread pill (not green), purple read-receipt
 /// ticks, subtle pinned/muted indicators baked into the row rather than
 /// stacked icon clutter.
+///
+/// Two long-press gestures live on this row, on purpose kept on
+/// non-overlapping regions so they never fight for the gesture arena:
+/// - Long-press the AVATAR → [onAvatarPeekStart]/[onAvatarPeekMove]/
+///   [onAvatarPeekEnd] drive the Telegram-style "Chat Peek" preview.
+/// - Long-press anywhere else on the row → [onLongPress] enters the
+///   Home screen's multi-select mode (pin/mute/archive/delete).
 class ChatListItem extends StatelessWidget {
   final ChatPreview chat;
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
   final bool isSelected;
+
+  /// Fired when the avatar itself is long-pressed — starts a peek.
+  final void Function(Offset globalPosition)? onAvatarPeekStart;
+
+  /// Fired while the finger stays down and moves, still over the row —
+  /// forwards the current global position so the peek overlay can
+  /// highlight whichever bottom action icon is being hovered.
+  final void Function(Offset globalPosition)? onAvatarPeekMove;
+
+  /// Fired when the finger lifts (or the gesture is cancelled) — ends
+  /// the peek, committing whichever action (if any) was hovered.
+  final VoidCallback? onAvatarPeekEnd;
 
   const ChatListItem({
     super.key,
@@ -20,6 +39,9 @@ class ChatListItem extends StatelessWidget {
     this.onTap,
     this.onLongPress,
     this.isSelected = false,
+    this.onAvatarPeekStart,
+    this.onAvatarPeekMove,
+    this.onAvatarPeekEnd,
   });
 
   @override
@@ -33,139 +55,153 @@ class ChatListItem extends StatelessWidget {
       color: isSelected ? KoraColors.purple.withValues(alpha: 0.08) : null,
       child: InkWell(
         onTap: onTap,
-        onLongPress: onLongPress,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  KoraAvatar(
-                    name: chat.name,
-                    assetPath: chat.avatarAsset,
-                    imageUrl: chat.avatarUrl,
-                    size: 54,
-                    showOnlineDot: chat.isOnline && !isSelected,
-                  ),
-                  if (isSelected)
-                    Positioned.fill(
-                      child: Container(
-                        decoration: const BoxDecoration(
-                          color: Color(0x99000000),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Center(
-                          child: Container(
-                            width: 22,
-                            height: 22,
-                            decoration: const BoxDecoration(
-                              gradient: KoraColors.brandGradient,
-                              shape: BoxShape.circle,
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onLongPressStart: onAvatarPeekStart == null
+                    ? null
+                    : (details) => onAvatarPeekStart!(details.globalPosition),
+                onLongPressMoveUpdate: onAvatarPeekMove == null
+                    ? null
+                    : (details) => onAvatarPeekMove!(details.globalPosition),
+                onLongPressEnd: onAvatarPeekEnd == null ? null : (_) => onAvatarPeekEnd!(),
+                onLongPressCancel: onAvatarPeekEnd,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    KoraAvatar(
+                      name: chat.name,
+                      assetPath: chat.avatarAsset,
+                      imageUrl: chat.avatarUrl,
+                      size: 54,
+                      showOnlineDot: chat.isOnline && !isSelected,
+                    ),
+                    if (isSelected)
+                      Positioned.fill(
+                        child: Container(
+                          decoration: const BoxDecoration(
+                            color: Color(0x99000000),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Center(
+                            child: Container(
+                              width: 22,
+                              height: 22,
+                              decoration: const BoxDecoration(
+                                gradient: KoraColors.brandGradient,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.check, size: 14, color: Colors.white),
                             ),
-                            child: const Icon(Icons.check, size: 14, color: Colors.white),
                           ),
                         ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
               const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+              Expanded(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onLongPress: onLongPress,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: KoraNameWithBadge(
-                          name: chat.name,
-                          badge: chat.badge,
-                          badgeSize: 19,
-                          style: TextStyle(
-                            color: textPrimary,
-                            fontSize: 16,
-                            fontWeight: hasUnread ? FontWeight.w700 : FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                      if (chat.isPinned) ...[
-                        const SizedBox(width: 4),
-                        Icon(Icons.push_pin, size: 14, color: textSecondary),
-                      ],
-                      const SizedBox(width: 6),
-                      Text(
-                        _formatTimestamp(chat.timestamp),
-                        style: TextStyle(
-                          color: hasUnread ? KoraColors.purple : textSecondary,
-                          fontSize: 12,
-                          fontWeight: hasUnread ? FontWeight.w700 : FontWeight.w400,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      if (chat.status != MessageStatus.none) ...[
-                        _buildStatusIcon(chat.status),
-                        const SizedBox(width: 4),
-                      ],
-                      if (chat.isVoiceLastMessage && !chat.isTyping) ...[
-                        Icon(
-                          Icons.mic_rounded,
-                          size: 15,
-                          color: hasUnread ? textPrimary : textSecondary,
-                        ),
-                        const SizedBox(width: 4),
-                      ],
-                      Expanded(
-                        child: Text(
-                          chat.isTyping
-                              ? 'typing…'
-                              : (chat.isVoiceLastMessage
-                                  ? 'Voice message${chat.lastVoiceDuration != null ? ' (${chat.lastVoiceDuration})' : ''}'
-                                  : chat.lastMessage),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: chat.isTyping
-                                ? KoraColors.purple
-                                : (hasUnread ? textPrimary : textSecondary),
-                            fontSize: 14,
-                            fontWeight: hasUnread ? FontWeight.w500 : FontWeight.w400,
-                            fontStyle: chat.isTyping ? FontStyle.italic : FontStyle.normal,
-                          ),
-                        ),
-                      ),
-                      if (chat.isMuted) ...[
-                        const SizedBox(width: 6),
-                        Icon(Icons.notifications_off_outlined, size: 15, color: textSecondary),
-                      ],
-                      if (hasUnread) ...[
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                          decoration: const BoxDecoration(
-                            gradient: KoraColors.brandGradient,
-                            borderRadius: BorderRadius.all(Radius.circular(12)),
-                          ),
-                          constraints: const BoxConstraints(minWidth: 22),
-                          child: Text(
-                            chat.unreadCount > 99 ? '99+' : '${chat.unreadCount}',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
+                      Row(
+                        children: [
+                          Expanded(
+                            child: KoraNameWithBadge(
+                              name: chat.name,
+                              badge: chat.badge,
+                              badgeSize: 19,
+                              style: TextStyle(
+                                color: textPrimary,
+                                fontSize: 16,
+                                fontWeight: hasUnread ? FontWeight.w700 : FontWeight.w600,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                          if (chat.isPinned) ...[
+                            const SizedBox(width: 4),
+                            Icon(Icons.push_pin, size: 14, color: textSecondary),
+                          ],
+                          const SizedBox(width: 6),
+                          Text(
+                            _formatTimestamp(chat.timestamp),
+                            style: TextStyle(
+                              color: hasUnread ? KoraColors.purple : textSecondary,
+                              fontSize: 12,
+                              fontWeight: hasUnread ? FontWeight.w700 : FontWeight.w400,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          if (chat.status != MessageStatus.none) ...[
+                            _buildStatusIcon(chat.status),
+                            const SizedBox(width: 4),
+                          ],
+                          if (chat.isVoiceLastMessage && !chat.isTyping) ...[
+                            Icon(
+                              Icons.mic_rounded,
+                              size: 15,
+                              color: hasUnread ? textPrimary : textSecondary,
+                            ),
+                            const SizedBox(width: 4),
+                          ],
+                          Expanded(
+                            child: Text(
+                              chat.isTyping
+                                  ? 'typing…'
+                                  : (chat.isVoiceLastMessage
+                                      ? 'Voice message${chat.lastVoiceDuration != null ? ' (${chat.lastVoiceDuration})' : ''}'
+                                      : chat.lastMessage),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: chat.isTyping
+                                    ? KoraColors.purple
+                                    : (hasUnread ? textPrimary : textSecondary),
+                                fontSize: 14,
+                                fontWeight: hasUnread ? FontWeight.w500 : FontWeight.w400,
+                                fontStyle: chat.isTyping ? FontStyle.italic : FontStyle.normal,
+                              ),
+                            ),
+                          ),
+                          if (chat.isMuted) ...[
+                            const SizedBox(width: 6),
+                            Icon(Icons.notifications_off_outlined, size: 15, color: textSecondary),
+                          ],
+                          if (hasUnread) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                              decoration: const BoxDecoration(
+                                gradient: KoraColors.brandGradient,
+                                borderRadius: BorderRadius.all(Radius.circular(12)),
+                              ),
+                              constraints: const BoxConstraints(minWidth: 22),
+                              child: Text(
+                                chat.unreadCount > 99 ? '99+' : '${chat.unreadCount}',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
                     ],
                   ),
-                  ],
                 ),
               ),
             ],
