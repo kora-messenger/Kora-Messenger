@@ -6,20 +6,18 @@ import '../theme/kora_colors.dart';
 import '../screens/chat/message_bubble.dart';
 import 'kora_avatar.dart';
 
-/// Telegram-style "Chat Peek" — press-and-hold a chat's avatar on the
-/// Home screen to preview its recent messages without opening the full
-/// chat screen.
+/// Telegram-style "Chat Peek" — long-press a chat's avatar on the Home
+/// screen to preview its recent messages in a near-full-screen zoom-in
+/// panel (not a side panel).
 ///
-/// The peek stays open after the finger lifts. While open:
-/// - **Scroll** through the last 25 messages. Scrolling to the bottom
-///   (the last/newest message) marks the chat's unread messages as read
-///   on the peeking user's side — without ever opening the full chat.
-/// - **Tap anywhere** on the screen opens the full chat screen, where
-///   both users can continue chatting. Closing the full chat returns
-///   to the Home screen naturally (standard Navigator.pop).
+/// Visual behavior matches Telegram:
+/// - The panel appears centered, covering most of the screen.
+/// - The chat's recent messages are shown (last 25).
+/// - Scrolling to the bottom (the newest message) marks the chat as read.
+/// - Tapping outside the panel dismisses it (returns to Home).
+/// - Tapping inside the panel opens the full chat screen.
 class ChatPeekOverlay {
   static OverlayEntry? _entry;
-  static _ChatPeekViewState? _state;
 
   static bool get isShowing => _entry != null;
 
@@ -29,10 +27,8 @@ class ChatPeekOverlay {
     required VoidCallback onOpenChat,
     required VoidCallback onMarkedRead,
   }) {
-    // If a peek is already open, dismiss it first.
     _entry?.remove();
     _entry = null;
-    _state = null;
 
     final overlay = Overlay.of(context);
     _entry = OverlayEntry(
@@ -48,10 +44,7 @@ class ChatPeekOverlay {
   static void hide() {
     _entry?.remove();
     _entry = null;
-    _state = null;
   }
-
-  static void _registerState(_ChatPeekViewState state) => _state = state;
 }
 
 class _ChatPeekView extends StatefulWidget {
@@ -69,26 +62,36 @@ class _ChatPeekView extends StatefulWidget {
   State<_ChatPeekView> createState() => _ChatPeekViewState();
 }
 
-class _ChatPeekViewState extends State<_ChatPeekView> {
+class _ChatPeekViewState extends State<_ChatPeekView>
+    with SingleTickerProviderStateMixin {
   List<KoraMessage> _messages = [];
-  bool _visible = false;
   bool _markedRead = false;
   final ScrollController _scrollController = ScrollController();
+  late AnimationController _animController;
+  late Animation<double> _scaleAnim;
+  late Animation<double> _opacityAnim;
 
   @override
   void initState() {
     super.initState();
-    ChatPeekOverlay._registerState(this);
 
-    // Deliberately just [loadMessages] — never markChatViewed here.
-    // Read state is only changed when the user scrolls to the bottom.
+    _animController = AnimationController(
+      duration: const Duration(milliseconds: 200),
+      vsync: this,
+    );
+    _scaleAnim = CurvedAnimation(
+      parent: _animController,
+      curve: Curves.easeOutCubic,
+    );
+    _opacityAnim = CurvedAnimation(
+      parent: _animController,
+      curve: Curves.easeOut,
+    );
+
     MessageService.instance.loadMessages(widget.chat.id).then((msgs) {
       if (!mounted) return;
       setState(() => _messages = msgs);
 
-      // If all messages fit on screen (no scrolling needed), the user
-      // can already see the last message — mark as read after a brief
-      // moment so it doesn't feel instant/jarring.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted || !_scrollController.hasClients) return;
         if (_scrollController.position.maxScrollExtent <= 0) {
@@ -100,7 +103,9 @@ class _ChatPeekViewState extends State<_ChatPeekView> {
     _scrollController.addListener(_onScroll);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) setState(() => _visible = true);
+      if (mounted) {
+        _animController.forward();
+      }
     });
   }
 
@@ -108,14 +113,13 @@ class _ChatPeekViewState extends State<_ChatPeekView> {
   void dispose() {
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
+    _animController.dispose();
     super.dispose();
   }
 
   void _onScroll() {
     if (_markedRead || !_scrollController.hasClients) return;
     final pos = _scrollController.position;
-    // User has scrolled to (or very near) the bottom — the last/newest
-    // message is visible. Mark the chat's unread messages as read.
     if (pos.pixels >= pos.maxScrollExtent - 60) {
       _markAsRead();
     }
@@ -128,9 +132,17 @@ class _ChatPeekViewState extends State<_ChatPeekView> {
     widget.onMarkedRead();
   }
 
-  void _handleTap() {
-    ChatPeekOverlay.hide();
-    widget.onOpenChat();
+  void _handleOpenChat() {
+    _animController.reverse().then((_) {
+      ChatPeekOverlay.hide();
+      widget.onOpenChat();
+    });
+  }
+
+  void _handleDismiss() {
+    _animController.reverse().then((_) {
+      ChatPeekOverlay.hide();
+    });
   }
 
   @override
@@ -141,79 +153,104 @@ class _ChatPeekViewState extends State<_ChatPeekView> {
     final textSecondary = KoraColors.textSecondaryFor(brightness);
     final border = KoraColors.borderFor(brightness);
     final screenSize = MediaQuery.of(context).size;
-    final panelWidth = screenSize.width * 0.86;
     final topInset = MediaQuery.of(context).padding.top;
 
     return Material(
       type: MaterialType.transparency,
-      child: Stack(
-        children: [
-          // Dimmed background — tapping outside the peek panel dismisses
-          // it and returns to the normal Home screen (does NOT open chat).
-          Positioned.fill(
-            child: GestureDetector(
-              onTap: ChatPeekOverlay.hide,
-              behavior: HitTestBehavior.opaque,
-              child: AnimatedOpacity(
-                opacity: _visible ? 1 : 0,
-                duration: const Duration(milliseconds: 160),
-                child: Container(color: const Color(0xB3000000)),
-              ),
-            ),
-          ),
-          // Peek panel — slides in from the left edge.
-          AnimatedPositioned(
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOutCubic,
-            top: topInset + 24,
-            bottom: 24,
-            left: _visible ? 0 : -panelWidth,
-            width: panelWidth,
-            child: Material(
-              color: card,
-              elevation: 16,
-              borderRadius: const BorderRadius.only(
-                topRight: Radius.circular(20),
-                bottomRight: Radius.circular(20),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: Column(
-                children: [
-                  // Header — tap opens full chat.
-                  GestureDetector(
-                    onTap: _handleTap,
-                    behavior: HitTestBehavior.opaque,
-                    child: _buildHeader(textPrimary, textSecondary, border),
+      child: AnimatedBuilder(
+        animation: _animController,
+        builder: (context, child) {
+          return Stack(
+            children: [
+              // Dimmed background — tap outside dismisses.
+              Positioned.fill(
+                child: GestureDetector(
+                  onTap: _handleDismiss,
+                  behavior: HitTestBehavior.opaque,
+                  child: Opacity(
+                    opacity: _opacityAnim.value * 0.6,
+                    child: Container(color: Colors.black),
                   ),
-                  Divider(height: 1, color: border),
-                  // Messages — scrollable. Scroll to bottom → mark as read.
-                  // Tap (without scrolling) → open full chat.
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: _handleTap,
-                      behavior: HitTestBehavior.translucent,
-                      child: _buildMessages(textSecondary),
+                ),
+              ),
+              // Near-full-screen zoom-in panel.
+              Positioned.fill(
+                child: Center(
+                  child: Transform.scale(
+                    scale: 0.92 + 0.08 * _scaleAnim.value,
+                    child: Opacity(
+                      opacity: _opacityAnim.value,
+                      child: Material(
+                        color: card,
+                        elevation: 0,
+                        borderRadius: BorderRadius.zero,
+                        clipBehavior: Clip.antiAlias,
+                        child: SizedBox(
+                        width: screenSize.width,
+                        height: screenSize.height,
+                        child: Column(
+                          children: [
+                            SizedBox(height: topInset),
+                            GestureDetector(
+                              onTap: _handleOpenChat,
+                              behavior: HitTestBehavior.opaque,
+                              child: _buildHeader(
+                                textPrimary,
+                                textSecondary,
+                                border,
+                                brightness,
+                              ),
+                            ),
+                            Divider(height: 1, color: border),
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: _handleOpenChat,
+                                behavior: HitTestBehavior.translucent,
+                                child: _buildMessages(textSecondary),
+                              ),
+                            ),
+                            SizedBox(
+                              height: MediaQuery.of(context).padding.bottom,
+                            ),
+                          ],
+                        ),
+                      ),
+                      ),
                     ),
                   ),
-                ],
+                ),
               ),
-            ),
-          ),
-        ],
+            ],
+          );
+        },
       ),
     );
   }
 
-  Widget _buildHeader(Color textPrimary, Color textSecondary, Color border) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+  Widget _buildHeader(
+    Color textPrimary,
+    Color textSecondary,
+    Color border,
+    Brightness brightness,
+  ) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(8, 10, 8, 10),
+      color: KoraColors.surfaceFor(brightness),
       child: Row(
         children: [
+          GestureDetector(
+            onTap: _handleDismiss,
+            child: Padding(
+              padding: const EdgeInsets.only(right: 4),
+              child: Icon(Icons.arrow_back, color: textPrimary, size: 24),
+            ),
+          ),
+          const SizedBox(width: 4),
           KoraAvatar(
             name: widget.chat.name,
             assetPath: widget.chat.avatarAsset,
             imageUrl: widget.chat.avatarUrl,
-            size: 40,
+            size: 42,
             showOnlineDot: widget.chat.isOnline,
           ),
           const SizedBox(width: 12),
@@ -222,20 +259,43 @@ class _ChatPeekViewState extends State<_ChatPeekView> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  widget.chat.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: textPrimary, fontSize: 16, fontWeight: FontWeight.w700),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        widget.chat.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: textPrimary,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    if (widget.chat.isMuted) ...[
+                      const SizedBox(width: 4),
+                      Icon(
+                        Icons.notifications_off,
+                        size: 14,
+                        color: textSecondary,
+                      ),
+                    ],
+                  ],
                 ),
                 Text(
-                  widget.chat.isOnline ? 'online' : 'last seen recently',
+                  widget.chat.isOnline
+                      ? 'online'
+                      : 'last seen recently',
                   style: TextStyle(color: textSecondary, fontSize: 12.5),
                 ),
               ],
             ),
           ),
-          Icon(Icons.chevron_right, color: textSecondary, size: 22),
+          IconButton(
+            icon: Icon(Icons.more_vert, color: textSecondary, size: 22),
+            onPressed: _handleOpenChat,
+          ),
         ],
       ),
     );
@@ -244,19 +304,20 @@ class _ChatPeekViewState extends State<_ChatPeekView> {
   Widget _buildMessages(Color textSecondary) {
     if (_messages.isEmpty) {
       return Center(
-        child: Text('No messages yet', style: TextStyle(color: textSecondary, fontSize: 13)),
+        child: Text(
+          'No messages yet',
+          style: TextStyle(color: textSecondary, fontSize: 13),
+        ),
       );
     }
-    // Show the last 25 messages in chronological order (oldest at top,
-    // newest at bottom). The user scrolls DOWN to reach the last
-    // message — reaching it marks the chat as read.
+
     final preview = _messages.length > 25
         ? _messages.sublist(_messages.length - 25)
         : _messages;
 
     return ListView.builder(
       controller: _scrollController,
-      padding: const EdgeInsets.symmetric(vertical: 10),
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
       physics: const ClampingScrollPhysics(),
       itemCount: preview.length,
       itemBuilder: (context, index) {
