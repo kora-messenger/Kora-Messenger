@@ -237,11 +237,125 @@ class _ChatsTabState extends State<ChatsTab> {
     final selected = _selectedChats;
     if (selected.isEmpty) return;
     final allMuted = selected.every((c) => c.isMuted);
+
+    // Already muted → tapping mute again just unmutes, no dialog.
+    if (allMuted) {
+      for (final c in selected) {
+        await ConversationDirectoryService.instance.setMuted(c.id, false);
+      }
+      _clearSelection();
+      await _refresh();
+      return;
+    }
+
+    // Not muted → ask for a duration first, like WhatsApp's
+    // "Mute message notifications" dialog (8 hours / 1 week / Always).
+    final choice = await _showMuteDurationDialog();
+    if (choice == null) return; // cancelled — leave selection as-is
+
+    DateTime? until;
+    if (choice == 0) {
+      until = DateTime.now().add(const Duration(hours: 8));
+    } else if (choice == 1) {
+      until = DateTime.now().add(const Duration(days: 7));
+    }
+    // choice == 2 → "Always" → until stays null (no expiry)
+
     for (final c in selected) {
-      await ConversationDirectoryService.instance.setMuted(c.id, !allMuted);
+      await ConversationDirectoryService.instance.setMuted(c.id, true, until: until);
     }
     _clearSelection();
     await _refresh();
+  }
+
+  /// Kora-styled version of WhatsApp's "Mute message notifications"
+  /// dialog. Returns 0 (8 hours), 1 (1 week), 2 (Always), or null if
+  /// the user cancelled.
+  Future<int?> _showMuteDurationDialog() async {
+    final brightness = Theme.of(context).brightness;
+    final card = KoraColors.cardFor(brightness);
+    final textPrimary = KoraColors.textPrimaryFor(brightness);
+    final textSecondary = KoraColors.textSecondaryFor(brightness);
+
+    int selected = 0;
+
+    return showDialog<int>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            Widget option(int index, String label) {
+              return InkWell(
+                borderRadius: BorderRadius.circular(10),
+                onTap: () => setDialogState(() => selected = index),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Row(
+                    children: [
+                      Radio<int>(
+                        value: index,
+                        groupValue: selected,
+                        activeColor: KoraColors.purple,
+                        onChanged: (v) => setDialogState(() => selected = v!),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        label,
+                        style: TextStyle(color: textPrimary, fontSize: 15, fontWeight: FontWeight.w500),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
+
+            return Dialog(
+              backgroundColor: card,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 24, 12, 8),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Mute message notifications',
+                      style: TextStyle(color: textPrimary, fontSize: 19, fontWeight: FontWeight.w700, height: 1.25),
+                    ),
+                    const SizedBox(height: 10),
+                    Padding(
+                      padding: const EdgeInsets.only(right: 12),
+                      child: Text(
+                        'Other members will not see that you muted this chat. You will still be notified if you are mentioned.',
+                        style: TextStyle(color: textSecondary, fontSize: 14, height: 1.4),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    option(0, '8 hours'),
+                    option(1, '1 week'),
+                    option(2, 'Always'),
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(dialogContext),
+                          child: const Text('Cancel', style: TextStyle(color: KoraColors.purple, fontWeight: FontWeight.w700)),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(dialogContext, selected),
+                          child: const Text('OK', style: TextStyle(color: KoraColors.purple, fontWeight: FontWeight.w700)),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   Future<void> _archiveSelected() async {
