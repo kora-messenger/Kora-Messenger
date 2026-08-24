@@ -467,6 +467,7 @@ class _NewContactScreenState extends State<NewContactScreen> {
     final koraId = user['koraId'] as String? ?? '';
     final username = user['username'] as String? ?? '';
     final userPhone = user['phoneNumber'] as String? ?? '';
+    final recipientEmail = user['email'] as String? ?? '';
 
     // Capture navigator + messenger BEFORE showing the snackbar so the
     // "Message" button's onTap closure doesn't access State.context after
@@ -495,6 +496,7 @@ class _NewContactScreenState extends State<NewContactScreen> {
                       name: name,
                       badge: KoraBadgeType.none,
                       isOnline: true,
+                      recipientEmail: recipientEmail,
                     ),
                   ),
                 );
@@ -523,12 +525,11 @@ class _NewContactScreenState extends State<NewContactScreen> {
       ),
     );
 
-    // Pop after a short delay so the user sees the snackbar.
-    // Use the captured navigator — NOT State.context — to avoid the
-    // null check crash if the widget is disposed before this fires.
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) navigator.pop();
-    });
+    // Don't auto-pop — if the user taps "Message", the onTap handler
+    // pops NewContactScreen and pushes the chat screen. If they don't,
+    // the snackbar disappears after 6s and they can use the normal back
+    // button. Auto-popping corrupts the navigation stack because the
+    // "Message" onTap also pops, causing a double-pop.
   }
 
   void _viewContactProfile(Map<String, dynamic> user) {
