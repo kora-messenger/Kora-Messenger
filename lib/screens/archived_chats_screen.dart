@@ -164,7 +164,7 @@ class _ArchivedChatsScreenState extends State<ArchivedChatsScreen> {
                       chat: chat,
                       isSelected: _selectedIds.contains(chat.id),
                       onTap: () => _onChatTap(chat),
-                      onLongPress: () => _onChatLongPress(chat),
+                      onLongPress: (_) => _onChatLongPress(chat),
                     );
                   },
                 ),
