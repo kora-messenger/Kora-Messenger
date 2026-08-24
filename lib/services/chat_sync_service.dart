@@ -27,7 +27,19 @@ class ChatSyncService {
   String? get userEmail => _userEmail;
 
   /// Sync a single message to the backend (fire-and-forget).
-  Future<void> syncMessage(String chatId, KoraMessage msg) async {
+  String? _senderName;
+
+  /// Set the sender's display name — called after login.
+  void setSenderName(String name) {
+    _senderName = name;
+  }
+
+  String? get senderName => _senderName;
+
+  Future<void> syncMessage(String chatId, KoraMessage msg, {
+    String? recipientEmail,
+    String? recipientName,
+  }) async {
     if (_userEmail == null) return;
     if (_syncing) return; // don't sync during bulk restore
 
@@ -38,6 +50,9 @@ class ChatSyncService {
         body: jsonEncode({
           'action': 'sync',
           'userEmail': _userEmail,
+          'recipientEmail': recipientEmail,
+          'recipientName': recipientName,
+          'senderName': _senderName,
           'messages': [_messageToJson(chatId, msg)],
         }),
       ).timeout(const Duration(seconds: 10));
