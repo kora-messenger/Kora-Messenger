@@ -95,15 +95,19 @@ async function sendVerificationEmail(toEmail: string, code: string, type = 'regi
     ? `${APP_NAME}: Password Reset Code`
     : type === 'login'
       ? `${APP_NAME}: Login Verification Code`
-      : `${APP_NAME}: Email Verification Code`;
+      : type === 'changeEmail'
+        ? `${APP_NAME}: Confirm Your New Email`
+        : `${APP_NAME}: Email Verification Code`;
 
   const introText = type === 'passwordReset'
     ? 'Use the code below to reset your Kora account password.'
     : type === 'login'
       ? 'A new device is trying to sign in to your Kora account. Use the code below to verify this login.'
-      : 'Welcome to Kora! Use the code below to verify your email address and complete your registration.';
+      : type === 'changeEmail'
+        ? 'Use the code below to confirm this email address for your Kora account.'
+        : 'Welcome to Kora! Use the code below to verify your email address and complete your registration.';
 
-  const title = type === 'passwordReset' ? 'Password Reset' : type === 'login' ? 'New Device Login' : 'Verify Your Email';
+  const title = type === 'passwordReset' ? 'Password Reset' : type === 'login' ? 'New Device Login' : type === 'changeEmail' ? 'Confirm Email' : 'Verify Your Email';
 
   const bodyHtml = `<p style="margin:0 0 12px;">${introText}</p>
     <p style="margin:0;color:#6B6B80;font-size:13px;">This code expires in 10 minutes. If you didn't request this, you can safely ignore this email.</p>`;
@@ -239,7 +243,7 @@ Deno.serve(async (req: Request) => {
       const { email, type = 'registration' } = body;
       if (!email) return jsonResponse({ success: false, error: 'Email is required' });
 
-      if (type === 'registration') {
+      if (type === 'registration' || type === 'changeEmail') {
         const existing = await db.entities.KoraUser.filter({ email });
         if (existing && existing.length > 0) {
           return jsonResponse({ success: false, error: 'An account with this email already exists' });
@@ -764,6 +768,52 @@ Deno.serve(async (req: Request) => {
       if (!userId) return jsonResponse({ success: false, error: 'User ID is required' });
 
       await db.entities.KoraUser.update(userId, { phoneNumber: phoneNumber || '' });
+      const updated = await db.entities.KoraUser.get(userId);
+      return jsonResponse({ success: true, user: getUserFromRecord(updated) });
+    }
+
+    // ── VERIFY AND UPDATE EMAIL ──────────────────────────────
+    // Called from the "Add your email" screen. The verification code was
+    // sent to the NEW email address (type: 'changeEmail'); once confirmed,
+    // we update the KoraUser record's email field.
+    if (action === 'verifyAndUpdateEmail') {
+      const { userId, newEmail, code } = body;
+      if (!userId || !newEmail || !code) {
+        return jsonResponse({ success: false, error: 'User ID, new email, and code are required' });
+      }
+
+      const codes = await db.entities.VerificationCode.filter({ email: newEmail, type: 'changeEmail', used: false });
+      if (!codes || codes.length === 0) {
+        return jsonResponse({ success: false, error: 'No active verification code. Request a new one.' });
+      }
+
+      const matchingCode = codes.find((c: any) => (c.data?.code || c.code) === code);
+      if (!matchingCode) {
+        const recent = codes[0];
+        const attempts = ((recent.data?.attempts || recent.attempts || 0) + 1);
+        await db.entities.VerificationCode.update(recent.id, { attempts });
+        if (attempts >= 5) {
+          await db.entities.VerificationCode.update(recent.id, { used: true });
+          return jsonResponse({ success: false, error: 'Too many attempts. Request a new code.' });
+        }
+        return jsonResponse({ success: false, error: 'Invalid verification code' });
+      }
+
+      const expiresAt = new Date(matchingCode.data?.expiresAt || matchingCode.expiresAt);
+      if (expiresAt < new Date()) {
+        await db.entities.VerificationCode.update(matchingCode.id, { used: true });
+        return jsonResponse({ success: false, error: 'Code has expired. Request a new one.' });
+      }
+
+      // Re-check the email isn't taken (in case someone else claimed it
+      // while this code was pending).
+      const existing = await db.entities.KoraUser.filter({ email: newEmail });
+      if (existing && existing.length > 0 && existing[0].id !== userId) {
+        return jsonResponse({ success: false, error: 'An account with this email already exists' });
+      }
+
+      await db.entities.VerificationCode.update(matchingCode.id, { used: true });
+      await db.entities.KoraUser.update(userId, { email: newEmail });
       const updated = await db.entities.KoraUser.get(userId);
       return jsonResponse({ success: true, user: getUserFromRecord(updated) });
     }
