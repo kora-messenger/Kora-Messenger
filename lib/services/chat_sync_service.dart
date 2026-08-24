@@ -115,6 +115,9 @@ class ChatSyncService {
           final chatId = msg['chatId'] as String;
           final messageId = msg['messageId'] as String;
 
+          // Skip AI chat messages — seeded locally, never restore from cloud
+          if (chatId == 'kora_support' || chatId == 'kora_ai') continue;
+
           // Load existing messages for this chat if not cached
           if (!ms.isChatCached(chatId)) {
             await ms.loadMessages(chatId);
@@ -316,6 +319,10 @@ class ChatSyncService {
       for (final msg in messages) {
         final chatId = msg['chatId'] as String;
         final messageId = msg['messageId'] as String;
+
+        // Skip AI chat messages — they're seeded locally by MessageService.init()
+        // and should never be re-introduced from the cloud with stale isSeen state.
+        if (chatId == 'kora_support' || chatId == 'kora_ai') continue;
 
         // Load existing messages for this chat if not cached
         if (!ms.isChatCached(chatId)) {
