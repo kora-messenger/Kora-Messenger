@@ -3,6 +3,7 @@ import '../../models/chat_models.dart';
 import '../../services/chat_service.dart';
 import '../../services/conversation_directory.dart';
 import '../../services/message_service.dart';
+import '../../services/chat_sync_service.dart';
 import '../../theme/kora_colors.dart';
 import '../../widgets/chat_list_item.dart';
 import '../../widgets/chat_peek_overlay.dart';
@@ -52,6 +53,8 @@ class _ChatsTabState extends State<ChatsTab> {
   @override
   void initState() {
     super.initState();
+    // Refresh the chat list whenever polling detects new incoming messages.
+    ChatSyncService.instance.onNewMessages = _refresh;
     _initMessages();
   }
 
@@ -77,6 +80,7 @@ class _ChatsTabState extends State<ChatsTab> {
 
   @override
   void dispose() {
+    ChatSyncService.instance.onNewMessages = null;
     _searchController.dispose();
     super.dispose();
   }
@@ -115,6 +119,7 @@ class _ChatsTabState extends State<ChatsTab> {
           username: '@$lowerName',
           about: 'Hey there! I am using Kora Messenger.',
           phone: '+123 456 7890',
+          recipientEmail: chat.recipientEmail,
           isAiChat: false,
         ),
       ),
@@ -132,6 +137,7 @@ class _ChatsTabState extends State<ChatsTab> {
           badge: chat.badge,
           isOnline: chat.isOnline,
           lastSeen: chat.isOnline ? null : 'last seen recently',
+          recipientEmail: chat.recipientEmail,
         ),
       ),
     );
