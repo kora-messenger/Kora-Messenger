@@ -113,14 +113,108 @@ class _ChatsTabState extends State<ChatsTab> {
     }
   }
 
-  void _onChatLongPress(ChatPreview chat) {
-    setState(() {
-      if (_selectedIds.contains(chat.id)) {
-        _selectedIds.remove(chat.id);
-      } else {
-        _selectedIds.add(chat.id);
-      }
-    });
+  /// Telegram-style floating quick-action menu — long-pressing a chat
+  /// opens a small rounded popup anchored right at the touch point
+  /// (not a full-screen multi-select mode). Tapping outside dismisses
+  /// it; tapping an action runs it on just this one chat. "Select"
+  /// is the escape hatch into the existing bulk-selection toolbar for
+  /// when the user wants to act on several chats at once.
+  Future<void> _onChatLongPress(ChatPreview chat, Offset globalPosition) async {
+    final brightness = Theme.of(context).brightness;
+    final card = KoraColors.cardFor(brightness);
+    final textPrimary = KoraColors.textPrimaryFor(brightness);
+
+    final overlayBox = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final position = RelativeRect.fromRect(
+      Rect.fromPoints(globalPosition, globalPosition),
+      Offset.zero & overlayBox.size,
+    );
+
+    final hasUnread = chat.unreadCount > 0;
+
+    final action = await showMenu<String>(
+      context: context,
+      position: position,
+      color: card,
+      elevation: 10,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      items: [
+        _quickActionItem(
+          'mark',
+          hasUnread ? Icons.mark_chat_read_outlined : Icons.mark_chat_unread_outlined,
+          hasUnread ? 'Mark as read' : 'Mark as unread',
+          textPrimary,
+        ),
+        _quickActionItem(
+          'pin',
+          Icons.push_pin_outlined,
+          chat.isPinned ? 'Unpin' : 'Pin',
+          textPrimary,
+        ),
+        _quickActionItem(
+          'mute',
+          chat.isMuted ? Icons.notifications_active_outlined : Icons.notifications_off_outlined,
+          chat.isMuted ? 'Unmute' : 'Mute',
+          textPrimary,
+        ),
+        _quickActionItem('archive', Icons.archive_outlined, 'Archive', textPrimary),
+        _quickActionItem('select', Icons.check_circle_outline, 'Select', textPrimary),
+        _quickActionItem('delete', Icons.delete_outline, 'Delete', Colors.red),
+      ],
+    );
+
+    if (action == null || !mounted) return;
+
+    // Run each action on just this one chat, via the existing bulk
+    // handlers — set the selection to only this chat, run, and (for
+    // everything except "select") clear the selection right after.
+    setState(() => _selectedIds
+      ..clear()
+      ..add(chat.id));
+
+    switch (action) {
+      case 'mark':
+        await _markSelectedRead(hasUnread);
+        break;
+      case 'pin':
+        await _togglePinSelected();
+        break;
+      case 'mute':
+        await _toggleMuteSelected();
+        break;
+      case 'archive':
+        await _archiveSelected();
+        break;
+      case 'select':
+        // Leave _selectedIds as-is — this hands off to the bulk
+        // selection toolbar with this chat pre-selected.
+        break;
+      case 'delete':
+        await _deleteSelected();
+        break;
+    }
+  }
+
+  PopupMenuItem<String> _quickActionItem(
+    String value,
+    IconData icon,
+    String label,
+    Color color,
+  ) {
+    return PopupMenuItem<String>(
+      value: value,
+      height: 46,
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: color),
+          const SizedBox(width: 14),
+          Text(
+            label,
+            style: TextStyle(color: color, fontSize: 15, fontWeight: FontWeight.w500),
+          ),
+        ],
+      ),
+    );
   }
 
   void _clearSelection() => setState(() => _selectedIds.clear());
@@ -444,7 +538,7 @@ class _ChatsTabState extends State<ChatsTab> {
                                   chat: chat,
                                   isSelected: _selectedIds.contains(chat.id),
                                   onTap: () => _onChatTap(chat),
-                                  onLongPress: () => _onChatLongPress(chat),
+                                  onLongPress: (pos) => _onChatLongPress(chat, pos),
                                   onAvatarPeekStart: (pos) => _onAvatarPeekStart(chat, pos),
                                 );
                               },
