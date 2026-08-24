@@ -37,6 +37,7 @@ class ChatPreview {
   final String name;
   final String? avatarAsset; // local asset path, takes priority
   final String? avatarUrl; // remote url fallback
+  final String? recipientEmail;
   final String lastMessage;
   final DateTime timestamp;
   final int unreadCount;
@@ -61,6 +62,7 @@ class ChatPreview {
     required this.name,
     this.avatarAsset,
     this.avatarUrl,
+    this.recipientEmail,
     required this.lastMessage,
     required this.timestamp,
     this.unreadCount = 0,
