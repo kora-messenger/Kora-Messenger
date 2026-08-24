@@ -136,7 +136,8 @@ class ChatSyncService {
       final conversations = data['conversations'] as List? ?? [];
       for (final conv in conversations) {
         final chatId = conv['chatId'] as String;
-  
+        if (chatId == 'kora_support' || chatId == 'kora_ai') continue;
+
         await ConversationDirectoryService.instance.upsert(
           chatId: chatId,
           name: conv['name'] as String? ?? chatId,
