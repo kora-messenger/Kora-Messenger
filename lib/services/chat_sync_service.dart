@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../config/kora_api.dart';
 import '../models/message_model.dart';
@@ -12,12 +14,22 @@ import 'conversation_directory.dart';
 /// On login or app start, [restoreFromCloud] fetches all conversations and
 /// messages from the database — so even if the user deletes and reinstalls
 /// the app, logging in with the same email restores every chat.
+///
+/// Also handles periodic polling via [startPolling] to deliver new incoming
+/// messages in real-time while the app is active.
 class ChatSyncService {
   static final ChatSyncService instance = ChatSyncService._();
   ChatSyncService._();
 
   String? _userEmail;
   bool _syncing = false;
+  Timer? _pollTimer;
+
+  /// Callback invoked when new incoming messages are detected via polling.
+  VoidCallback? onNewMessages;
+
+  /// Timestamp of the last successful message poll or cloud restore.
+  DateTime? lastPollTime;
 
   /// Set the user's email — called after login.
   void setUserEmail(String email) {
@@ -35,6 +47,123 @@ class ChatSyncService {
   }
 
   String? get senderName => _senderName;
+
+  /// Start periodic polling for incoming messages (every 5 seconds).
+  void startPolling() {
+    _pollTimer?.cancel();
+    _pollTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      _pollNewMessages();
+    });
+  }
+
+  /// Stop periodic polling for incoming messages.
+  void stopPolling() {
+    _pollTimer?.cancel();
+    _pollTimer = null;
+  }
+
+  /// Poll the backend for new incoming messages and conversations.
+  Future<void> _pollNewMessages() async {
+    if (_userEmail == null || _syncing) return;
+
+    _syncing = true;
+    int newMsgCount = 0;
+    final pollStartTime = DateTime.now();
+
+    try {
+      final body = <String, dynamic>{
+        'action': 'fetch',
+        'userEmail': _userEmail,
+      };
+      if (lastPollTime != null) {
+        body['since'] = lastPollTime!.toIso8601String();
+        body['lastPollTime'] = lastPollTime!.toIso8601String();
+      }
+
+      final response = await http.post(
+        Uri.parse(KoraApi.chatSyncEndpoint),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(body),
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+
+        // Restore/update conversations in the directory
+        final conversations = data['conversations'] as List? ?? [];
+        for (final conv in conversations) {
+          final chatId = conv['chatId'] as String;
+          if (chatId == 'kora_support' || chatId == 'kora_ai') continue;
+
+          await ConversationDirectoryService.instance.upsert(
+            chatId: chatId,
+            name: conv['name'] as String? ?? chatId,
+            avatarAsset: conv['avatarAsset'] as String?,
+            avatarUrl: conv['avatarUrl'] as String?,
+            badge: KoraBadgeType.values[(conv['badge'] as num?)?.toInt() ?? 0],
+            isOnline: (conv['isOnline'] as bool?) ?? false,
+          );
+        }
+
+        // Restore/append new messages to local storage
+        final messages = data['messages'] as List? ?? [];
+        final ms = MessageService.instance;
+
+        for (final msg in messages) {
+          final chatId = msg['chatId'] as String;
+          final messageId = msg['messageId'] as String;
+
+          // Load existing messages for this chat if not cached
+          if (!ms.isChatCached(chatId)) {
+            await ms.loadMessages(chatId);
+          }
+
+          // Check if message already exists locally
+          if (ms.hasMessage(chatId, messageId)) continue;
+
+          // Add message from cloud
+          final koraMsg = KoraMessage(
+            id: messageId,
+            text: msg['text'] as String? ?? '',
+            timestamp: DateTime.tryParse(msg['timestamp'] as String? ?? '') ?? DateTime.now(),
+            isMe: (msg['isMe'] as bool?) ?? false,
+            type: _parseType(msg['type'] as String?),
+            status: _parseStatus(msg['status'] as String?),
+            replyToId: msg['replyToId'] as String?,
+            replyToText: msg['replyToText'] as String?,
+            replyToName: msg['replyToName'] as String?,
+            reaction: msg['reaction'] as String?,
+            voiceDuration: msg['voiceDuration'] as String?,
+            voiceFilePath: msg['voiceFilePath'] as String?,
+            voiceFileUrl: msg['voiceFileUrl'] as String?,
+            isVoicePlayed: (msg['isVoicePlayed'] as bool?) ?? false,
+            voiceTranscript: msg['voiceTranscript'] as String?,
+            translatedLanguageCode: msg['translatedLanguageCode'] as String?,
+            translatedLanguageName: msg['translatedLanguageName'] as String?,
+            isAi: (msg['isAi'] as bool?) ?? false,
+            isWebSearch: (msg['isWebSearch'] as bool?) ?? false,
+            isSeen: (msg['isSeen'] as bool?) ?? true,
+            isStarred: (msg['isStarred'] as bool?) ?? false,
+            actionLabel: msg['actionLabel'] as String?,
+            actionType: msg['actionType'] as String?,
+          );
+
+          await ms.addRestoredMessage(chatId, koraMsg);
+          newMsgCount++;
+        }
+
+        lastPollTime = pollStartTime;
+      }
+    } catch (_) {
+      // Best-effort polling fail
+    } finally {
+      _syncing = false;
+    }
+
+    if (newMsgCount > 0) {
+      onNewMessages?.call();
+    }
+  }
 
   Future<void> syncMessage(String chatId, KoraMessage msg, {
     String? recipientEmail,
@@ -114,6 +243,7 @@ class ChatSyncService {
     _syncing = true;
     int convCount = 0;
     int msgCount = 0;
+    final restoreTime = DateTime.now();
 
     try {
       final response = await http.post(
@@ -195,6 +325,8 @@ class ChatSyncService {
         await ms.addRestoredMessage(chatId, koraMsg);
         msgCount++;
       }
+
+      lastPollTime = restoreTime;
     } catch (_) {
       // Best-effort — if cloud restore fails, local data is still intact.
     }
