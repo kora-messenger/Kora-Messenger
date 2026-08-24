@@ -13,12 +13,15 @@ import 'kora_badge.dart';
 /// non-overlapping regions so they never fight for the gesture arena:
 /// - Long-press the AVATAR → [onAvatarPeekStart]/[onAvatarPeekMove]/
 ///   [onAvatarPeekEnd] drive the Telegram-style "Chat Peek" preview.
-/// - Long-press anywhere else on the row → [onLongPress] enters the
-///   Home screen's multi-select mode (pin/mute/archive/delete).
+/// - Long-press anywhere else on the row → [onLongPress] opens a
+///   Telegram-style floating quick-action menu anchored at the touch
+///   point (mark read/unread, pin, mute, archive, select, delete).
 class ChatListItem extends StatelessWidget {
   final ChatPreview chat;
   final VoidCallback? onTap;
-  final VoidCallback? onLongPress;
+  /// Fired on long-press with the touch's global position, so the
+  /// caller can anchor a floating quick-action menu right there.
+  final void Function(Offset globalPosition)? onLongPress;
   final bool isSelected;
 
   /// Fired when the avatar itself is long-pressed — starts a peek.
@@ -107,7 +110,9 @@ class ChatListItem extends StatelessWidget {
               Expanded(
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
-                  onLongPress: onLongPress,
+                  onLongPressStart: onLongPress == null
+                      ? null
+                      : (details) => onLongPress!(details.globalPosition),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
