@@ -119,6 +119,7 @@ class ChatService {
           break;
       }
 
+      final recipientEmail = meta['recipientEmail'] as String?;
       final isBuiltinAi = _builtinAiChats.containsKey(chatId);
 
       final msgs = await ms.loadMessages(chatId);
@@ -144,6 +145,7 @@ class ChatService {
         name: meta['name'] as String? ?? chatId,
         avatarAsset: meta['avatarAsset'] as String?,
         avatarUrl: meta['avatarUrl'] as String?,
+        recipientEmail: recipientEmail,
         lastMessage: lastMessageText,
         timestamp: timestamp,
         unreadCount: _effectiveUnreadCount(chatId, meta),
