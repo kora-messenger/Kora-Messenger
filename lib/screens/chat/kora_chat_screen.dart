@@ -78,6 +78,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
   final Map<String, GlobalKey> _rowKeys = {};
   KoraMessage? _replyTarget;
   bool _isLoading = true;
+  bool _isAiTyping = false;
   bool _isBlocked = false;
   Timer? _statusTimer;
   StreamSubscription<String>? _syncSub;
@@ -91,6 +92,9 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
   final _searchController = TextEditingController();
   String _searchQuery = '';
   List<KoraMessage> _searchResults = [];
+
+  bool get _isAiChat =>
+      widget.chatId == 'kora_support' || widget.chatId == 'kora_ai';
 
   @override
   void initState() {
@@ -231,6 +235,10 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
     });
     _scrollToBottom();
 
+    // If this is an AI chat, get an AI response
+    if (_isAiChat) {
+      await _getAiResponse(text);
+    }
   }
 
   void _runDetection(String messageContent) async {
@@ -270,7 +278,109 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
     } catch (_) {}
   }
 
+  Future<void> _getAiResponse(String userMessage) async {
+    setState(() => _isAiTyping = true);
+
+    try {
+      final chatType = widget.chatId == 'kora_support' ? 'support' : 'ai';
+      final history = _messages
+          .where((m) => m.type != KoraMessageType.action && m.type != KoraMessageType.issueList)
+          .map((m) => {'text': m.text, 'isMe': m.isMe})
+          .toList();
+
+      final response = await http.post(
+        Uri.parse('${KoraApi.baseUrl}/koraAiChat'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'chatType': chatType,
+          'message': userMessage,
+          'history': history,
+        }),
+      ).timeout(const Duration(seconds: 120));
+
+      // Log HTTP status if not 200
+      if (response.statusCode != 200) {
+        debugPrint('[Kora AI] HTTP ${response.statusCode} — ${response.body.substring(0, (response.body.length > 300 ? 300 : response.body.length))}');
+      }
+
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final success = data['success'] as bool? ?? true;
+      final reply = data['reply'] as String? ??
+          "I'm here to help! Could you tell me more?";
+
+      // Log the actual error for developers when the AI request fails
+      if (!success) {
+        final errorDetail = data['error'] as String? ?? 'Unknown error';
+        debugPrint('[Kora AI] Request failed — chatType=$chatType, error=$errorDetail');
+      }
+      final isWebSearch = data['isWebSearch'] as bool? ?? false;
+      final issueList = data['issueList'] as List?;
+      final actionLabel = data['actionLabel'] as String?;
+      final actionType = data['actionType'] as String?;
+
+      // If the AI returned an issue list, show it as an issueList message
+      if (issueList != null && issueList.isNotEmpty) {
+        final issues = issueList
+            .map((e) => IssueOption(
+              id: e['id'] as String,
+              label: e['label'] as String,
+            ))
+            .toList();
+        await _messageService.addIncomingMessage(
+          widget.chatId,
+          reply,
+          isAi: true,
+          type: KoraMessageType.issueList,
+          issueOptions: issues,
+        );
+      } else if (actionLabel != null && actionType != null) {
+        // Guided response with an action button (e.g. "Contact Live Support")
+        await _messageService.addIncomingMessage(
+          widget.chatId,
+          reply,
+          isAi: true,
+          actionLabel: actionLabel,
+          actionType: actionType,
+        );
+      } else {
+        await _messageService.addIncomingMessage(
+          widget.chatId,
+          reply,
+          isAi: true,
+          isWebSearch: isWebSearch,
+        );
+      }
+    } catch (e) {
+      // Fallback response if the backend is unreachable
+      await _messageService.addIncomingMessage(
+        widget.chatId,
+        widget.chatId == 'kora_support'
+            ? "I'm here to help with any Kora-related questions! Could you tell me more about what you need?"
+            : "I'd be happy to help with that! Let me know a bit more about what you're looking for.",
+        isAi: true,
+      );
+    }
+
+    if (mounted) {
+      setState(() => _isAiTyping = false);
+      _refreshMessages();
+    }
+  }
+
+  /// Called when the user taps an issue from the support issue list.
   /// Sends the issue as a user message, then gets AI-guided troubleshooting.
+  Future<void> _onIssueSelected(IssueOption issue) async {
+    // Send the issue label as a user message
+    await _messageService.sendUserMessage(widget.chatId, issue.label);
+    setState(() {
+      _messages = List.from(_messageService.getMessages(widget.chatId));
+    });
+    _scrollToBottom();
+
+    // Get AI guidance using the [ISSUE] prefix so the backend knows to
+    // return pre-written step-by-step troubleshooting instructions.
+    await _getAiResponse('[ISSUE]${issue.id}');
+  }
 
   void _sendVoice(
     String duration, {
@@ -444,12 +554,13 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
           avatarAsset: widget.avatarAsset,
           avatarUrl: widget.avatarUrl,
           badge: widget.badge,
-          isOnline: widget.isOnline,
-          lastSeen: widget.lastSeen,
+          isOnline: _isAiChat ? true : widget.isOnline,
+          lastSeen: _isAiChat ? 'AI Assistant' : widget.lastSeen,
           koraId: koraId,
           username: '@$lowerName',
           about: 'Hey there! I am using Kora Messenger.',
           phone: '+123 456 7890',
+          isAiChat: _isAiChat,
         ),
       ),
     );
@@ -1077,12 +1188,12 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
               avatarAsset: widget.avatarAsset,
               avatarUrl: widget.avatarUrl,
               badge: widget.badge,
-              isOnline: widget.isOnline,
-              lastSeen: widget.lastSeen,
+              isOnline: _isAiChat ? true : widget.isOnline,
+              lastSeen: _isAiChat ? 'AI Assistant' : widget.lastSeen,
               onBack: () => Navigator.pop(context),
               onAvatarTap: _showContactInfo,
-              onVoiceCall: () => _openCallScreen(isVideo: false),
-              onVideoCall: () => _openCallScreen(isVideo: true),
+              onVoiceCall: _isAiChat ? null : () => _openCallScreen(isVideo: false),
+              onVideoCall: _isAiChat ? null : () => _openCallScreen(isVideo: true),
               menuOptions: [
                 KoraMenuOption(icon: Icons.person_outline, label: 'Contact info', onTap: () => _showContactInfo()),
                 KoraMenuOption(icon: Icons.search, label: 'Search', onTap: () => _showChatSearch()),
@@ -1097,7 +1208,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
                 KoraMenuOption(icon: Icons.auto_awesome, label: 'Summarize chat', onTap: () => _showChatSummary()),
                 KoraMenuOption(icon: Icons.access_time, label: 'Catch me up', onTap: () => _showCatchMeUp()),
                 KoraMenuOption(icon: Icons.cleaning_services_outlined, label: 'Clear chat', onTap: () => _showClearChatDialog()),
-                if (true) ...[
+                if (!_isAiChat) ...[
                   KoraMenuOption(icon: Icons.block, label: 'Block', onTap: () => _showBlockDialog(), color: Colors.red),
                   KoraMenuOption(icon: Icons.report_outlined, label: 'Report', onTap: () => _showBlockDialog(), color: Colors.red),
                 ],
@@ -1122,8 +1233,13 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
                             : ListView.builder(
                                 controller: _scrollController,
                                 padding: const EdgeInsets.symmetric(vertical: 8),
-                                itemCount: _messages.length,
+                                itemCount: _messages.length + (_isAiTyping ? 1 : 0),
                                 itemBuilder: (context, index) {
+                                  // Typing indicator at the end
+                                  if (_isAiTyping && index == _messages.length) {
+                                    return _buildTypingIndicator(context);
+                                  }
+
                                   final message = _messages[index];
                                   final rk = _rowKeys.putIfAbsent(message.id, () => GlobalKey());
 
@@ -1140,7 +1256,8 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
                                           message: message,
                                           onLongPress: () => _showMessageActions(rk, message),
                                           onActionTap: () => _onActionTap(message),
-                                                                                    onCancelVoiceUpload: () => _onCancelVoiceUpload(message.id),
+                                          onIssueTap: (issue) => _onIssueSelected(issue),
+                                          onCancelVoiceUpload: () => _onCancelVoiceUpload(message.id),
                                           onRetryVoiceUpload: () => _onRetryVoiceUpload(message.id),
                                           onSelfDestruct: () => _onSelfDestructVoice(message.id),
                                         ),
@@ -1234,7 +1351,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
               // (most noticeable when the keyboard closes).
               Padding(
                 padding: EdgeInsets.only(bottom: bottomInset),
-                child: _isBlocked
+                child: _isBlocked && !_isAiChat
                     ? _buildBlockedBar()
                     : MessageComposer(
                         onSend: _sendMessage,
