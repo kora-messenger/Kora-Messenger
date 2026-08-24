@@ -23,6 +23,7 @@ class ContactInfoScreen extends StatelessWidget {
   final String? username;
   final String? about;
   final String? phone;
+  final String? recipientEmail;
   final bool isAiChat;
 
   const ContactInfoScreen({
@@ -37,6 +38,7 @@ class ContactInfoScreen extends StatelessWidget {
     this.username,
     this.about,
     this.phone,
+    this.recipientEmail,
     this.isAiChat = false,
   });
 
@@ -234,6 +236,7 @@ class ContactInfoScreen extends StatelessWidget {
                       badge: badge,
                       isOnline: isOnline,
                       lastSeen: lastSeen,
+                      recipientEmail: recipientEmail,
                     ),
                   ),
                 );
