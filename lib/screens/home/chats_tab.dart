@@ -67,84 +67,18 @@ class _ChatsTabState extends State<ChatsTab> {
   }
 
   // ── Chat Peek (Telegram-style avatar long-press) ────────────
-
-  List<PeekAction> _buildPeekActions(ChatPreview chat) {
-    return [
-      PeekAction(
-        icon: chat.isPinned ? Icons.push_pin : Icons.push_pin_outlined,
-        activeIcon: Icons.push_pin,
-        label: chat.isPinned ? 'Unpin' : 'Pin',
-        isActive: chat.isPinned,
-        onTrigger: () async {
-          await ConversationDirectoryService.instance.setPinned(chat.id, !chat.isPinned);
-          await _refresh();
-        },
-      ),
-      PeekAction(
-        icon: Icons.mark_chat_read_outlined,
-        label: 'Read',
-        onTrigger: () async {
-          await MessageService.instance.markChatViewed(chat.id);
-          await _refresh();
-        },
-      ),
-      PeekAction(
-        icon: Icons.cleaning_services_outlined,
-        label: 'Clear',
-        onTrigger: () async {
-          await MessageService.instance.clearChat(chat.id);
-          await _refresh();
-        },
-      ),
-      PeekAction(
-        icon: chat.isMuted ? Icons.notifications_outlined : Icons.notifications_off_outlined,
-        activeIcon: Icons.notifications_off_outlined,
-        label: chat.isMuted ? 'Unmute' : 'Mute',
-        isActive: chat.isMuted,
-        onTrigger: () async {
-          await ConversationDirectoryService.instance.setMuted(chat.id, !chat.isMuted);
-          await _refresh();
-        },
-      ),
-      PeekAction(
-        icon: Icons.archive_outlined,
-        label: 'Archive',
-        onTrigger: () async {
-          await ConversationDirectoryService.instance.setArchived(chat.id, true);
-          await _refresh();
-        },
-      ),
-      PeekAction(
-        icon: Icons.delete_outline,
-        label: 'Delete',
-        isDestructive: true,
-        onTrigger: () async {
-          await MessageService.instance.deleteChat(chat.id);
-          await ConversationDirectoryService.instance.remove(chat.id);
-          await _refresh();
-        },
-      ),
-    ];
-  }
+  // Long-press a chat's avatar → peek panel slides in showing recent
+  // messages. The peek stays open after the finger lifts. Scrolling
+  // to the last message marks it as read. Tapping anywhere opens the
+  // full chat where both users can continue chatting.
 
   void _onAvatarPeekStart(ChatPreview chat, Offset globalPosition) {
     ChatPeekOverlay.show(
       context,
       chat,
-      actions: _buildPeekActions(chat),
-      onOpenChat: () {
-        ChatPeekOverlay.hide();
-        _openChat(chat);
-      },
+      onOpenChat: () => _openChat(chat),
+      onMarkedRead: () => _refresh(),
     );
-  }
-
-  void _onAvatarPeekMove(Offset globalPosition) {
-    ChatPeekOverlay.updatePointer(globalPosition);
-  }
-
-  void _onAvatarPeekEnd() {
-    ChatPeekOverlay.commitAndHide();
   }
 
   void _openChat(ChatPreview chat) {
@@ -512,8 +446,6 @@ class _ChatsTabState extends State<ChatsTab> {
                                   onTap: () => _onChatTap(chat),
                                   onLongPress: () => _onChatLongPress(chat),
                                   onAvatarPeekStart: (pos) => _onAvatarPeekStart(chat, pos),
-                                  onAvatarPeekMove: _onAvatarPeekMove,
-                                  onAvatarPeekEnd: _onAvatarPeekEnd,
                                 );
                               },
                             ),
