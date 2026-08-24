@@ -34,6 +34,7 @@ class MessageComposer extends StatefulWidget {
     String? transcript,
     String? translatedLanguageCode,
     String? translatedLanguageName,
+    bool isPlayOnce,
   }) onSendVoice;
   final VoidCallback? onAttachment;
   final Function(String)? onAiWriting;
@@ -79,6 +80,9 @@ class _MessageComposerState extends State<MessageComposer>
   String? _selectedTranslateCode;
   String? _selectedTranslateName;
   bool _isTranslating = false;
+
+  // ── Play-once / self-destruct ──
+  bool _isPlayOnce = false;
 
   late AnimationController _pulseController;
 
@@ -340,6 +344,7 @@ class _MessageComposerState extends State<MessageComposer>
     _pulseController.stop();
     await VoiceNoteSttService.instance.stop();
     await _recordingService.cancelRecording();
+    _isPlayOnce = false;
     if (mounted) setState(() => _state = _ComposerState.idle);
   }
 
@@ -375,15 +380,18 @@ class _MessageComposerState extends State<MessageComposer>
           transcript: result.transcript,
           translatedLanguageCode: result.langCode,
           translatedLanguageName: result.langName,
+          isPlayOnce: _isPlayOnce,
         );
         _clearTranslation();
+        _isPlayOnce = false;
         return;
       }
       // Translation failed — don't send the original, let user retry
       return;
     }
 
-    widget.onSendVoice(duration, filePath: path ?? _filePath);
+    widget.onSendVoice(duration, filePath: path ?? _filePath, isPlayOnce: _isPlayOnce);
+    _isPlayOnce = false;
   }
 
   // ── Locked bar actions ──
@@ -417,6 +425,7 @@ class _MessageComposerState extends State<MessageComposer>
     await VoiceNoteSttService.instance.stop();
     await _recordingService.cancelRecording();
     _clearTranslation();
+    _isPlayOnce = false;
     if (mounted) setState(() => _state = _ComposerState.idle);
   }
 
@@ -487,8 +496,10 @@ class _MessageComposerState extends State<MessageComposer>
           transcript: result.transcript,
           translatedLanguageCode: result.langCode,
           translatedLanguageName: result.langName,
+          isPlayOnce: _isPlayOnce,
         );
         _clearTranslation();
+        _isPlayOnce = false;
         return;
       }
       // Translation failed — don't send the original
@@ -498,7 +509,14 @@ class _MessageComposerState extends State<MessageComposer>
     // No translation requested — stop the on-device STT capture
     // (its transcript isn't needed) and send immediately.
     unawaited(VoiceNoteSttService.instance.stop());
-    widget.onSendVoice(duration, filePath: path ?? _filePath);
+    widget.onSendVoice(duration, filePath: path ?? _filePath, isPlayOnce: _isPlayOnce);
+    _isPlayOnce = false;
+  }
+
+  // ── Play-once toggle ──
+
+  void _togglePlayOnce() {
+    setState(() => _isPlayOnce = !_isPlayOnce);
   }
 
   // ── Voice note translation ──
@@ -734,6 +752,8 @@ class _MessageComposerState extends State<MessageComposer>
               onTranslate: _openTranslatePicker,
               selectedTranslateName: _selectedTranslateName,
               isTranslating: _isTranslating,
+              isPlayOnce: _isPlayOnce,
+              onTogglePlayOnce: _togglePlayOnce,
             ),
           ),
         ),
