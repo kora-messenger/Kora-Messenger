@@ -12,12 +12,14 @@ class ChatListItem extends StatelessWidget {
   final ChatPreview chat;
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
+  final bool isSelected;
 
   const ChatListItem({
     super.key,
     required this.chat,
     this.onTap,
     this.onLongPress,
+    this.isSelected = false,
   });
 
   @override
@@ -27,22 +29,49 @@ class ChatListItem extends StatelessWidget {
     final textSecondary = KoraColors.textSecondaryFor(brightness);
     final hasUnread = chat.unreadCount > 0;
 
-    return InkWell(
-      onTap: onTap,
-      onLongPress: onLongPress,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            KoraAvatar(
-              name: chat.name,
-              assetPath: chat.avatarAsset,
-              imageUrl: chat.avatarUrl,
-              size: 54,
-              showOnlineDot: chat.isOnline,
-            ),
-            const SizedBox(width: 14),
+    return Container(
+      color: isSelected ? KoraColors.purple.withValues(alpha: 0.08) : null,
+      child: InkWell(
+        onTap: onTap,
+        onLongPress: onLongPress,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  KoraAvatar(
+                    name: chat.name,
+                    assetPath: chat.avatarAsset,
+                    imageUrl: chat.avatarUrl,
+                    size: 54,
+                    showOnlineDot: chat.isOnline && !isSelected,
+                  ),
+                  if (isSelected)
+                    Positioned.fill(
+                      child: Container(
+                        decoration: const BoxDecoration(
+                          color: Color(0x99000000),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: Container(
+                            width: 22,
+                            height: 22,
+                            decoration: const BoxDecoration(
+                              gradient: KoraColors.brandGradient,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.check, size: 14, color: Colors.white),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -136,10 +165,11 @@ class ChatListItem extends StatelessWidget {
                       ],
                     ],
                   ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
