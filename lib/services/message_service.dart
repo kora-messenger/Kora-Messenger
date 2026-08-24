@@ -180,8 +180,8 @@ class MessageService {
   Future<bool> _isRecipientOnline(String chatId) async {
     if (chatId == 'kora_support' || chatId == 'kora_ai') return true;
     final entry = await ConversationDirectoryService.instance.get(chatId);
-    if (entry == null) return true;
-    return entry['isOnline'] as bool? ?? true;
+    if (entry == null) return false; // unknown contact = assume offline
+    return entry['isOnline'] as bool? ?? false;
   }
 
   /// Advances a text message: sent → delivered → read.
