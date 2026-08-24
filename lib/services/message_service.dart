@@ -15,6 +15,8 @@ import 'chat_sync_service.dart';
 /// now survive app restarts.
 ///
 /// Two special chats are always present:
+/// - kora_support: Kora Support AI — answers questions about Kora
+/// - kora_ai: Kora AI — answers any question, inside or outside Kora
 class MessageService {
   static final MessageService instance = MessageService._();
   MessageService._();
@@ -38,6 +40,7 @@ class MessageService {
     final expirySent = prefs.getBool(_kExpirySent) ?? false;
 
     if (!welcomeSent) {
+      _seedWelcomeMessage();
       await prefs.setBool(_kWelcomeSent, true);
       await prefs.setString(
         _kPremiumTrialStart,
@@ -62,6 +65,7 @@ class MessageService {
         final start = DateTime.parse(startStr);
         final expiry = start.add(const Duration(days: _kPremiumTrialDays));
         if (DateTime.now().isAfter(expiry)) {
+          _seedExpiryMessage();
           await prefs.setBool(_kExpirySent, true);
           // Revoke premium
           await prefs.setBool('kora_is_premium', false);
@@ -174,6 +178,7 @@ class MessageService {
   /// any contact we don't have fresh presence for are treated as
   /// reachable so the simulated receipts still progress).
   Future<bool> _isRecipientOnline(String chatId) async {
+    if (chatId == 'kora_support' || chatId == 'kora_ai') return true;
     final entry = await ConversationDirectoryService.instance.get(chatId);
     if (entry == null) return false; // unknown contact = assume offline
     return entry['isOnline'] as bool? ?? false;
@@ -433,6 +438,77 @@ class MessageService {
       }
     }
     if (changed) await _persist(chatId);
+  }
+
+  // ── Welcome / Expiry messages ──────────────────────────────
+
+  void _seedWelcomeMessage() {
+    final now = DateTime.now();
+    final userName = _getUserName();
+
+    // Kora Support welcome message
+    _cache['kora_support'] = [
+      KoraMessage(
+        id: 'welcome_1',
+        text: '👋 Welcome to Kora, $userName!\n\n'
+            'We\'re happy to have you here.\n\n'
+            '🎁 You\'ve received 7 days of Kora Premium — FREE!\n\n'
+            'Your Premium experience is now active and ready for you to explore.\n\n'
+            'If you ever need help with Kora, you can contact us here.\n\n'
+            'Welcome to Kora! 💜\n\n'
+            '— Kora Support',
+        timestamp: now,
+        isMe: false,
+        isAi: true,
+        status: MessageStatus.none,
+      ),
+    ];
+    _persist('kora_support');
+
+    // Kora AI Assistant welcome message
+    _cache['kora_ai'] = [
+      KoraMessage(
+        id: 'ai_welcome_1',
+        text: '🤖 Hello, $userName!\n\n'
+            'I\'m your Kora AI Assistant.\n\n'
+            'I\'m here to help you explore Kora, answer questions, '
+            'translate supported content, and help you understand Kora\'s features.\n\n'
+            'Whenever you need help, you can chat with me here.\n\n'
+            'Welcome to Kora! 🚀',
+        timestamp: now.add(const Duration(seconds: 1)),
+        isMe: false,
+        isAi: true,
+        status: MessageStatus.none,
+      ),
+    ];
+    _persist('kora_ai');
+  }
+
+  /// Gets the current user's full name from the session for personalization.
+  /// Falls back to a generic greeting if the name isn't available yet.
+  String _getUserName() {
+    final user = SessionManager.instance.currentUser;
+    final name = user?.fullName ?? '';
+    if (name.trim().isNotEmpty) return name.trim();
+    return 'there';
+  }
+
+  void _seedExpiryMessage() {
+    final messages = _cache.putIfAbsent('kora_support', () => <KoraMessage>[]);
+    messages.add(KoraMessage(
+      id: 'expiry_1',
+      text: 'Your 7-day Kora Premium subscription has expired. 😔\n\n'
+          'But don\'t worry — you can re-activate all your Premium features '
+          'anytime by subscribing below.',
+      timestamp: DateTime.now(),
+      isMe: false,
+      isAi: true,
+      type: KoraMessageType.action,
+      actionLabel: 'Subscribe to Kora Premium',
+      actionType: 'subscribe_premium',
+      status: MessageStatus.none,
+    ));
+    _persist('kora_support');
   }
 
   // ── Clear chat / Delete chat / Block ───────────────────────
