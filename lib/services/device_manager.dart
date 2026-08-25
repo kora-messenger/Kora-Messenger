@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:android_id/android_id.dart';
 
 /// Manages a unique device ID that persists across app reinstalls.
 ///
@@ -32,16 +33,17 @@ class DeviceManager {
     String? osId;
     try {
       if (Platform.isAndroid) {
-        final androidInfo = await _deviceInfo.androidInfo;
-        // androidId = Settings.Secure.ANDROID_ID — persists across app reinstalls
-        osId = androidInfo.androidId;
+        // Settings.Secure.ANDROID_ID — persists across app reinstalls.
+        // device_info_plus dropped this getter after v4.0.0 (Google policy),
+        // so we use the dedicated android_id plugin instead.
+        osId = await const AndroidId().getId();
       } else if (Platform.isIOS) {
         final iosInfo = await _deviceInfo.iosInfo;
         // identifierForVendor — persists across app reinstalls
         osId = iosInfo.identifierForVendor;
       }
     } catch (_) {
-      // If device_info_plus fails, fall back to SharedPreferences
+      // If the platform plugin fails, fall back to SharedPreferences
     }
 
     String deviceId;
