@@ -556,11 +556,10 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
     if (widget.recipientEmail != null && widget.recipientEmail!.isNotEmpty && !_isAiChat) {
       try {
         final resp = await http.post(
-          Uri.parse(KoraApi.authEndpoint),
+          Uri.parse(KoraApi.lookupByEmailEndpoint),
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode({
-            'action': 'lookupUser',
-            'identifier': widget.recipientEmail,
+            'email': widget.recipientEmail,
           }),
         );
         if (resp.statusCode == 200) {

@@ -34,6 +34,7 @@ class KoraApi {
   /// Temporary: Base44 backend function.
   /// Future: 'https://api.koramessenger.com/lookup' (or your domain)
   static const String lookupEndpoint = '$baseUrl/koraLookup';
+  static const String lookupByEmailEndpoint = '$baseUrl/koraLookupByEmail';
 
   /// Crash report endpoint — receives crash data and creates a GitHub Issue.
   /// Temporary: Base44 backend function.
