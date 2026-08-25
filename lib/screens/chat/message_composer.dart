@@ -69,7 +69,6 @@ class _MessageComposerState extends State<MessageComposer>
   final List<double> _waveformSamples = [];
   String? _filePath;
   bool _isPaused = false;
-  bool _isViewOnce = false;  // WhatsApp-style "view once" voice note toggle
 
   // -- Paused-recording preview playback (WhatsApp-style) --
   // Lets the user play back and scrub through what's been recorded
@@ -626,10 +625,6 @@ class _MessageComposerState extends State<MessageComposer>
     });
   }
 
-  void _resetViewOnce() {
-    if (mounted) setState(() => _isViewOnce = false);
-  }
-
   /// Translates a voice note: transcribes on-device, translates the text,
   /// synthesizes TTS audio in the target language. Returns the translated
   /// audio path + transcript, or null on failure (with a snackbar message).
@@ -944,44 +939,6 @@ class _MessageComposerState extends State<MessageComposer>
                     pulseController: _pulseController,
                   ),
                 ),
-              ],
-              // "View once" toggle -- shows only when the mic is visible
-              // (no text typed) and not currently recording. Matches
-              // WhatsApp's small "1" circle next to the mic button.
-              if (!_hasText && !isHolding) ...[
-                GestureDetector(
-                  onTap: () => setState(() => _isViewOnce = !_isViewOnce),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: _isViewOnce
-                            ? KoraColors.waGreen
-                            : textMuted.withValues(alpha: 0.4),
-                        width: 1.5,
-                      ),
-                      color: _isViewOnce
-                          ? KoraColors.waGreen.withValues(alpha: 0.12)
-                          : Colors.transparent,
-                    ),
-                    child: Center(
-                      child: Text(
-                        '1',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: _isViewOnce
-                              ? KoraColors.waGreen
-                              : textMuted.withValues(alpha: 0.6),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 6),
               ],
               const SizedBox(width: 6),
               Stack(
