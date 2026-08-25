@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../theme/kora_colors.dart';
+import '../../config/kora_api.dart';
+import '../../services/session_manager.dart';
+import 'devices_screen.dart';
 
 /// Privacy settings screen — controls who can see your personal info,
 /// read receipts, disappearing messages, app lock, and advanced privacy.
@@ -47,6 +50,7 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
   String _defaultMessageTimer = 'Off';
   bool _appLockEnabled = false;
   bool _chatLockEnabled = false;
+  int? _deviceCount;
 
   static const _prefsPrefix = 'kora_privacy_';
 
@@ -54,6 +58,21 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
   void initState() {
     super.initState();
     _loadSettings();
+    _loadDeviceCount();
+  }
+
+  Future<void> _loadDeviceCount() async {
+    try {
+      final email = SessionManager.instance.currentEmail;
+      if (email.isEmpty) return;
+      final result = await KoraApi.post({'action': 'listDevices', 'email': email});
+      if (result['success'] == true && mounted) {
+        final devices = result['devices'] as List? ?? [];
+        setState(() => _deviceCount = devices.length);
+      }
+    } catch (_) {
+      // Silently ignore — the tile just won't show a count badge.
+    }
   }
 
   Future<void> _loadSettings() async {
@@ -415,6 +434,16 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
 
             // ── Security ──────────────────────────────────
             _sectionLabel('Security', textMuted),
+            _deviceNavTile(
+              icon: Icons.devices_other_rounded,
+              title: 'Devices',
+              count: _deviceCount,
+              subtitle: 'Review the list of devices where you are logged in to your Kora account.',
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const DevicesScreen()),
+              ).then((_) => _loadDeviceCount()),
+            ),
             _simpleNavTile(
               icon: Icons.lock_outline_rounded,
               title: 'App lock',
@@ -546,6 +575,65 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// A navigation tile with a count badge (e.g. "Devices  4"), matching
+  /// Telegram's Devices row: title + count on one line, description below.
+  Widget _deviceNavTile({
+    required IconData icon,
+    required String title,
+    required int? count,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    final brightness = Theme.of(context).brightness;
+    final textPrimary = KoraColors.textPrimaryFor(brightness);
+    final textSecondary = KoraColors.textSecondaryFor(brightness);
+    final card = KoraColors.cardFor(brightness);
+    final border = KoraColors.borderFor(brightness);
+
+    return _cardWrapper(
+      card: card,
+      border: border,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, color: KoraColors.purple, size: 22),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(title,
+                              style: TextStyle(
+                                  color: textPrimary, fontSize: 15, fontWeight: FontWeight.w500)),
+                        ),
+                        if (count != null)
+                          Text(
+                            '$count',
+                            style: const TextStyle(
+                                color: KoraColors.purple, fontSize: 15, fontWeight: FontWeight.w700),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(subtitle, style: TextStyle(color: textSecondary, fontSize: 12.5, height: 1.4)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
