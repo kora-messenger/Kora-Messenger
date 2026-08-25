@@ -227,9 +227,9 @@ class _DefaultChatThemeScreenState extends State<DefaultChatThemeScreen> {
 
     final theme = _provider.activeTheme;
 
-    const cardWidth = 108.0;
-    const cardHeight = 148.0;
-    const spacing = 12.0;
+    const cardWidth = 88.0;
+    const cardHeight = 120.0;
+    const spacing = 10.0;
 
     return Scaffold(
       backgroundColor: bg,
@@ -436,30 +436,30 @@ class _DefaultChatThemeScreenState extends State<DefaultChatThemeScreen> {
             else
               Container(color: card.wallpaperColor ?? const Color(0xFFECE5DD)),
             Padding(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(10),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.start,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    width: 34,
-                    height: 16,
+                    width: 28,
+                    height: 13,
                     decoration: BoxDecoration(
                       color: card.receivedBubble,
                       borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(8),
-                        topRight: Radius.circular(8),
-                        bottomRight: Radius.circular(8),
+                        topLeft: Radius.circular(7),
+                        topRight: Radius.circular(7),
+                        bottomRight: Radius.circular(7),
                         bottomLeft: Radius.circular(3),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   Align(
                     alignment: Alignment.centerRight,
                     child: Container(
-                      width: 44,
-                      height: 16,
+                      width: 36,
+                      height: 13,
                       decoration: BoxDecoration(
                         color: card.sentBubble,
                         borderRadius: const BorderRadius.only(
@@ -476,16 +476,16 @@ class _DefaultChatThemeScreenState extends State<DefaultChatThemeScreen> {
             ),
             if (isSelected)
               Positioned(
-                right: 8,
-                bottom: 8,
+                right: 6,
+                bottom: 6,
                 child: Container(
-                  width: 22,
-                  height: 22,
+                  width: 18,
+                  height: 18,
                   decoration: const BoxDecoration(
                     color: Colors.black,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.check, color: Colors.white, size: 14),
+                  child: const Icon(Icons.check, color: Colors.white, size: 12),
                 ),
               ),
           ],
@@ -512,14 +512,14 @@ class _DefaultChatThemeScreenState extends State<DefaultChatThemeScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.auto_awesome, color: KoraColors.purple, size: 22),
-              const SizedBox(height: 8),
+              const Icon(Icons.auto_awesome, color: KoraColors.purple, size: 18),
+              const SizedBox(height: 6),
               Text(
                 'Create with AI',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: textPrimary,
-                  fontSize: 12.5,
+                  fontSize: 11,
                   fontWeight: FontWeight.w600,
                 ),
               ),

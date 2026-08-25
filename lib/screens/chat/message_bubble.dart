@@ -213,14 +213,16 @@ class MessageBubble extends StatelessWidget {
             Text(
               _formatTime(message.timestamp),
               style: TextStyle(
-                color: isMe ? Colors.white.withValues(alpha: 0.65) : textSecondary,
+                color: isMe
+                ? (sentText.computeLuminance() > 0.5 ? const Color(0xFF667781) : Colors.white.withValues(alpha: 0.65))
+                : textSecondary,
                 fontSize: 10.5,
                 fontWeight: FontWeight.w500,
               ),
             ),
             if (isMe && message.status != MessageStatus.none) ...[
               const SizedBox(width: 4),
-              _buildStatusIcon(message.status, isMe),
+              _buildStatusIcon(message.status, isMe, sentTextColor: sentText),
             ],
           ],
         ),
@@ -281,7 +283,7 @@ class MessageBubble extends StatelessWidget {
         Text(
           _formatTime(message.timestamp),
           style: TextStyle(
-            color: isMe ? Colors.white.withValues(alpha: 0.65) : textSecondary,
+            color: isMe ? (sentText.computeLuminance() > 0.5 ? const Color(0xFF667781) : Colors.white.withValues(alpha: 0.65)) : textSecondary,
             fontSize: 10.5,
             fontWeight: FontWeight.w500,
           ),
@@ -305,6 +307,9 @@ class MessageBubble extends StatelessWidget {
       children: [
         VoiceMessageBubble(
           message: message,
+          sentAccentColor: sentText.computeLuminance() > 0.5
+              ? const Color(0xFF111B21)
+              : Colors.white,
           onTranslate: isPendingOffline
               ? null
               : () {
@@ -326,7 +331,7 @@ class MessageBubble extends StatelessWidget {
               _formatTime(message.timestamp),
               style: TextStyle(
                 color: isMe
-                    ? Colors.white.withValues(alpha: 0.65)
+                    ? (sentText.computeLuminance() > 0.5 ? const Color(0xFF667781) : Colors.white.withValues(alpha: 0.65))
                     : textSecondary,
                 fontSize: 10.5,
                 fontWeight: FontWeight.w500,
@@ -334,7 +339,7 @@ class MessageBubble extends StatelessWidget {
             ),
             if (isMe && message.status != MessageStatus.none) ...[
               const SizedBox(width: 4),
-              _buildStatusIcon(message.status, isMe),
+              _buildStatusIcon(message.status, isMe, sentTextColor: sentText),
             ],
           ],
         ),
@@ -470,24 +475,28 @@ class MessageBubble extends StatelessWidget {
     );
   }
 
-  Widget _buildStatusIcon(MessageStatus status, bool isMe) {
+  Widget _buildStatusIcon(MessageStatus status, bool isMe, {Color? sentTextColor}) {
+    // On light-colored sent bubbles (e.g. WhatsApp-style green),
+    // timestamps and checkmarks use dark gray for visibility.
+    final isLightBubble = sentTextColor != null && sentTextColor.computeLuminance() > 0.5;
+    final sentSubdued = isLightBubble
+        ? const Color(0xFF667781)
+        : Colors.white.withValues(alpha: 0.55);
     switch (status) {
       case MessageStatus.pendingOffline:
-        // Small clock — "not sent yet", matches the uploading/tap-to-retry
-        // voice note states rendered by VoiceMessageBubble.
         return Icon(
           Icons.access_time_rounded,
           size: 12,
           color: isMe
-              ? Colors.white.withValues(alpha: 0.5)
+              ? (isLightBubble ? const Color(0xFF667781) : Colors.white.withValues(alpha: 0.5))
               : const Color(0xFF9A9AB0),
         );
       case MessageStatus.sent:
-        return Icon(Icons.check, size: 14, color: isMe ? Colors.white.withValues(alpha: 0.55) : const Color(0xFF9A9AB0));
+        return Icon(Icons.check, size: 14, color: isMe ? sentSubdued : const Color(0xFF9A9AB0));
       case MessageStatus.delivered:
-        return Icon(Icons.done_all, size: 14, color: isMe ? Colors.white.withValues(alpha: 0.55) : const Color(0xFF9A9AB0));
+        return Icon(Icons.done_all, size: 14, color: isMe ? sentSubdued : const Color(0xFF9A9AB0));
       case MessageStatus.read:
-        return Icon(Icons.done_all, size: 14, color: KoraColors.blue);
+        return Icon(Icons.done_all, size: 14, color: isMe ? const Color(0xFF53BDEB) : KoraColors.blue);
       case MessageStatus.none:
         return const SizedBox.shrink();
     }

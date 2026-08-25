@@ -6,6 +6,7 @@ import '../../widgets/kora_avatar.dart';
 import '../../widgets/kora_badge.dart';
 import '../../widgets/secure_screen.dart';
 import 'kora_chat_screen.dart';
+import '../../utils/kora_page_routes.dart';
 
 /// Full-screen contact info — opens when the user taps the avatar or
 /// name in a chat. Shows a large circular profile photo centered near
@@ -79,7 +80,7 @@ class ContactInfoScreen extends StatelessWidget {
                       KoraNameWithBadge(
                         name: name,
                         badge: badge,
-                        badgeSize: 22,
+                        badgeSize: 18,
                         style: TextStyle(
                           color: textPrimary,
                           fontSize: 24,
@@ -226,18 +227,15 @@ class ContactInfoScreen extends StatelessWidget {
                 final chatId = (koraId != null && koraId!.isNotEmpty)
                     ? koraId!
                     : (username ?? phone ?? name);
-                Navigator.push(
+                pushSlideUp(
                   context,
-                  MaterialPageRoute(
-                    builder: (_) => KoraChatScreen(
-                      chatId: chatId,
-                      name: name,
-                      avatarUrl: avatarUrl,
-                      badge: badge,
-                      isOnline: isOnline,
-                      lastSeen: lastSeen,
-                      recipientEmail: recipientEmail,
-                    ),
+                  KoraChatScreen(
+                    chatId: chatId,
+                    name: name,
+                    avatarUrl: avatarUrl,
+                    badge: badge,
+                    isOnline: isOnline,
+                    lastSeen: lastSeen,
                   ),
                 );
               },

@@ -14,6 +14,7 @@ import 'qr_code_screen.dart';
 import 'select_country_screen.dart';
 import '../chat/contact_info_screen.dart';
 import '../chat/kora_chat_screen.dart';
+import '../../utils/kora_page_routes.dart';
 import '../../models/chat_models.dart';
 
 /// Kora's "New contact" screen — add someone by name, Kora username/ID,
@@ -427,7 +428,7 @@ class _NewContactScreenState extends State<NewContactScreen> {
                 messenger.hideCurrentSnackBar();
                 navigator.pop(); // Close NewContactScreen
                 navigator.push(
-                  MaterialPageRoute(
+                  SlideUpPageRoute(
                     builder: (_) => KoraChatScreen(
                       chatId: phoneNumber.isNotEmpty ? phoneNumber : (identifier.isNotEmpty ? identifier : label),
                       name: label,
@@ -491,7 +492,7 @@ class _NewContactScreenState extends State<NewContactScreen> {
                 messenger.hideCurrentSnackBar();
                 navigator.pop(); // Close NewContactScreen
                 navigator.push(
-                  MaterialPageRoute(
+                  SlideUpPageRoute(
                     builder: (_) => KoraChatScreen(
                       chatId: koraId.isNotEmpty ? koraId : username,
                       name: name,

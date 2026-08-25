@@ -5,6 +5,10 @@ import 'package:flutter/material.dart';
 class KoraColors {
   static const Color purple = Color(0xFF8B5CF6);
   static const Color blue = Color(0xFF3B82F6);
+  /// WhatsApp-style green accent — used for the voice-note mic/send
+  /// button and recording controls to match that visual language.
+  static const Color waGreen = Color(0xFF25D366);
+  static const Color waGreenDark = Color(0xFF008069);
 
   // Semantic
   static const Color red = Color(0xFFEF4444);

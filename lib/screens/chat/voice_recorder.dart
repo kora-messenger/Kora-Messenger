@@ -66,8 +66,8 @@ class VoiceHoldingContent extends StatelessWidget {
               height: 26,
               barWidth: 2.5,
               barGap: 2.5,
-              playedColor: KoraColors.purple,
-              unplayedColor: KoraColors.purple.withValues(alpha: 0.2),
+              playedColor: KoraColors.waGreen,
+              unplayedColor: KoraColors.waGreen.withValues(alpha: 0.25),
               liveAmplitudes: waveformSamples,
             ),
           ),
@@ -144,7 +144,7 @@ class VoiceLockHint extends StatelessWidget {
               Icon(
                 progress >= 1 ? Icons.lock_rounded : Icons.lock_open_rounded,
                 size: 16,
-                color: progress >= 1 ? KoraColors.purple : KoraColors.textMutedFor(brightness),
+                color: progress >= 1 ? KoraColors.waGreen : KoraColors.textMutedFor(brightness),
               ),
               Icon(
                 Icons.keyboard_arrow_up_rounded,

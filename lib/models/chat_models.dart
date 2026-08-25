@@ -45,6 +45,7 @@ class ChatPreview {
   final KoraBadgeType badge;
   final bool isMuted;
   final bool isPinned;
+  final bool isArchived;
   final bool isOnline;
   final bool isTyping;
 
@@ -56,6 +57,11 @@ class ChatPreview {
   /// Duration string ("0:09") for the last message, when
   /// [isVoiceLastMessage] is true.
   final String? lastVoiceDuration;
+
+  /// The other participant's account email, when known — used to wire
+  /// up calls and other email-addressed backend actions from a chat
+  /// opened via search.
+  final String? recipientEmail;
 
   const ChatPreview({
     required this.id,
@@ -70,10 +76,12 @@ class ChatPreview {
     this.badge = KoraBadgeType.none,
     this.isMuted = false,
     this.isPinned = false,
+    this.isArchived = false,
     this.isOnline = false,
     this.isTyping = false,
     this.isVoiceLastMessage = false,
     this.lastVoiceDuration,
+    this.recipientEmail,
   });
 }
 

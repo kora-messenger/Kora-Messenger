@@ -5,6 +5,7 @@ import '../../services/conversation_directory.dart';
 import '../../services/message_service.dart';
 import '../../services/chat_sync_service.dart';
 import '../../theme/kora_colors.dart';
+import '../../utils/kora_page_routes.dart';
 import '../../widgets/chat_list_item.dart';
 import '../../widgets/chat_peek_overlay.dart';
 import '../../widgets/kora_empty_state.dart';
@@ -127,18 +128,16 @@ class _ChatsTabState extends State<ChatsTab> {
   }
 
   void _openChat(ChatPreview chat) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => KoraChatScreen(
-          chatId: chat.id,
-          name: chat.name,
-          avatarAsset: chat.avatarAsset,
-          avatarUrl: chat.avatarUrl,
-          badge: chat.badge,
-          isOnline: chat.isOnline,
-          lastSeen: chat.isOnline ? null : 'last seen recently',
-          recipientEmail: chat.recipientEmail,
-        ),
+    pushSlideUp(
+      context,
+      KoraChatScreen(
+        chatId: chat.id,
+        name: chat.name,
+        avatarAsset: chat.avatarAsset,
+        avatarUrl: chat.avatarUrl,
+        badge: chat.badge,
+        isOnline: chat.isOnline,
+        lastSeen: chat.isOnline ? null : 'last seen recently',
       ),
     );
   }
@@ -633,35 +632,60 @@ class _ChatsTabState extends State<ChatsTab> {
     });
   }
 
-  void _readAll() {
+  Future<void> _readAll() async {
+    for (final c in _chats) {
+      if (c.unreadCount > 0) {
+        await MessageService.instance.markChatViewed(c.id);
+      }
+    }
+    _chats = await ChatService.instance.getChats();
+    if (!mounted) return;
+    setState(() {});
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('All messages marked as read'),
+        duration: const Duration(seconds: 1),
+        backgroundColor: KoraColors.purple,
+      ),
+    );
+  }
+
+  // ── Selection mode handlers ──
+
+  void _onRowTap(ChatPreview chat) {
+    if (_isSelecting) {
+      _toggleSelected(chat.id);
+    } else {
+      _openChat(chat);
+    }
+  }
+
+  void _onRowLongPress(ChatPreview chat) {
+    setState(() => _selectedIds.add(chat.id));
+  }
+
+  void _toggleSelected(String chatId) {
     setState(() {
-      _chats = _chats.map((c) {
-        // Can't mutate ChatPreview directly since it's immutable,
-        // but we mark unread as 0 visually — when we wire real data
-        // this will call the backend
-        return ChatPreview(
-          id: c.id,
-          name: c.name,
-          avatarAsset: c.avatarAsset,
-          avatarUrl: c.avatarUrl,
-          lastMessage: c.lastMessage,
-          timestamp: c.timestamp,
-          unreadCount: 0,
-          status: c.status,
-          badge: c.badge,
-          isMuted: c.isMuted,
-          isPinned: c.isPinned,
-          isOnline: c.isOnline,
-          isTyping: c.isTyping,
-        );
-      }).toList();
+      if (_selectedIds.contains(chatId)) {
+        _selectedIds.remove(chatId);
+      } else {
+        _selectedIds.add(chatId);
+      }
+    });
+  }
+
+  void _exitSelection() => setState(() => _selectedIds.clear());
+
+  void _selectAll() {
+    setState(() {
+      _selectedIds.addAll(_filteredChats.map((c) => c.id));
     });
     for (final c in _chats) {
       MessageService.instance.markChatViewed(c.id);
     }
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text('All messages marked as read'),
+        content: Text(message),
         duration: const Duration(seconds: 1),
         backgroundColor: KoraColors.purple,
       ),
@@ -732,6 +756,16 @@ class _ChatsTabState extends State<ChatsTab> {
             MaterialPageRoute(builder: (_) => const ProfileTab()),
           );
         },
+      ),
+    ]);
+  }
+
+  void _openSelectionMenu() {
+    KoraMenuSheet.show(context, [
+      KoraMenuOption(
+        icon: Icons.select_all,
+        label: 'Select all',
+        onTap: _selectAll,
       ),
     ]);
   }
@@ -979,6 +1013,7 @@ class _ChatsTabState extends State<ChatsTab> {
 
   Widget _buildHeader(BuildContext context, Color textPrimary, Color surface, Color textMuted, Color border) {
     return Padding(
+      key: const ValueKey('normal'),
       padding: const EdgeInsets.fromLTRB(20, 12, 12, 8),
       child: Row(
         children: [

@@ -216,6 +216,39 @@ class ChatListItem extends StatelessWidget {
     );
   }
 
+  /// The avatar, with a checkmark overlay badge when this row is
+  /// selected in multi-select mode (mirrors the WhatsApp selection UI).
+  Widget _buildAvatar(Brightness brightness) {
+    final card = KoraColors.cardFor(brightness);
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        KoraAvatar(
+          name: chat.name,
+          assetPath: chat.avatarAsset,
+          imageUrl: chat.avatarUrl,
+          size: 54,
+          showOnlineDot: chat.isOnline,
+        ),
+        if (selected)
+          Positioned(
+            bottom: -2,
+            right: -2,
+            child: Container(
+              width: 22,
+              height: 22,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: card, width: 2.5),
+                gradient: KoraColors.brandGradient,
+              ),
+              child: const Icon(Icons.check, size: 13, color: Colors.white),
+            ),
+          ),
+      ],
+    );
+  }
+
   Widget _buildStatusIcon(MessageStatus status) {
     switch (status) {
       case MessageStatus.pendingOffline:

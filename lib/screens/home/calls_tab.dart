@@ -553,7 +553,7 @@ class _CallsTabState extends State<CallsTab> {
             child: KoraNameWithBadge(
               name: log.contactName,
               badge: log.badge,
-              badgeSize: 16,
+              badgeSize: 13,
               style: TextStyle(
                 color: nameColor,
                 fontSize: 16,

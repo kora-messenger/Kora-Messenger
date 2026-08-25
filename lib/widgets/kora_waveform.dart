@@ -87,10 +87,15 @@ class _KoraWaveformState extends State<KoraWaveform>
           ? CustomPaint(
               painter: _KoraWaveformPainter(
                 barHeights: _buildHeightsFromAmplitudes(),
-                isLive: false,
-                progress: 0,
+                // isLive stays true only while actually recording live
+                // (no scrub progress yet). Once a real [progress] value
+                // is passed in (e.g. scrubbing a paused-recording
+                // preview), render it as a static played/unplayed bar
+                // set instead of the flat "recording" tint.
+                isLive: widget.isLive && widget.progress == 0,
+                progress: widget.progress,
                 playedColor: widget.playedColor,
-                unplayedColor: widget.playedColor?.withValues(alpha: 0.3),
+                unplayedColor: widget.unplayedColor ?? widget.playedColor?.withValues(alpha: 0.3),
                 gradientColors: widget.gradientColors,
                 barWidth: widget.barWidth,
                 barGap: widget.barGap,

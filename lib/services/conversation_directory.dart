@@ -83,6 +83,9 @@ class ConversationDirectoryService {
       'recipientEmail': recipientEmail ?? existing['recipientEmail'],
       'badge': badge.index,
       'isOnline': isOnline,
+      'isPinned': existing?['isPinned'] as bool? ?? false,
+      'isMuted': existing?['isMuted'] as bool? ?? false,
+      'isArchived': existing?['isArchived'] as bool? ?? false,
     };
     await _persist();
     _syncToCloud(chatId, _entries[chatId]!);

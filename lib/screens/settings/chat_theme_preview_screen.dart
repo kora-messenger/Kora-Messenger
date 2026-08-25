@@ -272,7 +272,7 @@ class _ChatThemePreviewScreenState extends State<ChatThemePreviewScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            Text(text, style: const TextStyle(color: Color(0xFF1A1A2E), fontSize: 14)),
+            Text(text, style: const TextStyle(color: Color(0xFF111B21), fontSize: 14)),
             const SizedBox(height: 2),
             const Text('6:12 AM', style: TextStyle(color: Color(0xFF9AA0A6), fontSize: 11)),
           ],
@@ -282,6 +282,9 @@ class _ChatThemePreviewScreenState extends State<ChatThemePreviewScreen> {
   }
 
   Widget _sentBubble() {
+    final isLight = _bubbleColor.computeLuminance() > 0.5;
+    final textColor = isLight ? const Color(0xFF111B21) : Colors.white;
+    final subColor = isLight ? const Color(0xFF667781) : Colors.white70;
     return Align(
       alignment: Alignment.centerRight,
       child: Container(
@@ -299,14 +302,14 @@ class _ChatThemePreviewScreenState extends State<ChatThemePreviewScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            Text(widget.descriptionText, style: const TextStyle(color: Colors.white, fontSize: 14)),
+            Text(widget.descriptionText, style: TextStyle(color: textColor, fontSize: 14)),
             const SizedBox(height: 2),
             Row(
               mainAxisSize: MainAxisSize.min,
-              children: const [
-                Text('6:12 AM', style: TextStyle(color: Colors.white70, fontSize: 11)),
-                SizedBox(width: 4),
-                Icon(Icons.done_all, size: 14, color: Colors.lightBlueAccent),
+              children: [
+                Text('6:12 AM', style: TextStyle(color: subColor, fontSize: 11)),
+                const SizedBox(width: 4),
+                Icon(Icons.done_all, size: 14, color: isLight ? const Color(0xFF53BDEB) : Colors.lightBlueAccent),
               ],
             ),
           ],

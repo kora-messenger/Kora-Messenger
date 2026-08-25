@@ -39,7 +39,7 @@ class QrCodeScreen extends StatefulWidget {
 class _QrCodeScreenState extends State<QrCodeScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
-  final MobileScannerController _scannerController = MobileScannerController();
+  final MobileScannerController _scannerController = MobileScannerController(autoStart: true);
   final GlobalKey _codeCardKey = GlobalKey();
   final ImagePicker _imagePicker = ImagePicker();
 
@@ -65,13 +65,31 @@ class _QrCodeScreenState extends State<QrCodeScreen>
   void _onTabChanged() {
     if (!_tabController.indexIsChanging && _tabController.index == 1) {
       _navigated = false;
-      _scannerController.start();
       _boostBrightness();
     } else if (_tabController.index == 0) {
-      _scannerController.stop();
+      _stopScanner();
       _restoreBrightness();
     }
     setState(() {});
+  }
+
+  Future<void> _startScanner() async {
+    // With autoStart: true, the MobileScanner widget handles starting
+    // automatically when it enters the tree. This method is kept for
+    // any manual restart needs but the widget lifecycle is the primary driver.
+    try {
+      await _scannerController.start();
+    } catch (_) {
+      // Ignore — widget lifecycle handles this.
+    }
+  }
+
+  Future<void> _stopScanner() async {
+    try {
+      await _scannerController.stop();
+    } catch (_) {
+      // Same guard — ignore if already stopped or disposing.
+    }
   }
 
   Future<void> _boostBrightness() async {

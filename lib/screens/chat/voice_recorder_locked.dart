@@ -24,6 +24,16 @@ class LockedRecorderBar extends StatelessWidget {
   final bool isPlayOnce;
   final VoidCallback? onTogglePlayOnce;
 
+  // -- Paused-recording preview playback --
+  final bool isPreviewPlaying;
+  final double previewProgress;
+  final int previewPositionMs;
+  final int previewDurationMs;
+  final double previewSpeed;
+  final VoidCallback? onTogglePreviewPlay;
+  final void Function(double fraction)? onSeekPreview;
+  final VoidCallback? onCyclePreviewSpeed;
+
   const LockedRecorderBar({
     super.key,
     required this.seconds,
@@ -37,12 +47,37 @@ class LockedRecorderBar extends StatelessWidget {
     this.isTranslating = false,
     this.isPlayOnce = false,
     this.onTogglePlayOnce,
+    this.isPreviewPlaying = false,
+    this.previewProgress = 0.0,
+    this.previewPositionMs = 0,
+    this.previewDurationMs = 0,
+    this.previewSpeed = 1.0,
+    this.onTogglePreviewPlay,
+    this.onSeekPreview,
+    this.onCyclePreviewSpeed,
   });
 
-  String get _durationString {
-    final m = (seconds ~/ 60).toString();
-    final s = (seconds % 60).toString().padLeft(2, '0');
+  String get _durationString => _fmt(seconds * 1000);
+
+  String _fmt(int ms) {
+    final totalSeconds = (ms / 1000).round();
+    final m = (totalSeconds ~/ 60).toString();
+    final s = (totalSeconds % 60).toString().padLeft(2, '0');
     return '$m:$s';
+  }
+
+  /// Total duration shown while paused — prefers the live-playback
+  /// engine's own duration reading once loaded, falls back to the
+  /// recorder's elapsed-seconds counter (fixed while paused).
+  String get _previewTotalString =>
+      previewDurationMs > 0 ? _fmt(previewDurationMs) : _durationString;
+
+  String get _previewElapsedString => _fmt(previewPositionMs);
+
+  String get _speedLabel {
+    if (previewSpeed == 1.5) return '1.5x';
+    if (previewSpeed == 2.0) return '2x';
+    return '1x';
   }
 
   @override

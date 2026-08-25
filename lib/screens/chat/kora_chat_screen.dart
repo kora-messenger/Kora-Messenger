@@ -389,7 +389,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
     String? transcript,
     String? translatedLanguageCode,
     String? translatedLanguageName,
-    bool isPlayOnce = false,
+    bool isViewOnce = false,
   }) async {
     await _messageService.sendVoiceMessage(
       widget.chatId,
@@ -398,7 +398,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
       transcript: transcript,
       translatedLanguageCode: translatedLanguageCode,
       translatedLanguageName: translatedLanguageName,
-      isPlayOnce: isPlayOnce,
+      isViewOnce: isViewOnce,
     );
     setState(() {
       _messages = List.from(_messageService.getMessages(widget.chatId));

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../theme/kora_colors.dart';
 import '../../services/audio_recording_service.dart';
+import '../../services/audio_playback_service.dart';
 import 'attachment_sheet.dart';
 import 'ai_writing_sheet.dart';
 import 'voice_recorder.dart';
@@ -68,6 +69,19 @@ class _MessageComposerState extends State<MessageComposer>
   final List<double> _waveformSamples = [];
   String? _filePath;
   bool _isPaused = false;
+  bool _isViewOnce = false;  // WhatsApp-style "view once" voice note toggle
+
+  // -- Paused-recording preview playback (WhatsApp-style) --
+  // Lets the user play back and scrub through what's been recorded
+  // so far while paused, before resuming or sending.
+  static const String _previewId = '__kora_recording_preview__';
+  final _previewPlayback = AudioPlaybackService.instance;
+  StreamSubscription<PlaybackState>? _previewSub;
+  bool _previewPlaying = false;
+  double _previewProgress = 0.0;
+  int _previewPositionMs = 0;
+  int _previewDurationMs = 0;
+  double _previewSpeed = 1.0;
 
   // ── Drag tracking ──
   double _dragDx = 0;
@@ -97,6 +111,21 @@ class _MessageComposerState extends State<MessageComposer>
       vsync: this,
       duration: const Duration(milliseconds: 1200),
     );
+
+    _previewSub = _previewPlayback.stateStream.listen((state) {
+      if (!mounted || state.playingId != _previewId) return;
+      setState(() {
+        _previewPlaying = state.isPlaying;
+        _previewProgress = state.progress;
+        _previewPositionMs = state.positionMs;
+        _previewDurationMs = state.durationMs;
+        _previewSpeed = state.speed;
+        if (state.isCompleted) {
+          _previewPlaying = false;
+          _previewProgress = 0.0;
+        }
+      });
+    });
   }
 
   @override
@@ -105,6 +134,8 @@ class _MessageComposerState extends State<MessageComposer>
     _focusNode.dispose();
     _timer?.cancel();
     _amplitudeSub?.cancel();
+    _previewSub?.cancel();
+    _previewPlayback.stopIfActive(_previewId);
     _pulseController.dispose();
     if (_recordingService.isRecording) {
       _recordingService.cancelRecording();
@@ -398,11 +429,52 @@ class _MessageComposerState extends State<MessageComposer>
 
   void _toggleLockedPause() async {
     if (_isPaused) {
+      // Resuming — stop any preview playback first so it doesn't
+      // keep playing over the live mic input.
+      await _stopPreview();
       await _recordingService.resumeRecording();
     } else {
       await _recordingService.pauseRecording();
     }
     if (mounted) setState(() => _isPaused = !_isPaused);
+  }
+
+  /// Play/pause a preview of what's been recorded so far. Only usable
+  /// while paused — the file on disk reflects everything captured
+  /// up to the pause point.
+  Future<void> _togglePreviewPlay() async {
+    if (!_isPaused || _filePath == null) return;
+    await _previewPlayback.toggle(_filePath!, messageId: _previewId);
+  }
+
+  /// Scrub to a fraction (0.0-1.0) of the recorded-so-far preview.
+  Future<void> _seekPreview(double fraction) async {
+    if (!_isPaused || _filePath == null) return;
+    if (_previewPlayback.currentSource != _filePath) {
+      // Load it first so seeking has something to act on.
+      await _previewPlayback.play(_filePath!, messageId: _previewId);
+      await _previewPlayback.pause();
+    }
+    await _previewPlayback.seekToFraction(fraction);
+  }
+
+  void _cyclePreviewSpeed() async {
+    final next = _previewSpeed >= 2.0
+        ? 1.0
+        : _previewSpeed >= 1.5
+            ? 2.0
+            : 1.5;
+    await _previewPlayback.setSpeed(next);
+  }
+
+  Future<void> _stopPreview() async {
+    _previewPlayback.stopIfActive(_previewId);
+    if (mounted) {
+      setState(() {
+        _previewPlaying = false;
+        _previewProgress = 0.0;
+      });
+    }
   }
 
   /// Deletes the current recording. Only asks for confirmation when
@@ -422,6 +494,7 @@ class _MessageComposerState extends State<MessageComposer>
 
     _timer?.cancel();
     _amplitudeSub?.cancel();
+    await _stopPreview();
     await VoiceNoteSttService.instance.stop();
     await _recordingService.cancelRecording();
     _clearTranslation();
@@ -482,6 +555,7 @@ class _MessageComposerState extends State<MessageComposer>
   void _sendLocked() async {
     _timer?.cancel();
     _amplitudeSub?.cancel();
+    await _stopPreview();
     final path = await _recordingService.stopRecording();
     final duration = _durationString;
     if (mounted) setState(() => _state = _ComposerState.idle);
@@ -550,6 +624,10 @@ class _MessageComposerState extends State<MessageComposer>
       _selectedTranslateCode = null;
       _selectedTranslateName = null;
     });
+  }
+
+  void _resetViewOnce() {
+    if (mounted) setState(() => _isViewOnce = false);
   }
 
   /// Translates a voice note: transcribes on-device, translates the text,
@@ -754,7 +832,14 @@ class _MessageComposerState extends State<MessageComposer>
               isTranslating: _isTranslating,
               isPlayOnce: _isPlayOnce,
               onTogglePlayOnce: _togglePlayOnce,
-            ),
+              isPreviewPlaying: _previewPlaying,
+              previewProgress: _previewProgress,
+              previewPositionMs: _previewPositionMs,
+              previewDurationMs: _previewDurationMs,
+              previewSpeed: _previewSpeed,
+              onTogglePreviewPlay: _togglePreviewPlay,
+              onSeekPreview: _seekPreview,
+              onCyclePreviewSpeed: _cyclePreviewSpeed,
           ),
         ),
       );
@@ -859,6 +944,44 @@ class _MessageComposerState extends State<MessageComposer>
                   ),
                 ),
               ],
+              // "View once" toggle -- shows only when the mic is visible
+              // (no text typed) and not currently recording. Matches
+              // WhatsApp's small "1" circle next to the mic button.
+              if (!_hasText && !isHolding) ...[
+                GestureDetector(
+                  onTap: () => setState(() => _isViewOnce = !_isViewOnce),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: _isViewOnce
+                            ? KoraColors.waGreen
+                            : textMuted.withValues(alpha: 0.4),
+                        width: 1.5,
+                      ),
+                      color: _isViewOnce
+                          ? KoraColors.waGreen.withValues(alpha: 0.12)
+                          : Colors.transparent,
+                    ),
+                    child: Center(
+                      child: Text(
+                        '1',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: _isViewOnce
+                              ? KoraColors.waGreen
+                              : textMuted.withValues(alpha: 0.6),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+              ],
               const SizedBox(width: 6),
               Stack(
                 clipBehavior: Clip.none,
@@ -885,30 +1008,20 @@ class _MessageComposerState extends State<MessageComposer>
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
                         curve: Curves.easeInOut,
-                        width: isHolding ? 50 : 46,
-                        height: isHolding ? 50 : 46,
-                        decoration: BoxDecoration(
-                          gradient: _hasText ? KoraColors.brandGradient : null,
-                          color: _hasText
-                              ? null
-                              : (isHolding
-                                  ? KoraColors.red.withValues(alpha: 0.15)
-                                  : null),
+                        width: isHolding ? 52 : 46,
+                        height: isHolding ? 52 : 46,
+                        decoration: const BoxDecoration(
+                          // WhatsApp-style solid green mic/send button —
+                          // same color whether idle, holding, or sending.
+                          color: KoraColors.waGreen,
                           shape: BoxShape.circle,
-                          border: (_hasText || isHolding)
-                              ? null
-                              : Border.all(
-                                  color: textMuted.withValues(alpha: 0.3),
-                                  width: 1),
                         ),
                         child: AnimatedSwitcher(
                           duration: const Duration(milliseconds: 200),
                           child: Icon(
-                            _hasText ? Icons.send : Icons.mic_rounded,
+                            _hasText ? Icons.send_rounded : Icons.mic_rounded,
                             key: ValueKey('$_hasText-$isHolding'),
-                            color: _hasText
-                                ? Colors.white
-                                : (isHolding ? KoraColors.red : textMuted),
+                            color: Colors.white,
                             size: isHolding ? 24 : 22,
                           ),
                         ),

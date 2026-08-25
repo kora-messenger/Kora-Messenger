@@ -22,6 +22,10 @@ import '../../services/audio_playback_service.dart';
 /// - Voice translation (Transcribe + Translate Voice)
 class VoiceMessageBubble extends StatefulWidget {
   final KoraMessage message;
+  /// Color for icons/text on sent voice bubbles. Defaults to white
+  /// (for dark sent bubbles like Kora purple). Pass dark gray when the
+  /// active theme has a light sent bubble (e.g. WhatsApp green).
+  final Color sentAccentColor;
   final VoidCallback? onTranslate;
   final VoidCallback? onCancelUpload;
   final Future<bool> Function()? onRetryUpload;
@@ -38,6 +42,7 @@ class VoiceMessageBubble extends StatefulWidget {
   const VoiceMessageBubble({
     super.key,
     required this.message,
+    this.sentAccentColor = Colors.white,
     this.onTranslate,
     this.onCancelUpload,
     this.onRetryUpload,
@@ -63,8 +68,12 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
   bool _manualRetryChecking = false;
   bool _isDownloading = false;
   bool _hasBeenPlayed = false;
+  bool _viewOnceConsumed = false;  // true after a view-once note has been played once
 
   bool get _isPremium => ChatThemeProvider.instance.isPremium;
+  Color get _sentAccent => widget.sentAccentColor;
+  Color get _sentSubdued => _sentAccent.withValues(alpha: 0.55);
+  Color get _sentFaint => _sentAccent.withValues(alpha: 0.15);
   bool get _isPendingOffline =>
       widget.message.status == MessageStatus.pendingOffline;
 
@@ -253,7 +262,7 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
         SnackBar(
           content: Row(
             children: const [
-              Icon(Icons.wifi_off_rounded, color: Colors.white, size: 18),
+              Icon(Icons.wifi_off_rounded, color: _sentAccent, size: 18),
               SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -292,7 +301,7 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
+                  color: _sentFaint,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -403,14 +412,41 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
           : _buildUploadingView(isMe, brightness);
     }
 
-    final iconColor = isMe ? Colors.white : KoraColors.purple;
-    final playedColor = isMe ? Colors.white : KoraColors.purple;
-    final unplayedColor = isMe
-        ? Colors.white.withValues(alpha: 0.25)
-        : KoraColors.purple.withValues(alpha: 0.2);
-    final durationColor = isMe ? Colors.white.withValues(alpha: 0.7) : textSecondary;
+    final textPrimary = KoraColors.textPrimaryFor(brightness);
 
-    // ── Download state (received, not yet on device) ──
+    // -- View-once consumed state: show faded "1" icon with "Played" label --
+    if (!isMe && widget.message.isViewOnce && _viewOnceConsumed) {
+      return GestureDetector(
+        onLongPress: () => _showContextMenu(context),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.visibility_off_outlined,
+                size: 20, color: textSecondary.withValues(alpha: 0.4)),
+            const SizedBox(width: 8),
+            Text(
+              'View once voice note played',
+              style: TextStyle(
+                color: textSecondary.withValues(alpha: 0.5),
+                fontSize: 13,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Neutral, WhatsApp-style grayscale palette for received notes;
+    // adapts to the sent bubble's text color for outgoing notes.
+    final iconColor = isMe ? _sentAccent : textPrimary;
+    final playedColor = isMe ? _sentAccent : textPrimary;
+    final unplayedColor = isMe
+        ? _sentAccent.withValues(alpha: 0.28)
+        : textSecondary.withValues(alpha: 0.35);
+    final durationColor = isMe ? _sentSubdued.withValues(alpha: 0.9) : textSecondary;
+
+    // -- Download state (received, not yet on device) --
     final showDownloadState = !isMe && !_isReadyLocally && _hasRemoteUrl;
     final showLoadingState = !isMe && _isDownloading;
 
@@ -480,14 +516,38 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Unplayed indicator for incoming notes
-              if (!isMe && !_hasBeenPlayed) ...[
+              // View-once "1" badge for incoming notes — replaces the
+              // unplayed dot when isViewOnce is set.
+              if (!isMe && widget.message.isViewOnce && !_viewOnceConsumed) ...[
+                Container(
+                  width: 18,
+                  height: 18,
+                  margin: const EdgeInsets.only(right: 6),
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: KoraColors.waGreen,
+                      width: 1.5,
+                    ),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Text(
+                      '1',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: KoraColors.waGreen,
+                      ),
+                    ),
+                  ),
+                ),
+              ] else if (!isMe && !_hasBeenPlayed && !widget.message.isViewOnce) ...[
                 Container(
                   width: 8,
                   height: 8,
                   margin: const EdgeInsets.only(right: 6),
                   decoration: const BoxDecoration(
-                    color: KoraColors.purple,
+                    color: KoraColors.waGreen,
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -500,7 +560,7 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
                     color: isMe
-                        ? Colors.white.withValues(alpha: 0.15)
+                        ? _sentFaint
                         : KoraColors.purple.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(14),
                   ),
@@ -552,6 +612,30 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
                 },
               ),
               const SizedBox(width: 8),
+              if (isMe && widget.message.isViewOnce) ...[
+                Container(
+                  width: 16,
+                  height: 16,
+                  margin: const EdgeInsets.only(right: 4),
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: _sentAccent.withValues(alpha: 0.6),
+                      width: 1.2,
+                    ),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Text(
+                      '1',
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                        color: _sentAccent.withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
               Text(
                 _isPlaying ? '$_elapsedString / $_totalDuration' : _totalDuration,
                 style: TextStyle(
@@ -602,39 +686,30 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
     );
   }
 
-  /// The main circular button — shows download arrow, loading spinner,
-  /// or play/pause depending on the state.
+  /// The main button — a plain icon with no filled circle backdrop,
+  /// matching WhatsApp's minimal voice-bubble look. Shows download
+  /// arrow, loading spinner, or play/pause depending on the state.
   Widget _buildMainButton(
       bool isMe, Color iconColor, bool showDownload, bool showLoading) {
     // Download state — show download arrow
     if (showDownload && !showLoading) {
       return GestureDetector(
         onTap: _handleDownload,
-        child: Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            gradient: isMe ? null : KoraColors.brandGradient,
-            color: isMe ? Colors.white.withValues(alpha: 0.15) : null,
-            shape: BoxShape.circle,
-          ),
-          child: Icon(Icons.download_rounded, color: iconColor, size: 20),
+        child: SizedBox(
+          width: 32,
+          height: 32,
+          child: Icon(Icons.download_rounded, color: iconColor, size: 24),
         ),
       );
     }
 
     // Loading / downloading state
     if (showLoading || _isLoading) {
-      return Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(
-          gradient: isMe ? null : KoraColors.brandGradient,
-          color: isMe ? Colors.white.withValues(alpha: 0.15) : null,
-          shape: BoxShape.circle,
-        ),
+      return SizedBox(
+        width: 32,
+        height: 32,
         child: Padding(
-          padding: const EdgeInsets.all(8),
+          padding: const EdgeInsets.all(7),
           child: CircularProgressIndicator(
             strokeWidth: 2,
             valueColor: AlwaysStoppedAnimation<Color>(iconColor),
@@ -643,21 +718,16 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
       );
     }
 
-    // Normal play/pause
+    // Normal play/pause — bare triangle/pause glyph, no background.
     return GestureDetector(
       onTap: _togglePlay,
-      child: Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(
-          gradient: isMe ? null : KoraColors.brandGradient,
-          color: isMe ? Colors.white.withValues(alpha: 0.15) : null,
-          shape: BoxShape.circle,
-        ),
+      child: SizedBox(
+        width: 32,
+        height: 32,
         child: Icon(
           _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
           color: iconColor,
-          size: 22,
+          size: 28,
         ),
       ),
     );
@@ -669,7 +739,7 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
     required String label,
     required VoidCallback onTap,
   }) {
-    final color = isMe ? Colors.white.withValues(alpha: 0.7) : KoraColors.purple;
+    final color = isMe ? _sentSubdued.withValues(alpha: 0.9) : KoraColors.purple;
     return GestureDetector(
       onTap: onTap,
       child: Row(
@@ -693,11 +763,11 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
   Widget _buildUploadingView(bool isMe, Brightness brightness) {
     final textMuted = KoraColors.textMutedFor(brightness);
     final iconColor =
-        isMe ? Colors.white.withValues(alpha: 0.85) : KoraColors.purple;
+        isMe ? _sentAccent.withValues(alpha: 0.85) : KoraColors.purple;
     final waveformColor = isMe
-        ? Colors.white.withValues(alpha: 0.18)
+        ? _sentFaint
         : KoraColors.purple.withValues(alpha: 0.15);
-    final sizeColor = isMe ? Colors.white.withValues(alpha: 0.5) : textMuted;
+    final sizeColor = isMe ? _sentSubdued.withValues(alpha: 0.8) : textMuted;
 
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -758,12 +828,12 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
   Widget _buildNotSentView(bool isMe, Brightness brightness) {
     final textMuted = KoraColors.textMutedFor(brightness);
     final iconColor =
-        isMe ? Colors.white.withValues(alpha: 0.85) : KoraColors.purple;
+        isMe ? _sentAccent.withValues(alpha: 0.85) : KoraColors.purple;
     final waveformColor = isMe
-        ? Colors.white.withValues(alpha: 0.18)
+        ? _sentFaint
         : KoraColors.purple.withValues(alpha: 0.15);
     final durationColor =
-        isMe ? Colors.white.withValues(alpha: 0.5) : textMuted;
+        isMe ? _sentSubdued.withValues(alpha: 0.8) : textMuted;
 
     return Row(
       mainAxisSize: MainAxisSize.min,

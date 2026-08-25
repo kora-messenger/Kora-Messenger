@@ -3,6 +3,7 @@ import '../models/chat_models.dart';
 import '../services/chat_service.dart';
 import '../services/conversation_directory.dart';
 import '../theme/kora_colors.dart';
+import '../utils/kora_page_routes.dart';
 import '../widgets/chat_list_item.dart';
 import '../widgets/kora_empty_state.dart';
 import 'chat/kora_chat_screen.dart';
@@ -39,17 +40,16 @@ class _ArchivedChatsScreenState extends State<ArchivedChatsScreen> {
   }
 
   void _openChat(ChatPreview chat) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => KoraChatScreen(
-          chatId: chat.id,
-          name: chat.name,
-          avatarAsset: chat.avatarAsset,
-          avatarUrl: chat.avatarUrl,
-          badge: chat.badge,
-          isOnline: chat.isOnline,
-          lastSeen: chat.isOnline ? null : 'last seen recently',
-        ),
+    pushSlideUp(
+      context,
+      KoraChatScreen(
+        chatId: chat.id,
+        name: chat.name,
+        avatarAsset: chat.avatarAsset,
+        avatarUrl: chat.avatarUrl,
+        badge: chat.badge,
+        isOnline: chat.isOnline,
+        lastSeen: chat.isOnline ? null : 'last seen recently',
       ),
     );
   }

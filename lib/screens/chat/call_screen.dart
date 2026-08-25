@@ -118,16 +118,18 @@ class _CallScreenState extends State<CallScreen> {
   void _setupRemoteRenderer(MediaStream stream) {
     _remoteRenderer = RTCVideoRenderer();
     _remoteRenderer!.initialize().then((_) {
-      _remoteRenderer!.srcObject = stream;
-      if (mounted) setState(() {});
+      if (!mounted) return;
+      _remoteRenderer?.srcObject = stream;
+      setState(() {});
     });
   }
 
   void _setupLocalRenderer(MediaStream stream) {
     _localRenderer = RTCVideoRenderer();
     _localRenderer!.initialize().then((_) {
-      _localRenderer!.srcObject = stream;
-      if (mounted) setState(() {});
+      if (!mounted) return;
+      _localRenderer?.srcObject = stream;
+      setState(() {});
     });
   }
 

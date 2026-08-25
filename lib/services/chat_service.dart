@@ -99,6 +99,7 @@ class ChatService {
     await _ensureBuiltinChatsRegistered();
 
     final ms = MessageService.instance;
+    final directory = await ConversationDirectoryService.instance.getAll();
     final chats = <ChatPreview>[];
     final directory = await ConversationDirectoryService.instance.getAll();
 
@@ -158,11 +159,6 @@ class ChatService {
         lastVoiceDuration: last?.voiceDuration,
       ));
     }
-
-    chats.sort((a, b) {
-      if (a.isPinned != b.isPinned) return a.isPinned ? -1 : 1;
-      return b.timestamp.compareTo(a.timestamp);
-    });
 
     return chats;
   }
