@@ -45,7 +45,6 @@ class _LoginVerificationScreenState extends State<LoginVerificationScreen>
   String? _errorMessage;
   bool _isVerifying = false;
   bool _isResending = false;
-  bool _recognizeDevice = true;
   bool _verifyTriggered = false;
   String _initialClipboard = '';
 
@@ -204,7 +203,7 @@ class _LoginVerificationScreenState extends State<LoginVerificationScreen>
       final result = await _auth.verifyLogin(
         email: widget.email,
         code: _enteredCode,
-        recognizeDevice: _recognizeDevice,
+        recognizeDevice: true, // Always save device — persistent ID handles recognition
       );
 
       if (!mounted) return;
@@ -435,7 +434,6 @@ class _LoginVerificationScreenState extends State<LoginVerificationScreen>
 
               const SizedBox(height: 12),
 
-              _buildRecognizeToggle(),
               const SizedBox(height: 24),
 
               _buildResendSection(),
@@ -514,32 +512,7 @@ class _LoginVerificationScreenState extends State<LoginVerificationScreen>
     );
   }
 
-  Widget _buildRecognizeToggle() {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: KoraColors.darkCard,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.verified_user_outlined, color: Color(0xFF6B6B80), size: 20),
-          const SizedBox(width: 12),
-          const Expanded(
-            child: Text(
-              'Recognize this device next time',
-              style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500),
-            ),
-          ),
-          Switch(
-            value: _recognizeDevice,
-            onChanged: (value) => setState(() => _recognizeDevice = value),
-            activeThumbColor: KoraColors.purple,
-          ),
-        ],
-      ),
-    );
-  }
+
 
   Widget _buildResendSection() {
     return Row(
