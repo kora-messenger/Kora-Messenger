@@ -21,7 +21,7 @@ class ContactsService {
 
   /// Returns a unified, de-duplicated contact list.
   ///
-  /// Each entry is a `Map<String, Object>` with keys:
+  /// Each entry is a `Map<String, Object?>` with keys:
   /// - `name` (String)
   /// - `koraId` (String — may be empty)
   /// - `username` (String — may be empty, includes leading @)
@@ -30,12 +30,12 @@ class ContactsService {
   /// - `avatarUrl` (String? — remote avatar URL)
   /// - `premium` (bool)
   /// - `recent` (bool — true if the user has chatted with them)
-  Future<List<Map<String, Object>>> getContacts() async {
+  Future<List<Map<String, Object?>>> getContacts() async {
     final prefs = await SharedPreferences.getInstance();
     final savedRaw = prefs.getStringList(_kContactsKey) ?? [];
 
     // 1. Parse saved contacts
-    final savedContacts = <Map<String, Object>>[];
+    final savedContacts = <Map<String, Object?>>[];
     for (final json in savedRaw) {
       try {
         final map = jsonDecode(json) as Map<String, dynamic>;
@@ -56,7 +56,7 @@ class ContactsService {
 
     // 2. Parse conversation directory (people the user has chatted with)
     final directory = await ConversationDirectoryService.instance.getAll();
-    final chatContacts = <Map<String, Object>>[];
+    final chatContacts = <Map<String, Object?>>[];
     for (final entry in directory.entries) {
       final chatId = entry.key;
       final meta = entry.value;
@@ -85,7 +85,7 @@ class ContactsService {
     // 3. Merge and de-duplicate
     // Key: koraId if non-empty, otherwise email, otherwise name
     final seen = <String>{};
-    final merged = <Map<String, Object>>[];
+    final merged = <Map<String, Object?>>[];
 
     // Add chat contacts first (they're "recent")
     for (final c in chatContacts) {
@@ -110,8 +110,8 @@ class ContactsService {
           (m) => _dedupeKey(m) == key,
           orElse: () => c,
         );
-        if ((existing['username'] as String?) ?? '' == '' &&
-            (c['username'] as String?) ?? '' != '') {
+        if (((existing['username'] as String?) ?? '') == '' &&
+            ((c['username'] as String?) ?? '') != '') {
           existing['username'] = c['username']!;
         }
         if (existing['email'] == null && c['email'] != null) {
@@ -127,7 +127,7 @@ class ContactsService {
   }
 
   /// Returns only contacts the user has recently chatted with.
-  Future<List<Map<String, Object>>> getRecentContacts() async {
+  Future<List<Map<String, Object?>>> getRecentContacts() async {
     final all = await getContacts();
     return all.where((c) => c['recent'] == true).toList();
   }
@@ -135,7 +135,7 @@ class ContactsService {
   /// Finds a contact by QR payload — tries local contacts first.
   ///
   /// QR format: `kora://contact/<koraId>` or `kora://contact/<username>`
-  Future<Map<String, Object>?> findByQrData(String data) async {
+  Future<Map<String, Object?>?> findByQrData(String data) async {
     if (!data.startsWith('kora://contact/')) return null;
     final identifier = data.substring('kora://contact/'.length).toLowerCase();
 
@@ -154,7 +154,7 @@ class ContactsService {
     return null;
   }
 
-  String _dedupeKey(Map<String, Object> c) {
+  String _dedupeKey(Map<String, Object?> c) {
     final koraId = (c['koraId'] as String?) ?? '';
     if (koraId.isNotEmpty) return 'kid:$koraId';
     final email = (c['email'] as String?) ?? '';

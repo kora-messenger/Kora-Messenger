@@ -261,7 +261,7 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
-            children: const [
+            children: [
               Icon(Icons.wifi_off_rounded, color: _sentAccent, size: 18),
               SizedBox(width: 8),
               Expanded(
@@ -415,7 +415,7 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
     final textPrimary = KoraColors.textPrimaryFor(brightness);
 
     // -- View-once consumed state: show faded "1" icon with "Played" label --
-    if (!isMe && widget.message.isViewOnce && _viewOnceConsumed) {
+    if (!isMe && widget.message.isPlayOnce && _viewOnceConsumed) {
       return GestureDetector(
         onLongPress: () => _showContextMenu(context),
         child: Row(
@@ -517,8 +517,8 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
             mainAxisSize: MainAxisSize.min,
             children: [
               // View-once "1" badge for incoming notes — replaces the
-              // unplayed dot when isViewOnce is set.
-              if (!isMe && widget.message.isViewOnce && !_viewOnceConsumed) ...[
+              // unplayed dot when isPlayOnce is set.
+              if (!isMe && widget.message.isPlayOnce && !_viewOnceConsumed) ...[
                 Container(
                   width: 18,
                   height: 18,
@@ -541,7 +541,7 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
                     ),
                   ),
                 ),
-              ] else if (!isMe && !_hasBeenPlayed && !widget.message.isViewOnce) ...[
+              ] else if (!isMe && !_hasBeenPlayed && !widget.message.isPlayOnce) ...[
                 Container(
                   width: 8,
                   height: 8,
@@ -612,7 +612,7 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
                 },
               ),
               const SizedBox(width: 8),
-              if (isMe && widget.message.isViewOnce) ...[
+              if (isMe && widget.message.isPlayOnce) ...[
                 Container(
                   width: 16,
                   height: 16,

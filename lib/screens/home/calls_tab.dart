@@ -11,6 +11,7 @@ import '../../widgets/kora_badge.dart';
 import '../../widgets/kora_empty_state.dart';
 import '../../widgets/kora_menu_sheet.dart';
 import '../chat/call_screen.dart';
+import "../../services/session_manager.dart";
 import '../contacts/select_contact_screen.dart';
 
 /// "Calls" tab — call history plus a "Start a call" quick-dial section,
@@ -147,8 +148,6 @@ class _CallsTabState extends State<CallsTab> {
           isVideoCall: isVideo,
           isOutgoing: true,
           badge: contact['premium'] == true ? KoraBadgeType.premiumBlue : KoraBadgeType.none,
-          callerEmail: myEmail,
-          calleeEmail: contactEmail,
         ),
       ),
     );

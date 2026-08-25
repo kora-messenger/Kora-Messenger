@@ -230,7 +230,7 @@ class ChatListItem extends StatelessWidget {
           size: 54,
           showOnlineDot: chat.isOnline,
         ),
-        if (selected)
+        if (isSelected)
           Positioned(
             bottom: -2,
             right: -2,

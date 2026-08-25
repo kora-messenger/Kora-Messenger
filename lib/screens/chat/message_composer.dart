@@ -840,6 +840,7 @@ class _MessageComposerState extends State<MessageComposer>
               onTogglePreviewPlay: _togglePreviewPlay,
               onSeekPreview: _seekPreview,
               onCyclePreviewSpeed: _cyclePreviewSpeed,
+            ),
           ),
         ),
       );

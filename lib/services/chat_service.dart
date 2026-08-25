@@ -101,7 +101,6 @@ class ChatService {
     final ms = MessageService.instance;
     final directory = await ConversationDirectoryService.instance.getAll();
     final chats = <ChatPreview>[];
-    final directory = await ConversationDirectoryService.instance.getAll();
 
     for (final entry in directory.entries) {
       final chatId = entry.key;

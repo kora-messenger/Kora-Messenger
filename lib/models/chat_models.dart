@@ -61,7 +61,6 @@ class ChatPreview {
   /// The other participant's account email, when known — used to wire
   /// up calls and other email-addressed backend actions from a chat
   /// opened via search.
-  final String? recipientEmail;
 
   const ChatPreview({
     required this.id,
@@ -81,7 +80,6 @@ class ChatPreview {
     this.isTyping = false,
     this.isVoiceLastMessage = false,
     this.lastVoiceDuration,
-    this.recipientEmail,
   });
 }
 

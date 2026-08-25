@@ -685,7 +685,7 @@ class _ChatsTabState extends State<ChatsTab> {
     }
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
+        content: const Text("Marked all as read"),
         duration: const Duration(seconds: 1),
         backgroundColor: KoraColors.purple,
       ),
