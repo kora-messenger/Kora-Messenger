@@ -10,7 +10,7 @@ import 'kora_home_screen.dart';
 /// Group screen. Lets the user name the group, add a group photo,
 /// review/add/remove members, and create the group.
 class NewGroupDetailsScreen extends StatefulWidget {
-  final List<Map<String, Object>> members;
+  final List<Map<String, Object?>> members;
 
   const NewGroupDetailsScreen({super.key, required this.members});
 
@@ -23,13 +23,13 @@ class _NewGroupDetailsScreenState extends State<NewGroupDetailsScreen> {
   final _picker = ImagePicker();
 
   File? _groupPhoto;
-  late List<Map<String, Object>> _members;
+  late List<Map<String, Object?>> _members;
   bool _creating = false;
 
   @override
   void initState() {
     super.initState();
-    _members = List<Map<String, Object>>.from(widget.members);
+    _members = List<Map<String, Object?>>.from(widget.members);
   }
 
   @override
@@ -634,7 +634,7 @@ class _NewGroupDetailsScreenState extends State<NewGroupDetailsScreen> {
     );
   }
 
-  Widget _buildMemberTile(BuildContext context, Map<String, Object> member, Color textPrimary) {
+  Widget _buildMemberTile(BuildContext context, Map<String, Object?> member, Color textPrimary) {
     final koraId = member['koraId'] as String;
     final name = member['name'] as String;
     final isPremium = member['premium'] == true;

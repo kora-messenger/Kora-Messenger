@@ -99,7 +99,7 @@ class _CallsTabState extends State<CallsTab> {
     return _logs.where((l) => l.contactName.toLowerCase().contains(q)).toList();
   }
 
-  List<Map<String, Object>> _startCallContacts = [];
+  List<Map<String, Object?>> _startCallContacts = [];
   bool _contactsLoaded = false;
 
   Future<void> _loadContacts() async {
@@ -112,7 +112,7 @@ class _CallsTabState extends State<CallsTab> {
     }
   }
 
-  List<Map<String, Object>> get _filteredStartCallContacts {
+  List<Map<String, Object?>> get _filteredStartCallContacts {
     if (_query.isEmpty) return _startCallContacts;
     final q = _query.toLowerCase();
     return _startCallContacts.where((c) {
@@ -125,7 +125,7 @@ class _CallsTabState extends State<CallsTab> {
 
   // ── Actions ──────────────────────────────────────────────────
 
-  void _openCallWithContact(Map<String, Object> contact, {required bool isVideo}) async {
+  void _openCallWithContact(Map<String, Object?> contact, {required bool isVideo}) async {
     final session = await SessionManager.instance.loadSession();
     final myEmail = session?['email'] as String? ?? '';
     if (!mounted) return;
@@ -620,7 +620,7 @@ class _CallsTabState extends State<CallsTab> {
 
   // ── Start-a-call contact tile ────────────────────────────────
 
-  Widget _startCallTile(Map<String, Object> contact, Color textPrimary, Color textSecondary, Color border) {
+  Widget _startCallTile(Map<String, Object?> contact, Color textPrimary, Color textSecondary, Color border) {
     final name = contact['name'] as String;
     final isPremium = contact['premium'] == true;
     final avatarUrl = contact['avatarUrl'] as String?;

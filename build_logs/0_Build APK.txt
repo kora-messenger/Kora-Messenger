@@ -1,0 +1,466 @@
+﻿2026-08-25T16:14:37.2236016Z Current runner version: '2.336.0'
+2026-08-25T16:14:37.2261331Z ##[group]Runner Image Provisioner
+2026-08-25T16:14:37.2262293Z Hosted Compute Agent
+2026-08-25T16:14:37.2262967Z Version: 20260729.566
+2026-08-25T16:14:37.2263639Z Commit: cf7153fe6e25b664e8693c24944bf2b00355d109
+2026-08-25T16:14:37.2264391Z Build Date: 2026-07-29T19:17:02Z
+2026-08-25T16:14:37.2265144Z Worker ID: {57e62bc1-662f-4e47-9194-504932fdff61}
+2026-08-25T16:14:37.2265976Z Azure Region: westcentralus
+2026-08-25T16:14:37.2266616Z ##[endgroup]
+2026-08-25T16:14:37.2268578Z ##[group]Operating System
+2026-08-25T16:14:37.2269232Z Ubuntu
+2026-08-25T16:14:37.2269858Z 24.04.4
+2026-08-25T16:14:37.2270412Z LTS
+2026-08-25T16:14:37.2270918Z ##[endgroup]
+2026-08-25T16:14:37.2271589Z ##[group]Runner Image
+2026-08-25T16:14:37.2272255Z Image: ubuntu-24.04
+2026-08-25T16:14:37.2272870Z Version: 20260816.277.1
+2026-08-25T16:14:37.2274149Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260816.277/images/ubuntu/Ubuntu2404-Readme.md
+2026-08-25T16:14:37.2275763Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260816.277
+2026-08-25T16:14:37.2276750Z ##[endgroup]
+2026-08-25T16:14:37.2278345Z ##[group]GITHUB_TOKEN Permissions
+2026-08-25T16:14:37.2280334Z Contents: read
+2026-08-25T16:14:37.2281440Z Metadata: read
+2026-08-25T16:14:37.2282052Z Packages: read
+2026-08-25T16:14:37.2282601Z ##[endgroup]
+2026-08-25T16:14:37.2284877Z Secret source: Actions
+2026-08-25T16:14:37.2285948Z Prepare workflow directory
+2026-08-25T16:14:37.2690224Z Prepare all required actions
+2026-08-25T16:14:37.2738528Z Getting action download info
+2026-08-25T16:14:37.5910508Z Download action repository 'actions/checkout@v5' (SHA:fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09)
+2026-08-25T16:14:37.7698467Z Download action repository 'actions/setup-java@v5' (SHA:b6effb05e454b25005698d916606bdc6ffcbf961)
+2026-08-25T16:14:38.5752726Z Download action repository 'subosito/flutter-action@v2' (SHA:1a449444c387b1966244ae4d4f8c696479add0b2)
+2026-08-25T16:14:38.9275749Z Download action repository 'actions/upload-artifact@v7' (SHA:043fb46d1a93c77aae656e7c1c64a875d1fc6a0a)
+2026-08-25T16:14:39.1482838Z Getting action download info
+2026-08-25T16:14:39.2704609Z Download action repository 'actions/cache@v5' (SHA:caa296126883cff596d87d8935842f9db880ef25)
+2026-08-25T16:14:39.4496257Z Complete job name: Build APK
+2026-08-25T16:14:39.5350796Z ##[group]Run actions/checkout@v5
+2026-08-25T16:14:39.5352146Z with:
+2026-08-25T16:14:39.5353050Z   repository: kora-messenger/Kora-Messenger
+2026-08-25T16:14:39.5361983Z   token: ***
+2026-08-25T16:14:39.5362839Z   ssh-strict: true
+2026-08-25T16:14:39.5363685Z   ssh-user: git
+2026-08-25T16:14:39.5364554Z   persist-credentials: true
+2026-08-25T16:14:39.5365502Z   clean: true
+2026-08-25T16:14:39.5366379Z   sparse-checkout-cone-mode: true
+2026-08-25T16:14:39.5367557Z   fetch-depth: 1
+2026-08-25T16:14:39.5368417Z   fetch-tags: false
+2026-08-25T16:14:39.5369277Z   show-progress: true
+2026-08-25T16:14:39.5370147Z   lfs: false
+2026-08-25T16:14:39.5371022Z   submodules: false
+2026-08-25T16:14:39.5371915Z   set-safe-directory: true
+2026-08-25T16:14:39.5372926Z   allow-unsafe-pr-checkout: false
+2026-08-25T16:14:39.5374298Z ##[endgroup]
+2026-08-25T16:14:39.6436068Z Syncing repository: kora-messenger/Kora-Messenger
+2026-08-25T16:14:39.6440416Z ##[group]Getting Git version info
+2026-08-25T16:14:39.6442715Z Working directory is '/home/runner/work/Kora-Messenger/Kora-Messenger'
+2026-08-25T16:14:39.6446156Z [command]/usr/bin/git version
+2026-08-25T16:14:39.6531258Z git version 2.55.0
+2026-08-25T16:14:39.6553167Z ##[endgroup]
+2026-08-25T16:14:39.6568599Z Temporarily overriding HOME='/home/runner/work/_temp/05a24276-b0e6-4138-b1e2-d0ba7c6085c2' before making global git config changes
+2026-08-25T16:14:39.6573269Z Adding repository directory to the temporary git global config as a safe directory
+2026-08-25T16:14:39.6577371Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/Kora-Messenger/Kora-Messenger
+2026-08-25T16:14:39.6624081Z Deleting the contents of '/home/runner/work/Kora-Messenger/Kora-Messenger'
+2026-08-25T16:14:39.6628231Z ##[group]Initializing the repository
+2026-08-25T16:14:39.6632598Z [command]/usr/bin/git init /home/runner/work/Kora-Messenger/Kora-Messenger
+2026-08-25T16:14:39.6768792Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-08-25T16:14:39.6772092Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-08-25T16:14:39.6775235Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-08-25T16:14:39.6777957Z hint: call:
+2026-08-25T16:14:39.6779217Z hint:
+2026-08-25T16:14:39.6780703Z hint: 	git config --global init.defaultBranch <name>
+2026-08-25T16:14:39.6782566Z hint:
+2026-08-25T16:14:39.6784301Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-08-25T16:14:39.6787361Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-08-25T16:14:39.6789889Z hint:
+2026-08-25T16:14:39.6791159Z hint: 	git branch -m <name>
+2026-08-25T16:14:39.6792584Z hint:
+2026-08-25T16:14:39.6794656Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-08-25T16:14:39.6809117Z Initialized empty Git repository in /home/runner/work/Kora-Messenger/Kora-Messenger/.git/
+2026-08-25T16:14:39.6812562Z [command]/usr/bin/git remote add origin https://github.com/kora-messenger/Kora-Messenger
+2026-08-25T16:14:39.6876524Z ##[endgroup]
+2026-08-25T16:14:39.6879609Z ##[group]Disabling automatic garbage collection
+2026-08-25T16:14:39.6882103Z [command]/usr/bin/git config --local gc.auto 0
+2026-08-25T16:14:39.6921562Z ##[endgroup]
+2026-08-25T16:14:39.6923894Z ##[group]Setting up auth
+2026-08-25T16:14:39.6926223Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-08-25T16:14:39.6959156Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-08-25T16:14:39.7372107Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-08-25T16:14:39.7409778Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-08-25T16:14:39.7632784Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-08-25T16:14:39.7673794Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-08-25T16:14:39.7899256Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-08-25T16:14:39.7938247Z ##[endgroup]
+2026-08-25T16:14:39.7939796Z ##[group]Fetching the repository
+2026-08-25T16:14:39.7949142Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +82e622a93432cb546654b3a91297ae33ad742905:refs/remotes/origin/main
+2026-08-25T16:14:42.2546526Z From https://github.com/kora-messenger/Kora-Messenger
+2026-08-25T16:14:42.2547892Z  * [new ref]         82e622a93432cb546654b3a91297ae33ad742905 -> origin/main
+2026-08-25T16:14:42.2563156Z ##[endgroup]
+2026-08-25T16:14:42.2564478Z ##[group]Determining the checkout info
+2026-08-25T16:14:42.2565404Z ##[endgroup]
+2026-08-25T16:14:42.2565935Z [command]/usr/bin/git sparse-checkout disable
+2026-08-25T16:14:42.2619991Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-08-25T16:14:42.2666629Z ##[group]Checking out the ref
+2026-08-25T16:14:42.2669463Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2026-08-25T16:14:42.2993972Z Switched to a new branch 'main'
+2026-08-25T16:14:42.2999761Z branch 'main' set up to track 'origin/main'.
+2026-08-25T16:14:42.3018549Z ##[endgroup]
+2026-08-25T16:14:42.3056170Z [command]/usr/bin/git log -1 --format=%H
+2026-08-25T16:14:42.3085089Z 82e622a93432cb546654b3a91297ae33ad742905
+2026-08-25T16:14:42.3400591Z ##[group]Run actions/setup-java@v5
+2026-08-25T16:14:42.3400915Z with:
+2026-08-25T16:14:42.3401117Z   distribution: zulu
+2026-08-25T16:14:42.3401337Z   java-version: 17
+2026-08-25T16:14:42.3401542Z   java-package: jdk
+2026-08-25T16:14:42.3401756Z   check-latest: false
+2026-08-25T16:14:42.3401966Z   set-default: true
+2026-08-25T16:14:42.3402173Z   verify-signature: false
+2026-08-25T16:14:42.3402395Z   server-id: github
+2026-08-25T16:14:42.3402604Z   server-username: GITHUB_ACTOR
+2026-08-25T16:14:42.3402853Z   server-password: GITHUB_TOKEN
+2026-08-25T16:14:42.3403105Z   overwrite-settings: true
+2026-08-25T16:14:42.3403330Z   job-status: success
+2026-08-25T16:14:42.3405642Z   token: ***
+2026-08-25T16:14:42.3405865Z   show-download-progress: false
+2026-08-25T16:14:42.3406138Z ##[endgroup]
+2026-08-25T16:14:42.4873584Z ##[group]Installed distributions
+2026-08-25T16:14:42.4902559Z Trying to resolve the latest version from remote
+2026-08-25T16:14:43.0131851Z Resolved latest version as 17.0.20+8
+2026-08-25T16:14:43.0132262Z Trying to download...
+2026-08-25T16:14:43.0134184Z Downloading Java 17.0.20+8 (Zulu) from https://cdn.azul.com/zulu/bin/zulu17.68.17-ca-jdk17.0.20-linux_x64.tar.gz ...
+2026-08-25T16:14:48.5814516Z Extracting Java archive...
+2026-08-25T16:14:48.5947005Z [command]/usr/bin/tar xz --warning=no-unknown-keyword --overwrite -C /home/runner/work/_temp/6c028c5a-2a33-4a21-a7d6-ac87aacbb8c7 -f /home/runner/work/_temp/7f57814f-43d5-455a-9f8a-3e630353ebe5
+2026-08-25T16:14:51.1733465Z Java 17.0.20+8 was downloaded
+2026-08-25T16:14:51.1750445Z Setting Java 17.0.20+8 as the default
+2026-08-25T16:14:51.1751087Z Creating toolchains.xml for JDK version 17 from zulu
+2026-08-25T16:14:51.1820122Z Writing to /home/runner/.m2/toolchains.xml
+2026-08-25T16:14:51.1820783Z 
+2026-08-25T16:14:51.1821160Z Java configuration:
+2026-08-25T16:14:51.1821591Z   Distribution: zulu
+2026-08-25T16:14:51.1825150Z   Version: 17.0.20+8
+2026-08-25T16:14:51.1825705Z   Path: /opt/hostedtoolcache/Java_Zulu_jdk/17.0.20-8/x64
+2026-08-25T16:14:51.1826119Z 
+2026-08-25T16:14:51.1826739Z ##[endgroup]
+2026-08-25T16:14:51.1856988Z Creating settings.xml with server-id: github
+2026-08-25T16:14:51.1857719Z Writing to /home/runner/.m2/settings.xml
+2026-08-25T16:14:51.1858502Z Configured MAVEN_ARGS to include -ntp to suppress Maven transfer progress logs. Set 'show-download-progress: true' to keep the download progress output.
+2026-08-25T16:14:51.2116606Z ##[group]Run subosito/flutter-action@v2
+2026-08-25T16:14:51.2116910Z with:
+2026-08-25T16:14:51.2117443Z   channel: stable
+2026-08-25T16:14:51.2117678Z   architecture: X64
+2026-08-25T16:14:51.2117893Z   cache: false
+2026-08-25T16:14:51.2118103Z   pub-cache-path: default
+2026-08-25T16:14:51.2118333Z   dry-run: false
+2026-08-25T16:14:51.2118594Z   git-source: https://github.com/flutter/flutter.git
+2026-08-25T16:14:51.2118895Z env:
+2026-08-25T16:14:51.2119144Z   JAVA_HOME: /opt/hostedtoolcache/Java_Zulu_jdk/17.0.20-8/x64
+2026-08-25T16:14:51.2119558Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Zulu_jdk/17.0.20-8/x64
+2026-08-25T16:14:51.2119899Z   MAVEN_ARGS: -ntp
+2026-08-25T16:14:51.2120096Z ##[endgroup]
+2026-08-25T16:14:51.2179749Z ##[start-action display=Make yq tool available on Windows runners;id=__subosito_flutter-action.__run]
+2026-08-25T16:14:51.2190956Z ##[end-action id=__subosito_flutter-action.__run;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-08-25T16:14:51.2193026Z ##[start-action display=Make setup script executable;id=__subosito_flutter-action.__run_2]
+2026-08-25T16:14:51.2225601Z ##[group]Run chmod +x "$GITHUB_ACTION_PATH/setup.sh"
+2026-08-25T16:14:51.2225999Z [36;1mchmod +x "$GITHUB_ACTION_PATH/setup.sh"[0m
+2026-08-25T16:14:51.2269064Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-08-25T16:14:51.2269404Z env:
+2026-08-25T16:14:51.2269677Z   JAVA_HOME: /opt/hostedtoolcache/Java_Zulu_jdk/17.0.20-8/x64
+2026-08-25T16:14:51.2270083Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Zulu_jdk/17.0.20-8/x64
+2026-08-25T16:14:51.2270638Z   MAVEN_ARGS: -ntp
+2026-08-25T16:14:51.2270838Z ##[endgroup]
+2026-08-25T16:14:51.2375316Z ##[end-action id=__subosito_flutter-action.__run_2;outcome=success;conclusion=success;duration_ms=18]
+2026-08-25T16:14:51.2378020Z ##[start-action display=Set action inputs;id=__subosito_flutter-action.flutter-action]
+2026-08-25T16:14:51.2412795Z ##[group]Run $GITHUB_ACTION_PATH/setup.sh -p \
+2026-08-25T16:14:51.2413174Z [36;1m$GITHUB_ACTION_PATH/setup.sh -p \[0m
+2026-08-25T16:14:51.2413476Z [36;1m  -n '' \[0m
+2026-08-25T16:14:51.2413687Z [36;1m  -f '' \[0m
+2026-08-25T16:14:51.2413883Z [36;1m  -a 'X64' \[0m
+2026-08-25T16:14:51.2414091Z [36;1m  -k '' \[0m
+2026-08-25T16:14:51.2414277Z [36;1m  -c '' \[0m
+2026-08-25T16:14:51.2414460Z [36;1m  -l '' \[0m
+2026-08-25T16:14:51.2414652Z [36;1m  -d 'default' \[0m
+2026-08-25T16:14:51.2414967Z [36;1m  -g 'https://github.com/flutter/flutter.git' \[0m
+2026-08-25T16:14:51.2415292Z [36;1m  stable[0m
+2026-08-25T16:14:51.2450365Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-08-25T16:14:51.2450782Z env:
+2026-08-25T16:14:51.2451046Z   JAVA_HOME: /opt/hostedtoolcache/Java_Zulu_jdk/17.0.20-8/x64
+2026-08-25T16:14:51.2451455Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Zulu_jdk/17.0.20-8/x64
+2026-08-25T16:14:51.2451795Z   MAVEN_ARGS: -ntp
+2026-08-25T16:14:51.2451991Z ##[endgroup]
+2026-08-25T16:14:51.7628243Z ##[end-action id=__subosito_flutter-action.flutter-action;outcome=success;conclusion=success;duration_ms=524]
+2026-08-25T16:14:51.7633360Z ##[start-action display=Cache Flutter;id=__subosito_flutter-action.cache-flutter]
+2026-08-25T16:14:51.7638362Z ##[end-action id=__subosito_flutter-action.cache-flutter;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-08-25T16:14:51.7640345Z ##[start-action display=Cache pub dependencies;id=__subosito_flutter-action.cache-pub]
+2026-08-25T16:14:51.7646144Z ##[end-action id=__subosito_flutter-action.cache-pub;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-08-25T16:14:51.7648387Z ##[start-action display=Run setup script;id=__subosito_flutter-action.__run_3]
+2026-08-25T16:14:51.7678585Z ##[group]Run $GITHUB_ACTION_PATH/setup.sh \
+2026-08-25T16:14:51.7678916Z [36;1m$GITHUB_ACTION_PATH/setup.sh \[0m
+2026-08-25T16:14:51.7679191Z [36;1m  -n '3.47.1' \[0m
+2026-08-25T16:14:51.7679415Z [36;1m  -a 'x64' \[0m
+2026-08-25T16:14:51.7679719Z [36;1m  -c '/opt/hostedtoolcache/flutter/stable-3.47.1-x64' \[0m
+2026-08-25T16:14:51.7680294Z [36;1m  -d '/home/runner/.pub-cache' \[0m
+2026-08-25T16:14:51.7680600Z [36;1m  stable[0m
+2026-08-25T16:14:51.7717325Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-08-25T16:14:51.7717677Z env:
+2026-08-25T16:14:51.7717945Z   JAVA_HOME: /opt/hostedtoolcache/Java_Zulu_jdk/17.0.20-8/x64
+2026-08-25T16:14:51.7718360Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Zulu_jdk/17.0.20-8/x64
+2026-08-25T16:14:51.7718697Z   MAVEN_ARGS: -ntp
+2026-08-25T16:14:51.7718897Z ##[endgroup]
+2026-08-25T16:14:51.9716716Z   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+2026-08-25T16:14:51.9718078Z                                  Dload  Upload   Total   Spent    Left  Speed
+2026-08-25T16:14:51.9718749Z 
+2026-08-25T16:14:52.0017727Z   0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+2026-08-25T16:14:52.9781094Z   0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+2026-08-25T16:14:53.9766409Z  17 1500M   17  268M    0     0   266M      0  0:00:05  0:00:01  0:00:04  266M
+2026-08-25T16:14:54.9764305Z  43 1500M   43  655M    0     0   327M      0  0:00:04  0:00:02  0:00:02  327M
+2026-08-25T16:14:55.9706698Z  70 1500M   70 1060M    0     0   353M      0  0:00:04  0:00:03  0:00:01  353M
+2026-08-25T16:14:55.9707645Z 100 1500M  100 1500M    0     0   375M      0  0:00:03  0:00:03 --:--:--  375M
+2026-08-25T16:15:46.1336809Z ##[end-action id=__subosito_flutter-action.__run_3;outcome=success;conclusion=success;duration_ms=54368]
+2026-08-25T16:15:46.1392260Z ##[group]Run flutter pub get
+2026-08-25T16:15:46.1392720Z [36;1mflutter pub get[0m
+2026-08-25T16:15:46.1430392Z shell: /usr/bin/bash -e {0}
+2026-08-25T16:15:46.1430638Z env:
+2026-08-25T16:15:46.1430906Z   JAVA_HOME: /opt/hostedtoolcache/Java_Zulu_jdk/17.0.20-8/x64
+2026-08-25T16:15:46.1431313Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Zulu_jdk/17.0.20-8/x64
+2026-08-25T16:15:46.1431661Z   MAVEN_ARGS: -ntp
+2026-08-25T16:15:46.1431968Z   FLUTTER_ROOT: /opt/hostedtoolcache/flutter/stable-3.47.1-x64/flutter
+2026-08-25T16:15:46.1432339Z   PUB_CACHE: /home/runner/.pub-cache
+2026-08-25T16:15:46.1432584Z ##[endgroup]
+2026-08-25T16:15:52.4714932Z Resolving dependencies...
+2026-08-25T16:15:53.2591503Z Downloading packages...
+2026-08-25T16:15:59.8752892Z + android_id 0.5.2+1
+2026-08-25T16:15:59.8753380Z + args 2.7.0
+2026-08-25T16:15:59.8753794Z + async 2.13.1
+2026-08-25T16:15:59.8754159Z + audio_session 0.2.4
+2026-08-25T16:15:59.8754590Z + boolean_selector 2.1.2
+2026-08-25T16:15:59.8755191Z + cached_network_image 3.4.1
+2026-08-25T16:15:59.8755717Z + cached_network_image_platform_interface 4.1.1
+2026-08-25T16:15:59.8756319Z + cached_network_image_web 1.3.1
+2026-08-25T16:15:59.8756795Z + characters 1.4.1
+2026-08-25T16:15:59.8757392Z + clock 1.1.2
+2026-08-25T16:15:59.8757764Z + code_assets 2.0.0
+2026-08-25T16:15:59.8758156Z + collection 1.19.1
+2026-08-25T16:15:59.8758556Z + connectivity_plus 7.3.1
+2026-08-25T16:15:59.8759008Z + connectivity_plus_platform_interface 2.1.0
+2026-08-25T16:15:59.8759300Z + cross_file 0.3.5+5
+2026-08-25T16:15:59.8759673Z + crypto 3.0.7
+2026-08-25T16:15:59.8759894Z + dart_webrtc 1.8.1
+2026-08-25T16:15:59.8760092Z + dbus 0.7.15
+2026-08-25T16:15:59.8760309Z + device_info_plus 10.1.2 (13.2.0 available)
+2026-08-25T16:15:59.8760657Z + device_info_plus_platform_interface 7.0.3 (8.1.0 available)
+2026-08-25T16:15:59.8760981Z + fake_async 1.3.3
+2026-08-25T16:15:59.8761170Z + ffi 2.2.0
+2026-08-25T16:15:59.8761382Z + file 7.0.1
+2026-08-25T16:15:59.8761588Z + file_picker 10.3.10 (12.1.0 available)
+2026-08-25T16:15:59.8761860Z + file_selector_linux 0.9.4
+2026-08-25T16:15:59.8762100Z + file_selector_macos 0.9.5
+2026-08-25T16:15:59.8762342Z + file_selector_platform_interface 2.7.0
+2026-08-25T16:15:59.8762612Z + file_selector_windows 0.9.3+5
+2026-08-25T16:15:59.8762840Z + fixnum 1.1.1
+2026-08-25T16:15:59.8763039Z + flutter 0.0.0 from sdk flutter
+2026-08-25T16:15:59.8783103Z + flutter_cache_manager 3.4.2
+2026-08-25T16:15:59.8783890Z + flutter_contacts 2.3.1
+2026-08-25T16:15:59.8784372Z + flutter_lints 5.0.0 (6.0.0 available)
+2026-08-25T16:15:59.8784953Z + flutter_local_notifications 20.1.0 (22.3.0 available)
+2026-08-25T16:15:59.8785633Z + flutter_local_notifications_linux 7.0.0 (8.0.1 available)
+2026-08-25T16:15:59.8786400Z + flutter_local_notifications_platform_interface 10.0.0 (12.2.0 available)
+2026-08-25T16:15:59.8787444Z + flutter_local_notifications_windows 2.0.1 (3.1.1 available)
+2026-08-25T16:15:59.8788055Z + flutter_plugin_android_lifecycle 2.0.35
+2026-08-25T16:15:59.8788556Z + flutter_sound 9.30.0
+2026-08-25T16:15:59.8789067Z + flutter_sound_platform_interface 9.30.0 (10.3.8 available)
+2026-08-25T16:15:59.8789693Z + flutter_sound_web 9.30.0 (10.3.8 available)
+2026-08-25T16:15:59.8790202Z + flutter_test 0.0.0 from sdk flutter
+2026-08-25T16:15:59.8790655Z + flutter_tts 4.2.5
+2026-08-25T16:15:59.8791072Z + flutter_web_plugins 0.0.0 from sdk flutter
+2026-08-25T16:15:59.8791576Z + flutter_webrtc 1.6.0
+2026-08-25T16:15:59.8791962Z + hooks 2.2.0
+2026-08-25T16:15:59.8792295Z + http 1.6.0
+2026-08-25T16:15:59.8792645Z + http_parser 4.1.2
+2026-08-25T16:15:59.8793019Z + image_picker 1.2.3
+2026-08-25T16:15:59.8793429Z + image_picker_android 0.8.13+19
+2026-08-25T16:15:59.8793877Z + image_picker_for_web 3.1.1
+2026-08-25T16:15:59.8794312Z + image_picker_ios 0.8.13+6
+2026-08-25T16:15:59.8794733Z + image_picker_linux 0.2.2
+2026-08-25T16:15:59.8795145Z + image_picker_macos 0.2.2+1
+2026-08-25T16:15:59.8795606Z + image_picker_platform_interface 2.11.1
+2026-08-25T16:15:59.8796475Z + image_picker_windows 0.2.2
+2026-08-25T16:15:59.8796893Z + intl 0.20.3
+2026-08-25T16:15:59.8797693Z + jni 1.0.3
+2026-08-25T16:15:59.8798030Z + jni_flutter 1.0.2
+2026-08-25T16:15:59.8798401Z + jni_util 1.0.0
+2026-08-25T16:15:59.8798731Z + js 0.7.2
+2026-08-25T16:15:59.8799063Z + json_annotation 4.12.0
+2026-08-25T16:15:59.8799455Z + just_audio 0.10.6
+2026-08-25T16:15:59.8799847Z + just_audio_platform_interface 4.6.0
+2026-08-25T16:15:59.8800320Z + just_audio_web 0.4.16
+2026-08-25T16:15:59.8800779Z + leak_tracker 11.0.2
+2026-08-25T16:15:59.8801240Z + leak_tracker_flutter_testing 3.0.10
+2026-08-25T16:15:59.8801708Z + leak_tracker_testing 3.0.2
+2026-08-25T16:15:59.8802123Z + lints 5.1.1 (6.1.0 available)
+2026-08-25T16:15:59.8802542Z + local_auth 3.0.2
+2026-08-25T16:15:59.8802916Z + local_auth_android 2.0.9
+2026-08-25T16:15:59.8803341Z + local_auth_darwin 2.0.3
+2026-08-25T16:15:59.8803778Z + local_auth_platform_interface 1.1.0
+2026-08-25T16:15:59.8804253Z + local_auth_windows 2.0.1
+2026-08-25T16:15:59.8804640Z + logger 2.7.0
+2026-08-25T16:15:59.8804856Z + logging 1.3.0
+2026-08-25T16:15:59.8805072Z + matcher 0.12.20
+2026-08-25T16:15:59.8805328Z + material_color_utilities 0.13.0 (0.13.1 available)
+2026-08-25T16:15:59.8805632Z + meta 1.19.0
+2026-08-25T16:15:59.8805822Z + mime 2.0.0
+2026-08-25T16:15:59.8806033Z + mobile_scanner 7.4.0
+2026-08-25T16:15:59.8806246Z + nm 0.5.0
+2026-08-25T16:15:59.8806443Z + objective_c 9.6.0
+2026-08-25T16:15:59.8806649Z + octo_image 2.1.0
+2026-08-25T16:15:59.8806855Z + package_config 3.0.0
+2026-08-25T16:15:59.8807340Z + path 1.9.1
+2026-08-25T16:15:59.8807592Z + path_provider 2.1.6
+2026-08-25T16:15:59.8807837Z + path_provider_android 2.3.1
+2026-08-25T16:15:59.8808095Z + path_provider_foundation 2.6.0
+2026-08-25T16:15:59.8808347Z + path_provider_linux 2.2.2
+2026-08-25T16:15:59.8808602Z + path_provider_platform_interface 2.1.3
+2026-08-25T16:15:59.8808880Z + path_provider_windows 2.3.0
+2026-08-25T16:15:59.8809144Z + permission_handler 12.0.3 (13.0.1 available)
+2026-08-25T16:15:59.8809476Z + permission_handler_android 13.0.1 (14.0.0 available)
+2026-08-25T16:15:59.8809788Z + permission_handler_apple 9.6.1
+2026-08-25T16:15:59.8810051Z + permission_handler_html 0.1.4+1
+2026-08-25T16:15:59.8810333Z + permission_handler_platform_interface 4.4.0
+2026-08-25T16:15:59.8810628Z + permission_handler_windows 0.2.2
+2026-08-25T16:15:59.8810875Z + petitparser 7.0.2
+2026-08-25T16:15:59.8811081Z + platform 3.1.6
+2026-08-25T16:15:59.8811295Z + plugin_platform_interface 2.1.8
+2026-08-25T16:15:59.8811543Z + pub_semver 2.2.0
+2026-08-25T16:15:59.8811747Z + qr 3.0.2 (4.0.0 available)
+2026-08-25T16:15:59.8811967Z + qr_flutter 4.1.0
+2026-08-25T16:15:59.8812160Z + record_use 1.1.1
+2026-08-25T16:15:59.8812350Z + rxdart 0.28.0
+2026-08-25T16:15:59.8812577Z + screen_brightness 1.0.1 (2.1.11 available)
+2026-08-25T16:15:59.8812885Z + screen_brightness_android 1.0.1 (2.1.6 available)
+2026-08-25T16:15:59.8813196Z + screen_brightness_ios 1.0.1 (2.1.4 available)
+2026-08-25T16:15:59.8813503Z + screen_brightness_macos 1.0.1 (2.1.4 available)
+2026-08-25T16:15:59.8813860Z + screen_brightness_platform_interface 1.0.1 (2.1.2 available)
+2026-08-25T16:15:59.8814221Z + screen_brightness_windows 1.0.1 (2.1.2 available)
+2026-08-25T16:15:59.8814517Z + share_plus 10.1.4 (13.3.0 available)
+2026-08-25T16:15:59.8814817Z + share_plus_platform_interface 5.0.2 (7.2.0 available)
+2026-08-25T16:15:59.8815126Z + shared_preferences 2.5.5
+2026-08-25T16:15:59.8815377Z + shared_preferences_android 2.4.27
+2026-08-25T16:15:59.8815648Z + shared_preferences_foundation 2.5.6
+2026-08-25T16:15:59.8815914Z + shared_preferences_linux 2.4.1
+2026-08-25T16:15:59.8816185Z + shared_preferences_platform_interface 2.4.2
+2026-08-25T16:15:59.8816475Z + shared_preferences_web 2.4.3
+2026-08-25T16:15:59.8816720Z + shared_preferences_windows 2.4.1
+2026-08-25T16:15:59.8816977Z + sky_engine 0.0.0 from sdk flutter
+2026-08-25T16:15:59.8817362Z + source_span 1.10.2
+2026-08-25T16:15:59.8817584Z + speech_to_text 7.4.0
+2026-08-25T16:15:59.8817834Z + speech_to_text_platform_interface 2.4.0
+2026-08-25T16:15:59.8818318Z + speech_to_text_windows 1.0.1
+2026-08-25T16:15:59.8818561Z + sqflite 2.4.3
+2026-08-25T16:15:59.8818869Z + sqflite_android 2.4.3
+2026-08-25T16:15:59.8819084Z + sqflite_common 2.5.11
+2026-08-25T16:15:59.8819292Z + sqflite_darwin 2.4.3+1
+2026-08-25T16:15:59.8819517Z + sqflite_platform_interface 2.4.1
+2026-08-25T16:15:59.8819772Z + stack_trace 1.12.1
+2026-08-25T16:15:59.8819976Z + stream_channel 2.1.4
+2026-08-25T16:15:59.8820189Z + string_scanner 1.4.1
+2026-08-25T16:15:59.8820397Z + synchronized 3.4.1+2
+2026-08-25T16:15:59.8820602Z + term_glyph 1.2.2
+2026-08-25T16:15:59.8820811Z + test_api 0.7.12 (0.7.13 available)
+2026-08-25T16:15:59.8821061Z + timezone 0.10.1 (0.11.1 available)
+2026-08-25T16:15:59.8821296Z + typed_data 1.4.0
+2026-08-25T16:15:59.8821488Z + url_launcher 6.3.2
+2026-08-25T16:15:59.8821700Z + url_launcher_android 6.3.32
+2026-08-25T16:15:59.8821937Z + url_launcher_ios 6.4.1
+2026-08-25T16:15:59.8822155Z + url_launcher_linux 3.2.2
+2026-08-25T16:15:59.8822378Z + url_launcher_macos 3.2.5
+2026-08-25T16:15:59.8822616Z + url_launcher_platform_interface 2.3.2
+2026-08-25T16:15:59.8822885Z + url_launcher_web 2.4.3
+2026-08-25T16:15:59.8823103Z + url_launcher_windows 3.1.5
+2026-08-25T16:15:59.8823324Z + uuid 4.6.0
+2026-08-25T16:15:59.8823511Z + vector_math 2.4.2
+2026-08-25T16:15:59.8823709Z + vm_service 15.3.0
+2026-08-25T16:15:59.8823896Z + web 1.1.1
+2026-08-25T16:15:59.8824090Z + webrtc_interface 1.5.1
+2026-08-25T16:15:59.8824307Z + webview_flutter 4.14.1
+2026-08-25T16:15:59.8824532Z + webview_flutter_android 4.14.0
+2026-08-25T16:15:59.8824790Z + webview_flutter_platform_interface 2.15.1
+2026-08-25T16:15:59.8825078Z + webview_flutter_wkwebview 3.26.0
+2026-08-25T16:15:59.8825324Z + win32 5.15.0 (6.4.0 available)
+2026-08-25T16:15:59.8825567Z + win32_registry 1.1.5 (3.0.3 available)
+2026-08-25T16:15:59.8825824Z + xdg_directories 1.1.0
+2026-08-25T16:15:59.8826041Z + xml 6.6.1 (7.0.1 available)
+2026-08-25T16:15:59.8826259Z + yaml 3.1.3
+2026-08-25T16:15:59.8826488Z Changed 161 dependencies!
+2026-08-25T16:15:59.8826852Z 28 packages have newer versions incompatible with dependency constraints.
+2026-08-25T16:15:59.8827431Z Try `flutter pub outdated` for more information.
+2026-08-25T16:16:00.0840526Z Upgrading analysis_options.yaml to exclude build and platform directories.
+2026-08-25T16:16:00.2795454Z ##[group]Run flutter analyze --no-fatal-infos --no-fatal-warnings
+2026-08-25T16:16:00.2795974Z [36;1mflutter analyze --no-fatal-infos --no-fatal-warnings[0m
+2026-08-25T16:16:00.2834073Z shell: /usr/bin/bash -e {0}
+2026-08-25T16:16:00.2834321Z env:
+2026-08-25T16:16:00.2834585Z   JAVA_HOME: /opt/hostedtoolcache/Java_Zulu_jdk/17.0.20-8/x64
+2026-08-25T16:16:00.2835004Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Zulu_jdk/17.0.20-8/x64
+2026-08-25T16:16:00.2835352Z   MAVEN_ARGS: -ntp
+2026-08-25T16:16:00.2835655Z   FLUTTER_ROOT: /opt/hostedtoolcache/flutter/stable-3.47.1-x64/flutter
+2026-08-25T16:16:00.2836025Z   PUB_CACHE: /home/runner/.pub-cache
+2026-08-25T16:16:00.2836280Z ##[endgroup]
+2026-08-25T16:16:16.3903059Z Analyzing Kora-Messenger...                                     
+2026-08-25T16:16:16.3911365Z 
+2026-08-25T16:16:16.3967954Z warning • The receiver can't be null, so the null-aware operator '?[' is unnecessary. Try replacing the operator '?[' with '[' • lib/screens/backup_pin_login_screen.dart:171:21 • invalid_null_aware_operator
+2026-08-25T16:16:16.3970549Z warning • The declaration '_resetViewOnce' isn't referenced. Try removing the declaration of '_resetViewOnce' • lib/screens/chat/message_composer.dart:629:8 • unused_element
+2026-08-25T16:16:16.3972799Z    info • The private field _viewOnceConsumed could be 'final'. Try making the field 'final' • lib/screens/chat/voice_message_bubble.dart:71:8 • prefer_final_fields
+2026-08-25T16:16:16.3975221Z warning • The declaration '_previewTotalString' isn't referenced. Try removing the declaration of '_previewTotalString' • lib/screens/chat/voice_recorder_locked.dart:72:14 • unused_element
+2026-08-25T16:16:16.3978062Z warning • The declaration '_previewElapsedString' isn't referenced. Try removing the declaration of '_previewElapsedString' • lib/screens/chat/voice_recorder_locked.dart:75:14 • unused_element
+2026-08-25T16:16:16.3981093Z warning • The declaration '_speedLabel' isn't referenced. Try removing the declaration of '_speedLabel' • lib/screens/chat/voice_recorder_locked.dart:77:14 • unused_element
+2026-08-25T16:16:16.3983405Z warning • The declaration '_startScanner' isn't referenced. Try removing the declaration of '_startScanner' • lib/screens/contacts/qr_code_screen.dart:76:16 • unused_element
+2026-08-25T16:16:16.3986164Z   error • A value of type 'Future<Map<String, Object?>?>' can't be returned from the method '_findContactByQrData' because it has a return type of 'Future<Map<String, Object>?>' • lib/screens/contacts/qr_code_screen.dart:174:12 • return_of_invalid_type
+2026-08-25T16:16:16.3988942Z warning • The value of the field '_contactsLoaded' isn't used. Try removing the field, or using it • lib/screens/home/calls_tab.dart:103:8 • unused_field
+2026-08-25T16:16:16.3991813Z   error • A value of type 'List<Map<String, Object?>>' can't be assigned to a variable of type 'List<Map<String, Object>>'. Try changing the type of the variable, or casting the right-hand type to 'List<Map<String, Object>>' • lib/screens/home/calls_tab.dart:109:30 • invalid_assignment
+2026-08-25T16:16:16.3994927Z    info • Don't use 'BuildContext's across async gaps. Try rewriting the code to not use the 'BuildContext', or guard the use with a 'mounted' check • lib/screens/home/chats_tab.dart:183:16 • use_build_context_synchronously
+2026-08-25T16:16:16.3998598Z    info • 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre. Try replacing the use of the deprecated member with the replacement • lib/screens/home/chats_tab.dart:353:25 • deprecated_member_use
+2026-08-25T16:16:16.4009902Z    info • 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre. Try replacing the use of the deprecated member with the replacement • lib/screens/home/chats_tab.dart:355:25 • deprecated_member_use
+2026-08-25T16:16:16.4021296Z warning • The declaration '_onRowTap' isn't referenced. Try removing the declaration of '_onRowTap' • lib/screens/home/chats_tab.dart:655:8 • unused_element
+2026-08-25T16:16:16.4023823Z warning • The declaration '_onRowLongPress' isn't referenced. Try removing the declaration of '_onRowLongPress' • lib/screens/home/chats_tab.dart:663:8 • unused_element
+2026-08-25T16:16:16.4026149Z warning • The declaration '_exitSelection' isn't referenced. Try removing the declaration of '_exitSelection' • lib/screens/home/chats_tab.dart:677:8 • unused_element
+2026-08-25T16:16:16.4028770Z warning • The declaration '_openSelectionMenu' isn't referenced. Try removing the declaration of '_openSelectionMenu' • lib/screens/home/chats_tab.dart:763:8 • unused_element
+2026-08-25T16:16:16.4031149Z warning • Unused import: '../theme/chat_theme_provider.dart'. Try removing the import directive • lib/screens/kora_home_screen.dart:4:8 • unused_import
+2026-08-25T16:16:16.4033556Z warning • The receiver can't be null, so the null-aware operator '?[' is unnecessary. Try replacing the operator '?[' with '[' • lib/screens/login_screen.dart:301:23 • invalid_null_aware_operator
+2026-08-25T16:16:16.4036345Z    info • Don't use 'BuildContext's across async gaps. Try rewriting the code to not use the 'BuildContext', or guard the use with a 'mounted' check • lib/screens/new_group_details_screen.dart:160:16 • use_build_context_synchronously
+2026-08-25T16:16:16.4039504Z   error • The argument type 'List<Map<String, Object?>>' can't be assigned to the parameter type 'Iterable<Map<String, Object>>'.  • lib/screens/new_group_details_screen.dart:298:68 • argument_type_not_assignable
+2026-08-25T16:16:16.4042696Z   error • A value of type 'List<Map<String, Object?>>' can't be assigned to a variable of type 'List<Map<String, Object>>'. Try changing the type of the variable, or casting the right-hand type to 'List<Map<String, Object>>' • lib/screens/new_group_screen.dart:47:21 • invalid_assignment
+2026-08-25T16:16:16.4046469Z warning • The receiver can't be null, so the null-aware operator '?[' is unnecessary. Try replacing the operator '?[' with '[' • lib/screens/passkey_login_screen.dart:126:21 • invalid_null_aware_operator
+2026-08-25T16:16:16.4049308Z warning • The receiver can't be null, so the null-aware operator '?[' is unnecessary. Try replacing the operator '?[' with '[' • lib/screens/phone_number_screen.dart:70:21 • invalid_null_aware_operator
+2026-08-25T16:16:16.4051920Z warning • The receiver can't be null, so the null-aware operator '?[' is unnecessary. Try replacing the operator '?[' with '[' • lib/screens/profile_setup_screen.dart:318:21 • invalid_null_aware_operator
+2026-08-25T16:16:16.4054557Z    info • Statements in a for should be enclosed in a block. Try wrapping the statement in a block • lib/screens/settings/email_change_verify_screen.dart:86:35 • curly_braces_in_flow_control_structures
+2026-08-25T16:16:16.4057433Z    info • Statements in a for should be enclosed in a block. Try wrapping the statement in a block • lib/screens/settings/email_change_verify_screen.dart:87:34 • curly_braces_in_flow_control_structures
+2026-08-25T16:16:16.4060147Z    info • Statements in a for should be enclosed in a block. Try wrapping the statement in a block • lib/screens/settings/email_change_verify_screen.dart:132:35 • curly_braces_in_flow_control_structures
+2026-08-25T16:16:16.4062823Z warning • The receiver can't be null, so the null-aware operator '?[' is unnecessary. Try replacing the operator '?[' with '[' • lib/services/conversation_directory.dart:86:27 • invalid_null_aware_operator
+2026-08-25T16:16:16.4065681Z warning • The receiver can't be null, so the null-aware operator '?[' is unnecessary. Try replacing the operator '?[' with '[' • lib/services/conversation_directory.dart:87:26 • invalid_null_aware_operator
+2026-08-25T16:16:16.4068554Z warning • The receiver can't be null, so the null-aware operator '?[' is unnecessary. Try replacing the operator '?[' with '[' • lib/services/conversation_directory.dart:88:29 • invalid_null_aware_operator
+2026-08-25T16:16:16.4072043Z warning • The left operand can't be null, so the right operand is never executed. Try removing the operator and the right operand • lib/services/device_manager.dart:110:40 • dead_null_aware_expression
+2026-08-25T16:16:16.4075123Z    info • 'listenFor' is deprecated and shouldn't be used. Use SpeechListenOptions.listenFor instead. Try replacing the use of the deprecated member with the replacement • lib/services/live_translation_service.dart:149:7 • deprecated_member_use
+2026-08-25T16:16:16.4078706Z    info • 'pauseFor' is deprecated and shouldn't be used. Use SpeechListenOptions.pauseFor instead. Try replacing the use of the deprecated member with the replacement • lib/services/live_translation_service.dart:150:7 • deprecated_member_use
+2026-08-25T16:16:16.4082158Z    info • 'partialResults' is deprecated and shouldn't be used. Use SpeechListenOptions.partialResults instead. Try replacing the use of the deprecated member with the replacement • lib/services/live_translation_service.dart:151:7 • deprecated_member_use
+2026-08-25T16:16:16.4085529Z    info • 'localeId' is deprecated and shouldn't be used. Use SpeechListenOptions.localeId instead. Try replacing the use of the deprecated member with the replacement • lib/services/live_translation_service.dart:152:7 • deprecated_member_use
+2026-08-25T16:16:16.4088886Z    info • 'switchCamera' is deprecated and shouldn't be used. use Helper.switchCamera() instead. Try replacing the use of the deprecated member with the replacement • lib/services/webrtc_call_service.dart:394:26 • deprecated_member_use
+2026-08-25T16:16:16.4091566Z warning • The declaration '_buildAvatar' isn't referenced. Try removing the declaration of '_buildAvatar' • lib/widgets/chat_list_item.dart:221:10 • unused_element
+2026-08-25T16:16:16.4095035Z    info • 'WillPopScope' is deprecated and shouldn't be used. Use PopScope instead. The Android predictive back feature will not work with WillPopScope. This feature was deprecated after v3.12.0-1.0.pre. Try replacing the use of the deprecated member with the replacement • lib/widgets/chat_peek_overlay.dart:229:12 • deprecated_member_use
+2026-08-25T16:16:16.4097770Z 
+2026-08-25T16:16:16.4106694Z 39 issues found. (ran in 15.3s)
+2026-08-25T16:16:16.4193702Z ##[error]Process completed with exit code 1.
+2026-08-25T16:16:16.4385653Z Post job cleanup.
+2026-08-25T16:16:16.4461865Z Post job cleanup.
+2026-08-25T16:16:16.6053083Z Post job cleanup.
+2026-08-25T16:16:16.7149442Z [command]/usr/bin/git version
+2026-08-25T16:16:16.7201150Z git version 2.55.0
+2026-08-25T16:16:16.7249657Z Temporarily overriding HOME='/home/runner/work/_temp/bbf2f083-474a-43d9-aaba-400b19376982' before making global git config changes
+2026-08-25T16:16:16.7251089Z Adding repository directory to the temporary git global config as a safe directory
+2026-08-25T16:16:16.7256753Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/Kora-Messenger/Kora-Messenger
+2026-08-25T16:16:16.7308974Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-08-25T16:16:16.7358564Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-08-25T16:16:16.7648116Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-08-25T16:16:16.7681948Z http.https://github.com/.extraheader
+2026-08-25T16:16:16.7703895Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-08-25T16:16:16.7749676Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-08-25T16:16:16.8046187Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-08-25T16:16:16.8093270Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-08-25T16:16:16.8525160Z Cleaning up orphan processes

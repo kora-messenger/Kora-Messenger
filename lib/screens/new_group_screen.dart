@@ -31,7 +31,7 @@ class _NewGroupScreenState extends State<NewGroupScreen> {
     super.dispose();
   }
 
-  List<Map<String, Object>> _contacts = [];
+  List<Map<String, Object?>> _contacts = [];
   bool _loading = true;
 
   @override
@@ -50,13 +50,13 @@ class _NewGroupScreenState extends State<NewGroupScreen> {
     }
   }
 
-  List<Map<String, Object>> get _recentContacts =>
+  List<Map<String, Object?>> get _recentContacts =>
       _contacts.where((c) => c['recent'] == true).toList();
 
-  List<Map<String, Object>> get _allContacts =>
+  List<Map<String, Object?>> get _allContacts =>
       _contacts.where((c) => c['recent'] != true).toList();
 
-  List<Map<String, Object>> _filter(List<Map<String, Object>> source) {
+  List<Map<String, Object?>> _filter(List<Map<String, Object?>> source) {
     if (_query.isEmpty) return source;
     final q = _query.toLowerCase();
     return source.where((c) {
@@ -268,7 +268,7 @@ class _NewGroupScreenState extends State<NewGroupScreen> {
   }
 
   List<Widget> _buildContactTiles(
-    List<Map<String, Object>> contacts,
+    List<Map<String, Object?>> contacts,
     Color textPrimary,
     Color textSecondary,
     Color textMuted,

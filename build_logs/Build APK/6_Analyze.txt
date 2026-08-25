@@ -1,0 +1,54 @@
+﻿2026-08-25T16:16:00.2795438Z ##[group]Run flutter analyze --no-fatal-infos --no-fatal-warnings
+2026-08-25T16:16:00.2795970Z [36;1mflutter analyze --no-fatal-infos --no-fatal-warnings[0m
+2026-08-25T16:16:00.2834065Z shell: /usr/bin/bash -e {0}
+2026-08-25T16:16:00.2834318Z env:
+2026-08-25T16:16:00.2834582Z   JAVA_HOME: /opt/hostedtoolcache/Java_Zulu_jdk/17.0.20-8/x64
+2026-08-25T16:16:00.2835001Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Zulu_jdk/17.0.20-8/x64
+2026-08-25T16:16:00.2835350Z   MAVEN_ARGS: -ntp
+2026-08-25T16:16:00.2835652Z   FLUTTER_ROOT: /opt/hostedtoolcache/flutter/stable-3.47.1-x64/flutter
+2026-08-25T16:16:00.2836023Z   PUB_CACHE: /home/runner/.pub-cache
+2026-08-25T16:16:00.2836278Z ##[endgroup]
+2026-08-25T16:16:16.3903010Z Analyzing Kora-Messenger...                                     
+2026-08-25T16:16:16.3911350Z 
+2026-08-25T16:16:16.3967808Z warning • The receiver can't be null, so the null-aware operator '?[' is unnecessary. Try replacing the operator '?[' with '[' • lib/screens/backup_pin_login_screen.dart:171:21 • invalid_null_aware_operator
+2026-08-25T16:16:16.3970533Z warning • The declaration '_resetViewOnce' isn't referenced. Try removing the declaration of '_resetViewOnce' • lib/screens/chat/message_composer.dart:629:8 • unused_element
+2026-08-25T16:16:16.3972783Z    info • The private field _viewOnceConsumed could be 'final'. Try making the field 'final' • lib/screens/chat/voice_message_bubble.dart:71:8 • prefer_final_fields
+2026-08-25T16:16:16.3975207Z warning • The declaration '_previewTotalString' isn't referenced. Try removing the declaration of '_previewTotalString' • lib/screens/chat/voice_recorder_locked.dart:72:14 • unused_element
+2026-08-25T16:16:16.3978046Z warning • The declaration '_previewElapsedString' isn't referenced. Try removing the declaration of '_previewElapsedString' • lib/screens/chat/voice_recorder_locked.dart:75:14 • unused_element
+2026-08-25T16:16:16.3981055Z warning • The declaration '_speedLabel' isn't referenced. Try removing the declaration of '_speedLabel' • lib/screens/chat/voice_recorder_locked.dart:77:14 • unused_element
+2026-08-25T16:16:16.3983392Z warning • The declaration '_startScanner' isn't referenced. Try removing the declaration of '_startScanner' • lib/screens/contacts/qr_code_screen.dart:76:16 • unused_element
+2026-08-25T16:16:16.3986149Z   error • A value of type 'Future<Map<String, Object?>?>' can't be returned from the method '_findContactByQrData' because it has a return type of 'Future<Map<String, Object>?>' • lib/screens/contacts/qr_code_screen.dart:174:12 • return_of_invalid_type
+2026-08-25T16:16:16.3988928Z warning • The value of the field '_contactsLoaded' isn't used. Try removing the field, or using it • lib/screens/home/calls_tab.dart:103:8 • unused_field
+2026-08-25T16:16:16.3991767Z   error • A value of type 'List<Map<String, Object?>>' can't be assigned to a variable of type 'List<Map<String, Object>>'. Try changing the type of the variable, or casting the right-hand type to 'List<Map<String, Object>>' • lib/screens/home/calls_tab.dart:109:30 • invalid_assignment
+2026-08-25T16:16:16.3994911Z    info • Don't use 'BuildContext's across async gaps. Try rewriting the code to not use the 'BuildContext', or guard the use with a 'mounted' check • lib/screens/home/chats_tab.dart:183:16 • use_build_context_synchronously
+2026-08-25T16:16:16.3998582Z    info • 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre. Try replacing the use of the deprecated member with the replacement • lib/screens/home/chats_tab.dart:353:25 • deprecated_member_use
+2026-08-25T16:16:16.4009884Z    info • 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre. Try replacing the use of the deprecated member with the replacement • lib/screens/home/chats_tab.dart:355:25 • deprecated_member_use
+2026-08-25T16:16:16.4020724Z warning • The declaration '_onRowTap' isn't referenced. Try removing the declaration of '_onRowTap' • lib/screens/home/chats_tab.dart:655:8 • unused_element
+2026-08-25T16:16:16.4023814Z warning • The declaration '_onRowLongPress' isn't referenced. Try removing the declaration of '_onRowLongPress' • lib/screens/home/chats_tab.dart:663:8 • unused_element
+2026-08-25T16:16:16.4026144Z warning • The declaration '_exitSelection' isn't referenced. Try removing the declaration of '_exitSelection' • lib/screens/home/chats_tab.dart:677:8 • unused_element
+2026-08-25T16:16:16.4028764Z warning • The declaration '_openSelectionMenu' isn't referenced. Try removing the declaration of '_openSelectionMenu' • lib/screens/home/chats_tab.dart:763:8 • unused_element
+2026-08-25T16:16:16.4031141Z warning • Unused import: '../theme/chat_theme_provider.dart'. Try removing the import directive • lib/screens/kora_home_screen.dart:4:8 • unused_import
+2026-08-25T16:16:16.4033525Z warning • The receiver can't be null, so the null-aware operator '?[' is unnecessary. Try replacing the operator '?[' with '[' • lib/screens/login_screen.dart:301:23 • invalid_null_aware_operator
+2026-08-25T16:16:16.4036339Z    info • Don't use 'BuildContext's across async gaps. Try rewriting the code to not use the 'BuildContext', or guard the use with a 'mounted' check • lib/screens/new_group_details_screen.dart:160:16 • use_build_context_synchronously
+2026-08-25T16:16:16.4039496Z   error • The argument type 'List<Map<String, Object?>>' can't be assigned to the parameter type 'Iterable<Map<String, Object>>'.  • lib/screens/new_group_details_screen.dart:298:68 • argument_type_not_assignable
+2026-08-25T16:16:16.4042690Z   error • A value of type 'List<Map<String, Object?>>' can't be assigned to a variable of type 'List<Map<String, Object>>'. Try changing the type of the variable, or casting the right-hand type to 'List<Map<String, Object>>' • lib/screens/new_group_screen.dart:47:21 • invalid_assignment
+2026-08-25T16:16:16.4046448Z warning • The receiver can't be null, so the null-aware operator '?[' is unnecessary. Try replacing the operator '?[' with '[' • lib/screens/passkey_login_screen.dart:126:21 • invalid_null_aware_operator
+2026-08-25T16:16:16.4049301Z warning • The receiver can't be null, so the null-aware operator '?[' is unnecessary. Try replacing the operator '?[' with '[' • lib/screens/phone_number_screen.dart:70:21 • invalid_null_aware_operator
+2026-08-25T16:16:16.4051914Z warning • The receiver can't be null, so the null-aware operator '?[' is unnecessary. Try replacing the operator '?[' with '[' • lib/screens/profile_setup_screen.dart:318:21 • invalid_null_aware_operator
+2026-08-25T16:16:16.4054552Z    info • Statements in a for should be enclosed in a block. Try wrapping the statement in a block • lib/screens/settings/email_change_verify_screen.dart:86:35 • curly_braces_in_flow_control_structures
+2026-08-25T16:16:16.4057407Z    info • Statements in a for should be enclosed in a block. Try wrapping the statement in a block • lib/screens/settings/email_change_verify_screen.dart:87:34 • curly_braces_in_flow_control_structures
+2026-08-25T16:16:16.4060140Z    info • Statements in a for should be enclosed in a block. Try wrapping the statement in a block • lib/screens/settings/email_change_verify_screen.dart:132:35 • curly_braces_in_flow_control_structures
+2026-08-25T16:16:16.4062817Z warning • The receiver can't be null, so the null-aware operator '?[' is unnecessary. Try replacing the operator '?[' with '[' • lib/services/conversation_directory.dart:86:27 • invalid_null_aware_operator
+2026-08-25T16:16:16.4065668Z warning • The receiver can't be null, so the null-aware operator '?[' is unnecessary. Try replacing the operator '?[' with '[' • lib/services/conversation_directory.dart:87:26 • invalid_null_aware_operator
+2026-08-25T16:16:16.4068548Z warning • The receiver can't be null, so the null-aware operator '?[' is unnecessary. Try replacing the operator '?[' with '[' • lib/services/conversation_directory.dart:88:29 • invalid_null_aware_operator
+2026-08-25T16:16:16.4071382Z warning • The left operand can't be null, so the right operand is never executed. Try removing the operator and the right operand • lib/services/device_manager.dart:110:40 • dead_null_aware_expression
+2026-08-25T16:16:16.4075116Z    info • 'listenFor' is deprecated and shouldn't be used. Use SpeechListenOptions.listenFor instead. Try replacing the use of the deprecated member with the replacement • lib/services/live_translation_service.dart:149:7 • deprecated_member_use
+2026-08-25T16:16:16.4078698Z    info • 'pauseFor' is deprecated and shouldn't be used. Use SpeechListenOptions.pauseFor instead. Try replacing the use of the deprecated member with the replacement • lib/services/live_translation_service.dart:150:7 • deprecated_member_use
+2026-08-25T16:16:16.4082151Z    info • 'partialResults' is deprecated and shouldn't be used. Use SpeechListenOptions.partialResults instead. Try replacing the use of the deprecated member with the replacement • lib/services/live_translation_service.dart:151:7 • deprecated_member_use
+2026-08-25T16:16:16.4085507Z    info • 'localeId' is deprecated and shouldn't be used. Use SpeechListenOptions.localeId instead. Try replacing the use of the deprecated member with the replacement • lib/services/live_translation_service.dart:152:7 • deprecated_member_use
+2026-08-25T16:16:16.4088878Z    info • 'switchCamera' is deprecated and shouldn't be used. use Helper.switchCamera() instead. Try replacing the use of the deprecated member with the replacement • lib/services/webrtc_call_service.dart:394:26 • deprecated_member_use
+2026-08-25T16:16:16.4091560Z warning • The declaration '_buildAvatar' isn't referenced. Try removing the declaration of '_buildAvatar' • lib/widgets/chat_list_item.dart:221:10 • unused_element
+2026-08-25T16:16:16.4095005Z    info • 'WillPopScope' is deprecated and shouldn't be used. Use PopScope instead. The Android predictive back feature will not work with WillPopScope. This feature was deprecated after v3.12.0-1.0.pre. Try replacing the use of the deprecated member with the replacement • lib/widgets/chat_peek_overlay.dart:229:12 • deprecated_member_use
+2026-08-25T16:16:16.4097763Z 
+2026-08-25T16:16:16.4106677Z 39 issues found. (ran in 15.3s)
+2026-08-25T16:16:16.4193677Z ##[error]Process completed with exit code 1.

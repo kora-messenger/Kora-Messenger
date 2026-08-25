@@ -170,7 +170,7 @@ class _QrCodeScreenState extends State<QrCodeScreen>
 
   /// Tries to match a scanned Kora QR payload to a known contact.
   /// QR format: `kora://contact/<koraId>` or `kora://contact/<username>`.
-  Future<Map<String, Object>?> _findContactByQrData(String data) async {
+  Future<Map<String, Object?>?> _findContactByQrData(String data) async {
     return ContactsService.instance.findByQrData(data);
   }
 
@@ -211,7 +211,7 @@ class _QrCodeScreenState extends State<QrCodeScreen>
     }
   }
 
-  void _openContactProfile(Map<String, Object> contact) {
+  void _openContactProfile(Map<String, Object?> contact) {
     final name = contact['name'] as String;
     final koraId = contact['koraId'] as String;
     final username = contact['username'] as String? ?? '';
