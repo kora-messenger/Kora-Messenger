@@ -197,7 +197,7 @@ class _ProfileTabState extends State<ProfileTab> {
                                   badge: ChatThemeProvider.instance.isOwnerAccount
                                       ? KoraBadgeType.officialPurple
                                       : (_isPremium ? KoraBadgeType.premiumBlue : KoraBadgeType.none),
-                                  badgeSize: 14,
+                                  badgeSize: 25,
                                   style: TextStyle(
                                     color: textPrimary,
                                     fontSize: 17,

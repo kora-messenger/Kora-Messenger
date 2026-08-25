@@ -243,10 +243,12 @@ class ChatThemeProvider extends ChangeNotifier {
   }
 
   /// Syncs premium status from the backend session into local storage.
-  /// Called after login/registration to ensure the device reflects the
-  /// account's premium state (trial, paid, or expired).
-  /// Only activates premium — never revokes it if already active from
-  /// a local source (e.g. MessageService trial or PaymentService).
+  /// Called after login/registration (and on every app launch, once a
+  /// fresh profile fetch succeeds) so the device always reflects the
+  /// account's true backend premium state — trial, paid, expired, or
+  /// manually revoked by an admin. The backend is always the source of
+  /// truth here; a stale local cache must never keep showing Premium
+  /// once the backend says it's gone.
   Future<void> syncPremiumFromSession(Map<String, dynamic> userData) async {
     final prefs = await SharedPreferences.getInstance();
 
@@ -259,6 +261,7 @@ class ChatThemeProvider extends ChangeNotifier {
       notifyListeners();
       return;
     }
+    _isOwnerAccount = false;
 
     final isPremium = userData['isPremium'] == true;
     final premiumExpiresAt = userData['premiumExpiresAt'] as String?;
@@ -267,14 +270,30 @@ class ChatThemeProvider extends ChangeNotifier {
     if (isPremium) {
       _isPremium = true;
       await prefs.setBool(_kIsPremium, true);
+      await prefs.setBool('is_premium', true); // legacy key some code reads
       // Sync the expiry from the backend so it persists across devices
       if (premiumExpiresAt != null) {
         final expiryMs = DateTime.parse(premiumExpiresAt).millisecondsSinceEpoch;
         await prefs.setInt('premium_expiry', expiryMs);
+      } else {
+        await prefs.remove('premium_expiry');
       }
       if (premiumSource.isNotEmpty) {
         await prefs.setString('premium_plan', premiumSource);
       }
+    } else {
+      // Backend says this account is NOT premium — revoke locally too,
+      // even if a stale local trial/payment flag or a not-yet-expired
+      // cached expiry timestamp says otherwise. Clears every key any
+      // premium-checking code path reads (ChatThemeProvider + legacy
+      // PaymentService keys) so nothing can keep showing Premium.
+      _isPremium = false;
+      await prefs.setBool(_kIsPremium, false);
+      await prefs.setBool('is_premium', false);
+      await prefs.remove('premium_expiry');
+      await prefs.remove('premium_plan');
+      await prefs.remove('premium_payment_ref');
+      await prefs.remove('premium_activated_at');
     }
     notifyListeners();
   }
