@@ -104,7 +104,9 @@ class KoraAvatar extends StatelessWidget {
     if (assetPath != null) {
       return Image.asset(assetPath!, fit: BoxFit.cover);
     }
-    if (imageUrl != null && imageUrl!.isNotEmpty) {
+    // Guard against stale local device paths that were saved before
+    // the cloud upload was working.  A real avatar URL is always http(s).
+    if (imageUrl != null && imageUrl!.isNotEmpty && imageUrl!.startsWith('http')) {
       return CachedNetworkImage(
         imageUrl: imageUrl!,
         fit: BoxFit.cover,

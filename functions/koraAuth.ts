@@ -601,9 +601,17 @@ Deno.serve(async (req: Request) => {
         return jsonResponse({ success: false, error: 'Username is already taken' });
       }
 
-      await db.entities.KoraUser.update(userId, {
-        fullName, username: lowerUsername, bio, avatarUrl, profileCompleted: true,
-      });
+      // Build update object — only overwrite avatarUrl if a non-empty
+      // value is provided, so a failed upload doesn't wipe an existing
+      // avatar.
+      const updateData: Record<string, any> = {
+        fullName, username: lowerUsername, bio, profileCompleted: true,
+      };
+      if (avatarUrl && typeof avatarUrl === 'string' && avatarUrl.trim().length > 0) {
+        updateData.avatarUrl = avatarUrl.trim();
+      }
+
+      await db.entities.KoraUser.update(userId, updateData);
 
       const updated = await db.entities.KoraUser.get(userId);
       return jsonResponse({ success: true, user: getUserFromRecord(updated) });

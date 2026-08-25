@@ -283,7 +283,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
             'fileName': 'avatar_$userId.${_photo!.path.endsWith('.png') ? 'png' : 'jpg'}',
             'fileType': _photo!.path.endsWith('.png') ? 'image/png' : 'image/jpeg',
           }),
-        ).timeout(const Duration(seconds: 30));
+        ).timeout(const Duration(seconds: 60));
         final uploadData = jsonDecode(uploadResp.body);
         if (uploadData['success'] == true && uploadData['url'] != null) {
           avatarUrl = uploadData['url'] as String;
