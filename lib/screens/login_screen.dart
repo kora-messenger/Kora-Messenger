@@ -20,6 +20,7 @@ import 'suspension_screen.dart';
 import 'signup_screen.dart';
 import 'backup_pin_login_screen.dart';
 import 'passkey_login_screen.dart';
+import '../services/device_manager.dart';
 
 /// Kora Login screen — deep black surface, purple gradient accents.
 /// User enters email + password to log in. New devices trigger verification.
@@ -305,15 +306,9 @@ class _LogInScreenState extends State<LogInScreen> {
         }
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('kora_last_email', email);
-        if (prefs.getString('kora_device_id') == null || prefs.getString('kora_device_id')!.isEmpty) {
-          final timestamp = DateTime.now().millisecondsSinceEpoch;
-          final randomStr = DateTime.now().microsecondsSinceEpoch.toString();
-          final shortId = randomStr.length >= 6 ? randomStr.substring(randomStr.length - 6) : '000000';
-          await prefs.setString('kora_device_id', 'dev-$timestamp-$shortId');
-        }
-        if (prefs.getString('kora_device_name') == null || prefs.getString('kora_device_name')!.isEmpty) {
-          await prefs.setString('kora_device_name', 'Mobile Device');
-        }
+        // Ensure persistent device ID is set (survives app reinstall)
+        await DeviceManager.getDeviceId();
+        await DeviceManager.getDeviceName();
         if (!mounted) return;
 
         TextInput.finishAutofillContext();
