@@ -16,7 +16,7 @@ import '../../services/session_manager.dart';
 import '../../widgets/kora_avatar.dart';
 import '../../widgets/kora_menu_sheet.dart';
 import '../../models/chat_models.dart';
-import '../../data/mock_contacts.dart';
+import '../../services/contacts_service.dart';
 import '../chat/contact_info_screen.dart';
 
 /// Kora's "QR code" screen — same two-tab structure as the WhatsApp
@@ -150,21 +150,10 @@ class _QrCodeScreenState extends State<QrCodeScreen>
     super.dispose();
   }
 
-  /// Tries to match a scanned Kora QR payload to a known mock contact.
+  /// Tries to match a scanned Kora QR payload to a known contact.
   /// QR format: `kora://contact/<koraId>` or `kora://contact/<username>`.
-  Map<String, Object>? _findContactByQrData(String data) {
-    if (!data.startsWith('kora://contact/')) return null;
-    final identifier = data.substring('kora://contact/'.length).toLowerCase();
-
-    for (final contact in koraMockContacts) {
-      final koraId = (contact['koraId'] as String).toLowerCase();
-      final username = (contact['username'] as String).toLowerCase();
-      final usernameClean = username.replaceAll('@', '');
-      if (koraId == identifier || username == identifier || usernameClean == identifier) {
-        return contact;
-      }
-    }
-    return null;
+  Future<Map<String, Object>?> _findContactByQrData(String data) async {
+    return ContactsService.instance.findByQrData(data);
   }
 
   void _onDetect(BarcodeCapture capture) {
@@ -176,45 +165,47 @@ class _QrCodeScreenState extends State<QrCodeScreen>
       final raw = barcode.rawValue;
       if (raw == null) continue;
 
-      final contact = _findContactByQrData(raw);
-      if (contact != null) {
-        _navigated = true;
-        _openContactProfile(contact);
-        return;
-      }
-
-      if (raw.startsWith('kora://contact/')) {
-        _navigated = true;
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Contact not found on Kora'),
-              backgroundColor: KoraColors.purple,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+      _findContactByQrData(raw).then((contact) {
+        if (_navigated || !mounted) return;
+        if (contact != null) {
+          _navigated = true;
+          _openContactProfile(contact);
+          return;
         }
-        Future.delayed(const Duration(seconds: 2), () {
-          if (mounted) setState(() => _navigated = false);
-        });
-        return;
-      }
+
+        if (raw.startsWith('kora://contact/')) {
+          _navigated = true;
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Contact not found on Kora'),
+                backgroundColor: KoraColors.purple,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+          Future.delayed(const Duration(seconds: 2), () {
+            if (mounted) setState(() => _navigated = false);
+          });
+        }
+      });
+      return;
     }
   }
 
   void _openContactProfile(Map<String, Object> contact) {
     final name = contact['name'] as String;
     final koraId = contact['koraId'] as String;
-    final username = contact['username'] as String;
-    final isPremium = contact['premium'] as bool;
+    final username = contact['username'] as String? ?? '';
+    final isPremium = contact['premium'] == true;
 
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => ContactInfoScreen(
           name: name,
-          koraId: koraId,
-          username: username,
+          koraId: koraId.isNotEmpty ? koraId : null,
+          username: username.isNotEmpty ? username : null,
           badge: isPremium ? KoraBadgeType.premiumBlue : KoraBadgeType.none,
           isOnline: true,
           about: 'Hey there! I\'m on Kora.',

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/kora_colors.dart';
 import '../widgets/kora_avatar.dart';
-import '../data/mock_contacts.dart';
+import '../services/contacts_service.dart';
 import 'new_group_details_screen.dart';
 
 /// New Group screen — pick the people to add to a new group.
@@ -31,9 +31,24 @@ class _NewGroupScreenState extends State<NewGroupScreen> {
     super.dispose();
   }
 
-  // Contacts sourced from the shared mock contacts list — replace
-  // with real data once the connections backend is wired up.
-  final List<Map<String, Object>> _contacts = koraMockContacts;
+  List<Map<String, Object>> _contacts = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadContacts();
+  }
+
+  Future<void> _loadContacts() async {
+    final contacts = await ContactsService.instance.getContacts();
+    if (mounted) {
+      setState(() {
+        _contacts = contacts;
+        _loading = false;
+      });
+    }
+  }
 
   List<Map<String, Object>> get _recentContacts =>
       _contacts.where((c) => c['recent'] == true).toList();
@@ -201,6 +216,10 @@ class _NewGroupScreenState extends State<NewGroupScreen> {
     final recent = _filter(_recentContacts);
     final all = _filter(_allContacts);
 
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator(color: KoraColors.purple));
+    }
+
     if (recent.isEmpty && all.isEmpty) {
       return Center(
         child: Column(
@@ -208,7 +227,10 @@ class _NewGroupScreenState extends State<NewGroupScreen> {
           children: [
             Icon(Icons.person_search_outlined, size: 48, color: textMuted),
             const SizedBox(height: 12),
-            Text('No contacts found', style: TextStyle(color: textSecondary, fontSize: 15)),
+            Text('No contacts yet', style: TextStyle(color: textSecondary, fontSize: 15)),
+            const SizedBox(height: 4),
+            Text('Add contacts or start chatting to see them here.',
+                style: TextStyle(color: textMuted, fontSize: 13)),
           ],
         ),
       );
@@ -268,7 +290,9 @@ class _NewGroupScreenState extends State<NewGroupScreen> {
               style: TextStyle(color: textPrimary, fontSize: 15, fontWeight: FontWeight.w600),
             ),
             subtitle: Text(
-              '$koraId · ${contact['username']}',
+              contact['username'] != null && (contact['username'] as String).isNotEmpty
+                  ? '$koraId · ${contact['username']}'
+                  : koraId,
               style: TextStyle(color: textSecondary, fontSize: 13),
             ),
             onTap: () => _toggleSelection(koraId),

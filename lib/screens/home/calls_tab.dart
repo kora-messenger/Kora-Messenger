@@ -5,7 +5,7 @@ import '../../theme/kora_colors.dart';
 import '../../models/call_log.dart';
 import '../../models/chat_models.dart';
 import '../../services/call_service.dart';
-import '../../data/mock_contacts.dart';
+import '../../services/contacts_service.dart';
 import '../../widgets/kora_avatar.dart';
 import '../../widgets/kora_badge.dart';
 import '../../widgets/kora_empty_state.dart';
@@ -47,6 +47,7 @@ class _CallsTabState extends State<CallsTab> {
     super.initState();
     _loadCalls();
     _loadHiddenPref();
+    _loadContacts();
   }
 
   @override
@@ -97,19 +98,47 @@ class _CallsTabState extends State<CallsTab> {
     return _logs.where((l) => l.contactName.toLowerCase().contains(q)).toList();
   }
 
+  List<Map<String, Object>> _startCallContacts = [];
+  bool _contactsLoaded = false;
+
+  Future<void> _loadContacts() async {
+    final contacts = await ContactsService.instance.getContacts();
+    if (mounted) {
+      setState(() {
+        _startCallContacts = contacts;
+        _contactsLoaded = true;
+      });
+    }
+  }
+
   List<Map<String, Object>> get _filteredStartCallContacts {
-    if (_query.isEmpty) return koraMockContacts;
+    if (_query.isEmpty) return _startCallContacts;
     final q = _query.toLowerCase();
-    return koraMockContacts.where((c) {
+    return _startCallContacts.where((c) {
       final name = (c['name'] as String).toLowerCase();
       final username = (c['username'] as String).toLowerCase();
-      return name.contains(q) || username.contains(q);
+      final koraId = (c['koraId'] as String).toLowerCase();
+      return name.contains(q) || username.contains(q) || koraId.contains(q);
     }).toList();
   }
 
   // ── Actions ──────────────────────────────────────────────────
 
-  void _openCallWithContact(Map<String, Object> contact, {required bool isVideo}) {
+  void _openCallWithContact(Map<String, Object> contact, {required bool isVideo}) async {
+    final session = await SessionManager.instance.loadSession();
+    final myEmail = session?['email'] as String? ?? '';
+    if (!mounted) return;
+    final contactEmail = contact['email'] as String?;
+    if (contactEmail == null || contactEmail.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Can\'t call this contact — no Kora email on file'),
+          backgroundColor: KoraColors.purple,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -118,6 +147,8 @@ class _CallsTabState extends State<CallsTab> {
           isVideoCall: isVideo,
           isOutgoing: true,
           badge: contact['premium'] == true ? KoraBadgeType.premiumBlue : KoraBadgeType.none,
+          callerEmail: myEmail,
+          calleeEmail: contactEmail,
         ),
       ),
     );
@@ -593,11 +624,12 @@ class _CallsTabState extends State<CallsTab> {
   Widget _startCallTile(Map<String, Object> contact, Color textPrimary, Color textSecondary, Color border) {
     final name = contact['name'] as String;
     final isPremium = contact['premium'] == true;
+    final avatarUrl = contact['avatarUrl'] as String?;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       child: ListTile(
-        leading: KoraAvatar(name: name, size: 46, isPremium: isPremium),
+        leading: KoraAvatar(name: name, size: 46, isPremium: isPremium, imageUrl: avatarUrl),
         title: Text(
           name,
           style: TextStyle(color: textPrimary, fontSize: 15, fontWeight: FontWeight.w600),

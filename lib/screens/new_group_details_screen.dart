@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../theme/kora_colors.dart';
 import '../widgets/kora_avatar.dart';
-import '../data/mock_contacts.dart';
+import '../services/contacts_service.dart';
 import 'kora_home_screen.dart';
 
 /// Group-details screen — shown after selecting members on the New
@@ -150,9 +150,10 @@ class _NewGroupDetailsScreenState extends State<NewGroupDetailsScreen> {
 
   // ── Members ───────────────────────────────────────────────────
 
-  void _showAddMembersSheet() {
+  Future<void> _showAddMembersSheet() async {
     final addedIds = _members.map((m) => m['koraId'] as String).toSet();
-    final available = koraMockContacts.where((c) => !addedIds.contains(c['koraId'])).toList();
+    final allContacts = await ContactsService.instance.getContacts();
+    final available = allContacts.where((c) => !addedIds.contains(c['koraId'])).toList();
     final Set<String> pickedIds = {};
 
     showModalBottomSheet(
