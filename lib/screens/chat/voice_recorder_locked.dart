@@ -5,11 +5,18 @@ import '../../widgets/kora_waveform.dart';
 /// Kora's hands-free voice recording bar — replaces the composer the
 /// instant the user taps the mic. No holding required.
 ///
+/// Two modes inside the center pill:
+/// 1. **Recording** (not paused): red pulse dot + live timer + live
+///    waveform + labeled Pause button.
+/// 2. **Paused preview** (WhatsApp-style): play/pause button + tappable
+///    waveform scrubber with progress fill + position/duration text +
+///    speed badge (1x / 1.5x / 2x). A "Resume" button sits below.
+///
 /// Layout (left → right):
 /// - Delete/cancel button (Kora red-tinted circle with trash icon)
-/// - Center pill: live timer + animated waveform + a large, labeled
-///   Pause/Resume control, all inside one Kora-styled rounded container
-/// - A small translate toggle (optional, tucked beside the pill)
+/// - Center pill (recording OR paused-preview player)
+/// - Play-once toggle (optional)
+/// - Translate toggle (optional)
 /// - Prominent Send button (Kora's purple-to-blue brand gradient)
 class LockedRecorderBar extends StatelessWidget {
   final int seconds;
@@ -86,11 +93,13 @@ class LockedRecorderBar extends StatelessWidget {
     final surface = KoraColors.surfaceFor(brightness);
     final border = KoraColors.borderFor(brightness);
     final textPrimary = KoraColors.textPrimaryFor(brightness);
+    final textMuted = KoraColors.textMutedFor(brightness);
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // ── Status badges (play-once / translating) ──
         if (selectedTranslateName != null || isPlayOnce)
           Padding(
             padding: const EdgeInsets.only(left: 58, bottom: 6),
@@ -125,6 +134,8 @@ class LockedRecorderBar extends StatelessWidget {
               ],
             ),
           ),
+
+        // ── Main row ──
         Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
@@ -147,95 +158,13 @@ class LockedRecorderBar extends StatelessWidget {
             ),
             const SizedBox(width: 10),
 
-            // ── Center pill: timer + waveform + large Pause/Resume ──
+            // ── Center pill: recording OR paused-preview player ──
             Expanded(
-              child: Container(
-                height: 52,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                decoration: BoxDecoration(
-                  color: surface,
-                  borderRadius: BorderRadius.circular(26),
-                  border: Border.all(color: border, width: 0.6),
-                ),
-                child: Row(
-                  children: [
-                    // Live pulse dot while recording (hidden when paused)
-                    if (!isPaused) ...[
-                      Container(
-                        width: 7,
-                        height: 7,
-                        decoration: const BoxDecoration(
-                          color: KoraColors.red,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                    ],
-                    Text(
-                      _durationString,
-                      style: TextStyle(
-                        color: textPrimary,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        fontFeatures: const [FontFeature.tabularFigures()],
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: SizedBox(
-                        height: 28,
-                        child: KoraWaveform(
-                          isLive: !isPaused,
-                          progress: 0,
-                          barCount: 24,
-                          height: 28,
-                          barWidth: 2.5,
-                          barGap: 2.5,
-                          playedColor: isPaused
-                              ? KoraColors.purple.withValues(alpha: 0.35)
-                              : KoraColors.purple,
-                          unplayedColor: KoraColors.purple.withValues(alpha: 0.15),
-                          liveAmplitudes: waveformSamples,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-
-                    // ── Large, labeled Pause/Resume control ──
-                    GestureDetector(
-                      onTap: onTogglePause,
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 180),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          gradient: isPaused ? KoraColors.brandGradient : null,
-                          color: isPaused ? null : KoraColors.purple.withValues(alpha: 0.14),
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              isPaused ? Icons.mic_rounded : Icons.pause_rounded,
-                              color: isPaused ? Colors.white : KoraColors.purple,
-                              size: 17,
-                            ),
-                            const SizedBox(width: 5),
-                            Text(
-                              isPaused ? 'Resume' : 'Pause',
-                              style: TextStyle(
-                                color: isPaused ? Colors.white : KoraColors.purple,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              child: isPaused
+                  ? _buildPausedPreviewPill(
+                      surface, border, textPrimary, textMuted)
+                  : _buildRecordingPill(
+                      surface, border, textPrimary),
             ),
 
             // ── Play-once / self-destruct toggle ──
@@ -259,7 +188,7 @@ class LockedRecorderBar extends StatelessWidget {
                   isPlayOnce ? Icons.lock_clock_rounded : Icons.timer_outlined,
                   color: isPlayOnce
                       ? KoraColors.purple
-                      : KoraColors.textMutedFor(brightness),
+                      : textMuted,
                   size: 19,
                 ),
               ),
@@ -286,7 +215,7 @@ class LockedRecorderBar extends StatelessWidget {
                     Icons.language_rounded,
                     color: selectedTranslateName != null
                         ? KoraColors.purple
-                        : KoraColors.textMutedFor(brightness),
+                        : textMuted,
                     size: 19,
                   ),
                 ),
@@ -324,6 +253,266 @@ class LockedRecorderBar extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ],
+    );
+  }
+
+  // ──────────────────────────────────────────────────────────────────
+  /// Recording pill — red pulse dot + timer + live waveform + Pause.
+  Widget _buildRecordingPill(Color surface, Color border, Color textPrimary) {
+    return Container(
+      height: 52,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      decoration: BoxDecoration(
+        color: surface,
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: border, width: 0.6),
+      ),
+      child: Row(
+        children: [
+          // Live pulse dot
+          Container(
+            width: 7,
+            height: 7,
+            decoration: const BoxDecoration(
+              color: KoraColors.red,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            _durationString,
+            style: TextStyle(
+              color: textPrimary,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: SizedBox(
+              height: 28,
+              child: KoraWaveform(
+                isLive: true,
+                progress: 0,
+                barCount: 24,
+                height: 28,
+                barWidth: 2.5,
+                barGap: 2.5,
+                playedColor: KoraColors.purple,
+                unplayedColor: KoraColors.purple.withValues(alpha: 0.15),
+                liveAmplitudes: waveformSamples,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+
+          // ── Labeled Pause control ──
+          GestureDetector(
+            onTap: onTogglePause,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: KoraColors.purple.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.pause_rounded, color: KoraColors.purple, size: 17),
+                  SizedBox(width: 5),
+                  Text(
+                    'Pause',
+                    style: TextStyle(
+                      color: KoraColors.purple,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ──────────────────────────────────────────────────────────────────
+  /// Paused-preview pill — WhatsApp-style mini player that replaces
+  /// the recording waveform while paused. Layout left → right:
+  ///   [play/pause] [position] [scrub waveform] [duration] [speed badge]
+  /// Below the pill: a "Resume" button.
+  Widget _buildPausedPreviewPill(
+      Color surface, Color border, Color textPrimary, Color textMuted) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // ── Preview player pill ──
+        Container(
+          height: 52,
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: surface,
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(color: border, width: 0.6),
+          ),
+          child: Row(
+            children: [
+              // ── Play / Pause preview button ──
+              GestureDetector(
+                onTap: onTogglePreviewPlay,
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    gradient: KoraColors.brandGradient,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: KoraColors.purple.withValues(alpha: 0.3),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    isPreviewPlaying
+                        ? Icons.pause_rounded
+                        : Icons.play_arrow_rounded,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+
+              // ── Position text (elapsed) ──
+              Text(
+                _previewElapsedString,
+                style: TextStyle(
+                  color: textPrimary,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+              const SizedBox(width: 8),
+
+              // ── Scrubbable waveform ──
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final waveWidth = constraints.maxWidth.isFinite
+                        ? constraints.maxWidth
+                        : 100.0;
+                    return GestureDetector(
+                      onTapDown: onSeekPreview != null
+                          ? (details) {
+                              final fraction =
+                                  (details.localPosition.dx / waveWidth)
+                                      .clamp(0.0, 1.0);
+                              onSeekPreview!(fraction);
+                            }
+                          : null,
+                      child: SizedBox(
+                        width: waveWidth,
+                        height: 28,
+                        child: KoraWaveform(
+                          isLive: false,
+                          progress: previewProgress,
+                          barCount: 28,
+                          height: 28,
+                          barWidth: 2.5,
+                          barGap: 2.5,
+                          playedColor: KoraColors.purple,
+                          unplayedColor:
+                              KoraColors.purple.withValues(alpha: 0.2),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+
+              // ── Duration text (total) ──
+              Text(
+                _previewTotalString,
+                style: TextStyle(
+                  color: textMuted,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+              const SizedBox(width: 6),
+
+              // ── Speed badge ──
+              if (onCyclePreviewSpeed != null)
+                GestureDetector(
+                  onTap: onCyclePreviewSpeed,
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: KoraColors.purple.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      _speedLabel,
+                      style: const TextStyle(
+                        color: KoraColors.purple,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        fontFeatures: [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+
+        // ── Resume button (below the pill) ──
+        Center(
+          child: GestureDetector(
+            onTap: onTogglePause,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+              decoration: BoxDecoration(
+                gradient: KoraColors.brandGradient,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: KoraColors.purple.withValues(alpha: 0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.mic_rounded, color: Colors.white, size: 17),
+                  SizedBox(width: 6),
+                  Text(
+                    'Resume',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ],
     );
