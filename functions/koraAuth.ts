@@ -466,14 +466,18 @@ Deno.serve(async (req: Request) => {
 
       const user = getUserFromRecord(users[0]);
 
-      // Save device as trusted if user chose to recognize it
+      // Always save the device after successful verification so it's
+      // recognized on future logins (including after app reinstall on
+      // the same device). The recognizeDevice flag controls whether
+      // the device is marked as "trusted" (30-day rule), but the device
+      // is always saved for recognition purposes.
       const now = new Date().toISOString();
-      if (recognizeDevice) {
+      {
         const existingDevices = await db.entities.TrustedDevice.filter({ userEmail: email, deviceId });
         if (existingDevices && existingDevices.length > 0) {
           await db.entities.TrustedDevice.update(existingDevices[0].id, {
             lastLoginDate: now, isActive: true,
-            isTrusted: existingDevices[0].data?.isTrusted || existingDevices[0].isTrusted || false,
+            isTrusted: recognizeDevice || existingDevices[0].data?.isTrusted || existingDevices[0].isTrusted || false,
           });
         } else {
           await db.entities.TrustedDevice.create({
@@ -481,7 +485,7 @@ Deno.serve(async (req: Request) => {
             deviceName: deviceName || 'Unknown Device',
             platform: platform || 'unknown',
             firstLoginDate: now, lastLoginDate: now,
-            isTrusted: false, isActive: true,
+            isTrusted: recognizeDevice || false, isActive: true,
           });
         }
       }
