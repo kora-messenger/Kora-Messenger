@@ -543,24 +543,64 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
     }
   }
 
-  void _showContactInfo() {
-    // Derive Kora ID and username from mock contact data
-    final lowerName = widget.name.toLowerCase().replaceAll(' ', '_');
-    final koraId = 'KM-${widget.name.hashCode.abs().toString().padLeft(9, '0')}';
+  Future<void> _showContactInfo() async {
+    // Default values from chat data
+    String koraId = '';
+    String username = '';
+    String about = 'Hey there! I am using Kora Messenger.';
+    String? phone;
+    String fullName = widget.name;
+    String? avatarUrl = widget.avatarUrl;
+
+    // Fetch real profile from backend using recipient email
+    if (widget.recipientEmail != null && widget.recipientEmail!.isNotEmpty && !_isAiChat) {
+      try {
+        final resp = await http.post(
+          Uri.parse(KoraApi.authEndpoint),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'action': 'lookupUser',
+            'identifier': widget.recipientEmail,
+          }),
+        );
+        if (resp.statusCode == 200) {
+          final data = jsonDecode(resp.body);
+          if (data['success'] == true && data['found'] == true && data['user'] != null) {
+            final user = data['user'] as Map<String, dynamic>;
+            koraId = user['koraId']?.toString() ?? '';
+            username = user['username']?.toString() ?? '';
+            fullName = user['fullName']?.toString() ?? widget.name;
+            about = user['bio']?.toString() ?? about;
+            phone = (user['phoneNumber'] != null && user['phoneNumber'].toString().isNotEmpty)
+                ? user['phoneNumber'].toString()
+                : null;
+            if (user['avatarUrl'] != null && user['avatarUrl'].toString().isNotEmpty) {
+              avatarUrl = user['avatarUrl'].toString();
+            }
+          }
+        }
+      } catch (_) {
+        // Fall back to chat data if lookup fails
+      }
+    }
+
+    if (!mounted) return;
+
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => ContactInfoScreen(
-          name: widget.name,
+          name: fullName,
           avatarAsset: widget.avatarAsset,
-          avatarUrl: widget.avatarUrl,
+          avatarUrl: avatarUrl,
           badge: widget.badge,
           isOnline: _isAiChat ? true : widget.isOnline,
           lastSeen: _isAiChat ? 'AI Assistant' : widget.lastSeen,
-          koraId: koraId,
-          username: '@$lowerName',
-          about: 'Hey there! I am using Kora Messenger.',
-          phone: '+123 456 7890',
+          koraId: koraId.isNotEmpty ? koraId : null,
+          username: username.isNotEmpty ? username : null,
+          about: about,
+          phone: phone,
+          recipientEmail: widget.recipientEmail,
           isAiChat: _isAiChat,
         ),
       ),
