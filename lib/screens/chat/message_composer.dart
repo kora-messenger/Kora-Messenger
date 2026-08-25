@@ -5,15 +5,15 @@ import 'package:permission_handler/permission_handler.dart';
 import '../../theme/kora_colors.dart';
 import '../../services/audio_recording_service.dart';
 import '../../services/audio_playback_service.dart';
+import '../../services/voice_note_stt_service.dart';
+import '../../services/voice_translation_pipeline.dart';
+import '../../services/translation_service.dart';
+import '../../models/translation_models.dart';
 import 'attachment_sheet.dart';
 import 'ai_writing_sheet.dart';
 import 'voice_recorder.dart';
-import 'voice_recorder_locked.dart';
+import 'voice_note_popup.dart';
 import 'language_picker_screen.dart';
-import '../../services/translation_service.dart';
-import '../../models/translation_models.dart';
-import '../../services/voice_note_stt_service.dart';
-import '../../services/voice_translation_pipeline.dart';
 
 /// Kora's message composer — the bottom input bar.
 ///
@@ -23,7 +23,8 @@ import '../../services/voice_translation_pipeline.dart';
 ///   waveform + "slide to cancel" hint, with a lock capsule floating
 ///   above the mic. Slide left to cancel, slide up to lock hands-free.
 ///   Releasing without crossing either threshold sends immediately.
-/// - **Locked** → hands-free recording bar with trash, pause/resume, send.
+/// - **Popup** → hands-free recording popup (tap or lock). Trash, timer,
+///   waveform, pause/resume, translate and send. Only closes on delete/send.
 ///
 /// Waveform data comes from [AudioRecordingService.amplitudeStream] —
 /// real microphone amplitude, not a placeholder.
@@ -39,6 +40,7 @@ class MessageComposer extends StatefulWidget {
   }) onSendVoice;
   final VoidCallback? onAttachment;
   final Function(String)? onAiWriting;
+  final VoidCallback? onMicTap; // notify parent to pause any playing voice note
 
   const MessageComposer({
     super.key,
@@ -46,13 +48,14 @@ class MessageComposer extends StatefulWidget {
     required this.onSendVoice,
     this.onAttachment,
     this.onAiWriting,
+    this.onMicTap,
   });
 
   @override
   State<MessageComposer> createState() => _MessageComposerState();
 }
 
-enum _ComposerState { idle, holding, locked }
+enum _ComposerState { idle, holding, popup }
 
 class _MessageComposerState extends State<MessageComposer>
     with TickerProviderStateMixin {
@@ -69,10 +72,9 @@ class _MessageComposerState extends State<MessageComposer>
   final List<double> _waveformSamples = [];
   String? _filePath;
   bool _isPaused = false;
+  bool _isPlayOnce = false;
 
   // -- Paused-recording preview playback (WhatsApp-style) --
-  // Lets the user play back and scrub through what's been recorded
-  // so far while paused, before resuming or sending.
   static const String _previewId = '__kora_recording_preview__';
   final _previewPlayback = AudioPlaybackService.instance;
   StreamSubscription<PlaybackState>? _previewSub;
@@ -93,9 +95,6 @@ class _MessageComposerState extends State<MessageComposer>
   String? _selectedTranslateCode;
   String? _selectedTranslateName;
   bool _isTranslating = false;
-
-  // ── Play-once / self-destruct ──
-  bool _isPlayOnce = false;
 
   late AnimationController _pulseController;
 
@@ -255,13 +254,14 @@ class _MessageComposerState extends State<MessageComposer>
 
   // ── Recording ──
 
-  /// A quick tap on the mic button (no hold) starts recording and goes
-  /// straight into the hands-free "locked" bar — trash, timer, waveform,
-  /// pause, translate and send — matching the reference recording UI.
-  /// Only a press-and-hold enters the slide-to-cancel / swipe-up-to-lock
-  /// gesture flow via [_onHoldStart].
+  /// A quick tap on the mic button (no hold) starts recording and opens
+  /// the popup voice-note screen immediately — trash, timer, waveform,
+  /// pause, translate and send. Only closes on delete/send.
   Future<void> _onTapRecord() async {
     if (_hasText || _state != _ComposerState.idle) return;
+
+    // Pause any currently playing voice note
+    widget.onMicTap?.call();
 
     final granted = await _ensureMicPermission();
     if (!granted || !mounted) return;
@@ -283,18 +283,26 @@ class _MessageComposerState extends State<MessageComposer>
     _amplitudeSub?.cancel();
     _amplitudeSub = _recordingService.amplitudeStream.listen((amp) {
       if (!mounted || !_recordingService.isRecording || _isPaused) return;
-      setState(() {
-        _waveformSamples.add(amp);
-        if (_waveformSamples.length > 60) _waveformSamples.removeAt(0);
-      });
+      _waveformSamples.add(amp);
+      if (_waveformSamples.length > 60) _waveformSamples.removeAt(0);
     });
 
-    setState(() => _state = _ComposerState.locked);
+    setState(() => _state = _ComposerState.popup);
     _startTimer();
+    _openPopup();
   }
 
+  /// Press-and-hold the mic to start recording inline. Shows live timer,
+  /// waveform, "slide to cancel" hint, and a lock capsule above the mic.
+  /// Slide left to cancel, slide up to lock (opens popup), release to send.
   Future<void> _onHoldStart(DragStartDetails details) async {
+    if (_hasText || _state != _ComposerState.idle) return;
+
     HapticFeedback.heavyImpact();
+
+    // Pause any currently playing voice note
+    widget.onMicTap?.call();
+
     final granted = await _ensureMicPermission();
     if (!granted || !mounted) return;
 
@@ -378,12 +386,16 @@ class _MessageComposerState extends State<MessageComposer>
     if (mounted) setState(() => _state = _ComposerState.idle);
   }
 
+  /// Swipe up to lock — opens the popup voice-note screen.
+  /// Recording continues seamlessly, no audio is destroyed.
   void _lockRecording() {
     HapticFeedback.heavyImpact();
     _pulseController.stop();
-    setState(() => _state = _ComposerState.locked);
+    setState(() => _state = _ComposerState.popup);
+    _openPopup();
   }
 
+  /// Release hold without swiping — auto-sends the voice note.
   void _finishAndSend() async {
     HapticFeedback.lightImpact();
     _timer?.cancel();
@@ -416,20 +428,18 @@ class _MessageComposerState extends State<MessageComposer>
         _isPlayOnce = false;
         return;
       }
-      // Translation failed — don't send the original, let user retry
       return;
     }
 
+    unawaited(VoiceNoteSttService.instance.stop());
     widget.onSendVoice(duration, filePath: path ?? _filePath, isPlayOnce: _isPlayOnce);
     _isPlayOnce = false;
   }
 
-  // ── Locked bar actions ──
+  // ── Popup actions ──
 
   void _toggleLockedPause() async {
     if (_isPaused) {
-      // Resuming — stop any preview playback first so it doesn't
-      // keep playing over the live mic input.
       await _stopPreview();
       await _recordingService.resumeRecording();
     } else {
@@ -438,19 +448,14 @@ class _MessageComposerState extends State<MessageComposer>
     if (mounted) setState(() => _isPaused = !_isPaused);
   }
 
-  /// Play/pause a preview of what's been recorded so far. Only usable
-  /// while paused — the file on disk reflects everything captured
-  /// up to the pause point.
   Future<void> _togglePreviewPlay() async {
     if (!_isPaused || _filePath == null) return;
     await _previewPlayback.toggle(_filePath!, messageId: _previewId);
   }
 
-  /// Scrub to a fraction (0.0-1.0) of the recorded-so-far preview.
   Future<void> _seekPreview(double fraction) async {
     if (!_isPaused || _filePath == null) return;
     if (_previewPlayback.currentSource != _filePath) {
-      // Load it first so seeking has something to act on.
       await _previewPlayback.play(_filePath!, messageId: _previewId);
       await _previewPlayback.pause();
     }
@@ -476,9 +481,6 @@ class _MessageComposerState extends State<MessageComposer>
     }
   }
 
-  /// Deletes the current recording. Only asks for confirmation when
-  /// there's meaningful audio to lose (more than ~2 seconds) — a quick
-  /// accidental tap right after starting is discarded silently.
   void _discardLocked() async {
     final wasPaused = _isPaused;
     if (!wasPaused) await _recordingService.pauseRecording();
@@ -499,6 +501,8 @@ class _MessageComposerState extends State<MessageComposer>
     _clearTranslation();
     _isPlayOnce = false;
     if (mounted) setState(() => _state = _ComposerState.idle);
+    // Close popup
+    if (mounted) Navigator.of(context).pop();
   }
 
   Future<bool> _confirmDiscard() async {
@@ -557,9 +561,12 @@ class _MessageComposerState extends State<MessageComposer>
     await _stopPreview();
     final path = await _recordingService.stopRecording();
     final duration = _durationString;
+
+    // Close popup first
+    if (mounted) Navigator.of(context).pop();
+
     if (mounted) setState(() => _state = _ComposerState.idle);
 
-    // If translation is selected, run the pipeline before sending
     if (_selectedTranslateCode != null) {
       final result = await _translateVoiceNote(path ?? _filePath ?? '');
       if (result != null) {
@@ -575,29 +582,16 @@ class _MessageComposerState extends State<MessageComposer>
         _isPlayOnce = false;
         return;
       }
-      // Translation failed — don't send the original
       return;
     }
 
-    // No translation requested — stop the on-device STT capture
-    // (its transcript isn't needed) and send immediately.
     unawaited(VoiceNoteSttService.instance.stop());
     widget.onSendVoice(duration, filePath: path ?? _filePath, isPlayOnce: _isPlayOnce);
     _isPlayOnce = false;
   }
 
-  // ── Play-once toggle ──
-
-  void _togglePlayOnce() {
-    setState(() => _isPlayOnce = !_isPlayOnce);
-  }
-
   // ── Voice note translation ──
 
-  /// Opens the language picker so the user can choose a target language
-  /// for their voice note before sending. When set, the voice note is
-  /// transcribed on-device, translated, synthesized to a new audio file,
-  /// and the recipient hears the translated version.
   void _openTranslatePicker() {
     Navigator.push(
       context,
@@ -617,7 +611,6 @@ class _MessageComposerState extends State<MessageComposer>
     });
   }
 
-  /// Clears the selected translation language.
   void _clearTranslation() {
     setState(() {
       _selectedTranslateCode = null;
@@ -625,9 +618,6 @@ class _MessageComposerState extends State<MessageComposer>
     });
   }
 
-  /// Translates a voice note: transcribes on-device, translates the text,
-  /// synthesizes TTS audio in the target language. Returns the translated
-  /// audio path + transcript, or null on failure (with a snackbar message).
   Future<({String audioPath, String transcript, String langCode, String langName})?>
   _translateVoiceNote(String originalFilePath) async {
     if (_selectedTranslateCode == null) return null;
@@ -635,7 +625,6 @@ class _MessageComposerState extends State<MessageComposer>
     setState(() => _isTranslating = true);
 
     try {
-      // Step 1: On-device transcription
       final stt = VoiceNoteSttService.instance;
       final transcript = await stt.stop();
 
@@ -643,9 +632,7 @@ class _MessageComposerState extends State<MessageComposer>
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text(
-                'No speech detected. Please try again and speak clearly.',
-              ),
+              content: const Text('No speech detected. Please try again and speak clearly.'),
               backgroundColor: KoraColors.cardFor(Theme.of(context).brightness),
               behavior: SnackBarBehavior.floating,
             ),
@@ -654,7 +641,6 @@ class _MessageComposerState extends State<MessageComposer>
         return null;
       }
 
-      // Step 2: Translate text
       final result = await TranslationService.instance.translate(
         transcript,
         _selectedTranslateCode!,
@@ -674,7 +660,6 @@ class _MessageComposerState extends State<MessageComposer>
         return null;
       }
 
-      // Step 3: TTS synthesis
       final tts = VoiceTranslationPipeline.instance;
       final outcome = await tts.translateAndSynthesize(
         transcript: transcript,
@@ -685,8 +670,7 @@ class _MessageComposerState extends State<MessageComposer>
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(outcome.errorMessage ??
-                  'Could not generate translated audio. Please try again.'),
+              content: Text(outcome.errorMessage ?? 'Could not generate translated audio. Please try again.'),
               backgroundColor: KoraColors.cardFor(Theme.of(context).brightness),
               behavior: SnackBarBehavior.floating,
             ),
@@ -695,7 +679,6 @@ class _MessageComposerState extends State<MessageComposer>
         return null;
       }
 
-      // Show success popup
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -741,247 +724,135 @@ class _MessageComposerState extends State<MessageComposer>
   }
 
   void _openAttachments() {
-    final types = [
-      KoraAttachmentType(
-        icon: Icons.photo_outlined,
-        label: 'Photos',
-        color: const Color(0xFF8B5CF6),
-        onTap: () {},
-      ),
-      KoraAttachmentType(
-        icon: Icons.videocam_outlined,
-        label: 'Videos',
-        color: const Color(0xFFEC4899),
-        onTap: () {},
-      ),
-      KoraAttachmentType(
-        icon: Icons.camera_alt_outlined,
-        label: 'Camera',
-        color: const Color(0xFF3B82F6),
-        onTap: () {},
-      ),
-      KoraAttachmentType(
-        icon: Icons.insert_drive_file_outlined,
-        label: 'Files',
-        color: const Color(0xFFF59E0B),
-        onTap: () {},
-      ),
-      KoraAttachmentType(
-        icon: Icons.location_on_outlined,
-        label: 'Location',
-        color: const Color(0xFF22C55E),
-        onTap: () {},
-      ),
-    ];
-
     if (widget.onAttachment != null) {
       widget.onAttachment!();
     } else {
-      AttachmentSheet.show(context, types);
+      showModalBottomSheet(
+        context: context,
+        backgroundColor: KoraColors.cardFor(Theme.of(context).brightness),
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (_) => const AttachmentSheet(),
+      );
     }
   }
 
-  /// Cross-fades between the idle/holding composer and the locked
-  /// recorder bar so the swipe-up-to-lock moment reads as a deliberate,
-  /// smooth hand-off rather than an abrupt UI swap.
-  Widget _wrapTransition(Widget child) {
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 220),
-      switchInCurve: Curves.easeOutCubic,
-      switchOutCurve: Curves.easeInCubic,
-      transitionBuilder: (transitionChild, animation) => FadeTransition(
-        opacity: animation,
-        child: ScaleTransition(
-          scale: Tween<double>(begin: 0.97, end: 1.0).animate(animation),
-          child: transitionChild,
+  void _openAiWriting() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const AiWritingSheet(),
+    ).then((result) {
+      if (result != null && result is String && result.isNotEmpty) {
+        _controller.text = result;
+        _controller.selection = TextSelection.fromPosition(
+          TextPosition(offset: result.length),
+        );
+        setState(() => _hasText = true);
+        _focusNode.requestFocus();
+      }
+    });
+  }
+
+  /// Opens the popup voice-note bottom sheet.
+  /// Uses isDismissible: false so it only closes on delete/send.
+  void _openPopup() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        isDismissible: false,
+        enableDrag: false,
+        backgroundColor: Colors.transparent,
+        builder: (sheetCtx) => VoiceNotePopup(
+          initialSeconds: _seconds,
+          initialWaveformSamples: _waveformSamples,
+          filePath: _filePath,
+          isPaused: _isPaused,
+          onDiscard: _discardLocked,
+          onTogglePause: _toggleLockedPause,
+          onSend: _sendLocked,
+          onTranslate: _openTranslatePicker,
+          selectedTranslateName: _selectedTranslateName,
+          isTranslating: _isTranslating,
+          isPlayOnce: _isPlayOnce,
+          onTogglePlayOnce: () => setState(() => _isPlayOnce = !_isPlayOnce),
+          isPreviewPlaying: _previewPlaying,
+          previewProgress: _previewProgress,
+          previewPositionMs: _previewPositionMs,
+          previewDurationMs: _previewDurationMs,
+          previewSpeed: _previewSpeed,
+          onTogglePreviewPlay: _togglePreviewPlay,
+          onSeekPreview: _seekPreview,
+          onCyclePreviewSpeed: _cyclePreviewSpeed,
         ),
-      ),
-      child: KeyedSubtree(key: ValueKey(_state), child: child),
-    );
+      ).then((_) {
+        // If the popup was closed (delete/send already handle state),
+        // make sure we reset to idle if still in popup state
+        if (mounted && _state == _ComposerState.popup) {
+          // This can happen if the sheet was dismissed by the system
+          // In normal flow, _discardLocked and _sendLocked already pop + reset
+        }
+      });
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final brightness = Theme.of(context).brightness;
-    final surface = KoraColors.cardFor(brightness);
     final textPrimary = KoraColors.textPrimaryFor(brightness);
-    final textMuted = KoraColors.textMutedFor(brightness);
-    final border = KoraColors.borderFor(brightness);
+    final textMuted = KoraColors.textSecondaryFor(brightness);
+    final bg = KoraColors.cardFor(brightness);
 
-    // ── Locked state ──
-    if (_state == _ComposerState.locked) {
-      return _wrapTransition(
-        SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
-            child: LockedRecorderBar(
-              seconds: _seconds,
-              isPaused: _isPaused,
-              waveformSamples: _waveformSamples,
-              onDiscard: _discardLocked,
-              onTogglePause: _toggleLockedPause,
-              onSend: _sendLocked,
-              onTranslate: _openTranslatePicker,
-              selectedTranslateName: _selectedTranslateName,
-              isTranslating: _isTranslating,
-              isPlayOnce: _isPlayOnce,
-              onTogglePlayOnce: _togglePlayOnce,
-              isPreviewPlaying: _previewPlaying,
-              previewProgress: _previewProgress,
-              previewPositionMs: _previewPositionMs,
-              previewDurationMs: _previewDurationMs,
-              previewSpeed: _previewSpeed,
-              onTogglePreviewPlay: _togglePreviewPlay,
-              onSeekPreview: _seekPreview,
-              onCyclePreviewSpeed: _cyclePreviewSpeed,
-            ),
-          ),
-        ),
-      );
-    }
-
-    final isHolding = _state == _ComposerState.holding;
-
-    return _wrapTransition(
-      SafeArea(
+    // ── Holding state — inline recording with gestures ──
+    if (_state == _ComposerState.holding) {
+      return SafeArea(
         top: false,
         child: Container(
-        decoration: BoxDecoration(
-          color: surface,
-          border: Border(top: BorderSide(color: border, width: 0.5)),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          color: bg,
           child: Row(
             children: [
-              if (!isHolding) ...[
-                Expanded(
-                  child: Container(
-                    constraints: const BoxConstraints(maxHeight: 120),
-                    decoration: BoxDecoration(
-                      color: KoraColors.surfaceFor(brightness),
-                      borderRadius: BorderRadius.circular(26),
-                    ),
-                    child: Row(
-                      children: [
-                        IconButton(
-                          icon: Icon(Icons.emoji_emotions_outlined,
-                              color: textMuted, size: 24),
-                          onPressed: () {},
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(
-                              minWidth: 40, minHeight: 40),
-                        ),
-                        IconButton(
-                          icon: Icon(Icons.auto_awesome,
-                              color: KoraColors.purple, size: 22),
-                          onPressed: () {
-                            AiWritingSheet.show(
-                              context,
-                              _controller.text,
-                              (result) {
-                                _controller.text = result;
-                                setState(() => _hasText = result.isNotEmpty);
-                                _focusNode.requestFocus();
-                              },
-                            );
-                          },
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(
-                              minWidth: 36, minHeight: 36),
-                        ),
-                        Expanded(
-                          child: TextField(
-                            controller: _controller,
-                            focusNode: _focusNode,
-                            maxLines: null,
-                            textInputAction: TextInputAction.newline,
-                            style: TextStyle(color: textPrimary, fontSize: 15),
-                            decoration: InputDecoration(
-                              hintText: 'Message',
-                              hintStyle:
-                                  TextStyle(color: textMuted, fontSize: 15),
-                              border: InputBorder.none,
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 4,
-                                vertical: 10,
-                              ),
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          icon: Icon(Icons.camera_alt_outlined,
-                              color: textMuted, size: 22),
-                          onPressed: () {},
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(
-                              minWidth: 36, minHeight: 36),
-                        ),
-                        IconButton(
-                          icon: Icon(Icons.attach_file,
-                              color: textMuted, size: 22),
-                          onPressed: _openAttachments,
-                          padding: const EdgeInsets.only(right: 4),
-                          constraints: const BoxConstraints(
-                              minWidth: 36, minHeight: 36),
-                        ),
-                      ],
-                    ),
-                  ),
+              Expanded(
+                child: VoiceHoldingContent(
+                  seconds: _seconds,
+                  waveformSamples: _waveformSamples,
+                  cancelProgress: _cancelProgress,
+                  pulseController: _pulseController,
                 ),
-              ] else ...[
-                Expanded(
-                  child: VoiceHoldingContent(
-                    seconds: _seconds,
-                    waveformSamples: _waveformSamples,
-                    cancelProgress: _cancelProgress,
-                    pulseController: _pulseController,
-                  ),
-                ),
-              ],
+              ),
               const SizedBox(width: 6),
               Stack(
                 clipBehavior: Clip.none,
-                alignment: Alignment.center,
+                alignment: Alignment.bottomCenter,
                 children: [
-                  if (isHolding)
-                    Positioned(
-                      bottom: 50,
-                      child: VoiceLockHint(progress: _lockProgress),
-                    ),
+                  // Lock hint floating above the mic
+                  Positioned(
+                    bottom: 48,
+                    child: VoiceLockHint(progress: _lockProgress),
+                  ),
                   GestureDetector(
-                    onTap: _hasText ? _send : _onTapRecord,
-                    onPanStart:
-                        (!_hasText && !isHolding) ? _onHoldStart : null,
-                    onPanUpdate: isHolding ? _onHoldMove : null,
-                    onPanEnd: isHolding ? _onHoldEnd : null,
+                    onPanUpdate: _onHoldMove,
+                    onPanEnd: _onHoldEnd,
                     child: Transform.translate(
-                      offset: isHolding
-                          ? Offset(
-                              (_dragDx * 0.25).clamp(-24.0, 0.0),
-                              (_dragDy * 0.25).clamp(-24.0, 0.0),
-                            )
-                          : Offset.zero,
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        curve: Curves.easeInOut,
-                        width: isHolding ? 52 : 46,
-                        height: isHolding ? 52 : 46,
+                      offset: Offset(
+                        (_dragDx * 0.25).clamp(-24.0, 0.0),
+                        (_dragDy * 0.25).clamp(-24.0, 0.0),
+                      ),
+                      child: Container(
+                        width: 52,
+                        height: 52,
                         decoration: const BoxDecoration(
-                          // WhatsApp-style solid green mic/send button —
-                          // same color whether idle, holding, or sending.
                           color: KoraColors.waGreen,
                           shape: BoxShape.circle,
                         ),
-                        child: AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 200),
-                          child: Icon(
-                            _hasText ? Icons.send_rounded : Icons.mic_rounded,
-                            key: ValueKey('$_hasText-$isHolding'),
-                            color: Colors.white,
-                            size: isHolding ? 24 : 22,
-                          ),
+                        child: const Icon(
+                          Icons.mic_rounded,
+                          color: Colors.white,
+                          size: 24,
                         ),
                       ),
                     ),
@@ -991,7 +862,97 @@ class _MessageComposerState extends State<MessageComposer>
             ],
           ),
         ),
+      );
+    }
+
+    // ── Idle / Typing state ──
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        color: bg,
+        child: Row(
+          children: [
+            Expanded(
+              child: Container(
+                constraints: const BoxConstraints(minHeight: 44),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: KoraColors.inputFillFor(brightness),
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Row(
+                  children: [
+                    GestureDetector(
+                      onTap: _openAiWriting,
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: Icon(Icons.auto_awesome_outlined,
+                            color: KoraColors.purple, size: 22),
+                      ),
+                    ),
+                    Expanded(
+                      child: TextField(
+                        controller: _controller,
+                        focusNode: _focusNode,
+                        maxLines: null,
+                        textInputAction: TextInputAction.newline,
+                        style: TextStyle(color: textPrimary, fontSize: 15),
+                        decoration: InputDecoration(
+                          hintText: 'Message',
+                          hintStyle: TextStyle(color: textMuted, fontSize: 15),
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 10,
+                          ),
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.camera_alt_outlined,
+                          color: textMuted, size: 22),
+                      onPressed: () {},
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                          minWidth: 36, minHeight: 36),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.attach_file,
+                          color: textMuted, size: 22),
+                      onPressed: _openAttachments,
+                      padding: const EdgeInsets.only(right: 4),
+                      constraints: const BoxConstraints(
+                          minWidth: 36, minHeight: 36),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            // Mic button (when empty) / Send button (when text exists)
+            GestureDetector(
+              onTap: _hasText ? _send : _onTapRecord,
+              onPanStart: _hasText ? null : _onHoldStart,
+              onPanUpdate: _hasText ? null : _onHoldMove,
+              onPanEnd: _hasText ? null : _onHoldEnd,
+              child: Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  gradient: KoraColors.brandGradient,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  _hasText ? Icons.send_rounded : Icons.mic_rounded,
+                  color: Colors.white,
+                  size: 22,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
-    ));
+    );
   }
 }

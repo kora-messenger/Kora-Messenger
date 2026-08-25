@@ -10,6 +10,7 @@ import '../../models/chat_models.dart';
 import '../../models/message_model.dart';
 import '../../services/message_service.dart';
 import '../../services/offline_voice_sync.dart';
+import '../../services/audio_playback_service.dart';
 import 'voice_translation_sheet.dart';
 import '../../theme/kora_colors.dart';
 import '../../theme/chat_theme_provider.dart';
@@ -399,6 +400,8 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
       translatedLanguageCode: translatedLanguageCode,
       translatedLanguageName: translatedLanguageName,
       isPlayOnce: isPlayOnce,
+      recipientEmail: widget.recipientEmail,
+      recipientName: widget.name,
     );
     setState(() {
       _messages = List.from(_messageService.getMessages(widget.chatId));
@@ -1396,6 +1399,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
                     : MessageComposer(
                         onSend: _sendMessage,
                         onSendVoice: _sendVoice,
+                        onMicTap: () => AudioPlaybackService.instance.stop(),
                       ),
               ),
           ],

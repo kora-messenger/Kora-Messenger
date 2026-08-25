@@ -293,6 +293,8 @@ class MessageService {
     String? translatedLanguageCode,
     String? translatedLanguageName,
     bool isPlayOnce = false,
+    String? recipientEmail,
+    String? recipientName,
   }) async {
     final messages = _cache.putIfAbsent(chatId, () => <KoraMessage>[]);
     final msgId = 'voice_${DateTime.now().millisecondsSinceEpoch}';
@@ -318,7 +320,7 @@ class MessageService {
       translatedLanguageName: translatedLanguageName,
       isPlayOnce: isPlayOnce,
     ));
-    await _persist(chatId);
+    await _persist(chatId, recipientEmail: recipientEmail, recipientName: recipientName);
 
     if (!isOnline) {
       // Enqueue for automatic sync when network returns
