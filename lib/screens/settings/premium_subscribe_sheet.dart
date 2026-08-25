@@ -5,6 +5,10 @@ import '../../theme/kora_colors.dart';
 import '../../config/kora_api.dart';
 import '../../config/subscription_pricing.dart';
 import '../../services/pricing_service.dart';
+import '../../services/payment_service.dart';
+import '../../services/auth_service.dart';
+import '../../services/session_manager.dart';
+import '../../theme/chat_theme_provider.dart';
 
 /// Premium subscription bottom sheet.
 ///
@@ -36,6 +40,7 @@ class _PremiumSubscribeSheetState extends State<PremiumSubscribeSheet> {
   SubscriptionPlan _selectedPlan = SubscriptionPlan.yearly;
   RegionalPrice? _price;
   bool _loadingPrice = true;
+  bool _recovering = false;
 
   @override
   void initState() {
@@ -60,6 +65,68 @@ class _PremiumSubscribeSheetState extends State<PremiumSubscribeSheet> {
 
   void _onSubscribe() {
     Navigator.pop(context, _selectedPlan);
+  }
+
+  Future<void> _recoverSubscription() async {
+    setState(() => _recovering = true);
+
+    try {
+      final session = await SessionManager.instance.loadSession();
+      final userId = session?['id']?.toString() ?? '';
+      final email = (session?['email'] as String?)?.toLowerCase().trim() ?? '';
+
+      if (userId.isEmpty && email.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Please log in to recover your subscription.'),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+        return;
+      }
+
+      final result = await PaymentService.recoverSubscription(
+        userId: userId,
+        email: email,
+      );
+
+      if (mounted) {
+        if (result.success) {
+          // Pop the sheet and show success
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result.message),
+              backgroundColor: KoraColors.purple,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result.message),
+              backgroundColor: const Color(0xFF2A2A3A),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not connect to Kora servers. Try again later.'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _recovering = false);
+    }
   }
 
   @override
@@ -221,6 +288,34 @@ class _PremiumSubscribeSheetState extends State<PremiumSubscribeSheet> {
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // ── Recover Subscription ──
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: TextButton.icon(
+                    onPressed: _recovering ? null : _recoverSubscription,
+                    icon: _recovering
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              color: Color(0xFFA0A0B8),
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Icon(Icons.restore_outlined, color: Color(0xFFA0A0B8), size: 20),
+                    label: Text(
+                      _recovering ? 'Checking...' : 'Recover Subscription',
+                      style: const TextStyle(
+                        color: Color(0xFFA0A0B8),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),

@@ -1145,6 +1145,43 @@ Deno.serve(async (req: Request) => {
     }
 
     // ── LOOKUP USER (by username or koraId) ────────────────────
+    // ── RECOVER SUBSCRIPTION ─────────────────────────────────
+    // Re-checks the user's premium status from the database.
+    // Used when a user reinstalls the app, switches devices, or had a
+    // payment succeed but the local cache wasn't set (crash, etc).
+    // Returns the live premium state so the client can restore it.
+    if (action === 'recoverSubscription') {
+      const { userId, email } = body;
+      if (!userId && !email) {
+        return jsonResponse({ success: false, error: 'User ID or email is required' });
+      }
+
+      let user;
+      if (userId) {
+        user = await db.entities.KoraUser.get(userId);
+      }
+      if (!user && email) {
+        const lowerEmail = email.toLowerCase().trim();
+        const users = await db.entities.KoraUser.filter({ email: lowerEmail });
+        if (users && users.length > 0) user = users[0];
+      }
+      if (!user) {
+        return jsonResponse({ success: false, error: 'Account not found' });
+      }
+
+      const isPremium = computeIsPremium(user);
+      const premiumExpiresAt = user.data?.premiumExpiresAt ?? user.premiumExpiresAt ?? null;
+      const premiumSource = user.data?.premiumSource ?? user.premiumSource ?? '';
+
+      return jsonResponse({
+        success: true,
+        isPremium,
+        premiumExpiresAt,
+        premiumSource,
+        user: getUserFromRecord(user),
+      });
+    }
+
     if (action === 'lookupUser') {
       const { identifier } = body;
       if (!identifier) return jsonResponse({ success: false, error: 'Identifier is required' });

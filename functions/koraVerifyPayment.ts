@@ -10,10 +10,15 @@
  * Paystack API: GET https://api.paystack.co/transaction/verify/:reference
  */
 
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
+
 Deno.serve(async (req) => {
+  const base44 = createClientFromRequest(req);
+  const db = base44.asServiceRole;
+
   try {
     const body = await req.json();
-    const { reference } = body;
+    const { reference, email } = body;
 
     const PAYSTACK_SECRET_KEY = Deno.env.get("PAYSTACK_SECRET_KEY");
 
@@ -68,6 +73,34 @@ Deno.serve(async (req) => {
     }
 
     if (status === "success") {
+      // Write premium status to the database so the backend is always
+      // the source of truth — enables subscription recovery across
+      // reinstalls and device switches.
+      if (email) {
+        try {
+          const lowerEmail = email.toLowerCase().trim();
+          const users = await db.entities.KoraUser.filter({ email: lowerEmail });
+          if (users && users.length > 0) {
+            const user = users[0];
+            const now = new Date();
+            const durationDays = planType === "yearly" ? 365 : 30;
+            const expiresAt = new Date(now.getTime() + durationDays * 24 * 60 * 60 * 1000);
+            await db.entities.KoraUser.update(user.id, {
+              data: {
+                ...user.data,
+                isPremium: true,
+                premiumExpiresAt: expiresAt.toISOString(),
+                premiumSource: planType,
+              },
+            });
+          }
+        } catch (dbErr) {
+          // Don't fail the payment verification if the DB write fails —
+          // the client-side activation still works as a fallback.
+          console.error("Failed to write premium to DB:", dbErr);
+        }
+      }
+
       return new Response(
         JSON.stringify({
           success: true,

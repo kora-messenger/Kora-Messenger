@@ -55,6 +55,11 @@ class KoraApi {
   /// Future: 'https://api.koramessenger.com/payment/init' (or your domain)
   static const String paymentInitEndpoint = '$baseUrl/koraInitPayment';
 
+  /// Subscription recovery endpoint — re-check premium status from DB.
+  /// Temporary: Base44 backend function.
+  /// Future: 'https://api.koramessenger.com/recover-subscription' (or your domain)
+  static const String recoverSubscriptionEndpoint = '$baseUrl/koraRecoverSubscription';
+
   /// Payment verification endpoint — verify Paystack transactions.
   /// Temporary: Base44 backend function.
   /// Future: 'https://api.koramessenger.com/payment/verify' (or your domain)

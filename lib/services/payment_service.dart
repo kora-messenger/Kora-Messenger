@@ -45,10 +45,10 @@ class PaymentService {
   }
 
   /// Verify a Paystack transaction by reference.
-  static Future<Map<String, dynamic>> verifyTransaction(String reference) async {
+  static Future<Map<String, dynamic>> verifyTransaction(String reference, [String? email]) async {
     final response = await KoraApi.postTo(
       KoraApi.paymentVerifyEndpoint,
-      {'reference': reference},
+      {'reference': reference, if (email != null) 'email': email},
     ).timeout(const Duration(seconds: 15));
 
     return response;
@@ -121,8 +121,8 @@ class PaymentService {
         return PaymentResult(success: false, message: 'Payment was cancelled');
       }
 
-      // Verify the transaction
-      final verifyResponse = await verifyTransaction(verifiedRef);
+      // Verify the transaction (pass email so backend can write premium to DB)
+      final verifyResponse = await verifyTransaction(verifiedRef, email);
 
       if (verifyResponse['success'] == true) {
         // Activate premium in shared preferences
@@ -194,6 +194,82 @@ class PaymentService {
   static Future<String?> getPremiumPlan() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('premium_plan');
+  }
+
+  /// Recover / restore a subscription from the backend.
+  ///
+  /// Used when a user reinstalls the app, switches devices, or had a
+  /// payment succeed but the local cache wasn't set. Calls the backend
+  /// to check the live premium status and restores it locally if active.
+  ///
+  /// Returns a [PaymentResult] indicating whether premium was recovered.
+  static Future<PaymentResult> recoverSubscription({
+    required String userId,
+    String? email,
+  }) async {
+    try {
+      final response = await KoraApi.postTo(
+        KoraApi.recoverSubscriptionEndpoint,
+        {
+          'userId': userId,
+          if (email != null) 'email': email,
+        },
+      ).timeout(const Duration(seconds: 15));
+
+      if (response['success'] == true) {
+        final isPremium = response['isPremium'] == true;
+
+        if (isPremium) {
+          // Restore premium locally — use the same keys as _activatePremium
+          final prefs = await SharedPreferences.getInstance();
+          final premiumSource = response['premiumSource'] as String? ?? 'monthly';
+          final expiresAtStr = response['premiumSource'] as String?; // not used, see below
+          final expiresAtStr2 = response['premiumExpiresAt'] as String?;
+
+          // Parse expiry from the backend ISO string, or compute a default
+          int expiryMs;
+          if (expiresAtStr2 != null && expiresAtStr2.isNotEmpty) {
+            expiryMs = DateTime.parse(expiresAtStr2).millisecondsSinceEpoch;
+          } else {
+            final durationDays = premiumSource == 'yearly' ? 365 : 30;
+            expiryMs = DateTime.now().millisecondsSinceEpoch + durationDays * 24 * 60 * 60 * 1000;
+          }
+
+          await prefs.setBool('kora_is_premium', true);
+          await prefs.setBool('is_premium', true);
+          await prefs.setString('premium_plan', premiumSource);
+          await prefs.setInt('premium_expiry', expiryMs);
+
+          // Sync ChatThemeProvider so all premium-gated screens update immediately
+          ChatThemeProvider.instance.markPremium();
+
+          // Also sync the full profile so isOwnerAccount etc. are correct
+          final user = response['user'] as Map<String, dynamic>?;
+          if (user != null) {
+            await ChatThemeProvider.instance.syncPremiumFromSession(user);
+          }
+
+          return PaymentResult(
+            success: true,
+            message: 'Premium subscription recovered successfully!',
+            planType: premiumSource,
+          );
+        } else {
+          return PaymentResult(
+            success: false,
+            message: 'No active subscription found for this account.',
+          );
+        }
+      } else {
+        return PaymentResult(
+          success: false,
+          message: response['error'] as String? ?? 'Could not verify subscription.',
+        );
+      }
+    } catch (e) {
+      debugPrint('Recover subscription error: $e');
+      return PaymentResult(success: false, message: 'Could not connect to Kora servers.');
+    }
   }
 
   /// Check if the owner override is active (permanent premium without payment).
