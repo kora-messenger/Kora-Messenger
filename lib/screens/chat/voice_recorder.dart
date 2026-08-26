@@ -14,6 +14,10 @@ class VoiceHoldingContent extends StatelessWidget {
   final List<double> waveformSamples;
   final double cancelProgress;
   final AnimationController pulseController;
+  /// How far the user has dragged left (raw pixels). WhatsApp translates
+  /// the entire recording content to the left as the user drags toward
+  /// cancel — we replicate this with a direct pixel offset.
+  final double dragOffsetX;
 
   const VoiceHoldingContent({
     super.key,
@@ -21,6 +25,7 @@ class VoiceHoldingContent extends StatelessWidget {
     required this.waveformSamples,
     required this.cancelProgress,
     required this.pulseController,
+    this.dragOffsetX = 0,
   });
 
   String get _durationString {
@@ -33,7 +38,14 @@ class VoiceHoldingContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final brightness = Theme.of(context).brightness;
 
-    return Row(
+    // WhatsApp-style: the entire content slides left as the user drags
+    // toward cancel. The translation is proportional to the drag but
+    // eased so it feels natural — not 1:1 with the finger.
+    final slideX = (dragOffsetX * 0.3).clamp(-80.0, 0.0);
+
+    return Transform.translate(
+      offset: Offset(slideX, 0),
+      child: Row(
       children: [
         ScaleTransition(
           scale: Tween(begin: 0.8, end: 1.2).animate(
@@ -99,6 +111,7 @@ class VoiceHoldingContent extends StatelessWidget {
           ),
         ),
       ],
+      ),
     );
   }
 }

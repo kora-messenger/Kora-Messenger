@@ -17,17 +17,26 @@ import 'language_picker_screen.dart';
 
 /// Kora's message composer — the bottom input bar.
 ///
-/// States:
+/// Uses WhatsApp's raw-pointer-event approach for gesture tracking
+/// (Flutter Listener ≈ Android onInterceptTouchEvent/onTouchEvent):
 /// - **Idle** → text input + mic button (when empty) or send button (when typing)
-/// - **Holding** → press-and-hold the mic to record. Shows a live timer +
-///   waveform + "slide to cancel" hint, with a lock capsule floating
-///   above the mic. Slide left to cancel, slide up to lock hands-free.
-///   Releasing without crossing either threshold sends immediately.
-/// - **Popup** → hands-free recording popup (tap or lock). Trash, timer,
+/// - **Holding** → press-and-hold the mic to record. Recording starts on
+///   pointer DOWN (not after a hold threshold — same as WhatsApp). Shows
+///   a live timer + waveform + "slide to cancel" hint, with a lock capsule
+///   floating above the mic. Slide left to cancel, slide up to lock
+///   hands-free. Releasing without crossing either threshold sends
+///   immediately. A quick tap (short press, minimal drag) opens the popup.
+/// - **Popup** → hands-free recording bar (tap or lock). Trash, timer,
 ///   waveform, pause/resume, translate and send. Only closes on delete/send.
 ///
 /// Waveform data comes from [AudioRecordingService.amplitudeStream] —
 /// real microphone amplitude, not a placeholder.
+///
+/// **Why Listener, not GestureDetector:** A GestureDetector's PanRecognizer
+/// can be destroyed and recreated when the widget tree rebuilds (e.g. when
+/// switching from idle → holding), orphaning an in-progress pointer. The
+/// Listener widget's pointer callback is just a function — it survives
+/// any rebuild because the Listener itself never changes identity.
 class MessageComposer extends StatefulWidget {
   final Function(String) onSend;
   final Function(
@@ -84,11 +93,22 @@ class _MessageComposerState extends State<MessageComposer>
   int _previewDurationMs = 0;
   double _previewSpeed = 1.0;
 
-  // ── Drag tracking ──
+  // ── Pointer tracking (WhatsApp onInterceptTouchEvent pattern) ──
+  // Instead of GestureDetector's pan recognizers (which compete in the
+  // gesture arena and can be destroyed when the widget tree rebuilds),
+  // we use raw pointer events via Listener — exactly like WhatsApp's
+  // onInterceptTouchEvent / onTouchEvent at the container level.
+  //
+  // The pointer tracker lives on a Listener that never changes identity,
+  // so the tracking is never interrupted by setState rebuilds.
+  Offset? _pointerDownPos;
+  DateTime? _pointerDownTime;
   double _dragDx = 0;
   double _dragDy = 0;
   static const double _kCancelThreshold = 120.0;
   static const double _kLockThreshold = 80.0;
+  static const double _kTapMaxDuration = Duration.millisecondsPerSecond * 0; // unused, kept for clarity
+  static const double _kTapMaxDrag = 18.0; // max movement to still count as a tap
   bool _gestureResolved = false;
 
   // ── Translation state ──
@@ -254,61 +274,108 @@ class _MessageComposerState extends State<MessageComposer>
 
   // ── Recording ──
 
-  /// A quick tap on the mic button (no hold) starts recording and opens
-  /// the popup voice-note screen immediately — trash, timer, waveform,
-  /// pause, translate and send. Only closes on delete/send.
-  Future<void> _onTapRecord() async {
+  // ── WhatsApp-style pointer tracking (onInterceptTouchEvent equivalent) ──
+  //
+  // The mic button is wrapped in a Listener (raw pointer events), NOT a
+  // GestureDetector. This means:
+  //   - No gesture arena competition — the pointer events come straight
+  //     from the framework, so no recognizer can lose the gesture.
+  //   - The Listener widget never changes identity across rebuilds, so
+  //     tracking is never interrupted by setState (the bug that plagues
+  //     GestureDetector-based approaches when the widget tree changes).
+  //   - We classify tap-vs-hold manually from duration + drag distance,
+  //     exactly like WhatsApp's onInterceptTouchEvent does on Android.
+
+  /// Pointer went down on the mic button. Start recording immediately
+  /// (WhatsApp starts audio capture on ACTION_DOWN, not after a hold
+  /// threshold — the recording starts the instant you touch the mic).
+  void _onPointerDown(PointerDownEvent event) {
     if (_hasText || _state != _ComposerState.idle) return;
 
-    // Pause any currently playing voice note
-    widget.onMicTap?.call();
-
-    final granted = await _ensureMicPermission();
-    if (!granted || !mounted) return;
-
-    _seconds = 0;
-    _isPaused = false;
-    _waveformSamples.clear();
-
-    try {
-      _filePath = await _recordingService.startRecording();
-    } catch (_) {
-      return;
-    }
-    if (!mounted) return;
-
-    // Start on-device STT capture alongside audio recording
-    VoiceNoteSttService.instance.start();
-
-    _amplitudeSub?.cancel();
-    _amplitudeSub = _recordingService.amplitudeStream.listen((amp) {
-      if (!mounted || !_recordingService.isRecording || _isPaused) return;
-      setState(() {
-        _waveformSamples.add(amp);
-        if (_waveformSamples.length > 60) _waveformSamples.removeAt(0);
-      });
-    });
-
-    setState(() => _state = _ComposerState.popup);
-    _startTimer();
-  }
-
-  /// Press-and-hold the mic to start recording inline. Shows live timer,
-  /// waveform, "slide to cancel" hint, and a lock capsule above the mic.
-  /// Slide left to cancel, slide up to lock (opens popup), release to send.
-  Future<void> _onHoldStart(DragStartDetails details) async {
-    if (_hasText || _state != _ComposerState.idle) return;
-
-    HapticFeedback.heavyImpact();
-
-    // Pause any currently playing voice note
-    widget.onMicTap?.call();
-
-    final granted = await _ensureMicPermission();
-    if (!granted || !mounted) return;
-
+    _pointerDownPos = event.position;
+    _pointerDownTime = DateTime.now();
     _dragDx = 0;
     _dragDy = 0;
+    _gestureResolved = false;
+
+    // Start recording immediately on pointer down
+    _startRecording(isHold: true);
+  }
+
+  /// Pointer moved while on the mic button. Track drag for cancel/lock.
+  void _onPointerMove(PointerMoveEvent event) {
+    if (_state != _ComposerState.holding || _gestureResolved) return;
+    if (_pointerDownPos == null) return;
+
+    setState(() {
+      _dragDx = event.position.dx - _pointerDownPos!.dx;
+      _dragDy = event.position.dy - _pointerDownPos!.dy;
+    });
+
+    if (_dragDx <= -_kCancelThreshold) {
+      _gestureResolved = true;
+      _cancelHolding();
+    } else if (_dragDy <= -_kLockThreshold) {
+      _gestureResolved = true;
+      _lockRecording();
+    }
+  }
+
+  /// Pointer lifted off the mic button. Classify as tap or hold-release.
+  void _onPointerUp(PointerUpEvent event) {
+    if (_state != _ComposerState.idle && _state != _ComposerState.holding) return;
+    if (_pointerDownPos == null || _pointerDownTime == null) return;
+
+    // If already in popup (e.g. from a previous tap), ignore
+    if (_state == _ComposerState.popup) return;
+
+    final elapsed = DateTime.now().difference(_pointerDownTime!);
+    final dragDistance = (event.position - _pointerDownPos!).distance;
+
+    // ── Tap detection ──
+    // Short press with minimal movement → treat as tap → open popup.
+    // WhatsApp uses a ~200ms threshold; we use 250ms to be safe with
+    // Flutter's pointer pipeline latency.
+    if (elapsed.inMilliseconds < 250 && dragDistance < _kTapMaxDrag) {
+      _handleTapRecord();
+      _pointerDownPos = null;
+      _pointerDownTime = null;
+      return;
+    }
+
+    // ── Hold release ──
+    // If we're in holding state and the gesture wasn't resolved
+    // (cancel/lock), releasing sends the voice note immediately.
+    if (_state == _ComposerState.holding && !_gestureResolved) {
+      _finishAndSend();
+    }
+
+    _pointerDownPos = null;
+    _pointerDownTime = null;
+  }
+
+  /// Called when the pointer classification determines this was a quick
+  /// tap (not a hold). Switches from holding → popup (hands-free recording).
+  void _handleTapRecord() {
+    if (_state == _ComposerState.holding) {
+      // Recording already started on pointer down — just switch to popup
+      _pulseController.stop();
+      setState(() => _state = _ComposerState.popup);
+    } else if (_state == _ComposerState.idle) {
+      // Fallback: start fresh recording in popup mode
+      _startRecording(isHold: false);
+    }
+  }
+
+  /// Core recording start — shared by both tap and hold paths.
+  Future<void> _startRecording({required bool isHold}) async {
+    if (_hasText) return;
+
+    widget.onMicTap?.call();
+
+    final granted = await _ensureMicPermission();
+    if (!granted || !mounted) return;
+
     _seconds = 0;
     _isPaused = false;
     _gestureResolved = false;
@@ -334,8 +401,13 @@ class _MessageComposerState extends State<MessageComposer>
     // Start on-device STT capture alongside audio recording
     VoiceNoteSttService.instance.start();
 
-    setState(() => _state = _ComposerState.holding);
-    _pulseController.repeat(reverse: true);
+    if (isHold) {
+      HapticFeedback.heavyImpact();
+      setState(() => _state = _ComposerState.holding);
+      _pulseController.repeat(reverse: true);
+    } else {
+      setState(() => _state = _ComposerState.popup);
+    }
     _startTimer();
   }
 
@@ -344,27 +416,6 @@ class _MessageComposerState extends State<MessageComposer>
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted && !_isPaused) setState(() => _seconds++);
     });
-  }
-
-  void _onHoldMove(DragUpdateDetails details) {
-    if (_state != _ComposerState.holding || _gestureResolved) return;
-    setState(() {
-      _dragDx += details.delta.dx;
-      _dragDy += details.delta.dy;
-    });
-
-    if (_dragDx <= -_kCancelThreshold) {
-      _gestureResolved = true;
-      _cancelHolding();
-    } else if (_dragDy <= -_kLockThreshold) {
-      _gestureResolved = true;
-      _lockRecording();
-    }
-  }
-
-  void _onHoldEnd(DragEndDetails details) {
-    if (_state != _ComposerState.holding || _gestureResolved) return;
-    _finishAndSend();
   }
 
   double get _cancelProgress => (-_dragDx / _kCancelThreshold).clamp(0.0, 1.0);
@@ -829,6 +880,7 @@ class _MessageComposerState extends State<MessageComposer>
                       waveformSamples: _waveformSamples,
                       cancelProgress: _cancelProgress,
                       pulseController: _pulseController,
+                      dragOffsetX: _dragDx,
                     )
                   : Container(
                       constraints: const BoxConstraints(minHeight: 44),
@@ -909,11 +961,17 @@ class _MessageComposerState extends State<MessageComposer>
                     ),
                   ),
                 ),
-                GestureDetector(
-                  onTap: _hasText ? _send : _onTapRecord,
-                  onPanStart: _hasText ? null : _onHoldStart,
-                  onPanUpdate: _hasText ? null : _onHoldMove,
-                  onPanEnd: _hasText ? null : _onHoldEnd,
+                // ── WhatsApp-style raw pointer tracking ──
+                // Listener (not GestureDetector) so the pointer events
+                // come directly from the framework — no gesture arena,
+                // no recognizer to lose across rebuilds, no widget-swap
+                // bug. This is the Flutter equivalent of Android's
+                // onInterceptTouchEvent / onTouchEvent at the container.
+                Listener(
+                  behavior: HitTestBehavior.opaque,
+                  onPointerDown: _hasText ? null : _onPointerDown,
+                  onPointerMove: _hasText ? null : _onPointerMove,
+                  onPointerUp: _hasText ? null : _onPointerUp,
                   child: Transform.translate(
                     offset: isHolding
                         ? Offset(
