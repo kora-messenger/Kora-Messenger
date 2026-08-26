@@ -766,65 +766,9 @@ class _MessageComposerState extends State<MessageComposer>
     final textMuted = KoraColors.textSecondaryFor(brightness);
     final bg = KoraColors.cardFor(brightness);
 
-    // ── Holding state — inline recording with gestures ──
-    if (_state == _ComposerState.holding) {
-      return SafeArea(
-        top: false,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-          color: bg,
-          child: Row(
-            children: [
-              Expanded(
-                child: VoiceHoldingContent(
-                  seconds: _seconds,
-                  waveformSamples: _waveformSamples,
-                  cancelProgress: _cancelProgress,
-                  pulseController: _pulseController,
-                ),
-              ),
-              const SizedBox(width: 6),
-              Stack(
-                clipBehavior: Clip.none,
-                alignment: Alignment.bottomCenter,
-                children: [
-                  // Lock hint floating above the mic
-                  Positioned(
-                    bottom: 48,
-                    child: VoiceLockHint(progress: _lockProgress),
-                  ),
-                  GestureDetector(
-                    onPanUpdate: _onHoldMove,
-                    onPanEnd: _onHoldEnd,
-                    child: Transform.translate(
-                      offset: Offset(
-                        (_dragDx * 0.25).clamp(-24.0, 0.0),
-                        (_dragDy * 0.25).clamp(-24.0, 0.0),
-                      ),
-                      child: Container(
-                        width: 52,
-                        height: 52,
-                        decoration: const BoxDecoration(
-                          color: KoraColors.waGreen,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.mic_rounded,
-                          color: Colors.white,
-                          size: 24,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    // ── Locked recording state — inline, no modal/backdrop ──
+    // ── Locked recording state — its own bar. Gestures have already
+    // ended (lock or auto-lock already resolved the pan) by the time we
+    // get here, so there's no in-progress pointer to preserve. ──
     if (_state == _ComposerState.popup) {
       return SafeArea(
         top: false,
@@ -853,7 +797,24 @@ class _MessageComposerState extends State<MessageComposer>
       );
     }
 
-    // ── Idle / Typing state ──
+    // ── Idle & Holding share ONE persistent structure. ──
+    //
+    // This matters: press-and-hold starts a pan gesture on the mic
+    // button, then _onHoldStart's setState() rebuilds while that pointer
+    // is still down. If the button at that moment were swapped for a
+    // *different* widget (as it previously was — a plain GestureDetector
+    // in idle vs. a GestureDetector nested inside a Stack while holding),
+    // Flutter unmounts the old recognizer and mounts a fresh one that
+    // never saw the pointer's initial down event — so drag-to-lock,
+    // drag-to-cancel, and release-to-send would all silently stop
+    // responding the instant the hold began.
+    //
+    // Keeping the SAME GestureDetector (same key, same position, same
+    // type) for both states — and only changing its visual decoration —
+    // means the recognizer survives the whole press→drag→release
+    // lifecycle without interruption.
+    final isHolding = _state == _ComposerState.holding;
+
     return SafeArea(
       top: false,
       child: Container(
@@ -862,81 +823,121 @@ class _MessageComposerState extends State<MessageComposer>
         child: Row(
           children: [
             Expanded(
-              child: Container(
-                constraints: const BoxConstraints(minHeight: 44),
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(
-                  color: KoraColors.inputFillFor(brightness),
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: Row(
-                  children: [
-                    GestureDetector(
-                      onTap: _openAiWriting,
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 6),
-                        child: Icon(Icons.auto_awesome_outlined,
-                            color: KoraColors.purple, size: 22),
+              child: isHolding
+                  ? VoiceHoldingContent(
+                      seconds: _seconds,
+                      waveformSamples: _waveformSamples,
+                      cancelProgress: _cancelProgress,
+                      pulseController: _pulseController,
+                    )
+                  : Container(
+                      constraints: const BoxConstraints(minHeight: 44),
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: KoraColors.inputFillFor(brightness),
+                        borderRadius: BorderRadius.circular(24),
                       ),
-                    ),
-                    Expanded(
-                      child: TextField(
-                        controller: _controller,
-                        focusNode: _focusNode,
-                        maxLines: null,
-                        textInputAction: TextInputAction.newline,
-                        style: TextStyle(color: textPrimary, fontSize: 15),
-                        decoration: InputDecoration(
-                          hintText: 'Message',
-                          hintStyle: TextStyle(color: textMuted, fontSize: 15),
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 4,
-                            vertical: 10,
+                      child: Row(
+                        children: [
+                          GestureDetector(
+                            onTap: _openAiWriting,
+                            child: Padding(
+                              padding: const EdgeInsets.only(right: 6),
+                              child: Icon(Icons.auto_awesome_outlined,
+                                  color: KoraColors.purple, size: 22),
+                            ),
                           ),
-                        ),
+                          Expanded(
+                            child: TextField(
+                              controller: _controller,
+                              focusNode: _focusNode,
+                              maxLines: null,
+                              textInputAction: TextInputAction.newline,
+                              style: TextStyle(color: textPrimary, fontSize: 15),
+                              decoration: InputDecoration(
+                                hintText: 'Message',
+                                hintStyle: TextStyle(color: textMuted, fontSize: 15),
+                                border: InputBorder.none,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                  vertical: 10,
+                                ),
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            icon: Icon(Icons.camera_alt_outlined,
+                                color: textMuted, size: 22),
+                            onPressed: () {},
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(
+                                minWidth: 36, minHeight: 36),
+                          ),
+                          IconButton(
+                            icon: Icon(Icons.attach_file,
+                                color: textMuted, size: 22),
+                            onPressed: _openAttachments,
+                            padding: const EdgeInsets.only(right: 4),
+                            constraints: const BoxConstraints(
+                                minWidth: 36, minHeight: 36),
+                          ),
+                        ],
                       ),
                     ),
-                    IconButton(
-                      icon: Icon(Icons.camera_alt_outlined,
-                          color: textMuted, size: 22),
-                      onPressed: () {},
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(
-                          minWidth: 36, minHeight: 36),
-                    ),
-                    IconButton(
-                      icon: Icon(Icons.attach_file,
-                          color: textMuted, size: 22),
-                      onPressed: _openAttachments,
-                      padding: const EdgeInsets.only(right: 4),
-                      constraints: const BoxConstraints(
-                          minWidth: 36, minHeight: 36),
-                    ),
-                  ],
-                ),
-              ),
             ),
             const SizedBox(width: 6),
-            // Mic button (when empty) / Send button (when text exists)
-            GestureDetector(
-              onTap: _hasText ? _send : _onTapRecord,
-              onPanStart: _hasText ? null : _onHoldStart,
-              onPanUpdate: _hasText ? null : _onHoldMove,
-              onPanEnd: _hasText ? null : _onHoldEnd,
-              child: Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  gradient: KoraColors.brandGradient,
-                  shape: BoxShape.circle,
+            // Mic (empty) / Send (typing) button — ALWAYS the same
+            // Stack > GestureDetector structure, regardless of state.
+            Stack(
+              key: const ValueKey('kora-mic-send-button'),
+              clipBehavior: Clip.none,
+              alignment: Alignment.bottomCenter,
+              // NOTE: the lock hint is always present in this children
+              // list (never added/removed) — only its opacity toggles.
+              // If it were conditionally included, the GestureDetector
+              // below would shift list position when isHolding flips,
+              // and Flutter would dispose+recreate it exactly like the
+              // bug this refactor fixes. Same widget, same slot, always.
+              children: [
+                Positioned(
+                  bottom: 48,
+                  child: IgnorePointer(
+                    ignoring: !isHolding,
+                    child: Opacity(
+                      opacity: isHolding ? 1.0 : 0.0,
+                      child: VoiceLockHint(progress: _lockProgress),
+                    ),
+                  ),
                 ),
-                child: Icon(
-                  _hasText ? Icons.send_rounded : Icons.mic_rounded,
-                  color: Colors.white,
-                  size: 22,
+                GestureDetector(
+                  onTap: _hasText ? _send : _onTapRecord,
+                  onPanStart: _hasText ? null : _onHoldStart,
+                  onPanUpdate: _hasText ? null : _onHoldMove,
+                  onPanEnd: _hasText ? null : _onHoldEnd,
+                  child: Transform.translate(
+                    offset: isHolding
+                        ? Offset(
+                            (_dragDx * 0.25).clamp(-24.0, 0.0),
+                            (_dragDy * 0.25).clamp(-24.0, 0.0),
+                          )
+                        : Offset.zero,
+                    child: Container(
+                      width: isHolding ? 52 : 44,
+                      height: isHolding ? 52 : 44,
+                      decoration: BoxDecoration(
+                        color: isHolding ? KoraColors.waGreen : null,
+                        gradient: isHolding ? null : KoraColors.brandGradient,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        _hasText ? Icons.send_rounded : Icons.mic_rounded,
+                        color: Colors.white,
+                        size: isHolding ? 24 : 22,
+                      ),
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
           ],
         ),
