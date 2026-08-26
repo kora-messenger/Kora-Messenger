@@ -12,7 +12,7 @@ import '../../models/translation_models.dart';
 import 'attachment_sheet.dart';
 import 'ai_writing_sheet.dart';
 import 'voice_recorder.dart';
-import 'voice_note_popup.dart';
+import 'voice_locked_bar.dart';
 import 'language_picker_screen.dart';
 
 /// Kora's message composer — the bottom input bar.
@@ -283,13 +283,14 @@ class _MessageComposerState extends State<MessageComposer>
     _amplitudeSub?.cancel();
     _amplitudeSub = _recordingService.amplitudeStream.listen((amp) {
       if (!mounted || !_recordingService.isRecording || _isPaused) return;
-      _waveformSamples.add(amp);
-      if (_waveformSamples.length > 60) _waveformSamples.removeAt(0);
+      setState(() {
+        _waveformSamples.add(amp);
+        if (_waveformSamples.length > 60) _waveformSamples.removeAt(0);
+      });
     });
 
     setState(() => _state = _ComposerState.popup);
     _startTimer();
-    _openPopup();
   }
 
   /// Press-and-hold the mic to start recording inline. Shows live timer,
@@ -392,7 +393,6 @@ class _MessageComposerState extends State<MessageComposer>
     HapticFeedback.heavyImpact();
     _pulseController.stop();
     setState(() => _state = _ComposerState.popup);
-    _openPopup();
   }
 
   /// Release hold without swiping — auto-sends the voice note.
@@ -437,6 +437,12 @@ class _MessageComposerState extends State<MessageComposer>
   }
 
   // ── Popup actions ──
+
+  void _handleTogglePlayOnce() {
+    final turningOn = !_isPlayOnce;
+    setState(() => _isPlayOnce = turningOn);
+    if (turningOn) showPlayOnceInfoSheet(context);
+  }
 
   void _toggleLockedPause() async {
     if (_isPaused) {
@@ -501,8 +507,6 @@ class _MessageComposerState extends State<MessageComposer>
     _clearTranslation();
     _isPlayOnce = false;
     if (mounted) setState(() => _state = _ComposerState.idle);
-    // Close popup
-    if (mounted) Navigator.of(context).pop();
   }
 
   Future<bool> _confirmDiscard() async {
@@ -561,9 +565,6 @@ class _MessageComposerState extends State<MessageComposer>
     await _stopPreview();
     final path = await _recordingService.stopRecording();
     final duration = _durationString;
-
-    // Close popup first
-    if (mounted) Navigator.of(context).pop();
 
     if (mounted) setState(() => _state = _ComposerState.idle);
 
@@ -758,48 +759,6 @@ class _MessageComposerState extends State<MessageComposer>
 
   /// Opens the popup voice-note bottom sheet.
   /// Uses isDismissible: false so it only closes on delete/send.
-  void _openPopup() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        isDismissible: false,
-        enableDrag: false,
-        backgroundColor: Colors.transparent,
-        builder: (sheetCtx) => VoiceNotePopup(
-          initialSeconds: _seconds,
-          initialWaveformSamples: _waveformSamples,
-          filePath: _filePath,
-          isPaused: _isPaused,
-          onDiscard: _discardLocked,
-          onTogglePause: _toggleLockedPause,
-          onSend: _sendLocked,
-          onTranslate: _openTranslatePicker,
-          selectedTranslateName: _selectedTranslateName,
-          isTranslating: _isTranslating,
-          isPlayOnce: _isPlayOnce,
-          onTogglePlayOnce: () => setState(() => _isPlayOnce = !_isPlayOnce),
-          isPreviewPlaying: _previewPlaying,
-          previewProgress: _previewProgress,
-          previewPositionMs: _previewPositionMs,
-          previewDurationMs: _previewDurationMs,
-          previewSpeed: _previewSpeed,
-          onTogglePreviewPlay: _togglePreviewPlay,
-          onSeekPreview: _seekPreview,
-          onCyclePreviewSpeed: _cyclePreviewSpeed,
-        ),
-      ).then((_) {
-        // If the popup was closed (delete/send already handle state),
-        // make sure we reset to idle if still in popup state
-        if (mounted && _state == _ComposerState.popup) {
-          // This can happen if the sheet was dismissed by the system
-          // In normal flow, _discardLocked and _sendLocked already pop + reset
-        }
-      });
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     final brightness = Theme.of(context).brightness;
@@ -860,6 +819,35 @@ class _MessageComposerState extends State<MessageComposer>
                 ],
               ),
             ],
+          ),
+        ),
+      );
+    }
+
+    // ── Locked recording state — inline, no modal/backdrop ──
+    if (_state == _ComposerState.popup) {
+      return SafeArea(
+        top: false,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          color: bg,
+          child: VoiceLockedBar(
+            seconds: _seconds,
+            waveformSamples: _waveformSamples,
+            isPaused: _isPaused,
+            isPlayOnce: _isPlayOnce,
+            onTogglePlayOnce: _handleTogglePlayOnce,
+            onDiscard: _discardLocked,
+            onTogglePause: _toggleLockedPause,
+            onSend: _sendLocked,
+            onTranslate: _openTranslatePicker,
+            selectedTranslateName: _selectedTranslateName,
+            isTranslating: _isTranslating,
+            isPreviewPlaying: _previewPlaying,
+            previewProgress: _previewProgress,
+            previewPositionMs: _previewPositionMs,
+            onTogglePreviewPlay: _togglePreviewPlay,
+            onSeekPreview: _seekPreview,
           ),
         ),
       );
