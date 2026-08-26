@@ -93,6 +93,7 @@ class _KoraWaveformState extends State<KoraWaveform>
                 // preview), render it as a static played/unplayed bar
                 // set instead of the flat "recording" tint.
                 isLive: widget.isLive && widget.progress == 0,
+                hasRealData: true,
                 progress: widget.progress,
                 playedColor: widget.playedColor,
                 unplayedColor: widget.unplayedColor ?? widget.playedColor?.withValues(alpha: 0.3),
@@ -151,6 +152,7 @@ class _KoraWaveformState extends State<KoraWaveform>
 class _KoraWaveformPainter extends CustomPainter {
   final List<double> barHeights;
   final bool isLive;
+  final bool hasRealData;
   final double progress;
   final Color? playedColor;
   final Color? unplayedColor;
@@ -163,6 +165,7 @@ class _KoraWaveformPainter extends CustomPainter {
   _KoraWaveformPainter({
     required this.barHeights,
     required this.isLive,
+    this.hasRealData = false,
     required this.progress,
     this.playedColor,
     this.unplayedColor,
@@ -184,7 +187,12 @@ class _KoraWaveformPainter extends CustomPainter {
     for (int i = 0; i < totalBars; i++) {
       double heightFraction;
 
-      if (isLive) {
+      if (isLive && hasRealData) {
+        // Real microphone amplitude data was supplied — always draw it,
+        // so the waveform actually reacts to how loud the user is
+        // speaking instead of showing decorative random noise.
+        heightFraction = barHeights[i];
+      } else if (isLive) {
         heightFraction = 0.15 + rng.nextDouble() * 0.85;
       } else {
         heightFraction = barHeights[i];

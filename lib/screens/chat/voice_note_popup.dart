@@ -1,20 +1,24 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../theme/kora_colors.dart';
 import '../../widgets/kora_waveform.dart';
+import '../../services/audio_recording_service.dart';
 
-/// The popup voice-note screen for Kora Messenger.
+/// The popup voice-note bar for Kora Messenger.
 ///
 /// Opens as a bottom sheet when:
 /// - User taps the mic (starts recording immediately)
 /// - User press-and-holds the mic then swipes up to lock (recording
 ///   continues seamlessly — no audio is destroyed)
 ///
-/// Layout (top to bottom):
-/// - Drag handle
-/// - Timer (0:00, counting up) or position/duration when paused
-/// - Live waveform (recording) or scrubbable waveform (paused preview)
-/// - Control row: Delete | Pause/Resume | Translate | Send
-/// - When paused: play/pause preview + speed badge + resume button
+/// Deliberately kept slim and compact — a single row, mirroring the
+/// familiar WhatsApp-style recording bar — instead of a tall stacked sheet.
+///
+/// This widget is fully self-contained for its LIVE state: it runs its
+/// own timer and listens directly to [AudioRecordingService]'s amplitude
+/// stream, so the timer and waveform keep updating and the pause button
+/// responds instantly — regardless of whether the parent composer widget
+/// (which lives in a different route/subtree) rebuilds.
 ///
 /// Only closes when the user taps Delete or Send.
 class VoiceNotePopup extends StatefulWidget {
@@ -80,12 +84,73 @@ class VoiceNotePopup extends StatefulWidget {
 class _VoiceNotePopupState extends State<VoiceNotePopup> {
   late int _seconds;
   late List<double> _waveformSamples;
+  late bool _isPaused;
+
+  Timer? _ticker;
+  StreamSubscription<double>? _amplitudeSub;
+
+  static const int _maxSamples = 40;
 
   @override
   void initState() {
     super.initState();
     _seconds = widget.initialSeconds;
     _waveformSamples = List.from(widget.initialWaveformSamples);
+    _isPaused = widget.isPaused;
+
+    if (!_isPaused) {
+      _startTicker();
+      _listenToAmplitude();
+    }
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    _amplitudeSub?.cancel();
+    super.dispose();
+  }
+
+  void _startTicker() {
+    _ticker?.cancel();
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted || _isPaused) return;
+      setState(() => _seconds++);
+      widget.onSecondsChanged?.call(_seconds);
+    });
+  }
+
+  void _listenToAmplitude() {
+    _amplitudeSub?.cancel();
+    _amplitudeSub = AudioRecordingService.instance.amplitudeStream.listen((amp) {
+      if (!mounted || _isPaused) return;
+      setState(() {
+        _waveformSamples.add(amp);
+        if (_waveformSamples.length > _maxSamples) {
+          _waveformSamples.removeAt(0);
+        }
+      });
+      widget.onWaveformChanged?.call(_waveformSamples);
+    });
+  }
+
+  /// Toggles pause/resume. Updates local state IMMEDIATELY for instant
+  /// visual feedback, then notifies the composer to actually pause/resume
+  /// the underlying audio recorder.
+  void _handleTogglePause() {
+    final goingToPause = !_isPaused;
+    setState(() => _isPaused = goingToPause);
+
+    if (goingToPause) {
+      _ticker?.cancel();
+      _amplitudeSub?.cancel();
+      _amplitudeSub = null;
+    } else {
+      _startTicker();
+      _listenToAmplitude();
+    }
+
+    widget.onTogglePause();
   }
 
   String get _durationString => _fmt(_seconds * 1000);
@@ -119,21 +184,21 @@ class _VoiceNotePopupState extends State<VoiceNotePopup> {
     return Container(
       decoration: BoxDecoration(
         color: surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         border: Border(top: BorderSide(color: border, width: 0.5)),
       ),
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+          padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               // ── Drag handle ──
               Container(
-                width: 36,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 20),
+                width: 32,
+                height: 3,
+                margin: const EdgeInsets.only(bottom: 10),
                 decoration: BoxDecoration(
                   color: textMuted.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(2),
@@ -143,31 +208,31 @@ class _VoiceNotePopupState extends State<VoiceNotePopup> {
               // ── Status badges (play-once / translating) ──
               if (widget.selectedTranslateName != null || widget.isPlayOnce)
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.only(bottom: 8),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       if (widget.isPlayOnce) ...[
-                        Icon(Icons.lock_clock_rounded, size: 14, color: KoraColors.purple),
-                        const SizedBox(width: 5),
-                        Text(
+                        Icon(Icons.lock_clock_rounded, size: 13, color: KoraColors.purple),
+                        const SizedBox(width: 4),
+                        const Text(
                           'Play once',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: KoraColors.purple,
-                            fontSize: 12,
+                            fontSize: 11,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                        if (widget.selectedTranslateName != null) const SizedBox(width: 16),
+                        if (widget.selectedTranslateName != null) const SizedBox(width: 14),
                       ],
                       if (widget.selectedTranslateName != null) ...[
-                        Icon(Icons.language_rounded, size: 14, color: KoraColors.purple),
-                        const SizedBox(width: 5),
+                        Icon(Icons.language_rounded, size: 13, color: KoraColors.purple),
+                        const SizedBox(width: 4),
                         Text(
                           'Translating to ${widget.selectedTranslateName}',
                           style: const TextStyle(
                             color: KoraColors.purple,
-                            fontSize: 12,
+                            fontSize: 11,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -176,121 +241,109 @@ class _VoiceNotePopupState extends State<VoiceNotePopup> {
                   ),
                 ),
 
-              // ── Timer / Position ──
-              Text(
-                widget.isPaused ? _previewElapsedString : _durationString,
-                style: TextStyle(
-                  color: textPrimary,
-                  fontSize: 28,
-                  fontWeight: FontWeight.w700,
-                  fontFeatures: const [FontFeature.tabularFigures()],
-                ),
-              ),
-              if (widget.isPaused)
-                Padding(
-                  padding: const EdgeInsets.only(top: 2),
-                  child: Text(
-                    '/ $_previewTotalString',
-                    style: TextStyle(
-                      color: textMuted,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                    ),
-                  ),
-                ),
-
-              const SizedBox(height: 20),
-
-              // ── Waveform area ──
-              SizedBox(
-                height: 60,
-                child: widget.isPaused
-                    ? _buildScrubWaveform(border, textMuted)
-                    : _buildLiveWaveform(),
-              ),
-
-              const SizedBox(height: 12),
-
-              // ── Speed badge (when paused) ──
-              if (widget.isPaused && widget.onCyclePreviewSpeed != null)
-                GestureDetector(
-                  onTap: widget.onCyclePreviewSpeed,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: KoraColors.purple.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      _speedLabel,
-                      style: const TextStyle(
-                        color: KoraColors.purple,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        fontFeatures: [FontFeature.tabularFigures()],
-                      ),
-                    ),
-                  ),
-                ),
-
-              const SizedBox(height: 24),
-
-              // ── Control row ──
+              // ── Single compact row: delete | timer | waveform | pause | translate | send ──
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  // ── Delete ──
-                  _buildControlButton(
+                  _iconButton(
                     icon: Icons.delete_outline_rounded,
-                    label: 'Delete',
                     color: KoraColors.red,
                     bgColor: KoraColors.red.withValues(alpha: 0.12),
                     onTap: widget.onDiscard,
                   ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Container(
+                      height: 40,
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      decoration: BoxDecoration(
+                        color: KoraColors.purple.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        children: [
+                          Text(
+                            widget.isPaused ? _previewElapsedString : _durationString,
+                            style: TextStyle(
+                              color: textPrimary,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              fontFeatures: const [FontFeature.tabularFigures()],
+                            ),
+                          ),
+                          if (widget.isPaused)
+                            Text(
+                              ' / $_previewTotalString',
+                              style: TextStyle(
+                                color: textMuted,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                                fontFeatures: const [FontFeature.tabularFigures()],
+                              ),
+                            ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: SizedBox(
+                              height: 26,
+                              child: widget.isPaused
+                                  ? _buildScrubWaveform(border, textMuted)
+                                  : _buildLiveWaveform(),
+                            ),
+                          ),
+                          if (widget.isPaused && widget.onCyclePreviewSpeed != null)
+                            GestureDetector(
+                              onTap: widget.onCyclePreviewSpeed,
+                              child: Container(
+                                margin: const EdgeInsets.only(left: 6),
+                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: KoraColors.purple.withValues(alpha: 0.16),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  _speedLabel,
+                                  style: const TextStyle(
+                                    color: KoraColors.purple,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    fontFeatures: [FontFeature.tabularFigures()],
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
 
-                  // ── Pause / Resume / Play preview ──
+                  // ── Pause / Resume / Preview-play ──
                   if (widget.isPaused) ...[
-                    // Play/pause preview button
-                    _buildControlButton(
-                      icon: widget.isPreviewPlaying
-                          ? Icons.pause_rounded
-                          : Icons.play_arrow_rounded,
-                      label: widget.isPreviewPlaying ? 'Pause' : 'Play',
+                    _iconButton(
+                      icon: widget.isPreviewPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
                       color: KoraColors.purple,
                       bgColor: KoraColors.purple.withValues(alpha: 0.14),
                       onTap: widget.onTogglePreviewPlay,
                     ),
-                    // Resume recording
-                    _buildControlButton(
+                    const SizedBox(width: 8),
+                    _iconButton(
                       icon: Icons.mic_rounded,
-                      label: 'Resume',
                       color: Colors.white,
-                      bgColor: KoraColors.purple,
                       gradient: KoraColors.brandGradient,
-                      onTap: widget.onTogglePause,
+                      onTap: _handleTogglePause,
                     ),
-                  ] else ...[
-                    // Pause recording
-                    _buildControlButton(
+                  ] else
+                    _iconButton(
                       icon: Icons.pause_rounded,
-                      label: 'Pause',
                       color: KoraColors.purple,
                       bgColor: KoraColors.purple.withValues(alpha: 0.14),
-                      onTap: widget.onTogglePause,
+                      onTap: _handleTogglePause,
                     ),
-                  ],
 
-                  // ── Translate ──
-                  if (widget.onTranslate != null)
-                    _buildControlButton(
+                  if (widget.onTranslate != null) ...[
+                    const SizedBox(width: 8),
+                    _iconButton(
                       icon: Icons.language_rounded,
-                      label: widget.selectedTranslateName != null
-                          ? widget.selectedTranslateName!
-                          : 'Translate',
-                      color: widget.selectedTranslateName != null
-                          ? KoraColors.purple
-                          : textMuted,
+                      color: widget.selectedTranslateName != null ? KoraColors.purple : textMuted,
                       bgColor: widget.selectedTranslateName != null
                           ? KoraColors.purple.withValues(alpha: 0.18)
                           : surface,
@@ -298,26 +351,15 @@ class _VoiceNotePopupState extends State<VoiceNotePopup> {
                       borderColor: border,
                       onTap: widget.onTranslate,
                     ),
+                  ],
 
-                  // ── Send ──
-                  _buildControlButton(
-                    icon: widget.isTranslating
-                        ? Icons.hourglass_top_rounded
-                        : Icons.send_rounded,
-                    label: 'Send',
+                  const SizedBox(width: 8),
+                  _iconButton(
+                    icon: widget.isTranslating ? Icons.hourglass_top_rounded : Icons.send_rounded,
                     color: Colors.white,
-                    bgColor: KoraColors.purple,
                     gradient: widget.isTranslating ? null : KoraColors.brandGradient,
+                    bgColor: widget.isTranslating ? KoraColors.purple.withValues(alpha: 0.4) : null,
                     onTap: widget.isTranslating ? null : widget.onSend,
-                    boxShadow: widget.isTranslating
-                        ? null
-                        : [
-                            BoxShadow(
-                              color: KoraColors.purple.withValues(alpha: 0.35),
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
                   ),
                 ],
               ),
@@ -328,15 +370,16 @@ class _VoiceNotePopupState extends State<VoiceNotePopup> {
     );
   }
 
-  // ── Live recording waveform ──
+  // ── Live recording waveform — driven by this widget's own amplitude
+  // subscription, so it keeps moving regardless of parent rebuilds. ──
   Widget _buildLiveWaveform() {
     return KoraWaveform(
       isLive: true,
       progress: 0,
-      barCount: 40,
-      height: 60,
-      barWidth: 3,
-      barGap: 3,
+      barCount: 28,
+      height: 26,
+      barWidth: 2.5,
+      barGap: 2.5,
       playedColor: KoraColors.purple,
       unplayedColor: KoraColors.purple.withValues(alpha: 0.15),
       liveAmplitudes: _waveformSamples,
@@ -347,34 +390,30 @@ class _VoiceNotePopupState extends State<VoiceNotePopup> {
   Widget _buildScrubWaveform(Color border, Color textMuted) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final waveWidth = constraints.maxWidth.isFinite
-            ? constraints.maxWidth
-            : 200.0;
+        final waveWidth = constraints.maxWidth.isFinite ? constraints.maxWidth : 150.0;
         return GestureDetector(
           onTapDown: widget.onSeekPreview != null
               ? (details) {
-                  final fraction =
-                      (details.localPosition.dx / waveWidth).clamp(0.0, 1.0);
+                  final fraction = (details.localPosition.dx / waveWidth).clamp(0.0, 1.0);
                   widget.onSeekPreview!(fraction);
                 }
               : null,
           onHorizontalDragUpdate: widget.onSeekPreview != null
               ? (details) {
-                  final fraction =
-                      (details.localPosition.dx / waveWidth).clamp(0.0, 1.0);
+                  final fraction = (details.localPosition.dx / waveWidth).clamp(0.0, 1.0);
                   widget.onSeekPreview!(fraction);
                 }
               : null,
           child: SizedBox(
             width: waveWidth,
-            height: 60,
+            height: 26,
             child: KoraWaveform(
               isLive: false,
               progress: widget.previewProgress,
-              barCount: 40,
-              height: 60,
-              barWidth: 3,
-              barGap: 3,
+              barCount: 28,
+              height: 26,
+              barWidth: 2.5,
+              barGap: 2.5,
               playedColor: KoraColors.purple,
               unplayedColor: KoraColors.purple.withValues(alpha: 0.2),
             ),
@@ -384,49 +423,28 @@ class _VoiceNotePopupState extends State<VoiceNotePopup> {
     );
   }
 
-  // ── Reusable control button ──
-  Widget _buildControlButton({
+  // ── Reusable compact icon-only control button ──
+  Widget _iconButton({
     required IconData icon,
-    required String label,
     required Color color,
-    required Color bgColor,
+    Color? bgColor,
     LinearGradient? gradient,
     bool hasBorder = false,
     Color? borderColor,
     VoidCallback? onTap,
-    List<BoxShadow>? boxShadow,
   }) {
     return GestureDetector(
       onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              color: bgColor,
-              gradient: gradient,
-              shape: BoxShape.circle,
-              border: hasBorder && borderColor != null
-                  ? Border.all(color: borderColor, width: 0.6)
-                  : null,
-              boxShadow: boxShadow,
-            ),
-            child: Icon(icon, color: color, size: 22),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: bgColor,
+          gradient: gradient,
+          shape: BoxShape.circle,
+          border: hasBorder && borderColor != null ? Border.all(color: borderColor, width: 0.6) : null,
+        ),
+        child: Icon(icon, color: color, size: 19),
       ),
     );
   }
