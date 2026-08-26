@@ -246,6 +246,31 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
     }
   }
 
+  void _sendMedia(
+    String path, bool isVideo, String? caption, bool isViewOnce, bool isHD, double? width, double? height,
+  ) async {
+    await _messageService.sendMediaMessage(
+      widget.chatId,
+      mediaPath: path,
+      isVideo: isVideo,
+      caption: caption,
+      isViewOnce: isViewOnce,
+      isHD: isHD,
+      width: width,
+      height: height,
+      replyToId: _replyTarget?.id,
+      replyToText: _replyTarget?.text,
+      replyToName: _replyTarget != null ? (_replyTarget!.isMe ? 'You' : widget.name) : null,
+      recipientEmail: widget.recipientEmail,
+      recipientName: widget.name,
+    );
+    setState(() {
+      _messages = List.from(_messageService.getMessages(widget.chatId));
+      _replyTarget = null;
+    });
+    _scrollToBottom();
+  }
+
   void _runDetection(String messageContent) async {
     try {
       final sessionEmail = SessionManager.instance.currentEmail;
@@ -1435,6 +1460,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
                         onSend: _sendMessage,
                         onSendVoice: _sendVoice,
                         onMicTap: () => AudioPlaybackService.instance.stop(),
+                        onSendMedia: _sendMedia,
                       ),
               ),
           ],

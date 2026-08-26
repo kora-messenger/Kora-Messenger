@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../models/message_model.dart';
 import '../../models/chat_models.dart';
@@ -125,6 +126,9 @@ class MessageBubble extends StatelessWidget {
     switch (message.type) {
       case KoraMessageType.voice:
         return const EdgeInsets.symmetric(horizontal: 10, vertical: 8);
+      case KoraMessageType.image:
+      case KoraMessageType.video:
+        return const EdgeInsets.all(4);
       default:
         return const EdgeInsets.symmetric(horizontal: 14, vertical: 9);
     }
@@ -588,6 +592,213 @@ class MessageBubble extends StatelessWidget {
       case MessageStatus.none:
         return const SizedBox.shrink();
     }
+  }
+
+  // ── Media content (image/video) ──
+  Widget _buildMediaContent(
+    BuildContext context,
+    bool isMe,
+    Color sentText,
+    Color receivedText,
+    Color textSecondary,
+  ) {
+    final isImage = message.type == KoraMessageType.image;
+    final hasCaption = message.mediaCaption != null && message.mediaCaption!.isNotEmpty;
+
+    // View-once placeholder for incoming unviewed media
+    if (message.isViewOnce && !message.isMe && !message.isMediaPlayed) {
+      return _buildViewOncePlaceholder(isMe, isImage, textSecondary);
+    }
+
+    // View-once for outgoing — show media with "1" badge
+    if (message.isViewOnce && message.isMe) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Stack(
+              children: [
+                _buildMediaWidget(isImage),
+                Positioned(
+                  top: 6, right: 6,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(Icons.visibility_off_outlined, color: Colors.white, size: 12),
+                      const SizedBox(width: 3),
+                      const Text('1', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
+                    ]),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (hasCaption) ...[
+            const SizedBox(height: 6),
+            Text(message.mediaCaption!,
+              style: TextStyle(color: isMe ? sentText : receivedText, fontSize: 14, height: 1.3)),
+          ],
+          const SizedBox(height: 3),
+          _buildMediaTimestampRow(isMe, sentText, textSecondary),
+        ],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Reply preview
+        if (message.replyToText != null) ...[
+          Container(
+            margin: const EdgeInsets.only(bottom: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: (isMe ? Colors.white : KoraColors.purple).withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(8),
+              border: BorderDirectional(
+                start: BorderSide(
+                  color: isMe ? Colors.white.withValues(alpha: 0.5) : KoraColors.purple,
+                  width: 2.5,
+                ),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(message.replyToName ?? 'Reply',
+                  style: TextStyle(
+                    color: isMe ? Colors.white.withValues(alpha: 0.9) : KoraColors.purple,
+                    fontSize: 12, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 1),
+                Text(message.replyToText!,
+                  maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: isMe ? Colors.white.withValues(alpha: 0.7) : textSecondary, fontSize: 12)),
+              ],
+            ),
+          ),
+        ],
+        // Media
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width * 0.65,
+              maxHeight: MediaQuery.of(context).size.height * 0.5,
+            ),
+            child: AspectRatio(
+              aspectRatio: (message.mediaWidth != null && message.mediaHeight != null && message.mediaHeight! > 0)
+                  ? (message.mediaWidth! / message.mediaHeight!)
+                  : (isImage ? 0.75 : 0.5625),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  _buildMediaWidget(isImage),
+                  if (!isImage)
+                    Center(
+                      child: Container(
+                        width: 48, height: 48,
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.4),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.play_arrow, color: Colors.white, size: 32),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        if (hasCaption) ...[
+          const SizedBox(height: 6),
+          Text(message.mediaCaption!,
+            style: TextStyle(color: isMe ? sentText : receivedText, fontSize: 14, height: 1.3)),
+        ],
+        const SizedBox(height: 3),
+        _buildMediaTimestampRow(isMe, sentText, textSecondary),
+      ],
+    );
+  }
+
+  Widget _buildMediaWidget(bool isImage) {
+    if (isImage) {
+      if (message.mediaPath != null) {
+        return Image.file(File(message.mediaPath!), fit: BoxFit.cover);
+      } else if (message.mediaUrl != null) {
+        return Image.network(message.mediaUrl!, fit: BoxFit.cover);
+      }
+    }
+    if (message.mediaThumbnailPath != null) {
+      return Image.file(File(message.mediaThumbnailPath!), fit: BoxFit.cover);
+    }
+    return Container(
+      color: Colors.black12,
+      child: Center(
+        child: Icon(isImage ? Icons.image : Icons.videocam,
+            color: Colors.white24, size: 48),
+      ),
+    );
+  }
+
+  Widget _buildViewOncePlaceholder(bool isMe, bool isImage, Color textSecondary) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 200, height: 120,
+          decoration: BoxDecoration(
+            color: Colors.black12,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(isImage ? Icons.photo_outlined : Icons.videocam_outlined,
+                  color: textSecondary, size: 36),
+              const SizedBox(height: 8),
+              Text(isImage ? 'Photo' : 'Video',
+                style: TextStyle(color: textSecondary, fontSize: 13)),
+              const SizedBox(height: 4),
+              Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.visibility_off_outlined, color: textSecondary, size: 12),
+                const SizedBox(width: 3),
+                Text('View once', style: TextStyle(color: textSecondary, fontSize: 11)),
+              ]),
+            ],
+          ),
+        ),
+        const SizedBox(height: 3),
+        _buildMediaTimestampRow(isMe, isMe ? Colors.white : textSecondary, textSecondary),
+      ],
+    );
+  }
+
+  Widget _buildMediaTimestampRow(bool isMe, Color sentText, Color textSecondary) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          _formatTime(message.timestamp),
+          style: TextStyle(
+            color: isMe
+                ? (sentText.computeLuminance() > 0.5 ? const Color(0xFF667781) : Colors.white.withValues(alpha: 0.65))
+                : textSecondary,
+            fontSize: 11,
+          ),
+        ),
+        if (isMe) ...[
+          const SizedBox(width: 4),
+          _buildStatusIcon(message.status, isMe, sentTextColor: textSecondary),
+        ],
+      ],
+    );
   }
 
   String _formatTime(DateTime time) {

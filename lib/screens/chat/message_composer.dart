@@ -9,11 +9,13 @@ import '../../services/voice_note_stt_service.dart';
 import '../../services/voice_translation_pipeline.dart';
 import '../../services/translation_service.dart';
 import '../../models/translation_models.dart';
-import 'attachment_sheet.dart';
 import 'ai_writing_sheet.dart';
 import 'voice_recorder.dart';
 import 'voice_locked_bar.dart';
 import 'emoji_sticker_panel.dart';
+import 'kora_camera_screen.dart';
+import 'media_editor_screen.dart';
+import 'package:image_picker/image_picker.dart';
 import 'language_picker_screen.dart';
 
 /// Kora's message composer — the bottom input bar.
@@ -51,6 +53,7 @@ class MessageComposer extends StatefulWidget {
   final VoidCallback? onAttachment;
   final Function(String)? onAiWriting;
   final VoidCallback? onMicTap; // notify parent to pause any playing voice note
+  final Function(String path, bool isVideo, String? caption, bool isViewOnce, bool isHD, double? width, double? height)? onSendMedia;
 
   const MessageComposer({
     super.key,
@@ -59,6 +62,7 @@ class MessageComposer extends StatefulWidget {
     this.onAttachment,
     this.onAiWriting,
     this.onMicTap,
+    this.onSendMedia,
   });
 
   @override
@@ -778,18 +782,110 @@ class _MessageComposerState extends State<MessageComposer>
   }
 
   void _openAttachments() {
-    if (widget.onAttachment != null) {
-      widget.onAttachment!();
-    } else {
-      showModalBottomSheet(
-        context: context,
-        backgroundColor: KoraColors.cardFor(Theme.of(context).brightness),
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: KoraColors.cardFor(Theme.of(context).brightness),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _buildAttachmentSheet(),
+    );
+  }
+
+  Widget _buildAttachmentSheet() {
+    final brightness = Theme.of(context).brightness;
+    final card = KoraColors.cardFor(brightness);
+    final textPrimary = KoraColors.textPrimaryFor(brightness);
+    final textMuted = KoraColors.textMutedFor(brightness);
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const SizedBox(height: 10),
+        Container(
+          width: 40, height: 4,
+          decoration: BoxDecoration(
+            color: textMuted.withValues(alpha: 0.4),
+            borderRadius: BorderRadius.circular(2),
+          ),
         ),
-        builder: (_) => const AttachmentSheet(),
-      );
+        const SizedBox(height: 16),
+
+        // Attachment icons row
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _attachIcon(Icons.document_scanner_outlined, 'Document', KoraColors.purple, () => _pickFromGallery(false)),
+              _attachIcon(Icons.photo_library_outlined, 'Gallery', KoraColors.purple, () => _pickFromGallery(true)),
+              _attachIcon(Icons.camera_alt_outlined, 'Camera', KoraColors.purple, _openCamera),
+              _attachIcon(Icons.insert_drive_file_outlined, 'File', KoraColors.purple, () => Navigator.pop(context)),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+      ],
+    );
+  }
+
+  Widget _attachIcon(IconData icon, String label, Color color, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: () { Navigator.pop(context); onTap(); },
+      child: Column(
+        children: [
+          Container(
+            width: 54, height: 54,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 26),
+          ),
+          const SizedBox(height: 8),
+          Text(label, style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+
+  void _openCamera() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const KoraCameraScreen()),
+    );
+    if (result == null || !mounted) return;
+    _openEditor(result['path'] as String, result['isVideo'] as bool);
+  }
+
+  void _pickFromGallery(bool isImage) async {
+    final picker = ImagePicker();
+    if (isImage) {
+      final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 100);
+      if (picked == null || !mounted) return;
+      _openEditor(picked.path, false);
+    } else {
+      final picked = await picker.pickVideo(source: ImageSource.gallery, maxDuration: const Duration(minutes: 3));
+      if (picked == null || !mounted) return;
+      _openEditor(picked.path, true);
     }
+  }
+
+  void _openEditor(String path, bool isVideo) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => MediaEditorScreen(mediaPath: path, isVideo: isVideo)),
+    );
+    if (result == null || !mounted) return;
+    widget.onSendMedia?.call(
+      result['path'] as String,
+      result['isVideo'] as bool,
+      result['caption'] as String?,
+      result['isViewOnce'] as bool,
+      result['isHD'] as bool,
+      result['width'] as double?,
+      result['height'] as double?,
+    );
   }
 
   void _openAiWriting() {

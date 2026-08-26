@@ -5,6 +5,7 @@ import 'chat_models.dart';
 enum KoraMessageType {
   text,
   image,
+  video,
   voice,
   file,
   system, // date separators, inline notices
@@ -98,6 +99,33 @@ class KoraMessage {
   /// which language the translation is in.
   final String? translatedText;
 
+  /// Local file path for the media file
+  final String? mediaPath;
+
+  /// Remote URL for received media that hasn't been downloaded
+  final String? mediaUrl;
+
+  /// Optional caption shown below the media in the bubble
+  final String? mediaCaption;
+
+  /// View-once media that self-destructs after viewing
+  final bool isViewOnce;
+
+  /// Original width for aspect ratio
+  final double? mediaWidth;
+
+  /// Original height for aspect ratio
+  final double? mediaHeight;
+
+  /// Duration in seconds for videos
+  final int? mediaDuration;
+
+  /// Thumbnail for video messages
+  final String? mediaThumbnailPath;
+
+  /// Whether an incoming view-once media has been viewed
+  final bool isMediaPlayed;
+
   const KoraMessage({
     required this.id,
     required this.text,
@@ -127,6 +155,15 @@ class KoraMessage {
     this.translatedLanguageName,
     this.isPlayOnce = false,
     this.translatedText,
+    this.mediaPath,
+    this.mediaUrl,
+    this.mediaCaption,
+    this.isViewOnce = false,
+    this.mediaWidth,
+    this.mediaHeight,
+    this.mediaDuration,
+    this.mediaThumbnailPath,
+    this.isMediaPlayed = false,
   });
 
   KoraMessage copyWith({
@@ -158,6 +195,15 @@ class KoraMessage {
     String? translatedLanguageName,
     bool? isPlayOnce,
     String? translatedText,
+    String? mediaPath,
+    String? mediaUrl,
+    String? mediaCaption,
+    bool? isViewOnce,
+    double? mediaWidth,
+    double? mediaHeight,
+    int? mediaDuration,
+    String? mediaThumbnailPath,
+    bool? isMediaPlayed,
   }) {
     return KoraMessage(
       id: id ?? this.id,
@@ -188,6 +234,15 @@ class KoraMessage {
       translatedLanguageName: translatedLanguageName ?? this.translatedLanguageName,
       isPlayOnce: isPlayOnce ?? this.isPlayOnce,
       translatedText: translatedText ?? this.translatedText,
+      mediaPath: mediaPath ?? this.mediaPath,
+      mediaUrl: mediaUrl ?? this.mediaUrl,
+      mediaCaption: mediaCaption ?? this.mediaCaption,
+      isViewOnce: isViewOnce ?? this.isViewOnce,
+      mediaWidth: mediaWidth ?? this.mediaWidth,
+      mediaHeight: mediaHeight ?? this.mediaHeight,
+      mediaDuration: mediaDuration ?? this.mediaDuration,
+      mediaThumbnailPath: mediaThumbnailPath ?? this.mediaThumbnailPath,
+      isMediaPlayed: isMediaPlayed ?? this.isMediaPlayed,
     );
   }
 
@@ -221,6 +276,15 @@ class KoraMessage {
     'translatedLanguageName': translatedLanguageName,
     'isPlayOnce': isPlayOnce,
     'translatedText': translatedText,
+    'mediaPath': mediaPath,
+    'mediaUrl': mediaUrl,
+    'mediaCaption': mediaCaption,
+    'isViewOnce': isViewOnce,
+    'mediaWidth': mediaWidth,
+    'mediaHeight': mediaHeight,
+    'mediaDuration': mediaDuration,
+    'mediaThumbnailPath': mediaThumbnailPath,
+    'isMediaPlayed': isMediaPlayed,
   };
 
   /// Deserialise from JSON.
@@ -264,6 +328,15 @@ class KoraMessage {
     translatedLanguageName: j['translatedLanguageName'] as String?,
     isPlayOnce: j['isPlayOnce'] as bool? ?? false,
     translatedText: j['translatedText'] as String?,
+    mediaPath: j['mediaPath'] as String?,
+    mediaUrl: j['mediaUrl'] as String?,
+    mediaCaption: j['mediaCaption'] as String?,
+    isViewOnce: j['isViewOnce'] as bool? ?? false,
+    mediaWidth: (j['mediaWidth'] as num?)?.toDouble(),
+    mediaHeight: (j['mediaHeight'] as num?)?.toDouble(),
+    mediaDuration: j['mediaDuration'] as int?,
+    mediaThumbnailPath: j['mediaThumbnailPath'] as String?,
+    isMediaPlayed: j['isMediaPlayed'] as bool? ?? false,
   );
 
   /// Estimated on-disk size of this message in bytes — used to show
@@ -280,6 +353,8 @@ class KoraMessage {
         return totalSecs * 2000; // ~2 KB/sec for a compressed voice note
       case KoraMessageType.image:
         return 180000; // ~180 KB average compressed photo
+      case KoraMessageType.video:
+        return 2500000; // ~2.5 MB average video
       case KoraMessageType.file:
         return attachmentName != null ? 350000 : 100000;
       case KoraMessageType.system:

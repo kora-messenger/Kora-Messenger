@@ -210,6 +210,55 @@ class MessageService {
     _scheduleStatusProgress(chatId, msgId);
   }
 
+  /// Send a media message (image or video) with an optional caption.
+  Future<void> sendMediaMessage(
+    String chatId, {
+    required String mediaPath,
+    required bool isVideo,
+    String? caption,
+    bool isViewOnce = false,
+    bool isHD = false,
+    double? width,
+    double? height,
+    int? duration,
+    String? replyToId,
+    String? replyToText,
+    String? replyToName,
+    String? recipientEmail,
+    String? recipientName,
+  }) async {
+    final messages = _cache.putIfAbsent(chatId, () => <KoraMessage>[]);
+    final msgId = 'msg_${DateTime.now().millisecondsSinceEpoch}';
+
+    final isOnline = ConnectivityService.instance.isOnline;
+
+    messages.add(KoraMessage(
+      id: msgId,
+      text: caption ?? '',
+      timestamp: DateTime.now(),
+      isMe: true,
+      type: isVideo ? KoraMessageType.video : KoraMessageType.image,
+      status: isOnline ? MessageStatus.sent : MessageStatus.unsent,
+      mediaPath: mediaPath,
+      mediaCaption: caption,
+      isViewOnce: isViewOnce,
+      mediaWidth: width,
+      mediaHeight: height,
+      mediaDuration: duration,
+      replyToId: replyToId,
+      replyToText: replyToText,
+      replyToName: replyToName,
+    ));
+    await _persist(chatId, recipientEmail: recipientEmail, recipientName: recipientName);
+
+    if (!isOnline) {
+      _unsentQueue.putIfAbsent(chatId, () => <String>{}).add(msgId);
+      return;
+    }
+
+    _scheduleStatusProgress(chatId, msgId);
+  }
+
   /// Whether the other person in [chatId] is currently online, per the
   /// conversation directory (falls back to true — Kora Support/AI and
   /// any contact we don't have fresh presence for are treated as
