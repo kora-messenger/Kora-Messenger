@@ -28,6 +28,10 @@ class MessageBubble extends StatelessWidget {
   /// Called when a play-once voice note finishes playing and should
   /// be auto-deleted. Wired through to [VoiceMessageBubble.onSelfDestruct].
   final VoidCallback? onSelfDestruct;
+  
+  /// Called when the user taps "Retry" on an unsent text message
+  /// (status = [MessageStatus.unsent]). Mirrors WhatsApp's RetrySend.
+  final VoidCallback? onRetrySend;
 
   const MessageBubble({
     super.key,
@@ -39,6 +43,7 @@ class MessageBubble extends StatelessWidget {
     this.onCancelVoiceUpload,
     this.onRetryVoiceUpload,
     this.onSelfDestruct,
+    this.onRetrySend,
   });
 
   @override
@@ -200,12 +205,89 @@ class MessageBubble extends StatelessWidget {
             height: 1.35,
           ),
         ),
+        // ── Translated text (WhatsApp-style, shown below original) ──
+        // Mirrors WhatsApp's `translated_text` column — the translation
+        // is persisted on the message and shown in a subtler style below
+        // the original, with a small "Translated from X" label.
+        if (message.translatedText != null && message.translatedText != message.text) ...[
+          const SizedBox(height: 4),
+          Container(
+            padding: const EdgeInsets.only(top: 4),
+            decoration: BoxDecoration(
+              border: Border(
+                top: BorderSide(
+                  color: (isMe ? Colors.white : textSecondary).withValues(alpha: 0.15),
+                  width: 0.5,
+                ),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  message.translatedText!,
+                  style: TextStyle(
+                    color: isMe
+                        ? sentText.withValues(alpha: 0.85)
+                        : receivedText.withValues(alpha: 0.75),
+                    fontSize: 14,
+                    height: 1.3,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+                if (message.translatedLanguageName != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      'Translated from ${message.translatedLanguageName}',
+                      style: TextStyle(
+                        color: isMe
+                            ? sentText.withValues(alpha: 0.5)
+                            : textSecondary.withValues(alpha: 0.6),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
         // Web search badge
         if (message.isWebSearch) ...[
           const SizedBox(height: 6),
           _buildWebSearchBadge(isMe),
         ],
         const SizedBox(height: 3),
+        // Retry banner for unsent messages (WhatsApp RetrySend equivalent)
+        if (isMe && message.status == MessageStatus.unsent && onRetrySend != null) ...[
+          const SizedBox(height: 4),
+          GestureDetector(
+            onTap: onRetrySend,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: Colors.red.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.error_outline_rounded, size: 13, color: Colors.red.withValues(alpha: 0.8)),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Failed to send. Tap to retry.',
+                    style: TextStyle(
+                      color: Colors.red.withValues(alpha: 0.8),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
         // Timestamp + status
         Row(
           mainAxisSize: MainAxisSize.min,
@@ -483,6 +565,12 @@ class MessageBubble extends StatelessWidget {
         ? const Color(0xFF667781)
         : Colors.white.withValues(alpha: 0.55);
     switch (status) {
+      case MessageStatus.unsent:
+        return Icon(
+          Icons.error_outline_rounded,
+          size: 14,
+          color: Colors.red.withValues(alpha: 0.8),
+        );
       case MessageStatus.pendingOffline:
         return Icon(
           Icons.access_time_rounded,

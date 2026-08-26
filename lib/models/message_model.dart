@@ -88,6 +88,16 @@ class KoraMessage {
   /// deleted from both devices after the first playback completes.
   final bool isPlayOnce;
 
+  /// Translated text for this message — persisted on the message record
+  /// so it doesn't need to be re-translated every time the chat is opened.
+  /// Mirrors WhatsApp's `translated_text` column in the message table.
+  ///
+  /// When non-null, the message bubble shows the translation below the
+  /// original text. Set by [MessageService.translateMessage].
+  /// Uses [translatedLanguageCode]/[translatedLanguageName] to track
+  /// which language the translation is in.
+  final String? translatedText;
+
   const KoraMessage({
     required this.id,
     required this.text,
@@ -116,6 +126,7 @@ class KoraMessage {
     this.translatedLanguageCode,
     this.translatedLanguageName,
     this.isPlayOnce = false,
+    this.translatedText,
   });
 
   KoraMessage copyWith({
@@ -146,6 +157,7 @@ class KoraMessage {
     String? translatedLanguageCode,
     String? translatedLanguageName,
     bool? isPlayOnce,
+    String? translatedText,
   }) {
     return KoraMessage(
       id: id ?? this.id,
@@ -175,6 +187,7 @@ class KoraMessage {
       translatedLanguageCode: translatedLanguageCode ?? this.translatedLanguageCode,
       translatedLanguageName: translatedLanguageName ?? this.translatedLanguageName,
       isPlayOnce: isPlayOnce ?? this.isPlayOnce,
+      translatedText: translatedText ?? this.translatedText,
     );
   }
 
@@ -207,6 +220,7 @@ class KoraMessage {
     'translatedLanguageCode': translatedLanguageCode,
     'translatedLanguageName': translatedLanguageName,
     'isPlayOnce': isPlayOnce,
+    'translatedText': translatedText,
   };
 
   /// Deserialise from JSON.
@@ -249,6 +263,7 @@ class KoraMessage {
     translatedLanguageCode: j['translatedLanguageCode'] as String?,
     translatedLanguageName: j['translatedLanguageName'] as String?,
     isPlayOnce: j['isPlayOnce'] as bool? ?? false,
+    translatedText: j['translatedText'] as String?,
   );
 
   /// Estimated on-disk size of this message in bytes — used to show

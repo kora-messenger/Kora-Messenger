@@ -11,6 +11,7 @@ enum KoraBadgeType {
 /// Delivery/read status shown on the sender's own outgoing messages.
 enum MessageStatus {
   none, // incoming message, or draft
+  unsent, // outgoing message that failed to send — shows retry option (WhatsApp UNSENT)
   pendingOffline, // recorded locally, waiting for network to upload
   sent, // single check
   delivered, // double check

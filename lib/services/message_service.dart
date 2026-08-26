@@ -7,6 +7,7 @@ import 'connectivity_service.dart';
 import 'offline_voice_sync.dart';
 import 'conversation_directory.dart';
 import 'chat_sync_service.dart';
+import 'translation_service.dart';
 
 /// Manages all Kora conversations with local persistence.
 ///
@@ -31,6 +32,13 @@ class MessageService {
   final Map<String, List<KoraMessage>> _cache = {};
   final Set<String> _blockedChats = {};
   bool _blockedLoaded = false;
+
+  // ── Send queue (WhatsApp SendMessageRunnable equivalent) ──
+  // Messages that failed to send (status = unsent) are tracked here
+  // for automatic retry when connectivity returns. Mirrors WhatsApp's
+  // autoRetry / RetrySend mechanism.
+  final Map<String, Set<String>> _unsentQueue = {}; // chatId → {messageIds}
+  bool _retryInProgress = false;
 
   // ── Load / Save ────────────────────────────────────────────
 
@@ -71,6 +79,24 @@ class MessageService {
           await prefs.setBool('kora_is_premium', false);
         }
       }
+    }
+
+    // Listen for connectivity changes — auto-retry unsent messages
+    // when the network comes back (WhatsApp autoRetry equivalent)
+    ConnectivityService.instance.statusStream.listen((isOnline) {
+      if (isOnline) {
+        _flushUnsentQueue();
+      }
+    });
+  }
+
+  /// Flushes all unsent messages across all chats when connectivity returns.
+  /// Mirrors WhatsApp's behaviour of auto-retrying failed messages on reconnect.
+  Future<void> _flushUnsentQueue() async {
+    for (final chatId in _unsentQueue.keys.toList()) {
+      final msgIds = _unsentQueue[chatId];
+      if (msgIds == null || msgIds.isEmpty) continue;
+      await retryUnsentMessages(chatId);
     }
   }
 
@@ -158,17 +184,28 @@ class MessageService {
   }) async {
     final messages = _cache.putIfAbsent(chatId, () => <KoraMessage>[]);
     final msgId = 'msg_${DateTime.now().millisecondsSinceEpoch}';
+
+    // Check connectivity — if offline, mark as unsent and enqueue for retry
+    // (mirrors WhatsApp's UNSENT state + autoRetry mechanism)
+    final isOnline = ConnectivityService.instance.isOnline;
+
     messages.add(KoraMessage(
       id: msgId,
       text: text,
       timestamp: DateTime.now(),
       isMe: true,
-      status: MessageStatus.sent,
+      status: isOnline ? MessageStatus.sent : MessageStatus.unsent,
       replyToId: replyToId,
       replyToText: replyToText,
       replyToName: replyToName,
     ));
     await _persist(chatId, recipientEmail: recipientEmail, recipientName: recipientName);
+
+    if (!isOnline) {
+      // Queue for auto-retry when connectivity returns
+      _unsentQueue.putIfAbsent(chatId, () => <String>{}).add(msgId);
+      return;
+    }
 
     _scheduleStatusProgress(chatId, msgId);
   }
@@ -251,14 +288,19 @@ class MessageService {
   /// typed it, then the AI responds with guided troubleshooting).
   Future<void> sendUserMessage(String chatId, String text) async {
     final messages = _cache.putIfAbsent(chatId, () => <KoraMessage>[]);
+    final msgId = 'msg_${DateTime.now().millisecondsSinceEpoch}';
+    final isOnline = ConnectivityService.instance.isOnline;
     messages.add(KoraMessage(
-      id: 'msg_${DateTime.now().millisecondsSinceEpoch}',
+      id: msgId,
       text: text,
       timestamp: DateTime.now(),
       isMe: true,
-      status: MessageStatus.sent,
+      status: isOnline ? MessageStatus.sent : MessageStatus.unsent,
     ));
     await _persist(chatId);
+    if (!isOnline) {
+      _unsentQueue.putIfAbsent(chatId, () => <String>{}).add(msgId);
+    }
   }
 
   /// Marks every incoming message in [chatId] as seen. Call this when
@@ -285,6 +327,163 @@ class MessageService {
     final messages = _cache[chatId];
     if (messages == null) return 0;
     return messages.where((m) => !m.isMe && !m.isSeen).length;
+  }
+
+  // ── Message Translation (WhatsApp translated_text pattern) ─────────
+  //
+  // WhatsApp stores `translated_text` as a native column on the message
+  // record, with a `message_translation_request` table tracking which
+  // messages have been requested for translation, a `translation_time`
+  // timestamp, and an `auto_translation` flag for auto-translated messages.
+  //
+  // Kora persists the translated text on the KoraMessage itself so it
+  // doesn't need to be re-translated every time the chat is opened.
+
+  /// Translates a message and persists the result on the message record.
+  /// Returns the translated text, or null on failure.
+  ///
+  /// If the message already has a translation for the same language,
+  /// returns the cached translation without re-calling the API.
+  Future<String?> translateMessage(
+    String chatId,
+    String messageId, {
+    String? targetLangCode,
+  }) async {
+    final msgs = _cache[chatId];
+    if (msgs == null) return null;
+    final idx = msgs.indexWhere((m) => m.id == messageId);
+    if (idx == -1) return null;
+    final msg = msgs[idx];
+
+    final targetCode = targetLangCode ??
+        TranslationService.instance.preferredLangCode;
+
+    // Return cached translation if it matches the requested language
+    if (msg.translatedText != null && msg.translatedLanguageCode == targetCode) {
+      return msg.translatedText;
+    }
+
+    try {
+      final result = await TranslationService.instance.translate(
+        msg.text,
+        targetCode,
+      );
+
+      if (result.translatedText.trim().isEmpty ||
+          result.translatedText == msg.text) {
+        return null; // translation failed or same language
+      }
+
+      msgs[idx] = msg.copyWith(
+        translatedText: result.translatedText,
+        translatedLanguageCode: targetCode,
+        translatedLanguageName:
+            TranslationService.instance.languageByCode(targetCode)?.name,
+      );
+      await _persist(chatId);
+      return result.translatedText;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Clears a message's persisted translation (user tapped "Hide translation").
+  Future<void> clearTranslation(String chatId, String messageId) async {
+    final msgs = _cache[chatId];
+    if (msgs == null) return;
+    final idx = msgs.indexWhere((m) => m.id == messageId);
+    if (idx == -1) return;
+    msgs[idx] = msgs[idx].copyWith(
+      translatedText: null,
+      translatedLanguageCode: null,
+      translatedLanguageName: null,
+    );
+    await _persist(chatId);
+  }
+
+  /// Auto-translates all unseen incoming messages in a chat that don't
+  /// already have a translation. Called when the user opens a chat with
+  /// auto-translation enabled (mirrors WhatsApp's `auto_translation` flag).
+  Future<void> autoTranslateChat(String chatId) async {
+    final autoMode = TranslationService.instance.autoMode;
+    if (autoMode == AutoTranslateMode.off) return;
+
+    final targetCode = TranslationService.instance.preferredLangCode;
+    final msgs = _cache[chatId];
+    if (msgs == null) return;
+
+    for (int i = 0; i < msgs.length; i++) {
+      final m = msgs[i];
+      if (!m.isMe &&
+          m.type == KoraMessageType.text &&
+          m.translatedText == null &&
+          m.text.trim().isNotEmpty) {
+        await translateMessage(chatId, m.id, targetLangCode: targetCode);
+      }
+    }
+  }
+
+  // ── Send Queue with Retry (WhatsApp autoRetry equivalent) ──────────
+  //
+  // When a message fails to send (network error, server unreachable),
+  // it's marked as [MessageStatus.unsent] and added to the retry queue.
+  // When connectivity returns, the queue is flushed automatically.
+
+  /// Marks a message as failed (unsent) and adds it to the retry queue.
+  Future<void> markMessageUnsent(String chatId, String messageId) async {
+    final msgs = _cache[chatId];
+    if (msgs == null) return;
+    final idx = msgs.indexWhere((m) => m.id == messageId);
+    if (idx == -1) return;
+    msgs[idx] = msgs[idx].copyWith(status: MessageStatus.unsent);
+    _unsentQueue.putIfAbsent(chatId, () => <String>{}).add(messageId);
+    await _persist(chatId);
+  }
+
+  /// Retries sending all unsent messages in a chat. Called when
+  /// connectivity returns or the user taps "Retry" on a failed message.
+  Future<void> retryUnsentMessages(String chatId) async {
+    if (_retryInProgress) return;
+    final messageIds = _unsentQueue[chatId];
+    if (messageIds == null || messageIds.isEmpty) return;
+
+    _retryInProgress = true;
+    try {
+      final msgs = _cache[chatId];
+      if (msgs == null) return;
+
+      for (final msgId in messageIds.toList()) {
+        final idx = msgs.indexWhere((m) => m.id == msgId);
+        if (idx == -1) continue;
+
+        // Mark as sent (the actual send happens via the cloud sync)
+        msgs[idx] = msgs[idx].copyWith(status: MessageStatus.sent);
+        await _persist(chatId);
+
+        // Schedule status progression
+        _scheduleStatusProgress(chatId, msgId);
+        messageIds.remove(msgId);
+      }
+    } finally {
+      _retryInProgress = false;
+    }
+  }
+
+  /// Retries a single unsent message (user tapped "Retry" on the bubble).
+  Future<void> retrySingleMessage(String chatId, String messageId) async {
+    final msgs = _cache[chatId];
+    if (msgs == null) return;
+    final idx = msgs.indexWhere((m) => m.id == messageId);
+    if (idx == -1) return;
+    if (msgs[idx].status != MessageStatus.unsent) return;
+
+    final isOnline = ConnectivityService.instance.isOnline;
+    if (!isOnline) return;
+
+    msgs[idx] = msgs[idx].copyWith(status: MessageStatus.sent);
+    _unsentQueue[chatId]?.remove(messageId);
+    await _persist(chatId);
+    _scheduleStatusProgress(chatId, messageId);
   }
 
   Future<void> sendVoiceMessage(String chatId, String duration, {

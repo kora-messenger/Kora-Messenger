@@ -160,6 +160,9 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
     _messages = await _messageService.loadMessages(widget.chatId);
     // Mark all incoming messages as viewed — clears the Home unread badge.
     await _messageService.markChatViewed(widget.chatId);
+    // Auto-translate new messages if enabled (WhatsApp auto_translation)
+    await _messageService.autoTranslateChat(widget.chatId);
+    _messages = List.from(_messageService.getMessages(widget.chatId));
     if (mounted) {
       setState(() {
         _isLoading = false;
@@ -457,12 +460,33 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
     }
   }
 
-  void _onTranslate(String text) {
+  /// Translate a message — WhatsApp-style persistent translation.
+  /// Persists the translated text on the message record so it doesn't
+  /// need to be re-translated every time the chat is opened.
+  void _onTranslate(KoraMessage message) {
     if (!ChatThemeProvider.instance.isPremium) {
       _showPremiumSheetForTranslation();
       return;
     }
-    TranslateSheet.show(context, text);
+
+    // If already translated, show the translate sheet with the existing translation
+    if (message.translatedText != null) {
+      TranslateSheet.show(context, message.text);
+      return;
+    }
+
+    // Translate and persist on the message
+    MessageService.instance.translateMessage(
+      widget.chatId,
+      message.id,
+    ).then((translated) {
+      if (translated != null && mounted) {
+        setState(() {}); // refresh bubbles to show translated text
+      } else if (mounted) {
+        // Fallback to the translate sheet if API fails
+        TranslateSheet.show(context, message.text);
+      }
+    });
   }
 
   void _showPremiumSheetForTranslation() {
@@ -472,6 +496,16 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
       backgroundColor: Colors.transparent,
       builder: (context) => const PremiumSubscribeSheet(),
     );
+  }
+
+  /// Retry sending a message that failed (status = unsent).
+  /// Mirrors WhatsApp's RetrySend mechanism.
+  void _onRetrySend(String messageId) async {
+    await _messageService.retrySingleMessage(widget.chatId, messageId);
+    if (mounted) {
+      _messages = List.from(_messageService.getMessages(widget.chatId));
+      setState(() {});
+    }
   }
 
   void _showMessageActions(GlobalKey key, KoraMessage message) {
@@ -484,7 +518,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
       onReply: () => setState(() => _replyTarget = message),
       onCopy: () => _onCopy(message.text),
       onForward: () {},
-      onTranslate: () => _onTranslate(message.text),
+      onTranslate: () => _onTranslate(message),
       onTranscribeVoice: message.type == KoraMessageType.voice && ChatThemeProvider.instance.isPremium
           ? () => VoiceTranslationSheet.show(
               context,
@@ -1303,6 +1337,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
                                           onCancelVoiceUpload: () => _onCancelVoiceUpload(message.id),
                                           onRetryVoiceUpload: () => _onRetryVoiceUpload(message.id),
                                           onSelfDestruct: () => _onSelfDestructVoice(message.id),
+                                          onRetrySend: () => _onRetrySend(message.id),
                                         ),
                                       ),
                                     ],
