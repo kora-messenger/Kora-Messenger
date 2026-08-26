@@ -743,7 +743,7 @@ class _MessageComposerState extends State<MessageComposer>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => const AiWritingSheet(),
+      builder: (_) => AiWritingSheet(currentText: _controller.text, onApply: (result) { _controller.text = result; _controller.selection = TextSelection.fromPosition(TextPosition(offset: result.length)); setState(() => _hasText = true); _focusNode.requestFocus(); }),
     ).then((result) {
       if (result != null && result is String && result.isNotEmpty) {
         _controller.text = result;

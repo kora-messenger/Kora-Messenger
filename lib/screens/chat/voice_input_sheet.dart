@@ -396,12 +396,15 @@ class _VoiceInputSheetState extends State<VoiceInputSheet>
         // Timer + live waveform
         Row(
           children: [
-            Text(
-              _formatDuration(_elapsedSeconds),
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w500,
-                color: isDark ? Colors.white : Colors.black87,
+            GestureDetector(
+              onTap: _stopListening,
+              child: Text(
+                _formatDuration(_elapsedSeconds),
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
               ),
             ),
             const SizedBox(width: 12),
@@ -590,7 +593,9 @@ class _VoiceInputSheetState extends State<VoiceInputSheet>
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    _targetLanguage?.name ?? '',
+                    _detectedLangName.isNotEmpty
+                        ? '$_detectedLangName → ${_targetLanguage?.name ?? ''}'
+                        : (_targetLanguage?.name ?? ''),
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w500,
