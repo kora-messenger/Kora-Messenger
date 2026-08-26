@@ -13,6 +13,7 @@ import 'attachment_sheet.dart';
 import 'ai_writing_sheet.dart';
 import 'voice_recorder.dart';
 import 'voice_locked_bar.dart';
+import 'emoji_sticker_panel.dart';
 import 'language_picker_screen.dart';
 
 /// Kora's message composer — the bottom input bar.
@@ -71,6 +72,7 @@ class _MessageComposerState extends State<MessageComposer>
   final _controller = TextEditingController();
   final _focusNode = FocusNode();
   bool _hasText = false;
+  bool _showEmojiPanel = false;
   _ComposerState _state = _ComposerState.idle;
 
   // ── Recording state ──
@@ -866,14 +868,17 @@ class _MessageComposerState extends State<MessageComposer>
     // lifecycle without interruption.
     final isHolding = _state == _ComposerState.holding;
 
-    return SafeArea(
-      top: false,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        color: bg,
-        child: Row(
-          children: [
-            Expanded(
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SafeArea(
+          top: false,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            color: bg,
+            child: Row(
+              children: [
+                Expanded(
               child: isHolding
                   ? VoiceHoldingContent(
                       seconds: _seconds,
@@ -891,6 +896,20 @@ class _MessageComposerState extends State<MessageComposer>
                       ),
                       child: Row(
                         children: [
+                          GestureDetector(
+                            onTap: () {
+                              _focusNode.unfocus();
+                              setState(() => _showEmojiPanel = !_showEmojiPanel);
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.only(right: 6),
+                              child: Icon(
+                                _showEmojiPanel
+                                    ? Icons.keyboard_outlined
+                                    : Icons.emoji_emotions_outlined,
+                                color: KoraColors.purple, size: 22),
+                            ),
+                          ),
                           GestureDetector(
                             onTap: _openAiWriting,
                             child: Padding(
@@ -1000,6 +1019,30 @@ class _MessageComposerState extends State<MessageComposer>
           ],
         ),
       ),
+    ),
+        // WhatsApp-style emoji & sticker panel — inline below the input bar
+        if (_showEmojiPanel)
+          KoraEmojiPanel(
+            onEmojiSelected: (emoji) {
+              final text = _controller.text;
+              final sel = _controller.selection;
+              final start = sel.start ?? 0;
+              _controller.value = TextEditingValue(
+                text: text.substring(0, start) + emoji + text.substring(sel.end ?? text.length),
+                selection: TextSelection.collapsed(offset: start + emoji.length),
+              );
+              setState(() {});
+            },
+            onStickerSelected: (sticker) {
+              widget.onSend(sticker);
+              setState(() => _showEmojiPanel = false);
+            },
+            onGifSelected: (gif) {
+              widget.onSend(gif);
+              setState(() => _showEmojiPanel = false);
+            },
+          ),
+      ],
     );
   }
 }
