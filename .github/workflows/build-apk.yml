@@ -32,7 +32,10 @@ jobs:
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
 
       - name: Build APK
-        run: flutter build apk --release
+        run: |
+          flutter build apk --release \
+            --dart-define=KORA_BACKEND_URL=${{ secrets.KORA_BACKEND_URL }} \
+            --dart-define=KORA_AI_AUTH_TOKEN=${{ secrets.KORA_AI_AUTH_TOKEN }}
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v7
