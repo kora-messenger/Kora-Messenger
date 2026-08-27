@@ -278,7 +278,7 @@ class _PairingQrScreenState extends State<PairingQrScreen> {
                                             eyeShape: QrEyeShape.square,
                                             color: Color(0xFF6C5CE7),
                                           ),
-                                          dataModuleStyle: const QrDataModuleShape(
+                                          dataModuleStyle: const QrDataModuleStyle(
                                             dataModuleShape: QrDataModuleShape.square,
                                             color: Color(0xFF1A1A2E),
                                           ),
