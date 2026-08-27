@@ -569,9 +569,9 @@ class _VoiceStudioScreenState extends State<VoiceStudioScreen> {
           ),
         ),
         subtitle: Text(
-          voice.description ?? voice.type == VoiceType.cloned
+          (voice.description ?? (voice.type == VoiceType.cloned
               ? 'Custom voice'
-              : 'System voice',
+              : 'System voice')),
           style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12),
         ),
         trailing: Row(
