@@ -12,6 +12,8 @@ import '../../services/message_service.dart';
 import '../../services/offline_voice_sync.dart';
 import '../../services/audio_playback_service.dart';
 import 'voice_translation_sheet.dart';
+import 'forward_message_screen.dart';
+import 'view_once_viewer.dart';
 import '../../theme/kora_colors.dart';
 import '../../theme/chat_theme_provider.dart';
 import '../../config/kora_api.dart';
@@ -596,7 +598,8 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
       onReact: (emoji) => _onReact(message.id, emoji),
       onReply: () => setState(() => _replyTarget = message),
       onCopy: () => _onCopy(message.text),
-      onForward: () {},
+      onForward: () => _onForward(message),
+      onViewOnceMedia: () => _onViewOnceMedia(message),
       onTranslate: () => _onTranslate(message),
       onTranscribeVoice: message.type == KoraMessageType.voice && ChatThemeProvider.instance.isPremium
           ? () => VoiceTranslationSheet.show(
@@ -614,6 +617,46 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
           : null,
       onDelete: () => _onDelete(message.id),
     );
+  }
+
+  void _onForward(KoraMessage message) async {
+    final count = await Navigator.push<int>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ForwardMessageScreen(message: message),
+      ),
+    );
+    if (count != null && count > 0 && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Forwarded to \${count} chat\${count > 1 ? 's' : ''}'),
+          backgroundColor: KoraColors.purple,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  void _onViewOnceMedia(KoraMessage message) async {
+    final viewed = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ViewOnceViewer(
+          mediaPath: message.mediaPath,
+          mediaUrl: message.mediaUrl,
+          isVideo: message.type == KoraMessageType.video,
+          thumbnailPath: message.mediaThumbnailPath,
+        ),
+      ),
+    );
+    if (viewed == true) {
+      setState(() {
+        final idx = _messages.indexWhere((m) => m.id == message.id);
+        if (idx >= 0) {
+          _messages[idx] = _messages[idx].copyWith(isMediaPlayed: true);
+        }
+      });
+    }
   }
 
   void _openCallScreen({required bool isVideo}) {

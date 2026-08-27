@@ -239,6 +239,8 @@ class _NewGroupScreenState extends State<NewGroupScreen> {
     return ListView(
       padding: const EdgeInsets.only(bottom: 16),
       children: [
+        // Create from existing group (WhatsApp 2026 feature)
+        _buildCreateFromGroupTile(textPrimary, textSecondary, textMuted),
         if (recent.isNotEmpty) ...[
           _sectionLabel('RECENT', textMuted),
           ..._buildContactTiles(recent, textPrimary, textSecondary, textMuted),
@@ -249,6 +251,96 @@ class _NewGroupScreenState extends State<NewGroupScreen> {
           ..._buildContactTiles(all, textPrimary, textSecondary, textMuted),
         ],
       ],
+    );
+  }
+
+  Widget _buildCreateFromGroupTile(Color textPrimary, Color textSecondary, Color textMuted) {
+    return Column(
+      children: [
+        ListTile(
+          leading: Container(
+            width: 44, height: 44,
+            decoration: BoxDecoration(
+              gradient: KoraColors.brandGradient,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.group_add, color: Colors.white, size: 22),
+          ),
+          title: Text('Create from existing group',
+            style: TextStyle(color: textPrimary, fontSize: 15, fontWeight: FontWeight.w600)),
+          subtitle: Text('Start with members from a group you\'re in',
+            style: TextStyle(color: textMuted, fontSize: 12)),
+          onTap: () => _showExistingGroupsBottomSheet(textPrimary, textSecondary, textMuted),
+        ),
+        Divider(height: 1, color: textMuted.withValues(alpha: 0.1)),
+      ],
+    );
+  }
+
+  void _showExistingGroupsBottomSheet(Color textPrimary, Color textSecondary, Color textMuted) {
+    // Mock list of existing groups
+    final groups = [
+      {'name': 'Family Group', 'members': 8},
+      {'name': 'Work Team', 'members': 12},
+      {'name': 'Sunday Crew', 'members': 5},
+      {'name': 'Project Alpha', 'members': 15},
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: KoraColors.surfaceFor(Theme.of(context).brightness),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Text('Create from existing group',
+                    style: TextStyle(color: textPrimary, fontSize: 18, fontWeight: FontWeight.w700)),
+                  const Spacer(),
+                  GestureDetector(
+                    onTap: () => Navigator.pop(ctx),
+                    child: Icon(Icons.close, color: textSecondary, size: 22),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            ...groups.map((g) => ListTile(
+              leading: Container(
+                width: 44, height: 44,
+                decoration: const BoxDecoration(
+                  gradient: KoraColors.brandGradient,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.group, color: Colors.white, size: 20),
+              ),
+              title: Text(g['name'] as String,
+                style: TextStyle(color: textPrimary, fontSize: 15, fontWeight: FontWeight.w600)),
+              subtitle: Text('${g['members']} members',
+                style: TextStyle(color: textMuted, fontSize: 12)),
+              onTap: () {
+                Navigator.pop(ctx);
+                // Pre-fill selected contacts from this group
+                // For now, show a confirmation and navigate to details
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Loading members from ${g['name']}...'),
+                    backgroundColor: KoraColors.purple,
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              },
+            )),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
     );
   }
 

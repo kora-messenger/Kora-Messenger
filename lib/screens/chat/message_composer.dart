@@ -54,6 +54,7 @@ class MessageComposer extends StatefulWidget {
   final Function(String)? onAiWriting;
   final VoidCallback? onMicTap; // notify parent to pause any playing voice note
   final Function(String path, bool isVideo, String? caption, bool isViewOnce, bool isHD, double? width, double? height)? onSendMedia;
+  final bool isGroupChat;
 
   const MessageComposer({
     super.key,
@@ -64,6 +65,7 @@ class MessageComposer extends StatefulWidget {
     this.onAiWriting,
     this.onMicTap,
     this.onSendMedia,
+    this.isGroupChat = false,
   });
 
   @override
@@ -78,6 +80,8 @@ class _MessageComposerState extends State<MessageComposer>
   final _focusNode = FocusNode();
   bool _hasText = false;
   bool _showEmojiPanel = false;
+  bool _showMentionOverlay = false;
+  final LayerLink _mentionLink = LayerLink();
   _ComposerState _state = _ComposerState.idle;
 
   // ── Recording state ──
@@ -875,6 +879,39 @@ class _MessageComposerState extends State<MessageComposer>
 
 /// Opens the popup voice-note bottom sheet.
   /// Uses isDismissible: false so it only closes on delete/send.
+
+  void _onTextChangeForMentions() {
+    final text = _controller.text;
+    if (widget.isGroupChat && text.endsWith('@')) {
+      setState(() => _showMentionOverlay = true);
+    } else if (widget.isGroupChat && _showMentionOverlay) {
+      // Keep overlay open while typing after @
+      final atIdx = text.lastIndexOf('@');
+      if (atIdx >= 0) {
+        final after = text.substring(atIdx + 1);
+        if (after.contains(' ') || after.contains('\n')) {
+          setState(() => _showMentionOverlay = false);
+        }
+      } else {
+        setState(() => _showMentionOverlay = false);
+      }
+    }
+  }
+
+  void _insertMention(String mention) {
+    final text = _controller.text;
+    final atIdx = text.lastIndexOf('@');
+    if (atIdx >= 0) {
+      final newText = text.substring(0, atIdx + 1) + mention + ' ';
+      _controller.text = newText;
+      _controller.selection = TextSelection.fromPosition(TextPosition(offset: newText.length));
+    }
+    setState(() {
+      _showMentionOverlay = false;
+      _hasText = true;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final brightness = Theme.of(context).brightness;
@@ -931,7 +968,12 @@ class _MessageComposerState extends State<MessageComposer>
     // lifecycle without interruption.
     final isHolding = _state == _ComposerState.holding;
 
-    return Column(
+    return CompositedTransformTarget(
+      link: _mentionLink,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         SafeArea(
@@ -1140,7 +1182,53 @@ class _MessageComposerState extends State<MessageComposer>
               setState(() => _showEmojiPanel = false);
             },
           ),
-      ],
+          ],
+        ),
+        if (_showMentionOverlay && widget.isGroupChat)
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: CompositedTransformFollower(
+              link: _mentionLink,
+              targetAnchor: Alignment.topLeft,
+              followerAnchor: Alignment.bottomLeft,
+              offset: const Offset(0, -8),
+              child: Material(
+                elevation: 8,
+                borderRadius: BorderRadius.circular(12),
+                color: bg,
+                child: Container(
+                  constraints: const BoxConstraints(maxWidth: 200),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: KoraColors.purple.withValues(alpha: 0.2), width: 1),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ListTile(
+                        dense: true,
+                        leading: Container(
+                          width: 32, height: 32,
+                          decoration: const BoxDecoration(
+                            gradient: KoraColors.brandGradient,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.campaign, color: Colors.white, size: 16),
+                        ),
+                        title: Text('@all', style: TextStyle(color: textPrimary, fontWeight: FontWeight.w700, fontSize: 14)),
+                        subtitle: Text('Notify everyone', style: TextStyle(color: textMuted, fontSize: 11)),
+                        onTap: () => _insertMention('all'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

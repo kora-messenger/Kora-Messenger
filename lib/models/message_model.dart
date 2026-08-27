@@ -143,6 +143,12 @@ class KoraMessage {
   /// Whether an incoming view-once media has been viewed
   final bool isMediaPlayed;
 
+  /// Whether this message was forwarded from another chat.
+  final bool isForwarded;
+
+  /// Whether this group message mentions @all.
+  final bool mentionedAll;
+
   const KoraMessage({
     required this.id,
     required this.text,
@@ -181,6 +187,8 @@ class KoraMessage {
     this.mediaDuration,
     this.mediaThumbnailPath,
     this.isMediaPlayed = false,
+    this.isForwarded = false,
+    this.mentionedAll = false,
   });
 
   KoraMessage copyWith({
@@ -221,6 +229,8 @@ class KoraMessage {
     int? mediaDuration,
     String? mediaThumbnailPath,
     bool? isMediaPlayed,
+    bool? isForwarded,
+    bool? mentionedAll,
   }) {
     return KoraMessage(
       id: id ?? this.id,
@@ -260,6 +270,8 @@ class KoraMessage {
       mediaDuration: mediaDuration ?? this.mediaDuration,
       mediaThumbnailPath: mediaThumbnailPath ?? this.mediaThumbnailPath,
       isMediaPlayed: isMediaPlayed ?? this.isMediaPlayed,
+      isForwarded: isForwarded ?? this.isForwarded,
+      mentionedAll: mentionedAll ?? this.mentionedAll,
     );
   }
 
@@ -303,6 +315,8 @@ class KoraMessage {
     'mediaDuration': mediaDuration,
     'mediaThumbnailPath': mediaThumbnailPath,
     'isMediaPlayed': isMediaPlayed,
+    'isForwarded': isForwarded,
+    'mentionedAll': mentionedAll,
   };
 
   /// Deserialise from JSON.
@@ -355,6 +369,8 @@ class KoraMessage {
     mediaDuration: j['mediaDuration'] as int?,
     mediaThumbnailPath: j['mediaThumbnailPath'] as String?,
     isMediaPlayed: j['isMediaPlayed'] as bool? ?? false,
+    isForwarded: j['isForwarded'] as bool? ?? false,
+    mentionedAll: j['mentionedAll'] as bool? ?? false,
   );
 
   /// Estimated on-disk size of this message in bytes — used to show

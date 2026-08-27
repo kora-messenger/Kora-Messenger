@@ -34,6 +34,11 @@ class MessageBubble extends StatelessWidget {
   /// (status = [MessageStatus.unsent]). Mirrors WhatsApp's RetrySend.
   final VoidCallback? onRetrySend;
 
+  /// Called when the user taps an incoming view-once media message
+  /// to open the full-screen viewer. After viewing, the bubble
+  /// shows an "Opened" state.
+  final VoidCallback? onViewOnceMedia;
+
   const MessageBubble({
     super.key,
     required this.message,
@@ -45,6 +50,7 @@ class MessageBubble extends StatelessWidget {
     this.onRetryVoiceUpload,
     this.onSelfDestruct,
     this.onRetrySend,
+    this.onViewOnceMedia,
   });
 
   @override
@@ -206,15 +212,28 @@ class MessageBubble extends StatelessWidget {
             ),
           ),
         ],
-        // Message text
-        Text(
-          message.text,
-          style: TextStyle(
-            color: isMe ? sentText : receivedText,
-            fontSize: 15,
-            height: 1.35,
+        // Forwarded label
+        if (message.isForwarded) ...[
+          Container(
+            margin: const EdgeInsets.only(bottom: 4),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.shortcut, size: 14, color: isMe ? Colors.white.withValues(alpha: 0.6) : textSecondary),
+                const SizedBox(width: 4),
+                Text('Forwarded',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    fontStyle: FontStyle.italic,
+                    color: isMe ? Colors.white.withValues(alpha: 0.6) : textSecondary,
+                  )),
+              ],
+            ),
           ),
-        ),
+        ],
+        // Message text (with @all / @mention highlighting)
+        _buildMessageText(isMe, sentText, receivedText, textSecondary),
         // ── Translated text (WhatsApp-style, shown below original) ──
         // Mirrors WhatsApp's `translated_text` column — the translation
         // is persisted on the message and shown in a subtler style below
@@ -689,6 +708,48 @@ class MessageBubble extends StatelessWidget {
     }
   }
 
+
+  Widget _buildMessageText(bool isMe, Color sentText, Color receivedText, Color textSecondary) {
+    final text = message.text;
+    final style = TextStyle(
+      color: isMe ? sentText : receivedText,
+      fontSize: 15,
+      height: 1.35,
+    );
+    final mentionColor = isMe ? const Color(0xFFA78BFA) : KoraColors.purple;
+
+    // Check for @all or @username patterns
+    final mentionRegex = RegExp(r'@(all|\w+)', caseSensitive: false);
+    final matches = mentionRegex.allMatches(text);
+
+    if (matches.isEmpty) {
+      return Text(text, style: style);
+    }
+
+    // Build rich text with highlighted mentions
+    final spans = <TextSpan>[];
+    int lastEnd = 0;
+    for (final match in matches) {
+      if (match.start > lastEnd) {
+        spans.add(TextSpan(text: text.substring(lastEnd, match.start), style: style));
+      }
+      final mention = match.group(0)!;
+      spans.add(TextSpan(
+        text: mention,
+        style: style.copyWith(color: mentionColor, fontWeight: FontWeight.w700),
+      ));
+      lastEnd = match.end;
+    }
+    if (lastEnd < text.length) {
+      spans.add(TextSpan(text: text.substring(lastEnd), style: style));
+    }
+
+    return RichText(
+      text: TextSpan(children: spans),
+      softWrap: true,
+    );
+  }
+
   // ── Media content (image/video) ──
   Widget _buildMediaContent(
     BuildContext context,
@@ -700,9 +761,16 @@ class MessageBubble extends StatelessWidget {
     final isImage = message.type == KoraMessageType.image;
     final hasCaption = message.mediaCaption != null && message.mediaCaption!.isNotEmpty;
 
-    // View-once placeholder for incoming unviewed media
-    if (message.isViewOnce && !message.isMe && !message.isMediaPlayed) {
-      return _buildViewOncePlaceholder(isMe, isImage, textSecondary);
+    // View-once incoming: tappable placeholder if unviewed, "Opened" if viewed
+    if (message.isViewOnce && !message.isMe) {
+      if (!message.isMediaPlayed) {
+        return GestureDetector(
+          onTap: onViewOnceMedia,
+          child: _buildViewOncePlaceholder(isMe, isImage, textSecondary),
+        );
+      }
+      // Already viewed — show "Opened" state
+      return _buildViewOnceOpened(isMe, isImage, textSecondary);
     }
 
     // View-once for outgoing — show media with "1" badge
@@ -865,6 +933,41 @@ class MessageBubble extends StatelessWidget {
                 Icon(Icons.visibility_off_outlined, color: textSecondary, size: 12),
                 const SizedBox(width: 3),
                 Text('View once', style: TextStyle(color: textSecondary, fontSize: 11)),
+              ]),
+            ],
+          ),
+        ),
+        const SizedBox(height: 3),
+        _buildMediaTimestampRow(isMe, isMe ? Colors.white : textSecondary, textSecondary),
+      ],
+    );
+  }
+
+
+  Widget _buildViewOnceOpened(bool isMe, bool isImage, Color textSecondary) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 200, height: 120,
+          decoration: BoxDecoration(
+            color: textSecondary.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: textSecondary.withValues(alpha: 0.15), width: 1),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(isImage ? Icons.photo_outlined : Icons.videocam_outlined,
+                  color: textSecondary.withValues(alpha: 0.5), size: 32),
+              const SizedBox(height: 8),
+              Text(isImage ? 'Photo' : 'Video',
+                style: TextStyle(color: textSecondary.withValues(alpha: 0.5), fontSize: 13)),
+              const SizedBox(height: 4),
+              Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.check_circle_outline, color: textSecondary.withValues(alpha: 0.5), size: 14),
+                const SizedBox(width: 3),
+                Text('Opened', style: TextStyle(color: textSecondary.withValues(alpha: 0.5), fontSize: 11)),
               ]),
             ],
           ),
