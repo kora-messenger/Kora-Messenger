@@ -1,11 +1,9 @@
-import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../config/kora_api.dart';
 import '../../services/session_manager.dart';
 import '../../theme/kora_colors.dart';
-import '../../widgets/kora_avatar.dart';
 
 /// Shows a QR code that another device can scan to link this device.
 ///
@@ -22,8 +20,6 @@ class _PairingQrScreenState extends State<PairingQrScreen> {
   bool _loading = true;
   String? _error;
   String? _qrData;
-  String? _token;
-  String? _expiresAt;
 
   @override
   void initState() {
@@ -39,7 +35,7 @@ class _PairingQrScreenState extends State<PairingQrScreen> {
 
     try {
       final email = SessionManager.instance.currentEmail;
-      if (email == null || email.isEmpty) {
+      if (email.isEmpty) {
         setState(() {
           _loading = false;
           _error = 'Not logged in';
@@ -58,8 +54,6 @@ class _PairingQrScreenState extends State<PairingQrScreen> {
       if (result['success'] == true) {
         setState(() {
           _qrData = result['qrData'] as String?;
-          _token = result['pairingToken'] as String?;
-          _expiresAt = result['expiresAt'] as String?;
           _loading = false;
         });
       } else {
@@ -168,11 +162,11 @@ class _PairingQrScreenState extends State<PairingQrScreen> {
                               size: 220,
                               gapless: true,
                               eyeStyle: const QrEyeStyle(
-                                eyeShape: QrEyeShape.roundedRect,
+                                eyeShape: QrEyeShape.square,
                                 color: Color(0xFF6C5CE7),
                               ),
                               dataModuleStyle: const QrDataModuleStyle(
-                                dataModuleShape: QrDataModuleShape.roundedRect,
+                                dataModuleShape: QrDataModuleShape.square,
                                 color: Color(0xFF1A1A2E),
                               ),
                               embeddedImage: null,
