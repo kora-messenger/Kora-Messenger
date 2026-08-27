@@ -4,45 +4,54 @@ import 'package:http/http.dart' as http;
 
 /// Central API configuration for Kora Messenger.
 ///
-/// Sensitive values (backend URL, AI auth token) are injected at compile
-/// time via --dart-define flags. They are NOT hardcoded in source.
-/// When you get your own domain, update the GitHub Secret KORA_BACKEND_URL
-/// — everything else references [baseUrl] automatically.
+/// When you get your own domain, change [baseUrl] here — everything else
+/// in the codebase references this constant. No scattered URLs.
 class KoraApi {
   /// Base URL for the Kora backend.
-  /// Injected at compile time via --dart-define=KORA_BACKEND_URL=...
-  /// Fallback is a dummy placeholder so the app doesn't crash in dev
-  /// if the define is missing (it'll just fail network calls gracefully).
-  static const String baseUrl = String.fromEnvironment(
-    'KORA_BACKEND_URL',
-    defaultValue: 'https://placeholder.invalid/functions',
-  );
+  /// Temporary: Base44 backend function.
+  /// Future: 'https://api.koramessenger.com' (or your domain)
+  static const String baseUrl = 'https://solas-463874c8.base44.app/functions';
 
   /// Auth endpoint (handles signup, login, verification, password reset, profile)
   static const String authEndpoint = '$baseUrl/koraAuth';
 
   /// Email change endpoint — two-step verification flow (old email → new email).
+  /// Temporary: Base44 backend function.
+  /// Future: 'https://api.koramessenger.com/email-change' (or your domain)
   static const String emailChangeEndpoint = '$baseUrl/koraEmailChange';
 
   /// Call signaling endpoint — WebRTC offer/answer/ICE exchange.
+  /// Temporary: Base44 backend function.
+  /// Future: 'https://api.koramessenger.com/call-signal' (or your domain)
   static const String callSignalingEndpoint = '$baseUrl/koraCallSignal';
 
-  /// Translation endpoint — translates text between languages.
+  /// Translation endpoint — translates text between languages (batch mode).
+  /// Temporary: Base44 backend function.
+  /// Future: 'https://api.koramessenger.com/translate' (or your domain)
   static const String translateEndpoint = '$baseUrl/koraTranslate';
 
+  /// GPT-powered streaming translation endpoint (batch + SSE streaming).
+  /// Models AI Phone's /phone/ai/call/v3/gptTrans/stream architecture.
+  /// Temporary: Base44 backend function.
+  /// Future: 'https://api.koramessenger.com/gpt-translate' (or your domain)
+  static const String gptTransEndpoint = '$baseUrl/koraGptTrans';
+
   /// User lookup endpoint — check if username or Kora ID is registered.
+  /// Temporary: Base44 backend function.
+  /// Future: 'https://api.koramessenger.com/lookup' (or your domain)
   static const String lookupEndpoint = '$baseUrl/koraLookup';
   static const String lookupByEmailEndpoint = '$baseUrl/koraLookupByEmail';
 
-  /// Link device endpoint — QR-based device pairing (generate token + link).
-  static const String linkDeviceEndpoint = '$baseUrl/koraLinkDevice';
-
   /// Crash report endpoint — receives crash data and creates a GitHub Issue.
+  /// Temporary: Base44 backend function.
+  /// Future: 'https://api.koramessenger.com/crash-report' (or your domain)
   static const String crashReportEndpoint = '$baseUrl/koraCrashReport';
   static const String serviceNotificationEndpoint = '$baseUrl/koraServiceNotification';
   static const String antiSpamEndpoint = '$baseUrl/koraAntiSpam';
 
   /// File upload endpoint — avatar and media uploads.
+  /// Temporary: Base44 backend function.
+  /// Future: 'https://api.koramessenger.com/upload' (or your domain)
   static const String uploadEndpoint = '$baseUrl/koraUpload';
 
   /// Automated detection system — monitors activity, suspends accounts,
@@ -50,25 +59,35 @@ class KoraApi {
   static const String autoDetectEndpoint = '$baseUrl/koraAutoDetect';
 
   /// Payment endpoint — initialize Paystack transactions.
+  /// Temporary: Base44 backend function.
+  /// Future: 'https://api.koramessenger.com/payment/init' (or your domain)
   static const String paymentInitEndpoint = '$baseUrl/koraInitPayment';
 
   /// Subscription recovery endpoint — re-check premium status from DB.
   static const String recoverSubscriptionEndpoint = '$baseUrl/koraRecoverSubscription';
 
   /// Payment verification endpoint — verify Paystack transactions.
+  /// Temporary: Base44 backend function.
+  /// Future: 'https://api.koramessenger.com/payment/verify' (or your domain)
   static const String paymentVerifyEndpoint = '$baseUrl/koraVerifyPayment';
 
   /// Chat sync endpoint — persist messages & conversations to the database.
+  /// Temporary: Base44 backend function.
+  /// Future: 'https://api.koramessenger.com/chat-sync' (or your domain)
   static const String chatSyncEndpoint = '$baseUrl/koraChatSync';
 
   /// Kora AI Server base URL — legacy local dev server.
   /// Only the writing/reply-suggestions/summarize/transcribe/analyze
   /// endpoints below still point here (they have client-side fallbacks).
+  /// Temporary: local dev server for testing.
+  /// Future: 'https://ai.koramessenger.com' (or your domain)
   static const String aiServerUrl = 'http://10.0.2.2:5000';
 
-  /// Kora AI Chat & Support — live backend function (OpenRouter).
+  /// Kora AI Chat & Support — live Base44 backend function (OpenRouter).
   /// Both chat and support hit the same deployed endpoint; the body's
   /// 'chatType' field ('ai' or 'support') selects the system prompt.
+  /// Temporary: Base44 backend function.
+  /// Future: 'https://api.koramessenger.com/ai/chat' (or your domain)
   static const String aiChatSupportEndpoint = '$baseUrl/koraAiChat';
   static const String aiChatEndpoint = aiChatSupportEndpoint;
   static const String aiSupportEndpoint = aiChatSupportEndpoint;
@@ -85,12 +104,8 @@ class KoraApi {
   static const String aiAnalyzeFileEndpoint = '$aiServerUrl/api/ai/analyze-file';
 
   /// Auth token for the AI server.
-  /// Injected at compile time via --dart-define=KORA_AI_AUTH_TOKEN=...
   /// Must match KORA_AUTH_TOKEN in the server's .env file.
-  static const String aiAuthToken = String.fromEnvironment(
-    'KORA_AI_AUTH_TOKEN',
-    defaultValue: '',
-  );
+  static const String aiAuthToken = 'kora-ai-server-token';
 
   /// Legal documents — hosted on GitHub Pages.
   /// When you get your .com domain, change these to e.g.
