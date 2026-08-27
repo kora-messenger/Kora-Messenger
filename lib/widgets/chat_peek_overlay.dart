@@ -9,9 +9,10 @@ import '../theme/chat_theme_provider.dart';
 import '../screens/chat/message_bubble.dart';
 import 'kora_avatar.dart';
 
-/// Telegram-style "Chat Peek" — long-press a chat's avatar on the Home
-/// screen to preview its recent messages in a compact card that floats
-/// over a dimmed Home screen (does NOT cover the full screen).
+/// WhatsApp-style "Chat Peek" — long-press a chat's profile picture on
+/// the Home screen to preview recent messages in a compact floating card.
+/// The peek is SILENT: it never marks messages as read, so the other user
+/// gets no read receipt and doesn't know you looked.
 ///
 /// Pushed as a real (non-opaque) route, so:
 /// - The Android back button / iOS swipe-back gesture closes ONLY the
@@ -20,6 +21,8 @@ import 'kora_avatar.dart';
 /// - Tapping the message area opens the full chat.
 /// - Tapping outside the card, or an action in the menu below it,
 ///   closes the peek.
+/// - Messages are NOT marked as read during peek — the other user
+///   gets no read receipt (incognito preview).
 ///
 /// Below the peek card, a separate floating action menu offers quick
 /// actions — Mark as unread, Pin, Mute, Delete — exactly like Telegram.
@@ -76,7 +79,6 @@ class _ChatPeekView extends StatefulWidget {
 
 class _ChatPeekViewState extends State<_ChatPeekView> {
   List<KoraMessage> _messages = [];
-  bool _markedRead = false;
   bool _isPinned = false;
   bool _isMuted = false;
   final ScrollController _scrollController = ScrollController();
@@ -91,13 +93,6 @@ class _ChatPeekViewState extends State<_ChatPeekView> {
     MessageService.instance.loadMessages(widget.chat.id).then((msgs) {
       if (!mounted) return;
       setState(() => _messages = msgs);
-
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted || !_scrollController.hasClients) return;
-        if (_scrollController.position.maxScrollExtent <= 0) {
-          _markAsRead();
-        }
-      });
     });
 
     _scrollController.addListener(_onScroll);
@@ -111,18 +106,9 @@ class _ChatPeekViewState extends State<_ChatPeekView> {
   }
 
   void _onScroll() {
-    if (_markedRead || !_scrollController.hasClients) return;
-    final pos = _scrollController.position;
-    if (pos.pixels >= pos.maxScrollExtent - 60) {
-      _markAsRead();
-    }
-  }
-
-  void _markAsRead() {
-    if (_markedRead) return;
-    _markedRead = true;
-    MessageService.instance.markChatViewed(widget.chat.id);
-    widget.onRefresh();
+    // Intentionally empty — the peek is a silent preview.
+    // We do NOT mark messages as read, so the other user gets no
+    // read receipt and has no idea you looked.
   }
 
   void _close() => Navigator.of(context).pop();

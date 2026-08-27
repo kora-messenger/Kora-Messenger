@@ -18,20 +18,16 @@ class ChatListItem extends StatelessWidget {
   final void Function(Offset globalPosition)? onLongPress;
   final bool isSelected;
 
-  /// Fired when the avatar itself is long-pressed — starts a peek.
-
-  /// Fired while the finger stays down and moves, still over the row —
-  /// forwards the current global position so the peek overlay can
-  /// highlight whichever bottom action icon is being hovered.
-
-  /// Fired when the finger lifts (or the gesture is cancelled) — ends
-  /// the peek, committing whichever action (if any) was hovered.
+  /// Fired when the avatar itself is long-pressed — opens a silent
+  /// Chat Peek preview (no read receipts sent to the other user).
+  final VoidCallback? onAvatarLongPress;
 
   const ChatListItem({
     super.key,
     required this.chat,
     this.onTap,
     this.onLongPress,
+    this.onAvatarLongPress,
     this.isSelected = false,
   });
 
@@ -52,7 +48,9 @@ class ChatListItem extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Stack(
+              GestureDetector(
+                onLongPress: onAvatarLongPress,
+                child: Stack(
                   clipBehavior: Clip.none,
                   children: [
                     KoraAvatar(
@@ -83,6 +81,7 @@ class ChatListItem extends StatelessWidget {
                         ),
                       ),
                   ],
+                ),
               ),
               const SizedBox(width: 14),
               Expanded(

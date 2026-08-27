@@ -7,6 +7,7 @@ import '../../services/chat_sync_service.dart';
 import '../../theme/kora_colors.dart';
 import '../../utils/kora_page_routes.dart';
 import '../../widgets/chat_list_item.dart';
+import '../../widgets/chat_peek_overlay.dart';
 import '../../widgets/kora_empty_state.dart';
 import '../../widgets/kora_menu_sheet.dart';
 import '../../widgets/new_chat_sheet.dart';
@@ -106,6 +107,21 @@ class _ChatsTabState extends State<ChatsTab> {
         isOnline: chat.isOnline,
         lastSeen: chat.isOnline ? null : 'last seen recently',
       ),
+    );
+  }
+
+  /// WhatsApp-style Chat Peek — long-press the profile picture to
+  /// preview recent messages in a floating card. The peek is SILENT:
+  /// no read receipts are sent, so the other user doesn't know you
+  /// looked. Tapping the message area opens the full chat; tapping
+  /// outside closes the peek.
+  void _showChatPeek(ChatPreview chat) {
+    ChatPeekOverlay.show(
+      context,
+      chat,
+      onOpenChat: () => _openChat(chat),
+      onOpenProfile: () => _openChat(chat),
+      onRefresh: _refresh,
     );
   }
 
@@ -701,6 +717,7 @@ class _ChatsTabState extends State<ChatsTab> {
                                     isSelected: _selectedIds.contains(chat.id),
                                     onTap: () => _onChatTap(chat),
                                     onLongPress: (_) => _onChatLongPress(chat),
+                                    onAvatarLongPress: () => _showChatPeek(chat),
                                   );
                                 }
                                 return Dismissible(
@@ -754,6 +771,7 @@ class _ChatsTabState extends State<ChatsTab> {
                                     isSelected: _selectedIds.contains(chat.id),
                                     onTap: () => _onChatTap(chat),
                                     onLongPress: (_) => _onChatLongPress(chat),
+                                    onAvatarLongPress: () => _showChatPeek(chat),
                                   ),
                                 );
                               },
