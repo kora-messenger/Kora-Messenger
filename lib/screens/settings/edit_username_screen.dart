@@ -96,7 +96,9 @@ class _EditUsernameScreenState extends State<EditUsernameScreen> {
           ? const Center(child: CircularProgressIndicator(color: KoraColors.purple))
           : Padding(
               padding: const EdgeInsets.all(20),
-              children: [
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                 Text(
                   'Choose a username',
                   style: TextStyle(color: textPrimary, fontSize: 16, fontWeight: FontWeight.w600),
@@ -156,7 +158,8 @@ class _EditUsernameScreenState extends State<EditUsernameScreen> {
                         : const Text('Save', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                   ),
                 ),
-              ],
+                ],
+              ),
             ),
     );
   }

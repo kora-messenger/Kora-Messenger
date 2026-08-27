@@ -46,7 +46,7 @@ class _EmojiPickerSheetState extends State<EmojiPickerSheet>
           TabBar(
             controller: _tabController,
             isScrollable: true,
-            tabColor: KoraColors.purple,
+            
             labelColor: Colors.white,
             unselectedLabelColor: KoraColors.textMuted,
             indicatorColor: KoraColors.purple,

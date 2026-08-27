@@ -44,6 +44,12 @@ class KoraColors {
     colors: [purple, blue],
   );
 
+  // Aliases used by some settings screens
+  static const Color primaryPurple = purple;
+  static const Color surfaceDark = darkSurface;
+  static const Color surfaceLight = lightSurface;
+  static const LinearGradient primaryGradient = brandGradient;
+
   // ── Adaptive helpers (pick based on Brightness) ────────────
 
   static Color backgroundFor(Brightness b) =>

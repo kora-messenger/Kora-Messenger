@@ -183,10 +183,12 @@ class _TranslationSettingsScreenState extends State<TranslationSettingsScreen> {
               ),
               _navTile(
                 card: card,
+                border: null,
                 icon: Icons.graphic_eq_rounded,
                 iconBg: KoraColors.purple.withValues(alpha: 0.1),
                 title: 'Voice Studio',
                 subtitle: 'Create and manage custom voices for translation',
+                trailing: Icon(Icons.chevron_right, color: textMuted),
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const VoiceStudioScreen()),
