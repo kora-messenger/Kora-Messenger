@@ -16,6 +16,9 @@ class MessageBubble extends StatelessWidget {
   final KoraMessage message;
   final VoidCallback? onLongPress;
   final VoidCallback? onReplyTap;
+
+  /// Called when the user swipes right on a message to reply to it.
+  final VoidCallback? onSwipeReply;
   final VoidCallback? onActionTap;
   final void Function(IssueOption)? onIssueTap;
 
@@ -44,6 +47,7 @@ class MessageBubble extends StatelessWidget {
     required this.message,
     this.onLongPress,
     this.onReplyTap,
+    this.onSwipeReply,
     this.onActionTap,
     this.onIssueTap,
     this.onCancelVoiceUpload,
@@ -58,8 +62,55 @@ class MessageBubble extends StatelessWidget {
     final brightness = Theme.of(context).brightness;
     final isMe = message.isMe;
 
+    // If message was deleted for everyone, show the deleted bubble
+    if (message.isDeletedForEveryone) {
+      return Align(
+        alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+        child: Container(
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.78,
+          ),
+          margin: EdgeInsets.only(
+            left: isMe ? 60 : 16,
+            right: isMe ? 16 : 60,
+            top: 2,
+            bottom: 2,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.block_outlined, size: 14,
+                  color: KoraColors.textMutedFor(brightness)),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  'This message was deleted',
+                  style: TextStyle(
+                    color: KoraColors.textMutedFor(brightness),
+                    fontSize: 13,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return GestureDetector(
       onLongPress: onLongPress,
+      onHorizontalDragEnd: onSwipeReply != null
+          ? (details) {
+              // Swipe right on incoming messages, swipe left on outgoing
+              final velocity = details.primaryVelocity ?? 0;
+              if (!isMe && velocity > 200) {
+                onSwipeReply!();
+              } else if (isMe && velocity < -200) {
+                onSwipeReply!();
+              }
+            }
+          : null,
       child: Align(
         alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
         child: Container(

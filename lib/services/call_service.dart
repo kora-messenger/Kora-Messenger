@@ -53,16 +53,40 @@ class CallService {
     await _persist();
   }
 
-  /// Log an outgoing call.
-  Future<void> logOutgoingCall({
+  /// Update call feedback/rating for a CallLog entry.
+  Future<void> updateCallRating({
+    required String callId,
+    required int rating,
+    String? feedback,
+  }) async {
+    final index = _logs.indexWhere((l) => l.id == callId);
+    if (index != -1) {
+      _logs[index] = _logs[index].copyWith(
+        rating: rating,
+        feedback: feedback,
+      );
+      await _persist();
+    } else if (_logs.isNotEmpty) {
+      // Fallback: update most recent log if ID not explicitly matched
+      _logs[0] = _logs[0].copyWith(
+        rating: rating,
+        feedback: feedback,
+      );
+      await _persist();
+    }
+  }
+
+  /// Log an outgoing call. Returns the generated call log ID.
+  Future<String> logOutgoingCall({
     required String contactName,
     CallType type = CallType.voice,
     String? avatarUrl,
     KoraBadgeType? badge,
     int? durationSeconds,
   }) async {
+    final id = 'call_${DateTime.now().millisecondsSinceEpoch}';
     await addLog(CallLog(
-      id: 'call_${DateTime.now().millisecondsSinceEpoch}',
+      id: id,
       contactName: contactName,
       avatarUrl: avatarUrl,
       badge: badge ?? KoraBadgeType.none,
@@ -71,10 +95,11 @@ class CallService {
       timestamp: DateTime.now(),
       durationSeconds: durationSeconds,
     ));
+    return id;
   }
 
-  /// Log an incoming call.
-  Future<void> logIncomingCall({
+  /// Log an incoming call. Returns the generated call log ID.
+  Future<String> logIncomingCall({
     required String contactName,
     CallType type = CallType.voice,
     String? avatarUrl,
@@ -82,8 +107,9 @@ class CallService {
     int? durationSeconds,
     bool missed = false,
   }) async {
+    final id = 'call_${DateTime.now().millisecondsSinceEpoch}';
     await addLog(CallLog(
-      id: 'call_${DateTime.now().millisecondsSinceEpoch}',
+      id: id,
       contactName: contactName,
       avatarUrl: avatarUrl,
       badge: badge ?? KoraBadgeType.none,
@@ -92,16 +118,17 @@ class CallService {
       timestamp: DateTime.now(),
       durationSeconds: durationSeconds,
     ));
+    return id;
   }
 
   /// Log a missed call.
-  Future<void> logMissedCall({
+  Future<String> logMissedCall({
     required String contactName,
     CallType type = CallType.voice,
     String? avatarUrl,
     KoraBadgeType? badge,
   }) async {
-    await logIncomingCall(
+    return await logIncomingCall(
       contactName: contactName,
       type: type,
       avatarUrl: avatarUrl,

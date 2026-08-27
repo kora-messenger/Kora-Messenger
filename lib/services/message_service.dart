@@ -722,6 +722,78 @@ class MessageService {
     await OfflineVoiceSyncService.instance.removePending(chatId, messageId);
   }
 
+  /// Delete a message for everyone — replaces the message content with
+  /// "This message was deleted" and marks it as isDeletedForEveryone.
+  /// Mirrors WhatsApp's delete-for-everyone behaviour.
+  Future<void> deleteForEveryone(String chatId, String messageId) async {
+    final messages = _cache[chatId];
+    if (messages == null) return;
+    final idx = messages.indexWhere((m) => m.id == messageId);
+    if (idx == -1) return;
+    messages[idx] = messages[idx].copyWith(
+      text: 'This message was deleted',
+      isDeletedForEveryone: true,
+      mediaPath: null,
+      mediaUrl: null,
+      voiceFilePath: null,
+      voiceFileUrl: null,
+      voiceTranscript: null,
+      translatedText: null,
+      reactions: [],
+      status: MessageStatus.none,
+      type: KoraMessageType.text,
+    );
+    await _persist(chatId);
+  }
+
+  /// Edit a sent message — updates the text and marks it as edited.
+  /// Mirrors WhatsApp's message editing feature.
+  Future<void> editMessage(String chatId, String messageId, String newText) async {
+    final messages = _cache[chatId];
+    if (messages == null) return;
+    final idx = messages.indexWhere((m) => m.id == messageId);
+    if (idx == -1) return;
+    messages[idx] = messages[idx].copyWith(
+      text: newText,
+      isEdited: true,
+      editedAt: DateTime.now(),
+    );
+    await _persist(chatId);
+  }
+
+  /// Search across all messages in all chats.
+  /// Returns a map of chatId → list of matching messages.
+  /// Used by the global search feature.
+  Future<Map<String, List<KoraMessage>>> searchAllMessages(String query) async {
+    if (query.trim().isEmpty) return {};
+    final q = query.toLowerCase();
+    final results = <String, List<KoraMessage>>{};
+    for (final chatId in _cache.keys) {
+      final matches = _cache[chatId]!.where((m) {
+        return m.text.toLowerCase().contains(q) ||
+               (m.mediaCaption?.toLowerCase().contains(q) ?? false) ||
+               (m.voiceTranscript?.toLowerCase().contains(q) ?? false) ||
+               (m.translatedText?.toLowerCase().contains(q) ?? false);
+      }).toList();
+      if (matches.isNotEmpty) {
+        results[chatId] = matches;
+      }
+    }
+    return results;
+  }
+
+  /// Search messages within a single chat.
+  Future<List<KoraMessage>> searchInChat(String chatId, String query) async {
+    final messages = _cache[chatId];
+    if (messages == null || query.trim().isEmpty) return [];
+    final q = query.toLowerCase();
+    return messages.where((m) {
+      return m.text.toLowerCase().contains(q) ||
+             (m.mediaCaption?.toLowerCase().contains(q) ?? false) ||
+             (m.voiceTranscript?.toLowerCase().contains(q) ?? false);
+    }).toList();
+  }
+
   Future<void> markAsRead(String chatId) async {
     final messages = _cache[chatId];
     if (messages == null) return;

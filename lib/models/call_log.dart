@@ -22,6 +22,8 @@ class CallLog {
   final CallStatus status;
   final DateTime timestamp;
   final int? durationSeconds; // null if not connected
+  final int? rating; // 1-5 star call rating
+  final String? feedback; // Optional user call feedback string
 
   const CallLog({
     required this.id,
@@ -33,6 +35,8 @@ class CallLog {
     required this.status,
     required this.timestamp,
     this.durationSeconds,
+    this.rating,
+    this.feedback,
   });
 
   /// True if the call was missed (outgoing, not picked up).
@@ -44,6 +48,34 @@ class CallLog {
   /// True if the current user initiated the call.
   bool get isOutgoing => status == CallStatus.outgoing || status == CallStatus.missed;
 
+  CallLog copyWith({
+    String? id,
+    String? contactName,
+    String? avatarAsset,
+    String? avatarUrl,
+    KoraBadgeType? badge,
+    CallType? type,
+    CallStatus? status,
+    DateTime? timestamp,
+    int? durationSeconds,
+    int? rating,
+    String? feedback,
+  }) {
+    return CallLog(
+      id: id ?? this.id,
+      contactName: contactName ?? this.contactName,
+      avatarAsset: avatarAsset ?? this.avatarAsset,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+      badge: badge ?? this.badge,
+      type: type ?? this.type,
+      status: status ?? this.status,
+      timestamp: timestamp ?? this.timestamp,
+      durationSeconds: durationSeconds ?? this.durationSeconds,
+      rating: rating ?? this.rating,
+      feedback: feedback ?? this.feedback,
+    );
+  }
+
   Map<String, dynamic> toJson() => {
     'id': id,
     'contactName': contactName,
@@ -54,6 +86,8 @@ class CallLog {
     'status': status.index,
     'timestamp': timestamp.toIso8601String(),
     'durationSeconds': durationSeconds,
+    'rating': rating,
+    'feedback': feedback,
   };
 
   factory CallLog.fromJson(Map<String, dynamic> j) => CallLog(
@@ -66,5 +100,7 @@ class CallLog {
     status: CallStatus.values[j['status'] as int? ?? 0],
     timestamp: DateTime.parse(j['timestamp'] as String),
     durationSeconds: j['durationSeconds'] as int?,
+    rating: j['rating'] as int?,
+    feedback: j['feedback'] as String?,
   );
 }

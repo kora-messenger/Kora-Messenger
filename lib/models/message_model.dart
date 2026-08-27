@@ -149,6 +149,17 @@ class KoraMessage {
   /// Whether this group message mentions @all.
   final bool mentionedAll;
 
+  /// Whether this message was edited by the sender.
+  /// Shows a small "edited" label next to the timestamp.
+  final bool isEdited;
+
+  /// When the message was last edited.
+  final DateTime? editedAt;
+
+  /// Whether this message was deleted for everyone.
+  /// Renders as "This message was deleted" in a grey bubble.
+  final bool isDeletedForEveryone;
+
   const KoraMessage({
     required this.id,
     required this.text,
@@ -189,6 +200,9 @@ class KoraMessage {
     this.isMediaPlayed = false,
     this.isForwarded = false,
     this.mentionedAll = false,
+    this.isEdited = false,
+    this.editedAt,
+    this.isDeletedForEveryone = false,
   });
 
   KoraMessage copyWith({
@@ -231,6 +245,9 @@ class KoraMessage {
     bool? isMediaPlayed,
     bool? isForwarded,
     bool? mentionedAll,
+    bool? isEdited,
+    DateTime? editedAt,
+    bool? isDeletedForEveryone,
   }) {
     return KoraMessage(
       id: id ?? this.id,
@@ -272,6 +289,9 @@ class KoraMessage {
       isMediaPlayed: isMediaPlayed ?? this.isMediaPlayed,
       isForwarded: isForwarded ?? this.isForwarded,
       mentionedAll: mentionedAll ?? this.mentionedAll,
+      isEdited: isEdited ?? this.isEdited,
+      editedAt: editedAt ?? this.editedAt,
+      isDeletedForEveryone: isDeletedForEveryone ?? this.isDeletedForEveryone,
     );
   }
 
@@ -317,6 +337,9 @@ class KoraMessage {
     'isMediaPlayed': isMediaPlayed,
     'isForwarded': isForwarded,
     'mentionedAll': mentionedAll,
+    'isEdited': isEdited,
+    'editedAt': editedAt?.toIso8601String(),
+    'isDeletedForEveryone': isDeletedForEveryone,
   };
 
   /// Deserialise from JSON.
@@ -371,6 +394,9 @@ class KoraMessage {
     isMediaPlayed: j['isMediaPlayed'] as bool? ?? false,
     isForwarded: j['isForwarded'] as bool? ?? false,
     mentionedAll: j['mentionedAll'] as bool? ?? false,
+    isEdited: j['isEdited'] as bool? ?? false,
+    editedAt: j['editedAt'] != null ? DateTime.parse(j['editedAt'] as String) : null,
+    isDeletedForEveryone: j['isDeletedForEveryone'] as bool? ?? false,
   );
 
   /// Estimated on-disk size of this message in bytes — used to show
