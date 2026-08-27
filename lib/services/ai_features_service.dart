@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import '../config/kora_api.dart';
 
@@ -18,81 +20,52 @@ enum AiWritingMode {
 extension AiWritingModeExtension on AiWritingMode {
   String get apiValue {
     switch (this) {
-      case AiWritingMode.improve:
-        return 'improve';
-      case AiWritingMode.rewrite:
-        return 'rewrite';
-      case AiWritingMode.fixGrammar:
-        return 'fix_grammar';
-      case AiWritingMode.makeFriendly:
-        return 'friendly';
-      case AiWritingMode.makeProfessional:
-        return 'professional';
-      case AiWritingMode.makeRomantic:
-        return 'romantic';
-      case AiWritingMode.makeFunny:
-        return 'funny';
-      case AiWritingMode.makeShorter:
-        return 'shorter';
-      case AiWritingMode.makeLonger:
-        return 'longer';
-      case AiWritingMode.translate:
-        return 'translate';
+      case AiWritingMode.improve: return 'improve';
+      case AiWritingMode.rewrite: return 'rewrite';
+      case AiWritingMode.fixGrammar: return 'fix_grammar';
+      case AiWritingMode.makeFriendly: return 'friendly';
+      case AiWritingMode.makeProfessional: return 'professional';
+      case AiWritingMode.makeRomantic: return 'romantic';
+      case AiWritingMode.makeFunny: return 'funny';
+      case AiWritingMode.makeShorter: return 'shorter';
+      case AiWritingMode.makeLonger: return 'longer';
+      case AiWritingMode.translate: return 'translate';
     }
   }
 
   String get label {
     switch (this) {
-      case AiWritingMode.improve:
-        return 'Improve';
-      case AiWritingMode.rewrite:
-        return 'Rewrite';
-      case AiWritingMode.fixGrammar:
-        return 'Fix grammar';
-      case AiWritingMode.makeFriendly:
-        return 'Make friendly';
-      case AiWritingMode.makeProfessional:
-        return 'Make professional';
-      case AiWritingMode.makeRomantic:
-        return 'Make romantic';
-      case AiWritingMode.makeFunny:
-        return 'Make funny';
-      case AiWritingMode.makeShorter:
-        return 'Make shorter';
-      case AiWritingMode.makeLonger:
-        return 'Make longer';
-      case AiWritingMode.translate:
-        return 'Translate';
+      case AiWritingMode.improve: return 'Improve';
+      case AiWritingMode.rewrite: return 'Rewrite';
+      case AiWritingMode.fixGrammar: return 'Fix grammar';
+      case AiWritingMode.makeFriendly: return 'Make friendly';
+      case AiWritingMode.makeProfessional: return 'Make professional';
+      case AiWritingMode.makeRomantic: return 'Make romantic';
+      case AiWritingMode.makeFunny: return 'Make funny';
+      case AiWritingMode.makeShorter: return 'Make shorter';
+      case AiWritingMode.makeLonger: return 'Make longer';
+      case AiWritingMode.translate: return 'Translate';
     }
   }
 
   String get emoji {
     switch (this) {
-      case AiWritingMode.improve:
-        return '✨';
-      case AiWritingMode.rewrite:
-        return '🔄';
-      case AiWritingMode.fixGrammar:
-        return '📝';
-      case AiWritingMode.makeFriendly:
-        return '😊';
-      case AiWritingMode.makeProfessional:
-        return '💼';
-      case AiWritingMode.makeRomantic:
-        return '❤️';
-      case AiWritingMode.makeFunny:
-        return '😂';
-      case AiWritingMode.makeShorter:
-        return '✂️';
-      case AiWritingMode.makeLonger:
-        return '📜';
-      case AiWritingMode.translate:
-        return '🌐';
+      case AiWritingMode.improve: return '✨';
+      case AiWritingMode.rewrite: return '🔄';
+      case AiWritingMode.fixGrammar: return '📝';
+      case AiWritingMode.makeFriendly: return '😊';
+      case AiWritingMode.makeProfessional: return '💼';
+      case AiWritingMode.makeRomantic: return '❤️';
+      case AiWritingMode.makeFunny: return '😂';
+      case AiWritingMode.makeShorter: return '✂️';
+      case AiWritingMode.makeLonger: return '📜';
+      case AiWritingMode.translate: return '🌐';
     }
   }
 }
 
-/// Service providing AI capabilities: rewriting, reply suggestions, chat summaries, image/file analysis.
+/// Service providing AI capabilities: rewriting, reply suggestions,
+/// chat summaries, image/video analysis, and audio transcript enhancement.
 class AiFeaturesService {
   static final AiFeaturesService instance = AiFeaturesService._();
   AiFeaturesService._();
@@ -120,7 +93,6 @@ class AiFeaturesService {
     } catch (e) {
       debugPrint('AiFeaturesService rewriteText network notice: $e');
     }
-    // Fallback generation for smooth UX when server is unreachable or offline
     return _fallbackRewrite(text, mode, targetLanguage);
   }
 
@@ -170,24 +142,122 @@ class AiFeaturesService {
     return _fallbackSummarizeChat(messages, summaryType);
   }
 
-  /// Analyze image at [imagePath].
-  Future<String?> analyzeImage(String imagePath) async {
+  /// Analyze an image from a local file path.
+  ///
+  /// Sends the actual base64-encoded image to the koraAiFeatures backend
+  /// function, which uses GPT-4o vision to analyze the content.
+  ///
+  /// [imagePath] — local file path to the image.
+  /// [question] — optional question about the image (e.g., "What's in this photo?").
+  /// Returns a description/analysis of the image, or null if it fails.
+  Future<String?> analyzeImage(String imagePath, {String? question}) async {
     try {
-      final res = await KoraApi.postToAi(KoraApi.aiAnalyzeImageEndpoint, {'feature': 'analyze_image', 'imagePath': imagePath});
-      return res['result'] as String?;
+      final file = File(imagePath);
+      if (!await file.exists()) {
+        debugPrint('AiFeaturesService analyzeImage: file not found at $imagePath');
+        return 'Image not found.';
+      }
+
+      final bytes = await file.readAsBytes();
+      // Limit to 4MB
+      if (bytes.length > 4 * 1024 * 1024) {
+        debugPrint('AiFeaturesService analyzeImage: image too large (${bytes.length} bytes)');
+        return 'Image is too large for analysis (max 4MB).';
+      }
+
+      final base64Data = base64Encode(bytes);
+
+      final body = <String, dynamic>{
+        'feature': 'analyze_media',
+        'attachments': [
+          {
+            'type': 'image',
+            'base64': base64Data,
+            'mimeType': 'image/jpeg',
+          }
+        ],
+        if (question != null) 'question': question,
+      };
+
+      final res = await KoraApi.postToAi(KoraApi.aiAnalyzeImageEndpoint, body);
+      if (res['success'] == true && res['result'] != null) {
+        return res['result'] as String;
+      }
+      return res['error'] as String? ?? 'Image analysis unavailable.';
     } catch (e) {
+      debugPrint('AiFeaturesService analyzeImage error: $e');
       return 'Image analysis unavailable at this moment.';
     }
   }
 
-  /// Analyze file at [filePath].
-  Future<String?> analyzeFile(String filePath) async {
+  /// Analyze video key frames.
+  ///
+  /// [framePaths] — local file paths to extracted video frames (max 5).
+  /// [question] — optional question about the video.
+  Future<String?> analyzeVideo(List<String> framePaths, {String? question}) async {
     try {
-      final res = await KoraApi.postToAi(KoraApi.aiAnalyzeFileEndpoint, {'feature': 'analyze_file', 'filePath': filePath});
-      return res['result'] as String?;
+      final attachments = <Map<String, dynamic>>[];
+      for (final path in framePaths.take(5)) {
+        final file = File(path);
+        if (await file.exists()) {
+          final bytes = await file.readAsBytes();
+          if (bytes.length <= 4 * 1024 * 1024) {
+            attachments.add({
+              'type': 'video_frame',
+              'base64': base64Encode(bytes),
+              'mimeType': 'image/jpeg',
+            });
+          }
+        }
+      }
+
+      if (attachments.isEmpty) {
+        return 'No valid video frames found for analysis.';
+      }
+
+      final body = <String, dynamic>{
+        'feature': 'analyze_media',
+        'attachments': attachments,
+        if (question != null) 'question': question,
+      };
+
+      final res = await KoraApi.postToAi(KoraApi.aiAnalyzeImageEndpoint, body);
+      if (res['success'] == true && res['result'] != null) {
+        return res['result'] as String;
+      }
+      return res['error'] as String? ?? 'Video analysis unavailable.';
     } catch (e) {
-      return 'File analysis unavailable at this moment.';
+      debugPrint('AiFeaturesService analyzeVideo error: $e');
+      return 'Video analysis unavailable at this moment.';
     }
+  }
+
+  /// Enhance a voice note transcript using AI.
+  ///
+  /// [transcript] — raw transcript from on-device STT.
+  /// Returns a cleaned-up, punctuated version of the transcript.
+  Future<String?> enhanceTranscript(String transcript) async {
+    try {
+      final body = <String, dynamic>{
+        'feature': 'transcribe_audio',
+        'transcript': transcript,
+      };
+      final res = await KoraApi.postToAi(KoraApi.aiFeaturesEndpoint, body);
+      if (res['success'] == true && res['result'] != null) {
+        return res['result'] as String;
+      }
+      // Fallback: return original transcript
+      return transcript;
+    } catch (e) {
+      debugPrint('AiFeaturesService enhanceTranscript error: $e');
+      return transcript; // Fallback: return original
+    }
+  }
+
+  /// Analyze file at [filePath].
+  /// Kept for backward compatibility — delegates to analyzeImage.
+  Future<String?> analyzeFile(String filePath) async {
+    return analyzeImage(filePath);
   }
 
   String _fallbackRewrite(String text, AiWritingMode mode, String? targetLanguage) {

@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/kora_api.dart';
 
@@ -7,30 +9,84 @@ class KoraAiMessage {
   final String role; // 'user' or 'assistant'
   final String content;
   final DateTime timestamp;
+  final String? attachmentType; // 'image', 'audio', 'video' — for display
+  final String? attachmentPreview; // brief description for history
 
   KoraAiMessage({
     required this.role,
     required this.content,
     DateTime? timestamp,
+    this.attachmentType,
+    this.attachmentPreview,
   }) : timestamp = timestamp ?? DateTime.now();
 
   Map<String, dynamic> toJson() => {
         'role': role,
         'content': content,
         'timestamp': timestamp.toIso8601String(),
+        if (attachmentType != null) 'attachmentType': attachmentType,
+        if (attachmentPreview != null) 'attachmentPreview': attachmentPreview,
       };
 
   factory KoraAiMessage.fromJson(Map<String, dynamic> json) => KoraAiMessage(
         role: json['role'] as String,
         content: json['content'] as String,
         timestamp: DateTime.parse(json['timestamp'] as String),
+        attachmentType: json['attachmentType'] as String?,
+        attachmentPreview: json['attachmentPreview'] as String?,
       );
 
-  /// Convert to the format expected by the server's clean_history()
+  /// Convert to the format expected by the server
   Map<String, dynamic> toHistoryJson() => {
         'role': role,
         'content': content,
       };
+}
+
+/// Attachment for AI messages — supports images, audio, and video frames.
+class KoraAiAttachment {
+  final String type; // 'image', 'audio', 'video_frame'
+  final String? base64; // base64-encoded data (no data: prefix)
+  final String? mimeType; // e.g. 'image/jpeg', 'audio/aac'
+  final String? transcript; // for audio: on-device STT transcript
+  final String? filePath; // local file path (converted to base64 before sending)
+
+  KoraAiAttachment({
+    required this.type,
+    this.base64,
+    this.mimeType,
+    this.transcript,
+    this.filePath,
+  });
+
+  Map<String, dynamic> toJson() {
+    final map = <String, dynamic>{'type': type};
+    if (base64 != null) map['base64'] = base64;
+    if (mimeType != null) map['mimeType'] = mimeType;
+    if (transcript != null) map['transcript'] = transcript;
+    return map;
+  }
+
+  /// Create an image attachment from a file path
+  static Future<KoraAiAttachment> fromImageFile(String path, {String mimeType = 'image/jpeg'}) async {
+    final file = File(path);
+    final bytes = await file.readAsBytes();
+    final base64Data = base64Encode(bytes);
+    return KoraAiAttachment(type: 'image', base64: base64Data, mimeType: mimeType);
+  }
+
+  /// Create an audio attachment with a transcript
+  static KoraAiAttachment fromAudioTranscript(String transcript) {
+    return KoraAiAttachment(type: 'audio', transcript: transcript);
+  }
+
+  /// Create a video frame attachment from a file path
+  static Future<KoraAiAttachment> fromVideoFrameFile(String path, {String mimeType = 'image/jpeg'}) async {
+    final file = File(path);
+    final bytes = await file.readAsBytes();
+    final base64Data = base64Encode(bytes);
+    return KoraAiAttachment(type: 'video_frame', base64: base64Data, mimeType: mimeType);
+  }
 }
 
 /// Result of an AI request.
@@ -51,7 +107,8 @@ class KoraAiResult {
 /// Handles:
 /// - Sending messages to Kora AI and Kora AI Support
 /// - Conversation history (persisted locally)
-/// - Image attachment support (Kora AI only)
+/// - Multimodal support: image, audio (voice note), and video frame attachments
+/// - Media analysis via koraAiFeatures backend function
 ///
 /// All API calls go through [KoraApi] — domain-swappable.
 /// The OpenRouter key stays server-side; the app never sees it.
@@ -65,17 +122,16 @@ class KoraAiService {
   /// Send a message to Kora AI (general assistant).
   ///
   /// [conversationId] should be unique per conversation.
-  /// [imageBase64] optional base64-encoded image for vision support.
-  /// [webUrl] optional URL for web research.
+  /// [attachments] optional list of images, audio, or video frames.
+  ///   - Images: sent as GPT-4o vision content (base64)
+  ///   - Audio: transcript is sent (from on-device STT)
+  ///   - Video frames: extracted client-side, sent as images
   Future<KoraAiResult> sendAiMessage({
     required String message,
     required String conversationId,
-    String? imageBase64,
-    String? webUrl,
+    List<KoraAiAttachment>? attachments,
   }) async {
     try {
-      // Pull existing local history and convert to the format the
-      // backend expects: [{isMe: bool, text: string}]
       final priorHistory = await getHistory(conversationId: conversationId);
       final historyPayload = priorHistory
           .map((m) => {'isMe': m.role == 'user', 'text': m.content})
@@ -86,6 +142,34 @@ class KoraAiService {
         'message': message,
         'history': historyPayload,
       };
+
+      // Add attachments if provided
+      if (attachments != null && attachments.isNotEmpty) {
+        final attachmentPayload = <Map<String, dynamic>>[];
+        for (final att in attachments) {
+          // If file path is provided but no base64, convert it
+          if (att.filePath != null && att.base64 == null) {
+            try {
+              final file = File(att.filePath!);
+              final bytes = await file.readAsBytes();
+              final base64Data = base64Encode(bytes);
+              attachmentPayload.add({
+                'type': att.type,
+                'base64': base64Data,
+                if (att.mimeType != null) 'mimeType': att.mimeType,
+                if (att.transcript != null) 'transcript': att.transcript,
+              });
+            } catch (e) {
+              debugPrint('[KoraAiService] Failed to read attachment file: $e');
+            }
+          } else {
+            attachmentPayload.add(att.toJson());
+          }
+        }
+        if (attachmentPayload.isNotEmpty) {
+          body['attachments'] = attachmentPayload;
+        }
+      }
 
       final result = await KoraApi.postToAi(KoraApi.aiChatEndpoint, body);
 
@@ -99,11 +183,39 @@ class KoraAiService {
         );
       }
 
+      // Build display message (include attachment preview for history)
+      String displayMessage = message;
+      String? attachmentType;
+      String? attachmentPreview;
+
+      if (attachments != null && attachments.isNotEmpty) {
+        for (final att in attachments) {
+          if (att.type == 'image') {
+            attachmentType = 'image';
+            attachmentPreview = '[📷 Image]';
+          } else if (att.type == 'audio') {
+            attachmentType = 'audio';
+            attachmentPreview = '[🎙️ Voice note: ${att.transcript ?? ""}]';
+          } else if (att.type == 'video_frame') {
+            attachmentType = 'video';
+            attachmentPreview = '[🎬 Video frame]';
+          }
+        }
+        if (attachmentPreview != null) {
+          displayMessage = '$attachmentPreview $message';
+        }
+      }
+
       // Save to local history
       await _saveToHistory(
         prefix: _kAiHistoryPrefix,
         conversationId: conversationId,
-        message: KoraAiMessage(role: 'user', content: message),
+        message: KoraAiMessage(
+          role: 'user',
+          content: displayMessage,
+          attachmentType: attachmentType,
+          attachmentPreview: attachmentPreview,
+        ),
       );
       await _saveToHistory(
         prefix: _kAiHistoryPrefix,
@@ -125,6 +237,7 @@ class KoraAiService {
   Future<KoraAiResult> sendSupportMessage({
     required String message,
     required String conversationId,
+    List<KoraAiAttachment>? attachments,
   }) async {
     try {
       final priorHistory = await getHistory(
@@ -141,6 +254,33 @@ class KoraAiService {
         'history': historyPayload,
       };
 
+      // Add attachments if provided (support can also receive screenshots)
+      if (attachments != null && attachments.isNotEmpty) {
+        final attachmentPayload = <Map<String, dynamic>>[];
+        for (final att in attachments) {
+          if (att.filePath != null && att.base64 == null) {
+            try {
+              final file = File(att.filePath!);
+              final bytes = await file.readAsBytes();
+              final base64Data = base64Encode(bytes);
+              attachmentPayload.add({
+                'type': att.type,
+                'base64': base64Data,
+                if (att.mimeType != null) 'mimeType': att.mimeType,
+                if (att.transcript != null) 'transcript': att.transcript,
+              });
+            } catch (e) {
+              debugPrint('[KoraAiService] Failed to read attachment: $e');
+            }
+          } else {
+            attachmentPayload.add(att.toJson());
+          }
+        }
+        if (attachmentPayload.isNotEmpty) {
+          body['attachments'] = attachmentPayload;
+        }
+      }
+
       final result = await KoraApi.postToAi(KoraApi.aiSupportEndpoint, body);
 
       final response = result['reply'] as String? ?? '';
@@ -154,10 +294,21 @@ class KoraAiService {
       }
 
       // Save to local history
+      String displayMessage = message;
+      if (attachments != null && attachments.isNotEmpty) {
+        for (final att in attachments) {
+          if (att.type == 'image') {
+            displayMessage = '[📷 Image] $message';
+          } else if (att.type == 'audio') {
+            displayMessage = '[🎙️ Voice note] $message';
+          }
+        }
+      }
+
       await _saveToHistory(
         prefix: _kSupportHistoryPrefix,
         conversationId: conversationId,
-        message: KoraAiMessage(role: 'user', content: message),
+        message: KoraAiMessage(role: 'user', content: displayMessage),
       );
       await _saveToHistory(
         prefix: _kSupportHistoryPrefix,
@@ -171,6 +322,139 @@ class KoraAiService {
         success: false,
         response: '',
         error: 'Connection failed: $e',
+      );
+    }
+  }
+
+  /// Analyze an image using the koraAiFeatures backend function.
+  ///
+  /// [imagePath] — local file path to the image.
+  /// [question] — optional question about the image.
+  Future<KoraAiResult> analyzeImage({
+    required String imagePath,
+    String? question,
+  }) async {
+    try {
+      final file = File(imagePath);
+      final bytes = await file.readAsBytes();
+      final base64Data = base64Encode(bytes);
+
+      final body = <String, dynamic>{
+        'feature': 'analyze_media',
+        'attachments': [
+          {
+            'type': 'image',
+            'base64': base64Data,
+            'mimeType': 'image/jpeg',
+          }
+        ],
+        if (question != null) 'question': question,
+      };
+
+      final result = await KoraApi.postToAi(KoraApi.aiFeaturesEndpoint, body);
+
+      if (result['success'] == true) {
+        return KoraAiResult(
+          success: true,
+          response: result['result'] as String? ?? '',
+        );
+      }
+      return KoraAiResult(
+        success: false,
+        response: '',
+        error: result['error'] as String? ?? 'Analysis failed',
+      );
+    } catch (e) {
+      return KoraAiResult(
+        success: false,
+        response: '',
+        error: 'Image analysis failed: $e',
+      );
+    }
+  }
+
+  /// Analyze a voice note transcript.
+  ///
+  /// [transcript] — on-device STT transcript of the voice note.
+  Future<KoraAiResult> enhanceTranscript({
+    required String transcript,
+  }) async {
+    try {
+      final body = <String, dynamic>{
+        'feature': 'transcribe_audio',
+        'transcript': transcript,
+      };
+
+      final result = await KoraApi.postToAi(KoraApi.aiFeaturesEndpoint, body);
+
+      if (result['success'] == true) {
+        return KoraAiResult(
+          success: true,
+          response: result['result'] as String? ?? transcript,
+        );
+      }
+      // Fallback: return original transcript
+      return KoraAiResult(success: true, response: transcript);
+    } catch (e) {
+      // Fallback: return original transcript
+      return KoraAiResult(success: true, response: transcript);
+    }
+  }
+
+  /// Analyze video key frames.
+  ///
+  /// [framePaths] — local file paths to extracted video frames.
+  /// [question] — optional question about the video.
+  Future<KoraAiResult> analyzeVideo({
+    required List<String> framePaths,
+    String? question,
+  }) async {
+    try {
+      final attachments = <Map<String, dynamic>>[];
+      for (final path in framePaths.take(5)) {
+        final file = File(path);
+        if (await file.exists()) {
+          final bytes = await file.readAsBytes();
+          attachments.add({
+            'type': 'video_frame',
+            'base64': base64Encode(bytes),
+            'mimeType': 'image/jpeg',
+          });
+        }
+      }
+
+      if (attachments.isEmpty) {
+        return KoraAiResult(
+          success: false,
+          response: '',
+          error: 'No valid video frames found',
+        );
+      }
+
+      final body = <String, dynamic>{
+        'feature': 'analyze_media',
+        'attachments': attachments,
+        if (question != null) 'question': question,
+      };
+
+      final result = await KoraApi.postToAi(KoraApi.aiFeaturesEndpoint, body);
+
+      if (result['success'] == true) {
+        return KoraAiResult(
+          success: true,
+          response: result['result'] as String? ?? '',
+        );
+      }
+      return KoraAiResult(
+        success: false,
+        response: '',
+        error: result['error'] as String? ?? 'Analysis failed',
+      );
+    } catch (e) {
+      return KoraAiResult(
+        success: false,
+        response: '',
+        error: 'Video analysis failed: $e',
       );
     }
   }
