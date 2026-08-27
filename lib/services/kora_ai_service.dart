@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/kora_api.dart';
+import 'session_manager.dart';
+import 'payment_service.dart';
 
 /// Message model for AI conversations.
 class KoraAiMessage {
@@ -36,7 +38,6 @@ class KoraAiMessage {
         attachmentPreview: json['attachmentPreview'] as String?,
       );
 
-  /// Convert to the format expected by the server
   Map<String, dynamic> toHistoryJson() => {
         'role': role,
         'content': content,
@@ -46,10 +47,10 @@ class KoraAiMessage {
 /// Attachment for AI messages — supports images, audio, and video frames.
 class KoraAiAttachment {
   final String type; // 'image', 'audio', 'video_frame'
-  final String? base64; // base64-encoded data (no data: prefix)
-  final String? mimeType; // e.g. 'image/jpeg', 'audio/aac'
-  final String? transcript; // for audio: on-device STT transcript
-  final String? filePath; // local file path (converted to base64 before sending)
+  final String? base64;
+  final String? mimeType;
+  final String? transcript;
+  final String? filePath;
 
   KoraAiAttachment({
     required this.type,
@@ -67,25 +68,20 @@ class KoraAiAttachment {
     return map;
   }
 
-  /// Create an image attachment from a file path
   static Future<KoraAiAttachment> fromImageFile(String path, {String mimeType = 'image/jpeg'}) async {
     final file = File(path);
     final bytes = await file.readAsBytes();
-    final base64Data = base64Encode(bytes);
-    return KoraAiAttachment(type: 'image', base64: base64Data, mimeType: mimeType);
+    return KoraAiAttachment(type: 'image', base64: base64Encode(bytes), mimeType: mimeType);
   }
 
-  /// Create an audio attachment with a transcript
   static KoraAiAttachment fromAudioTranscript(String transcript) {
     return KoraAiAttachment(type: 'audio', transcript: transcript);
   }
 
-  /// Create a video frame attachment from a file path
   static Future<KoraAiAttachment> fromVideoFrameFile(String path, {String mimeType = 'image/jpeg'}) async {
     final file = File(path);
     final bytes = await file.readAsBytes();
-    final base64Data = base64Encode(bytes);
-    return KoraAiAttachment(type: 'video_frame', base64: base64Data, mimeType: mimeType);
+    return KoraAiAttachment(type: 'video_frame', base64: base64Encode(bytes), mimeType: mimeType);
   }
 }
 
@@ -102,16 +98,69 @@ class KoraAiResult {
   });
 }
 
+/// User context sent to the AI backend for personalized responses.
+class KoraAiUserContext {
+  final String? fullName;
+  final String? username;
+  final String? email;
+  final String? koraId;
+  final bool? isPremium;
+  final bool? isVerified;
+  final String? bio;
+  final bool? profileCompleted;
+
+  KoraAiUserContext({
+    this.fullName,
+    this.username,
+    this.email,
+    this.koraId,
+    this.isPremium,
+    this.isVerified,
+    this.bio,
+    this.profileCompleted,
+  });
+
+  Map<String, dynamic> toJson() {
+    final map = <String, dynamic>{};
+    if (fullName != null) map['fullName'] = fullName;
+    if (username != null) map['username'] = username;
+    if (email != null) map['email'] = email;
+    if (koraId != null) map['koraId'] = koraId;
+    if (isPremium != null) map['isPremium'] = isPremium;
+    if (isVerified != null) map['isVerified'] = isVerified;
+    if (bio != null) map['bio'] = bio;
+    if (profileCompleted != null) map['profileCompleted'] = profileCompleted;
+    return map;
+  }
+
+  bool get isEmpty => fullName == null && username == null && email == null && koraId == null;
+
+  /// Build user context from the current session and premium status.
+  static Future<KoraAiUserContext> fromSession() async {
+    final user = SessionManager.instance.currentUser;
+    final isPremium = await PaymentService.isPremium();
+
+    return KoraAiUserContext(
+      fullName: user?.fullName,
+      username: user?.username,
+      email: user?.email,
+      koraId: user?.koraId,
+      isPremium: isPremium,
+      isVerified: true, // If they're logged in, they're verified
+      bio: user?.bio,
+      profileCompleted: user?.profileCompleted,
+    );
+  }
+}
+
 /// Central AI service for Kora Messenger.
 ///
 /// Handles:
 /// - Sending messages to Kora AI and Kora AI Support
 /// - Conversation history (persisted locally)
-/// - Multimodal support: image, audio (voice note), and video frame attachments
+/// - Multimodal support: image, audio, and video frame attachments
+/// - Account-aware personalized responses (via userContext)
 /// - Media analysis via koraAiFeatures backend function
-///
-/// All API calls go through [KoraApi] — domain-swappable.
-/// The OpenRouter key stays server-side; the app never sees it.
 class KoraAiService {
   static final KoraAiService instance = KoraAiService._();
   KoraAiService._();
@@ -119,17 +168,27 @@ class KoraAiService {
   static const String _kAiHistoryPrefix = 'kora_ai_history_';
   static const String _kSupportHistoryPrefix = 'kora_support_history_';
 
+  /// Get the current user context for AI personalization.
+  /// Called automatically before each AI request if no context is provided.
+  Future<KoraAiUserContext> _getUserContext() async {
+    try {
+      return await KoraAiUserContext.fromSession();
+    } catch (e) {
+      debugPrint('[KoraAiService] Failed to get user context: $e');
+      return KoraAiUserContext();
+    }
+  }
+
   /// Send a message to Kora AI (general assistant).
   ///
   /// [conversationId] should be unique per conversation.
   /// [attachments] optional list of images, audio, or video frames.
-  ///   - Images: sent as GPT-4o vision content (base64)
-  ///   - Audio: transcript is sent (from on-device STT)
-  ///   - Video frames: extracted client-side, sent as images
+  /// [userContext] optional — if not provided, auto-fetched from session.
   Future<KoraAiResult> sendAiMessage({
     required String message,
     required String conversationId,
     List<KoraAiAttachment>? attachments,
+    KoraAiUserContext? userContext,
   }) async {
     try {
       final priorHistory = await getHistory(conversationId: conversationId);
@@ -137,25 +196,31 @@ class KoraAiService {
           .map((m) => {'isMe': m.role == 'user', 'text': m.content})
           .toList();
 
+      // Auto-fetch user context if not provided
+      final ctx = userContext ?? await _getUserContext();
+
       final body = <String, dynamic>{
         'chatType': 'ai',
         'message': message,
         'history': historyPayload,
       };
 
+      // Add user context for personalized responses
+      if (!ctx.isEmpty) {
+        body['userContext'] = ctx.toJson();
+      }
+
       // Add attachments if provided
       if (attachments != null && attachments.isNotEmpty) {
         final attachmentPayload = <Map<String, dynamic>>[];
         for (final att in attachments) {
-          // If file path is provided but no base64, convert it
           if (att.filePath != null && att.base64 == null) {
             try {
               final file = File(att.filePath!);
               final bytes = await file.readAsBytes();
-              final base64Data = base64Encode(bytes);
               attachmentPayload.add({
                 'type': att.type,
-                'base64': base64Data,
+                'base64': base64Encode(bytes),
                 if (att.mimeType != null) 'mimeType': att.mimeType,
                 if (att.transcript != null) 'transcript': att.transcript,
               });
@@ -238,6 +303,7 @@ class KoraAiService {
     required String message,
     required String conversationId,
     List<KoraAiAttachment>? attachments,
+    KoraAiUserContext? userContext,
   }) async {
     try {
       final priorHistory = await getHistory(
@@ -248,13 +314,20 @@ class KoraAiService {
           .map((m) => {'isMe': m.role == 'user', 'text': m.content})
           .toList();
 
+      // Auto-fetch user context if not provided
+      final ctx = userContext ?? await _getUserContext();
+
       final body = <String, dynamic>{
         'chatType': 'support',
         'message': message,
         'history': historyPayload,
       };
 
-      // Add attachments if provided (support can also receive screenshots)
+      if (!ctx.isEmpty) {
+        body['userContext'] = ctx.toJson();
+      }
+
+      // Add attachments
       if (attachments != null && attachments.isNotEmpty) {
         final attachmentPayload = <Map<String, dynamic>>[];
         for (final att in attachments) {
@@ -262,10 +335,9 @@ class KoraAiService {
             try {
               final file = File(att.filePath!);
               final bytes = await file.readAsBytes();
-              final base64Data = base64Encode(bytes);
               attachmentPayload.add({
                 'type': att.type,
-                'base64': base64Data,
+                'base64': base64Encode(bytes),
                 if (att.mimeType != null) 'mimeType': att.mimeType,
                 if (att.transcript != null) 'transcript': att.transcript,
               });
@@ -327,9 +399,6 @@ class KoraAiService {
   }
 
   /// Analyze an image using the koraAiFeatures backend function.
-  ///
-  /// [imagePath] — local file path to the image.
-  /// [question] — optional question about the image.
   Future<KoraAiResult> analyzeImage({
     required String imagePath,
     String? question,
@@ -342,11 +411,7 @@ class KoraAiService {
       final body = <String, dynamic>{
         'feature': 'analyze_media',
         'attachments': [
-          {
-            'type': 'image',
-            'base64': base64Data,
-            'mimeType': 'image/jpeg',
-          }
+          {'type': 'image', 'base64': base64Data, 'mimeType': 'image/jpeg'}
         ],
         if (question != null) 'question': question,
       };
@@ -373,9 +438,7 @@ class KoraAiService {
     }
   }
 
-  /// Analyze a voice note transcript.
-  ///
-  /// [transcript] — on-device STT transcript of the voice note.
+  /// Enhance a voice note transcript using AI.
   Future<KoraAiResult> enhanceTranscript({
     required String transcript,
   }) async {
@@ -393,18 +456,13 @@ class KoraAiService {
           response: result['result'] as String? ?? transcript,
         );
       }
-      // Fallback: return original transcript
       return KoraAiResult(success: true, response: transcript);
     } catch (e) {
-      // Fallback: return original transcript
       return KoraAiResult(success: true, response: transcript);
     }
   }
 
   /// Analyze video key frames.
-  ///
-  /// [framePaths] — local file paths to extracted video frames.
-  /// [question] — optional question about the video.
   Future<KoraAiResult> analyzeVideo({
     required List<String> framePaths,
     String? question,
@@ -424,11 +482,7 @@ class KoraAiService {
       }
 
       if (attachments.isEmpty) {
-        return KoraAiResult(
-          success: false,
-          response: '',
-          error: 'No valid video frames found',
-        );
+        return KoraAiResult(success: false, response: '', error: 'No valid video frames found');
       }
 
       final body = <String, dynamic>{
@@ -512,7 +566,6 @@ class KoraAiService {
 
     history.add(message);
 
-    // Keep only last 50 messages locally
     if (history.length > 50) {
       history = history.sublist(history.length - 50);
     }

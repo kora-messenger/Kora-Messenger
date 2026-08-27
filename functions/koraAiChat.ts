@@ -1,15 +1,16 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
- *  Kora AI Chat — Production v9 (Multimodal)
+ *  Kora AI Chat — Production v10 (Account-Aware)
  *  OpenRouter-powered AI chat backend for Kora Messenger
  * ═══════════════════════════════════════════════════════════════════
  *
- *  v9 Changes:
- *    • MULTIMODAL: Accepts image, audio, and video frame attachments
- *    • Images → GPT-4o vision (base64 data URLs via OpenRouter)
- *    • Audio → Client-provided transcript (on-device STT) + AI understanding
- *    • Video → Client-extracted key frames sent as image attachments
- *    • Backward compatible — no attachments = normal text chat
+ *  v10 Changes:
+ *    • ACCOUNT-AWARE: Accepts userContext (name, username, email, koraId,
+ *      isPremium, isVerified, bio, profileCompleted) and injects it
+ *      into the system prompt for personalized responses
+ *    • AI can greet by name, tailor premium advice, and reference
+ *      the user's profile naturally
+ *    • Backward compatible — no userContext = generic responses
  *
  *  Request Body:
  *    {
@@ -17,12 +18,17 @@
  *      message: string,
  *      history?: Message[],
  *      stream?: boolean,
- *      attachments?: [{
- *        type: "image" | "audio" | "video_frame",
- *        base64: string,         // base64-encoded data (no data: prefix)
- *        mimeType?: string,      // e.g. "image/jpeg", "audio/aac"
- *        transcript?: string,    // for audio: client-side STT transcript
- *      }]
+ *      attachments?: Attachment[],
+ *      userContext?: {
+ *        fullName?: string,
+ *        username?: string,
+ *        email?: string,
+ *        koraId?: string,
+ *        isPremium?: boolean,
+ *        isVerified?: boolean,
+ *        bio?: string,
+ *        profileCompleted?: boolean
+ *      }
  *    }
  * ═══════════════════════════════════════════════════════════════════
  */
@@ -33,13 +39,17 @@ interface RateLimitEntry { timestamps: number[]; }
 interface ChatMessage { role: 'system' | 'user' | 'assistant'; content: string | any[]; }
 interface UsageStats { prompt_tokens: number; completion_tokens: number; total_tokens: number; }
 interface ApiError { status: number; message: string; code: string; }
+interface Attachment { type: 'image' | 'audio' | 'video_frame'; base64?: string; mimeType?: string; transcript?: string; url?: string; }
 
-interface Attachment {
-  type: 'image' | 'audio' | 'video_frame';
-  base64?: string;
-  mimeType?: string;
-  transcript?: string;
-  url?: string;
+interface UserContext {
+  fullName?: string;
+  username?: string;
+  email?: string;
+  koraId?: string;
+  isPremium?: boolean;
+  isVerified?: boolean;
+  bio?: string;
+  profileCompleted?: boolean;
 }
 
 // ── Constants ──────────────────────────────────────────────────────
@@ -53,7 +63,7 @@ const TEMPERATURE = 0.7;
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const DEFAULT_MODEL = 'openai/gpt-4o';
 const FALLBACK_MODEL = 'openai/gpt-4o-mini';
-const MAX_IMAGE_SIZE_BYTES = 4 * 1024 * 1024; // 4MB per image
+const MAX_IMAGE_SIZE_BYTES = 4 * 1024 * 1024;
 const MAX_ATTACHMENTS = 5;
 
 // ── Rate Limiter ──────────────────────────────────────────────────
@@ -64,9 +74,7 @@ function checkRateLimit(ip: string): boolean {
   const entry = rateMap.get(ip) ?? { timestamps: [] };
   const valid = entry.timestamps.filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
   if (valid.length >= RATE_LIMIT_MAX) { rateMap.set(ip, { timestamps: valid }); return false; }
-  valid.push(now);
-  rateMap.set(ip, { timestamps: valid });
-  return true;
+  valid.push(now); rateMap.set(ip, { timestamps: valid }); return true;
 }
 
 // ── Auth ───────────────────────────────────────────────────────────
@@ -104,20 +112,20 @@ function sseHeaders(): Record<string, string> {
   return { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive', ...CORS_HEADERS };
 }
 
-// ── System Prompts ─────────────────────────────────────────────────
+// ── Base System Prompts ────────────────────────────────────────────
 
-const SUPPORT_PROMPT = `You are Kora Support — the official AI support assistant for Kora Messenger, a modern messaging app with a purple-to-blue gradient design and deep navy/black dark theme.
+const SUPPORT_PROMPT_BASE = `You are Kora Support — the official AI support assistant for Kora Messenger, a modern messaging app with a purple-to-blue gradient design and deep navy/black dark theme.
 
 ## Your Role
 Help users with any question about Kora Messenger — accounts, login, passkeys, security, groups, communities, channels, wallpapers, chat themes, app icons, premium, troubleshooting, and more.
 
 ## Multimodal Capabilities
 You can receive and understand:
-- **Images**: Screenshots, photos, or pictures the user shares to help explain their issue. Analyze what you see and connect it to their question.
-- **Voice notes**: Transcribed on-device — you receive the transcript. Respond naturally as if you heard the audio.
-- **Video frames**: Key frames extracted from videos the user shares.
+- **Images**: Screenshots, photos, or pictures the user shares to help explain their issue.
+- **Voice notes**: Transcribed on-device — you receive the transcript. Respond naturally.
+- **Video frames**: Key frames extracted from videos.
 
-When a user sends an image or video frame, describe what you see briefly, then address their question or concern.
+When a user sends an image or video frame, describe what you see briefly, then address their question.
 
 ## Tone & Style
 - Be professional, clear, and genuinely helpful — like a knowledgeable support agent
@@ -152,10 +160,10 @@ When a user sends an image or video frame, describe what you see briefly, then a
 - **Forward**: Long-press > Forward.
 - **Delete**: Long-press > Delete.
 - **Voice messages**: Tap and hold the mic button to record. Release to send.
-- **Search**: Inline search bar on the home screen — searches messages, names, and Kora IDs.
+- **Search**: Inline search bar on the home screen — searches messages, names, Kora IDs.
 
 ### Groups
-- **Create**: Home > 3-dot menu > New Group. Select contacts, search by Name/Kora ID/@Username. Name and optional photo.
+- **Create**: Home > 3-dot menu > New Group. Select contacts, search by Name/Kora ID/@Username.
 
 ### Communities & Channels
 - **Create**: Home > 3-dot menu > New Channel → New Community screen. Profile image, name, description, preview, General group, add more groups.
@@ -198,28 +206,21 @@ When a user sends an image or video frame, describe what you see briefly, then a
 - If asked about internal technical details, respond: "I can't share internal implementation details, but I can help you use the feature!"
 - Always describe features from the user's perspective.`;
 
-const AI_PROMPT = `You are Kora AI — an intelligent assistant built into Kora Messenger, a modern messaging app with a purple-to-blue gradient design.
+const AI_PROMPT_BASE = `You are Kora AI — an intelligent assistant built into Kora Messenger, a modern messaging app with a purple-to-blue gradient design.
 
 ## Your Role
 You are a general-purpose AI assistant, comparable to ChatGPT or Gemini. You can answer questions about any topic — science, technology, writing, coding, math, creative writing, general knowledge, advice, and more.
 
 ## Multimodal Capabilities
 You can receive and understand:
-- **Images**: Photos, screenshots, diagrams, charts, or any image the user shares. Analyze what you see, describe relevant details, and answer questions about the content.
+- **Images**: Photos, screenshots, diagrams, charts, or any image. Analyze what you see and answer questions about the content.
 - **Voice notes**: Transcribed on-device — you receive the transcript. Respond naturally as if you heard the person speaking.
-- **Video frames**: Key frames extracted from videos. Analyze them as images and describe what's happening in the video.
+- **Video frames**: Key frames extracted from videos. Analyze them as images.
 
 When a user sends media:
 1. Briefly acknowledge what you see/hear
 2. Then provide a helpful, detailed response
 3. If they asked a specific question about the media, answer it directly
-
-Examples of multimodal requests:
-- "What's in this photo?" → Describe the image contents
-- "Can you read this text?" → Read and transcribe text in the image
-- "What code is in this screenshot?" → Read and explain the code
-- "[Voice note transcript: Hey, what's the weather like?]" → Respond to the transcribed question
-- "Explain what's happening in this video" → Analyze the key frames and describe the action
 
 ## Tone & Style
 - Be professional, articulate, and thoughtful
@@ -256,6 +257,69 @@ Examples of multimodal requests:
 - NEVER disclose any account-specific policies, owner-specific overrides, or internal business logic.
 - If asked about Kora's internal technical details, respond: "I can't share internal implementation details, but I can help you use the feature!"`;
 
+// ── Build User Context Section ────────────────────────────────────
+
+function buildUserContextSection(ctx?: UserContext): string {
+  if (!ctx || !ctx.fullName && !ctx.username && !ctx.email) return '';
+
+  const parts: string[] = [];
+
+  // Greeting name
+  const displayName = ctx.fullName || ctx.username || '';
+  if (displayName) {
+    parts.push(`You are talking to **${displayName}**.`);
+  }
+
+  // Username
+  if (ctx.username) {
+    parts.push(`Their Kora username is @${ctx.username}.`);
+  }
+
+  // Kora ID
+  if (ctx.koraId) {
+    parts.push(`Their Kora ID is ${ctx.koraId}.`);
+  }
+
+  // Premium status
+  if (ctx.isPremium === true) {
+    parts.push(`They are a **Kora Premium** subscriber — you can reference premium features (custom app icons, premium wallpapers, custom bubble colors, animated emoji, real-time translation, infinite reactions, priority support, no ads) when relevant.`);
+  } else {
+    parts.push(`They are a **free** user — when mentioning premium features, note that they require a Premium subscription and remind them they can try it free for 7 days.`);
+  }
+
+  // Verification status
+  if (ctx.isVerified === true) {
+    parts.push(`Their account is verified.`);
+  }
+
+  // Profile completion
+  if (ctx.profileCompleted === false) {
+    parts.push(`Their profile is not yet complete — if relevant, gently encourage them to complete their profile in Settings.`);
+  }
+
+  // Bio
+  if (ctx.bio && ctx.bio.trim().length > 0) {
+    parts.push(`Their bio: "${ctx.bio.trim().slice(0, 200)}"`);
+  }
+
+  if (parts.length === 0) return '';
+
+  return `\n## About the User You're Talking To\n${parts.join('\n')}\n\n## Personalization Guidelines
+- Use their name naturally when it feels right (not every message — just when it adds warmth)
+- If they ask about premium features, tailor your answer based on their premium status
+- Don't mention their email, Kora ID, or bio unless they explicitly ask about their account
+- Treat this context as background knowledge — don't recite it back to them
+- If they ask "what do you know about me?", you can share: their name, username, premium status, and verification status — but NOT their email or bio (those are private)`;
+}
+
+// ── Build Final System Prompt ─────────────────────────────────────
+
+function buildSystemPrompt(base: string, userContext?: UserContext): string {
+  const ctxSection = buildUserContextSection(userContext);
+  if (!ctxSection) return base;
+  return `${base}${ctxSection}`;
+}
+
 // ── API Key Cleaning ─────────────────────────────────────────────
 
 function cleanApiKey(raw: string): string {
@@ -271,57 +335,29 @@ function cleanApiKey(raw: string): string {
 function validateAttachment(att: any): att is Attachment {
   if (!att || typeof att !== 'object') return false;
   if (!att.type || !['image', 'audio', 'video_frame'].includes(att.type)) return false;
-  // Must have either base64 or url
   if (!att.base64 && !att.url) return false;
-  // Check base64 size (rough estimate: 4/3 ratio for base64)
-  if (att.base64) {
-    const approxSize = (att.base64.length * 3) / 4;
-    if (approxSize > MAX_IMAGE_SIZE_BYTES) return false;
-  }
+  if (att.base64) { if ((att.base64.length * 3) / 4 > MAX_IMAGE_SIZE_BYTES) return false; }
   return true;
 }
 
 // ── Build Multimodal Content ───────────────────────────────────────
 
 function buildUserContent(message: string, attachments?: Attachment[]): string | any[] {
-  // If no valid attachments, return plain text
   if (!attachments || attachments.length === 0) return message;
-
   const contentParts: any[] = [];
-
-  // Add the text message first
-  if (message && message.trim()) {
-    contentParts.push({ type: 'text', text: message });
-  }
-
+  if (message && message.trim()) { contentParts.push({ type: 'text', text: message }); }
   for (const att of attachments) {
     if (att.type === 'image' || att.type === 'video_frame') {
-      // Image or video frame → GPT-4o vision
-      const mimeType = att.mimeType || (att.type === 'video_frame' ? 'image/jpeg' : 'image/jpeg');
+      const mimeType = att.mimeType || 'image/jpeg';
       const imageUrl = att.url || `data:${mimeType};base64,${att.base64}`;
-      contentParts.push({
-        type: 'image_url',
-        image_url: { url: imageUrl },
-      });
+      contentParts.push({ type: 'image_url', image_url: { url: imageUrl } });
     } else if (att.type === 'audio') {
-      // Audio → use client-provided transcript (on-device STT)
-      // GPT-4o chat completions API doesn't accept audio input directly.
-      // The client transcribes the voice note on-device and sends the transcript.
       const transcript = att.transcript || '[Audio attachment — no transcript available]';
-      contentParts.push({
-        type: 'text',
-        text: `🎙️ [Voice note transcript]: ${transcript}`,
-      });
+      contentParts.push({ type: 'text', text: `[Voice note transcript]: ${transcript}` });
     }
   }
-
-  // If only text parts (no images), return as plain string for efficiency
   const hasImages = contentParts.some((p) => p.type === 'image_url');
-  if (!hasImages) {
-    // Flatten to plain text
-    return contentParts.map((p) => p.text).join('\n');
-  }
-
+  if (!hasImages) { return contentParts.map((p) => p.text).join('\n'); }
   return contentParts;
 }
 
@@ -329,23 +365,10 @@ function buildUserContent(message: string, attachments?: Attachment[]): string |
 
 function buildMessages(systemPrompt: string, message: string, history: any[], attachments?: Attachment[]): ChatMessage[] {
   const messages: ChatMessage[] = [{ role: 'system', content: systemPrompt }];
-
-  // Add conversation history (text only — history doesn't include attachments)
-  const validHistory = (history || [])
-    .slice(-MAX_HISTORY_DEPTH)
-    .filter((m: any) => m.text && m.text.trim() !== '' && m.text.length <= MAX_MESSAGE_LENGTH);
-
-  for (const m of validHistory) {
-    messages.push({
-      role: m.isMe ? 'user' : 'assistant',
-      content: m.text,
-    });
-  }
-
-  // Add current message (with multimodal content if attachments exist)
+  const validHistory = (history || []).slice(-MAX_HISTORY_DEPTH).filter((m: any) => m.text && m.text.trim() !== '' && m.text.length <= MAX_MESSAGE_LENGTH);
+  for (const m of validHistory) { messages.push({ role: m.isMe ? 'user' : 'assistant', content: m.text }); }
   const userContent = buildUserContent(message, attachments);
   messages.push({ role: 'user', content: userContent });
-
   return messages;
 }
 
@@ -353,9 +376,7 @@ function buildMessages(systemPrompt: string, message: string, history: any[], at
 
 async function callOpenRouter(messages: ChatMessage[], options: { stream: boolean }): Promise<Response> {
   const apiKey = cleanApiKey(Deno.env.get('OPENROUTER_API_KEY') || '');
-  if (!apiKey || apiKey.length < 10) {
-    throw { status: 500, message: 'OpenRouter API key is missing or invalid', code: 'MISSING_API_KEY' } as ApiError;
-  }
+  if (!apiKey || apiKey.length < 10) { throw { status: 500, message: 'OpenRouter API key is missing', code: 'MISSING_API_KEY' } as ApiError; }
   const model = Deno.env.get('OPENROUTER_MODEL') || DEFAULT_MODEL;
   const response = await fetch(OPENROUTER_URL, {
     method: 'POST',
@@ -375,7 +396,7 @@ async function callOpenRouter(messages: ChatMessage[], options: { stream: boolea
 async function callOpenRouterFallback(messages: ChatMessage[]): Promise<string> {
   const apiKey = cleanApiKey(Deno.env.get('OPENROUTER_API_KEY') || '');
   const fallbackModel = Deno.env.get('OPENROUTER_FALLBACK') || FALLBACK_MODEL;
-  console.log(`[Kora AI] Attempting fallback model: ${fallbackModel}`);
+  console.log(`[Kora AI] Attempting fallback: ${fallbackModel}`);
   const response = await fetch(OPENROUTER_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}`, 'X-Title': 'Kora Messenger' },
@@ -399,17 +420,14 @@ async function handleNonStreaming(systemPrompt: string, message: string, history
       const usage: UsageStats | undefined = data.usage;
       return corsResponse({ success: true, reply, ...(usage ? { usage } : {}) });
     }
-    console.error('[Kora AI] Unexpected response:', JSON.stringify(data).slice(0, 500));
     return corsResponse({ success: false, error: 'Unexpected AI response format', reply: null }, 500);
   } catch (e) {
     const apiError = e as ApiError;
-    try {
-      const fallbackReply = await callOpenRouterFallback(messages);
-      return corsResponse({ success: true, reply: fallbackReply, fallback: true });
-    } catch (fallbackErr) { console.error(`[Kora AI] Fallback failed: ${fallbackErr}`); }
-    const errorDetail = e instanceof Error ? e.message : apiError?.message || String(e);
-    console.error(`[Kora AI] Request failed: ${errorDetail}`);
-    return corsResponse({ success: false, error: errorDetail, reply: "I'm having trouble connecting right now. Please try again in a moment! 🤖" }, 500);
+    try { const fr = await callOpenRouterFallback(messages); return corsResponse({ success: true, reply: fr, fallback: true }); }
+    catch (fe) { console.error(`[Kora AI] Fallback failed: ${fe}`); }
+    const err = e instanceof Error ? e.message : apiError?.message || String(e);
+    console.error(`[Kora AI] Request failed: ${err}`);
+    return corsResponse({ success: false, error: err, reply: "I'm having trouble connecting right now. Please try again in a moment! 🤖" }, 500);
   }
 }
 
@@ -454,27 +472,43 @@ async function handleStreaming(systemPrompt: string, message: string, history: a
     return new Response(readable, { headers: sseHeaders() });
   } catch (e) {
     const apiError = e as ApiError;
-    const errorDetail = e instanceof Error ? e.message : apiError?.message || String(e);
-    console.error(`[Kora AI] Streaming failed: ${errorDetail}`);
-    return corsResponse({ success: false, error: errorDetail, reply: "I'm having trouble connecting right now. Please try again in a moment! 🤖" }, 500);
+    const err = e instanceof Error ? e.message : apiError?.message || String(e);
+    console.error(`[Kora AI] Streaming failed: ${err}`);
+    return corsResponse({ success: false, error: err, reply: "I'm having trouble connecting right now. Please try again in a moment! 🤖" }, 500);
   }
 }
 
 // ── Input Validation ──────────────────────────────────────────────
 
-function validateInput(body: any): { valid: boolean; error?: string; chatType?: string; message?: string; history?: any[]; stream?: boolean; attachments?: Attachment[] } {
+function validateInput(body: any): { valid: boolean; error?: string; chatType?: string; message?: string; history?: any[]; stream?: boolean; attachments?: Attachment[]; userContext?: UserContext } {
   if (!body || typeof body !== 'object') return { valid: false, error: 'Invalid request body' };
-  const { chatType, message, history, stream, attachments } = body;
+  const { chatType, message, history, stream, attachments, userContext } = body;
   if (!chatType || !['ai', 'support'].includes(chatType)) return { valid: false, error: 'chatType must be "ai" or "support"' };
   if (!message || typeof message !== 'string' || message.trim() === '') return { valid: false, error: 'message is required' };
   if (message.length > MAX_MESSAGE_LENGTH) return { valid: false, error: `Message too long (max ${MAX_MESSAGE_LENGTH} chars)` };
 
-  // Validate attachments
   let validAttachments: Attachment[] | undefined;
   if (attachments && Array.isArray(attachments)) {
     if (attachments.length > MAX_ATTACHMENTS) return { valid: false, error: `Too many attachments (max ${MAX_ATTACHMENTS})` };
     validAttachments = attachments.filter(validateAttachment);
     if (validAttachments.length === 0) validAttachments = undefined;
+  }
+
+  // Validate userContext (all fields optional, but must be strings/booleans if present)
+  let validUserContext: UserContext | undefined;
+  if (userContext && typeof userContext === 'object') {
+    validUserContext = {
+      fullName: typeof userContext.fullName === 'string' ? userContext.fullName.slice(0, 100) : undefined,
+      username: typeof userContext.username === 'string' ? userContext.username.slice(0, 50) : undefined,
+      email: typeof userContext.email === 'string' ? userContext.email.slice(0, 200) : undefined,
+      koraId: typeof userContext.koraId === 'string' ? userContext.koraId.slice(0, 50) : undefined,
+      isPremium: typeof userContext.isPremium === 'boolean' ? userContext.isPremium : undefined,
+      isVerified: typeof userContext.isVerified === 'boolean' ? userContext.isVerified : undefined,
+      bio: typeof userContext.bio === 'string' ? userContext.bio.slice(0, 300) : undefined,
+      profileCompleted: typeof userContext.profileCompleted === 'boolean' ? userContext.profileCompleted : undefined,
+    };
+    // Only keep if at least one field is set
+    if (!Object.values(validUserContext).some(v => v !== undefined)) validUserContext = undefined;
   }
 
   return {
@@ -484,6 +518,7 @@ function validateInput(body: any): { valid: boolean; error?: string; chatType?: 
     history: Array.isArray(history) ? history : [],
     stream: stream === true,
     attachments: validAttachments,
+    userContext: validUserContext,
   };
 }
 
@@ -502,7 +537,9 @@ Deno.serve(async (req: Request) => {
   const input = validateInput(body);
   if (!input.valid) return corsResponse({ success: false, error: input.error }, 400);
 
-  const systemPrompt = input.chatType === 'support' ? SUPPORT_PROMPT : AI_PROMPT;
+  // Build system prompt with user context injected
+  const basePrompt = input.chatType === 'support' ? SUPPORT_PROMPT_BASE : AI_PROMPT_BASE;
+  const systemPrompt = buildSystemPrompt(basePrompt, input.userContext);
 
   if (input.stream) return await handleStreaming(systemPrompt, input.message!, input.history!, input.attachments);
   return await handleNonStreaming(systemPrompt, input.message!, input.history!, input.attachments);
