@@ -658,14 +658,56 @@ class MessageService {
     _scheduleStatusProgress(chatId, msgId);
   }
 
-  Future<void> toggleReaction(String chatId, String messageId, String emoji) async {
+  /// Toggle an emoji reaction on a message.
+  /// Free users: 1 reaction max (replacing if a different emoji is chosen).
+  /// Premium users: up to 3 reactions per message.
+  /// If the emoji is already present, it is removed (toggle off).
+  Future<void> toggleReaction(
+    String chatId,
+    String messageId,
+    String emoji, {
+    bool isPremium = false,
+  }) async {
     final messages = _cache[chatId];
     if (messages == null) return;
     final idx = messages.indexWhere((m) => m.id == messageId);
     if (idx == -1) return;
     final msg = messages[idx];
-    messages[idx] = msg.copyWith(reaction: msg.reaction == emoji ? null : emoji);
+    final current = List<String>.from(msg.reactions);
+
+    if (current.contains(emoji)) {
+      // Toggle off — remove this emoji
+      current.remove(emoji);
+    } else {
+      if (!isPremium) {
+        // Free user: replace any existing reaction with the new one
+        current.clear();
+        current.add(emoji);
+      } else {
+        // Premium user: add up to 3 reactions
+        if (current.length < 3) {
+          current.add(emoji);
+        } else {
+          // Already at 3 — replace the oldest
+          current.removeAt(0);
+          current.add(emoji);
+        }
+      }
+    }
+
+    messages[idx] = msg.copyWith(reactions: current);
     await _persist(chatId);
+  }
+
+  /// Check whether a message is at the reaction limit for the user's tier.
+  /// Returns true if adding another reaction would exceed the limit.
+  bool isAtReactionLimit(String chatId, String messageId, {bool isPremium = false}) {
+    final messages = _cache[chatId];
+    if (messages == null) return false;
+    final idx = messages.indexWhere((m) => m.id == messageId);
+    if (idx == -1) return false;
+    final limit = isPremium ? 3 : 1;
+    return messages[idx].reactions.length >= limit;
   }
 
   Future<void> deleteMessage(String chatId, String messageId) async {

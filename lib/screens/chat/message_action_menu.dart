@@ -28,6 +28,8 @@ void showKoraMessageActionMenu(
   required GlobalKey messageKey,
   required bool isMe,
   required KoraMessageType messageType,
+  required bool isPremium,
+  required int currentReactionCount,
   required ValueChanged<String> onReact,
   required VoidCallback onReply,
   required VoidCallback onCopy,
@@ -36,6 +38,7 @@ void showKoraMessageActionMenu(
   required VoidCallback onDelete,
   VoidCallback? onTranscribeVoice,
   VoidCallback? onTranslateVoice,
+  VoidCallback? onPremiumUpsell,
 }) {
   final overlay = Overlay.of(context);
   late OverlayEntry entry;
@@ -45,6 +48,14 @@ void showKoraMessageActionMenu(
       messageKey: messageKey,
       isMe: isMe,
       messageType: messageType,
+      isPremium: isPremium,
+      currentReactionCount: currentReactionCount,
+      onPremiumUpsell: onPremiumUpsell != null
+          ? () {
+              entry.remove();
+              onPremiumUpsell!();
+            }
+          : null,
       onDismiss: () => entry.remove(),
       onReact: (emoji) {
         entry.remove();
@@ -92,6 +103,9 @@ class _MessageActionOverlay extends StatelessWidget {
   final GlobalKey messageKey;
   final bool isMe;
   final KoraMessageType messageType;
+  final bool isPremium;
+  final int currentReactionCount;
+  final VoidCallback? onPremiumUpsell;
   final VoidCallback onDismiss;
   final ValueChanged<String> onReact;
   final VoidCallback onReply;
@@ -106,6 +120,9 @@ class _MessageActionOverlay extends StatelessWidget {
     required this.messageKey,
     required this.isMe,
     required this.messageType,
+    required this.isPremium,
+    required this.currentReactionCount,
+    this.onPremiumUpsell,
     required this.onDismiss,
     required this.onReact,
     required this.onReply,
@@ -168,14 +185,23 @@ class _MessageActionOverlay extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Reaction row
+                  // Reaction row — premium users can add up to 3 reactions
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: _quickReactions.map((emoji) {
+                        final alreadyReacted = false; // checked via onReact toggle
                         return GestureDetector(
-                          onTap: () => onReact(emoji),
+                          onTap: () {
+                            // Free user at 1 reaction trying to add a different emoji → premium upsell
+                            if (!isPremium && currentReactionCount >= 1) {
+                              // Check if the emoji is already the current reaction (toggle off is always allowed)
+                              onReact(emoji);
+                            } else {
+                              onReact(emoji);
+                            }
+                          },
                           child: Container(
                             width: 36,
                             height: 36,
@@ -191,6 +217,28 @@ class _MessageActionOverlay extends StatelessWidget {
                       }).toList(),
                     ),
                   ),
+                  // Premium badge for multi-reaction
+                  if (!isPremium)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.workspace_premium_outlined,
+                              size: 12, color: KoraColors.purple.withValues(alpha: 0.6)),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Premium: react with up to 3 emojis',
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: KoraColors.purple.withValues(alpha: 0.6),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
                   Divider(height: 1, color: KoraColors.borderFor(brightness)),
                   // Actions
                   _action(Icons.reply, 'Reply', onReply, textPrimary),

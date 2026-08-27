@@ -71,7 +71,7 @@ class MessageBubble extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               _buildBubble(context, brightness),
-              if (message.reaction != null) _buildReaction(context),
+              if (message.reactions.isNotEmpty) _buildReactions(context),
             ],
           ),
         ),
@@ -533,18 +533,23 @@ class MessageBubble extends StatelessWidget {
     );
   }
 
-  Widget _buildReaction(BuildContext context) {
+  /// Builds the reaction pills — up to 3 emojis for premium, 1 for free.
+  /// Multiple reactions are shown as a single row of emoji pills overlapping
+  /// the bottom-left corner of the bubble (or bottom-right for sent messages).
+  Widget _buildReactions(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
+    final card = KoraColors.cardFor(brightness);
+    final border = KoraColors.borderFor(brightness);
+    final emojis = message.reactions;
+
     return Transform.translate(
       offset: const Offset(0, -6),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
         decoration: BoxDecoration(
-          color: KoraColors.cardFor(Theme.of(context).brightness),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: KoraColors.borderFor(Theme.of(context).brightness),
-            width: 0.5,
-          ),
+          color: card,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: border, width: 0.5),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.15),
@@ -553,9 +558,14 @@ class MessageBubble extends StatelessWidget {
             ),
           ],
         ),
-        child: Text(
-          message.reaction!,
-          style: const TextStyle(fontSize: 14),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: emojis.map((emoji) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2),
+              child: Text(emoji, style: const TextStyle(fontSize: 14)),
+            );
+          }).toList(),
         ),
       ),
     );

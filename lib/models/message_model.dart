@@ -14,6 +14,18 @@ enum KoraMessageType {
 }
 
 /// A single message in a Kora conversation.
+/// Parses reactions from JSON — supports both old single 'reaction' string
+/// and new 'reactions' list for backward compatibility.
+List<String> _parseReactions(Map<String, dynamic> j) {
+  final reactionsList = j['reactions'] as List?;
+  if (reactionsList != null) {
+    return reactionsList.cast<String>();
+  }
+  // Fall back to old single-reaction format
+  final single = j['reaction'] as String?;
+  return single != null ? [single] : [];
+}
+
 class KoraMessage {
   final String id;
   final String text;
@@ -24,7 +36,11 @@ class KoraMessage {
   final String? replyToId; // if this is a reply
   final String? replyToText;
   final String? replyToName;
-  final String? reaction; // emoji reaction (single for now)
+  /// Emoji reactions on this message. Free users: 1 max. Premium: up to 3.
+  final List<String> reactions;
+
+  /// Backward-compat: single reaction accessor. Returns first reaction or null.
+  String? get reaction => reactions.isEmpty ? null : reactions.first;
   final String? voiceDuration; // "0:12" etc, for voice messages
   final String? voiceFilePath; // local file path for real audio playback
 
@@ -136,7 +152,7 @@ class KoraMessage {
     this.replyToId,
     this.replyToText,
     this.replyToName,
-    this.reaction,
+    this.reactions = const [],
     this.voiceDuration,
     this.voiceFilePath,
     this.voiceFileUrl,
@@ -176,7 +192,7 @@ class KoraMessage {
     String? replyToId,
     String? replyToText,
     String? replyToName,
-    String? reaction,
+    List<String>? reactions,
     String? voiceDuration,
     String? voiceFilePath,
     String? voiceFileUrl,
@@ -215,7 +231,7 @@ class KoraMessage {
       replyToId: replyToId ?? this.replyToId,
       replyToText: replyToText ?? this.replyToText,
       replyToName: replyToName ?? this.replyToName,
-      reaction: reaction ?? this.reaction,
+      reactions: reactions ?? this.reactions,
       voiceDuration: voiceDuration ?? this.voiceDuration,
       voiceFilePath: voiceFilePath ?? this.voiceFilePath,
       voiceFileUrl: voiceFileUrl ?? this.voiceFileUrl,
@@ -257,7 +273,8 @@ class KoraMessage {
     'replyToId': replyToId,
     'replyToText': replyToText,
     'replyToName': replyToName,
-    'reaction': reaction,
+    'reactions': reactions,
+    'reaction': reaction, // backward compat
     'voiceDuration': voiceDuration,
     'voiceFilePath': voiceFilePath,
     'voiceFileUrl': voiceFileUrl,
@@ -304,7 +321,7 @@ class KoraMessage {
     replyToId: j['replyToId'] as String?,
     replyToText: j['replyToText'] as String?,
     replyToName: j['replyToName'] as String?,
-    reaction: j['reaction'] as String?,
+    reactions: _parseReactions(j),
     voiceDuration: j['voiceDuration'] as String?,
     voiceFilePath: j['voiceFilePath'] as String?,
     voiceFileUrl: j['voiceFileUrl'] as String?,

@@ -462,9 +462,30 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
   }
 
   void _onReact(String messageId, String emoji) async {
-    await _messageService.toggleReaction(widget.chatId, messageId, emoji);
+    final isPremium = ChatThemeProvider.instance.isPremium;
+
+    // Check if the user is trying to add a 2nd/3rd reaction as a free user
+    if (!isPremium) {
+      final messages = _messageService.getMessages(widget.chatId);
+      final msg = messages.where((m) => m.id == messageId).firstOrNull;
+      if (msg != null && msg.reactions.isNotEmpty && !msg.reactions.contains(emoji)) {
+        // Free user already has 1 reaction and is trying to add a different one → premium upsell
+        if (mounted) {
+          showModalBottomSheet(
+            context: context,
+            backgroundColor: Colors.transparent,
+            isScrollControlled: true,
+            builder: (_) => const PremiumSubscribeSheet(),
+          );
+        }
+        return;
+      }
+    }
+
+    await _messageService.toggleReaction(widget.chatId, messageId, emoji, isPremium: isPremium);
     _refreshMessages();
   }
+
 
   void _onDelete(String messageId) async {
     await _messageService.deleteMessage(widget.chatId, messageId);
@@ -539,6 +560,16 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
       messageKey: key,
       isMe: message.isMe,
       messageType: message.type,
+      isPremium: ChatThemeProvider.instance.isPremium,
+      currentReactionCount: message.reactions.length,
+      onPremiumUpsell: () {
+        showModalBottomSheet(
+          context: context,
+          backgroundColor: Colors.transparent,
+          isScrollControlled: true,
+          builder: (_) => const PremiumSubscribeSheet(),
+        );
+      },
       onReact: (emoji) => _onReact(message.id, emoji),
       onReply: () => setState(() => _replyTarget = message),
       onCopy: () => _onCopy(message.text),
