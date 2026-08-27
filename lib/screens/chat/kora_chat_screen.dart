@@ -172,18 +172,24 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
       setState(() {
         _isLoading = false;
         _isBlocked = _messageService.isBlocked(widget.chatId);
-        // Check if the other user is flagged as a spammer
-        if (!_isAiChat && (widget.recipientEmail?.isNotEmpty ?? false)) {
-          final spamStatus = await SpamProtectionService.instance.checkSpamStatus(widget.recipientEmail!);
-          if (mounted) {
-            setState(() {
-              _isSpammer = spamStatus['isSpammer'] ?? false;
-              _spamScore = spamStatus['spamScore'] ?? 0;
-            });
-          }
-        }
       });
+      // Check if the other user is flagged as a spammer (async, non-blocking)
+      if (!_isAiChat && (widget.recipientEmail?.isNotEmpty ?? false)) {
+        _checkSpamStatus();
+      }
       WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+    }
+  }
+
+
+  Future<void> _checkSpamStatus() async {
+    if (widget.recipientEmail == null || widget.recipientEmail!.isEmpty) return;
+    final spamStatus = await SpamProtectionService.instance.checkSpamStatus(widget.recipientEmail!);
+    if (mounted) {
+      setState(() {
+        _isSpammer = spamStatus['isSpammer'] ?? false;
+        _spamScore = spamStatus['spamScore'] ?? 0;
+      });
     }
   }
 
