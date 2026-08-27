@@ -9,16 +9,21 @@ import '../../models/chat_models.dart';
 import '../../models/call_log.dart';
 import 'call_translation_sheet.dart';
 
-/// WhatsApp-style call screen for Kora Messenger (2025 redesign).
+/// WhatsApp-style call screen for Kora Messenger (2026 redesign).
 ///
-/// Matches WhatsApp's latest calling UI:
-/// - Top-left: Minimize button (not back) — call continues in background
-/// - Top-right: 3-dot overflow menu (Add person, Audio & Video, etc.)
-/// - Center: Large profile picture (voice) or full-screen video (video)
-/// - Floating island bottom bar with circular outlined buttons
-/// - Two-row layout: Row 1 = controls, Row 2 = End call (red)
-/// - Each button has its own circular outline with label
-/// - Translation feature accessed via overflow menu
+/// Video call layout (WhatsApp 2026):
+/// - Remote video fills the entire screen (full-bleed)
+/// - Local self-view is a draggable PiP overlay (drag to any corner, tap to expand/shrink, drag to edge to hide)
+/// - Top: minimize (left), contact name (center), 3-dot menu (right) — floating over video
+/// - Floating island bottom bar: Mute, Camera, Flip, Screen Share (circular outlined buttons)
+/// - End Call is a separate red circle below the island
+/// - Tap anywhere on video to toggle controls
+/// - Controls auto-hide after 4 seconds of inactivity
+/// - Dark gradient overlays top & bottom for readability
+///
+/// Voice call layout (same as before):
+/// - Pulsing gradient avatar ring
+/// - Floating island bottom bar
 class CallScreen extends StatefulWidget {
   final String contactName;
   final String? avatarUrl;
@@ -51,6 +56,7 @@ class _CallScreenState extends State<CallScreen>
   bool _isMuted = false;
   bool _isSpeakerOn = true;
   bool _isCameraOn = true;
+  bool _isScreenSharing = false;
   DateTime? _callStartTime;
   RTCVideoRenderer? _remoteRenderer;
   RTCVideoRenderer? _localRenderer;
@@ -62,8 +68,20 @@ class _CallScreenState extends State<CallScreen>
 
   // UI state
   bool _controlsVisible = true;
+  Timer? _autoHideTimer;
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
+
+  // Draggable self-view PiP state
+  Offset _pipPosition = Offset.zero; // set in initState via post-frame
+  Offset _pipDragOffset = Offset.zero;
+  bool _pipExpanded = false;
+  bool _pipHidden = false;
+  Size? _screenSize;
+  static const double _pipSmallW = 110;
+  static const double _pipSmallH = 160;
+  static const double _pipLargeW = 180;
+  static const double _pipLargeH = 260;
 
   @override
   void initState() {
@@ -76,6 +94,34 @@ class _CallScreenState extends State<CallScreen>
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
     _startCall();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final size = MediaQuery.of(context).size;
+      _screenSize = size;
+      // Default PiP position: top-right
+      _pipPosition = Offset(
+        size.width - _pipSmallW - 16,
+        MediaQuery.of(context).padding.top + 60,
+      );
+      setState(() {});
+    });
+    _resetAutoHideTimer();
+  }
+
+  void _resetAutoHideTimer() {
+    if (!widget.isVideoCall) return;
+    _autoHideTimer?.cancel();
+    _autoHideTimer = Timer(const Duration(seconds: 4), () {
+      if (mounted && _callState == 'connected') {
+        setState(() => _controlsVisible = false);
+      }
+    });
+  }
+
+  void _toggleControls() {
+    setState(() => _controlsVisible = !_controlsVisible);
+    if (_controlsVisible) {
+      _resetAutoHideTimer();
+    }
   }
 
   void _startCall() async {
@@ -85,6 +131,7 @@ class _CallScreenState extends State<CallScreen>
         if (state == 'connected') {
           _callStartTime = DateTime.now();
           _startTimer();
+          _resetAutoHideTimer();
         } else if (state == 'ended' || state == 'rejected' || state == 'failed') {
           _endCall();
         }
@@ -175,17 +222,26 @@ class _CallScreenState extends State<CallScreen>
   void _toggleMute() {
     _webrtcService.toggleMute();
     setState(() => _isMuted = !_isMuted);
+    _resetAutoHideTimer();
   }
 
   void _toggleSpeaker() async {
     final newState = !_isSpeakerOn;
     await _webrtcService.setSpeakerOn(newState);
     setState(() => _isSpeakerOn = newState);
+    _resetAutoHideTimer();
   }
 
   void _toggleCamera() {
     _webrtcService.toggleCamera();
     setState(() => _isCameraOn = !_isCameraOn);
+    _resetAutoHideTimer();
+  }
+
+  void _toggleScreenShare() {
+    // TODO: implement WebRTC screen share
+    setState(() => _isScreenSharing = !_isScreenSharing);
+    _resetAutoHideTimer();
   }
 
   void _upgradeToVideoCall() async {
@@ -216,6 +272,59 @@ class _CallScreenState extends State<CallScreen>
 
   void _minimizeCall() {
     Navigator.pop(context);
+  }
+
+  // ── Draggable PiP helpers ──
+
+  double get _pipW => _pipExpanded ? _pipLargeW : _pipSmallW;
+  double get _pipH => _pipExpanded ? _pipLargeH : _pipSmallH;
+
+  void _snapPipToCorner() {
+    if (_screenSize == null) return;
+    final w = _pipW;
+    final h = _pipH;
+    final margin = 16.0;
+    final topSafe = MediaQuery.of(context).padding.top + 60;
+
+    // Find nearest corner
+    final centerX = _pipPosition.dx + w / 2;
+    final centerY = _pipPosition.dy + h / 2;
+    final screenW = _screenSize!.width;
+    final screenH = _screenSize!.height;
+
+    final leftHalf = centerX < screenW / 2;
+    final topHalf = centerY < screenH / 2;
+
+    Offset target;
+    if (leftHalf && topHalf) {
+      target = Offset(margin, topSafe);
+    } else if (!leftHalf && topHalf) {
+      target = Offset(screenW - w - margin, topSafe);
+    } else if (leftHalf && !topHalf) {
+      target = Offset(margin, screenH - h - margin - 100);
+    } else {
+      target = Offset(screenW - w - margin, screenH - h - margin - 100);
+    }
+
+    // Animate to target
+    Future.delayed(const Duration(milliseconds: 50), () {
+      if (mounted) {
+        setState(() {
+          _pipPosition = target;
+        });
+      }
+    });
+  }
+
+  void _checkPipHidden() {
+    if (_screenSize == null) return;
+    // If dragged to the edge, hide the PiP
+    if (_pipPosition.dx < -_pipW * 0.7 ||
+        _pipPosition.dx > _screenSize!.width - _pipW * 0.3 ||
+        _pipPosition.dy < -_pipH * 0.7 ||
+        _pipPosition.dy > _screenSize!.height - _pipH * 0.3) {
+      setState(() => _pipHidden = true);
+    }
   }
 
   void _showOverflowMenu() {
@@ -271,6 +380,11 @@ class _CallScreenState extends State<CallScreen>
               _overflowItem(
                 icon: Icons.wallpaper_outlined,
                 label: 'Wallpaper',
+                onTap: () => Navigator.pop(ctx),
+              ),
+              _overflowItem(
+                icon: Icons.auto_awesome_outlined,
+                label: 'Effects & Filters',
                 onTap: () => Navigator.pop(ctx),
               ),
               const SizedBox(height: 12),
@@ -365,6 +479,7 @@ class _CallScreenState extends State<CallScreen>
 
   void _endCall() async {
     _timer?.cancel();
+    _autoHideTimer?.cancel();
     if (_translationActive) {
       await _liveTranslation.stop();
     }
@@ -391,6 +506,7 @@ class _CallScreenState extends State<CallScreen>
   @override
   void dispose() {
     _timer?.cancel();
+    _autoHideTimer?.cancel();
     _pulseController.dispose();
     if (_translationActive) {
       _liveTranslation.stop();
@@ -424,14 +540,11 @@ class _CallScreenState extends State<CallScreen>
       child: SafeArea(
         child: Column(
           children: [
-            // ── Top bar ──
             _buildTopBar(),
-            // ── Center: Avatar + info ──
             Expanded(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Pulsing avatar ring
                   AnimatedBuilder(
                     animation: _pulseAnimation,
                     builder: (context, child) {
@@ -478,7 +591,6 @@ class _CallScreenState extends State<CallScreen>
                     },
                   ),
                   const SizedBox(height: 28),
-                  // Name
                   Text(
                     widget.contactName,
                     style: const TextStyle(
@@ -488,7 +600,6 @@ class _CallScreenState extends State<CallScreen>
                     ),
                   ),
                   const SizedBox(height: 6),
-                  // Status + translation indicator
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -523,7 +634,6 @@ class _CallScreenState extends State<CallScreen>
                       ),
                     ],
                   ),
-                  // Translation subtitle
                   if (_translationActive && (_lastRecognized.isNotEmpty || _lastReceived.isNotEmpty))
                     Padding(
                       padding: const EdgeInsets.only(top: 6),
@@ -537,7 +647,6 @@ class _CallScreenState extends State<CallScreen>
                 ],
               ),
             ),
-            // ── Floating island bottom bar ──
             _buildFloatingIslandBar(false),
             const SizedBox(height: 28),
           ],
@@ -546,15 +655,15 @@ class _CallScreenState extends State<CallScreen>
     );
   }
 
-  // ── Video call view ──────────────────────────────────────────
+  // ── Video call view (WhatsApp 2026) ──────────────────────────
 
   Widget _buildVideoCallView() {
     return Stack(
       children: [
-        // Remote video full screen
+        // ── Remote video full screen ──
         Positioned.fill(
           child: GestureDetector(
-            onTap: () => setState(() => _controlsVisible = !_controlsVisible),
+            onTap: _toggleControls,
             child: RTCVideoView(
               _remoteRenderer!,
               objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
@@ -562,64 +671,142 @@ class _CallScreenState extends State<CallScreen>
             ),
           ),
         ),
-        // Dark gradient at top
+
+        // ── Dark gradient at top (for readability) ──
         if (_controlsVisible)
           Positioned(
             top: 0, left: 0, right: 0,
             child: Container(
-              height: 120,
+              height: 140,
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [Colors.black.withValues(alpha: 0.6), Colors.transparent],
-                ),
-              ),
-            ),
-          ),
-        // Top bar
-        if (_controlsVisible)
-          Positioned(
-            top: 0, left: 0, right: 0,
-            child: _buildTopBar(transparent: true),
-          ),
-        // Local video PiP (WhatsApp-style: top-right)
-        if (_localRenderer != null && _isCameraOn)
-          Positioned(
-            top: 80, right: 16,
-            child: Container(
-              width: 120, height: 180,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 2),
-                boxShadow: [
-                  BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 12, offset: const Offset(0, 4)),
-                ],
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: RTCVideoView(
-                _localRenderer!,
-                mirror: true,
-                objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
-              ),
-            ),
-          ),
-        // Dark gradient at bottom
-        if (_controlsVisible)
-          Positioned(
-            bottom: 0, left: 0, right: 0,
-            child: Container(
-              height: 200,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.bottomCenter,
-                  end: Alignment.topCenter,
                   colors: [Colors.black.withValues(alpha: 0.7), Colors.transparent],
                 ),
               ),
             ),
           ),
-        // Floating island bar
+
+        // ── Top bar: minimize | name + status | add + 3-dot ──
+        if (_controlsVisible)
+          Positioned(
+            top: 0, left: 0, right: 0,
+            child: _buildVideoTopBar(),
+          ),
+
+        // ── Draggable local self-view PiP ──
+        if (_localRenderer != null && _isCameraOn && !_pipHidden)
+          Positioned(
+            left: _pipPosition.dx,
+            top: _pipPosition.dy,
+            child: GestureDetector(
+              onPanStart: (details) {
+                _pipDragOffset = details.globalPosition - _pipPosition;
+              },
+              onPanUpdate: (details) {
+                if (_screenSize == null) return;
+                setState(() {
+                  _pipPosition = details.globalPosition - _pipDragOffset;
+                  // Clamp to screen bounds
+                  _pipPosition = Offset(
+                    _pipPosition.dx.clamp(4.0, _screenSize!.width - _pipW - 4),
+                    _pipPosition.dy.clamp(
+                      MediaQuery.of(context).padding.top + 56,
+                      _screenSize!.height - _pipH - 100,
+                    ),
+                  );
+                });
+              },
+              onPanEnd: (_) {
+                _snapPipToCorner();
+                _checkPipHidden();
+              },
+              onTap: () {
+                setState(() => _pipExpanded = !_pipExpanded);
+                // Re-clamp position after size change
+                if (_screenSize != null) {
+                  _pipPosition = Offset(
+                    _pipPosition.dx.clamp(4.0, _screenSize!.width - _pipW - 4),
+                    _pipPosition.dy.clamp(
+                      MediaQuery.of(context).padding.top + 56,
+                      _screenSize!.height - _pipH - 100,
+                    ),
+                  );
+                }
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: _pipW,
+                height: _pipH,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.4),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: RTCVideoView(
+                  _localRenderer!,
+                  mirror: true,
+                  objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+                ),
+              ),
+            ),
+          ),
+
+        // ── Hidden PiP restore button (small bubble on edge) ──
+        if (_localRenderer != null && _isCameraOn && _pipHidden)
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 60,
+            right: 16,
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  _pipHidden = false;
+                  _pipExpanded = false;
+                  if (_screenSize != null) {
+                    _pipPosition = Offset(
+                      _screenSize!.width - _pipSmallW - 16,
+                      MediaQuery.of(context).padding.top + 60,
+                    );
+                  }
+                });
+              },
+              child: Container(
+                width: 44, height: 44,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.black.withValues(alpha: 0.5),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 1.5),
+                ),
+                child: const Icon(Icons.picture_in_picture_alt, color: Colors.white, size: 20),
+              ),
+            ),
+          ),
+
+        // ── Dark gradient at bottom ──
+        if (_controlsVisible)
+          Positioned(
+            bottom: 0, left: 0, right: 0,
+            child: Container(
+              height: 220,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                  colors: [Colors.black.withValues(alpha: 0.8), Colors.transparent],
+                ),
+              ),
+            ),
+          ),
+
+        // ── Floating island bar ──
         if (_controlsVisible)
           Positioned(
             bottom: 0, left: 0, right: 0,
@@ -632,26 +819,83 @@ class _CallScreenState extends State<CallScreen>
     );
   }
 
-  // ── Top bar (Minimize + 3-dot menu) ──────────────────────────
+  // ── Video top bar (minimize | name + status | add + 3-dot) ──
 
-  Widget _buildTopBar({bool transparent = false}) {
+  Widget _buildVideoTopBar() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      padding: EdgeInsets.only(
+        left: 8, right: 8,
+        top: MediaQuery.of(context).padding.top + 4,
+        bottom: 8,
+      ),
       child: Row(
         children: [
-          // Minimize button (WhatsApp replaces Back with Minimize)
+          // Minimize
           _topBarButton(
             icon: Icons.keyboard_arrow_down_rounded,
             onTap: _minimizeCall,
           ),
-          const Spacer(),
+          const SizedBox(width: 8),
+          // Contact name + status (center-left, WhatsApp style)
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  widget.contactName,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _statusText,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.7),
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
           // Add person
           _topBarButton(
             icon: Icons.person_add_outlined,
             onTap: () {},
           ),
           const SizedBox(width: 4),
-          // 3-dot overflow menu
+          // 3-dot overflow
+          _topBarButton(
+            icon: Icons.more_vert,
+            onTap: _showOverflowMenu,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Voice top bar ──
+
+  Widget _buildTopBar({bool transparent = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      child: Row(
+        children: [
+          _topBarButton(
+            icon: Icons.keyboard_arrow_down_rounded,
+            onTap: _minimizeCall,
+          ),
+          const Spacer(),
+          _topBarButton(
+            icon: Icons.person_add_outlined,
+            onTap: () {},
+          ),
+          const SizedBox(width: 4),
           _topBarButton(
             icon: Icons.more_vert,
             onTap: _showOverflowMenu,
@@ -670,9 +914,6 @@ class _CallScreenState extends State<CallScreen>
 
   // ── Floating island bottom bar ───────────────────────────────
 
-  /// WhatsApp's latest design: a floating pill-shaped bar containing
-  /// circular outlined buttons in a row. The End Call button sits
-  /// separately below the island.
   Widget _buildFloatingIslandBar(bool isVideo) {
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -682,9 +923,9 @@ class _CallScreenState extends State<CallScreen>
           margin: const EdgeInsets.symmetric(horizontal: 20),
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
           decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.35),
+            color: Colors.black.withValues(alpha: 0.4),
             borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.12), width: 1),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -696,14 +937,22 @@ class _CallScreenState extends State<CallScreen>
                 isActive: _isMuted,
                 onTap: _toggleMute,
               ),
-              // Speaker
-              _islandButton(
-                icon: _isSpeakerOn ? Icons.volume_up : Icons.volume_off,
-                label: 'Speaker',
-                isActive: _isSpeakerOn,
-                onTap: _toggleSpeaker,
-              ),
-              // Video (voice call: upgrade; video call: toggle camera)
+              // Speaker (voice) or Camera (video)
+              if (!isVideo)
+                _islandButton(
+                  icon: _isSpeakerOn ? Icons.volume_up : Icons.volume_off,
+                  label: 'Speaker',
+                  isActive: _isSpeakerOn,
+                  onTap: _toggleSpeaker,
+                )
+              else
+                _islandButton(
+                  icon: _isCameraOn ? Icons.videocam : Icons.videocam_off,
+                  label: 'Camera',
+                  isActive: _isCameraOn,
+                  onTap: _toggleCamera,
+                ),
+              // Video upgrade (voice) or Flip (video)
               if (!isVideo)
                 _islandButton(
                   icon: Icons.videocam_outlined,
@@ -713,24 +962,24 @@ class _CallScreenState extends State<CallScreen>
                 )
               else
                 _islandButton(
-                  icon: _isCameraOn ? Icons.videocam : Icons.videocam_off,
-                  label: 'Camera',
-                  isActive: _isCameraOn,
-                  onTap: _toggleCamera,
-                ),
-              // Flip camera (video only)
-              if (isVideo)
-                _islandButton(
                   icon: Icons.flip_camera_ios,
                   label: 'Flip',
                   isActive: false,
                   onTap: () => _webrtcService.switchCamera(),
                 ),
+              // Screen share (video only, WhatsApp 2026)
+              if (isVideo)
+                _islandButton(
+                  icon: _isScreenSharing ? Icons.stop_screen_share : Icons.screen_share,
+                  label: 'Share',
+                  isActive: _isScreenSharing,
+                  onTap: _toggleScreenShare,
+                ),
             ],
           ),
         ),
         const SizedBox(height: 16),
-        // End call button — separate, red, centered
+        // End call button — separate red circle
         GestureDetector(
           onTap: _endCall,
           child: Container(
