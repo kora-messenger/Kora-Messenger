@@ -34,6 +34,9 @@ class KoraApi {
   static const String lookupEndpoint = '$baseUrl/koraLookup';
   static const String lookupByEmailEndpoint = '$baseUrl/koraLookupByEmail';
 
+  /// Link device endpoint — QR-based device pairing (generate token + link).
+  static const String linkDeviceEndpoint = '$baseUrl/koraLinkDevice';
+
   /// Crash report endpoint — receives crash data and creates a GitHub Issue.
   static const String crashReportEndpoint = '$baseUrl/koraCrashReport';
 

@@ -47,10 +47,13 @@ class _PairingQrScreenState extends State<PairingQrScreen> {
         return;
       }
 
-      final result = await KoraApi.post({
-        'action': 'generatePairingToken',
-        'email': email,
-      });
+      final result = await KoraApi.postTo(
+        KoraApi.linkDeviceEndpoint,
+        {
+          'action': 'generatePairingToken',
+          'email': email,
+        },
+      );
 
       if (result['success'] == true) {
         setState(() {

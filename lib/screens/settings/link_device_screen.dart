@@ -84,14 +84,17 @@ class _LinkDeviceScreenState extends State<LinkDeviceScreen> {
       final myPlatform = DeviceManager.getPlatform();
       final myEmail = SessionManager.instance.currentEmail;
 
-      final result = await KoraApi.post({
-        'action': 'linkDevice',
-        'pairingToken': token,
-        'ownerEmail': email ?? myEmail,
-        'newDeviceId': myDeviceId,
-        'newDeviceName': myDeviceName,
-        'newPlatform': myPlatform,
-      });
+      final result = await KoraApi.postTo(
+        KoraApi.linkDeviceEndpoint,
+        {
+          'action': 'linkDevice',
+          'pairingToken': token,
+          'ownerEmail': email ?? myEmail,
+          'newDeviceId': myDeviceId,
+          'newDeviceName': myDeviceName,
+          'newPlatform': myPlatform,
+        },
+      );
 
       if (result['success'] == true) {
         if (mounted) {
