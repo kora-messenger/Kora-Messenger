@@ -5,17 +5,11 @@ import 'kora_avatar.dart';
 import 'kora_badge.dart';
 
 /// A single row in Kora's chat list.
+/// WhatsApp-style: tap to open a chat, long-press to enter selection
+/// mode. Swipe right to archive, swipe left to toggle pin (handled
+/// by the parent via Dismissible).
 /// Distinctly Kora: purple unread pill (not green), purple read-receipt
-/// ticks, subtle pinned/muted indicators baked into the row rather than
-/// stacked icon clutter.
-///
-/// Two long-press gestures live on this row, on purpose kept on
-/// non-overlapping regions so they never fight for the gesture arena:
-/// - Long-press the AVATAR → [onAvatarPeekStart]/[onAvatarPeekMove]/
-///   [onAvatarPeekEnd] drive the Telegram-style "Chat Peek" preview.
-/// - Long-press anywhere else on the row → [onLongPress] opens a
-///   Telegram-style floating quick-action menu anchored at the touch
-///   point (mark read/unread, pin, mute, archive, select, delete).
+/// ticks, subtle pinned/muted indicators baked into the row.
 class ChatListItem extends StatelessWidget {
   final ChatPreview chat;
   final VoidCallback? onTap;
@@ -25,16 +19,13 @@ class ChatListItem extends StatelessWidget {
   final bool isSelected;
 
   /// Fired when the avatar itself is long-pressed — starts a peek.
-  final void Function(Offset globalPosition)? onAvatarPeekStart;
 
   /// Fired while the finger stays down and moves, still over the row —
   /// forwards the current global position so the peek overlay can
   /// highlight whichever bottom action icon is being hovered.
-  final void Function(Offset globalPosition)? onAvatarPeekMove;
 
   /// Fired when the finger lifts (or the gesture is cancelled) — ends
   /// the peek, committing whichever action (if any) was hovered.
-  final VoidCallback? onAvatarPeekEnd;
 
   const ChatListItem({
     super.key,
@@ -42,9 +33,6 @@ class ChatListItem extends StatelessWidget {
     this.onTap,
     this.onLongPress,
     this.isSelected = false,
-    this.onAvatarPeekStart,
-    this.onAvatarPeekMove,
-    this.onAvatarPeekEnd,
   });
 
   @override
@@ -58,22 +46,13 @@ class ChatListItem extends StatelessWidget {
       color: isSelected ? KoraColors.purple.withValues(alpha: 0.08) : null,
       child: InkWell(
         onTap: onTap,
+        onLongPress: onLongPress == null ? null : () => onLongPress!(Offset.zero),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onLongPressStart: onAvatarPeekStart == null
-                    ? null
-                    : (details) => onAvatarPeekStart!(details.globalPosition),
-                onLongPressMoveUpdate: onAvatarPeekMove == null
-                    ? null
-                    : (details) => onAvatarPeekMove!(details.globalPosition),
-                onLongPressEnd: onAvatarPeekEnd == null ? null : (_) => onAvatarPeekEnd!(),
-                onLongPressCancel: onAvatarPeekEnd,
-                child: Stack(
+              Stack(
                   clipBehavior: Clip.none,
                   children: [
                     KoraAvatar(
@@ -104,16 +83,10 @@ class ChatListItem extends StatelessWidget {
                         ),
                       ),
                   ],
-                ),
               ),
               const SizedBox(width: 14),
               Expanded(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onLongPressStart: onLongPress == null
-                      ? null
-                      : (details) => onLongPress!(details.globalPosition),
-                  child: Column(
+                child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
@@ -208,7 +181,6 @@ class ChatListItem extends StatelessWidget {
                     ],
                   ),
                 ),
-              ),
             ],
           ),
         ),

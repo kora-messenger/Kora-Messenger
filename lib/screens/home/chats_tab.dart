@@ -7,12 +7,10 @@ import '../../services/chat_sync_service.dart';
 import '../../theme/kora_colors.dart';
 import '../../utils/kora_page_routes.dart';
 import '../../widgets/chat_list_item.dart';
-import '../../widgets/chat_peek_overlay.dart';
 import '../../widgets/kora_empty_state.dart';
 import '../../widgets/kora_menu_sheet.dart';
 import '../../widgets/new_chat_sheet.dart';
 import '../chat/kora_chat_screen.dart';
-import '../chat/contact_info_screen.dart';
 import '../new_group_screen.dart';
 import '../settings/privacy_screen.dart';
 import 'package:local_auth/local_auth.dart';
@@ -92,40 +90,9 @@ class _ChatsTabState extends State<ChatsTab> {
   // to the last message marks it as read. Tapping anywhere opens the
   // full chat where both users can continue chatting.
 
-  void _onAvatarPeekStart(ChatPreview chat, Offset globalPosition) {
-    ChatPeekOverlay.show(
-      context,
-      chat,
-      onOpenChat: () => _openChat(chat),
-      onOpenProfile: () => _openProfile(chat),
-      onRefresh: () => _refresh(),
-    );
-  }
 
   /// Opens [chat]'s Profile / Contact info screen — used when the
   /// user taps the header (avatar/name) inside the Chat Peek.
-  void _openProfile(ChatPreview chat) {
-    final lowerName = chat.name.toLowerCase().replaceAll(' ', '_');
-    final koraId = 'KM-${chat.name.hashCode.abs().toString().padLeft(9, '0')}';
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ContactInfoScreen(
-          name: chat.name,
-          avatarAsset: chat.avatarAsset,
-          avatarUrl: chat.avatarUrl,
-          badge: chat.badge,
-          isOnline: chat.isOnline,
-          lastSeen: chat.isOnline ? null : 'last seen recently',
-          koraId: koraId,
-          username: '@$lowerName',
-          about: 'Hey there! I am using Kora Messenger.',
-          phone: '+123 456 7890',
-          recipientEmail: chat.recipientEmail,
-          isAiChat: false,
-        ),
-      ),
-    );
-  }
 
   void _openChat(ChatPreview chat) {
     pushSlideUp(
@@ -164,113 +131,14 @@ class _ChatsTabState extends State<ChatsTab> {
   /// it; tapping an action runs it on just this one chat. "Select"
   /// is the escape hatch into the existing bulk-selection toolbar for
   /// when the user wants to act on several chats at once.
-  Future<void> _onChatLongPress(ChatPreview chat, Offset globalPosition) async {
-    final brightness = Theme.of(context).brightness;
-    final card = KoraColors.cardFor(brightness);
-    final textPrimary = KoraColors.textPrimaryFor(brightness);
-
-    final overlayBox = Overlay.of(context).context.findRenderObject() as RenderBox;
-    final position = RelativeRect.fromRect(
-      Rect.fromPoints(globalPosition, globalPosition),
-      Offset.zero & overlayBox.size,
-    );
-
-    final hasUnread = chat.unreadCount > 0;
-    final dir = await ConversationDirectoryService.instance.get(chat.id);
-    final isLocked = dir?['isLocked'] as bool? ?? false;
-
-    final action = await showMenu<String>(
-      context: context,
-      position: position,
-      color: card,
-      elevation: 10,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      items: [
-        _quickActionItem(
-          'mark',
-          hasUnread ? Icons.mark_chat_read_outlined : Icons.mark_chat_unread_outlined,
-          hasUnread ? 'Mark as read' : 'Mark as unread',
-          textPrimary,
-        ),
-        _quickActionItem(
-          'mute',
-          chat.isMuted ? Icons.notifications_active_outlined : Icons.notifications_off_outlined,
-          chat.isMuted ? 'Unmute' : 'Mute',
-          textPrimary,
-        ),
-        _quickActionItem(
-          'pin',
-          Icons.push_pin_outlined,
-          chat.isPinned ? 'Unpin' : 'Pin',
-          textPrimary,
-        ),
-        _quickActionItem(
-          'lock',
-          isLocked ? Icons.lock_open_outlined : Icons.lock_outline,
-          isLocked ? 'Unlock chat' : 'Lock chat',
-          textPrimary,
-        ),
-        _quickActionItem('archive', Icons.archive_outlined, 'Archive', textPrimary),
-        _quickActionItem('select', Icons.check_circle_outline, 'Select', textPrimary),
-        _quickActionItem('delete', Icons.delete_outline, 'Delete', Colors.red),
-      ],
-    );
-
-    if (action == null || !mounted) return;
-
-    // Run each action on just this one chat, via the existing bulk
-    // handlers — set the selection to only this chat, run, and (for
-    // everything except "select") clear the selection right after.
-    setState(() => _selectedIds
-      ..clear()
-      ..add(chat.id));
-
-    switch (action) {
-      case 'mark':
-        await _markSelectedRead(hasUnread);
-        break;
-      case 'pin':
-        await _togglePinSelected();
-        break;
-      case 'mute':
-        await _toggleMuteSelected();
-        break;
-      case 'lock':
-        await _lockSelected(unlock: isLocked);
-        break;
-      case 'archive':
-        await _archiveSelected();
-        break;
-      case 'select':
-        // Leave _selectedIds as-is — this hands off to the bulk
-        // selection toolbar with this chat pre-selected.
-        break;
-      case 'delete':
-        await _deleteSelected();
-        break;
-    }
-  }
-
-  PopupMenuItem<String> _quickActionItem(
-    String value,
-    IconData icon,
-    String label,
-    Color color,
-  ) {
-    return PopupMenuItem<String>(
-      value: value,
-      height: 46,
-      child: Row(
-        children: [
-          Icon(icon, size: 20, color: color),
-          const SizedBox(width: 14),
-          Text(
-            label,
-            style: TextStyle(color: color, fontSize: 15, fontWeight: FontWeight.w500),
-          ),
-        ],
-      ),
-    );
+  /// WhatsApp-style long-press — directly enters selection mode with
+  /// the chat pre-selected. No floating popup; the selection toolbar
+  /// appears at the top with pin, delete, mute, archive, and overflow.
+  void _onChatLongPress(ChatPreview chat) {
+    setState(() {
+      _selectedIds.clear();
+      _selectedIds.add(chat.id);
+    });
   }
 
   void _clearSelection() => setState(() => _selectedIds.clear());
@@ -587,6 +455,45 @@ class _ChatsTabState extends State<ChatsTab> {
   }
 
   void _openSelectionOverflowMenu() {
+    final selected = _selectedChats;
+    final anyLocked = selected.any((c) {
+      // Check if any selected chat is locked
+      return false; // simplified — lock state checked on demand
+    });
+
+    KoraMenuSheet.show(context, [
+      KoraMenuOption(
+        icon: Icons.select_all,
+        label: 'Select all',
+        onTap: () {
+          setState(() {
+            _selectedIds.addAll(_filteredChats.map((c) => c.id));
+          });
+        },
+      ),
+      KoraMenuOption(
+        icon: Icons.mark_chat_read_outlined,
+        label: 'Mark as read',
+        onTap: () => _markSelectedRead(true),
+      ),
+      KoraMenuOption(
+        icon: Icons.mark_chat_unread_outlined,
+        label: 'Mark as unread',
+        onTap: () => _markSelectedUnread(),
+      ),
+      KoraMenuOption(
+        icon: Icons.lock_outline,
+        label: 'Lock chat',
+        onTap: () => _lockSelected(unlock: false),
+      ),
+      KoraMenuOption(
+        icon: Icons.lock_open_outlined,
+        label: 'Unlock chat',
+        onTap: () => _lockSelected(unlock: true),
+      ),
+    ]);
+  }
+  void _openSelectionOverflowMenu() {
     KoraMenuSheet.show(context, [
       KoraMenuOption(
         icon: Icons.select_all,
@@ -840,12 +747,66 @@ class _ChatsTabState extends State<ChatsTab> {
                               ),
                               itemBuilder: (context, index) {
                                 final chat = _filteredChats[index];
-                                return ChatListItem(
-                                  chat: chat,
-                                  isSelected: _selectedIds.contains(chat.id),
-                                  onTap: () => _onChatTap(chat),
-                                  onLongPress: (pos) => _onChatLongPress(chat, pos),
-                                  onAvatarPeekStart: (pos) => _onAvatarPeekStart(chat, pos),
+                                if (_isSelecting) {
+                                  return ChatListItem(
+                                    chat: chat,
+                                    isSelected: _selectedIds.contains(chat.id),
+                                    onTap: () => _onChatTap(chat),
+                                    onLongPress: (_) => _onChatLongPress(chat),
+                                  );
+                                }
+                                return Dismissible(
+                                  key: ValueKey(chat.id),
+                                  direction: DismissDirection.horizontal,
+                                  background: Container(
+                                    color: KoraColors.purple.withValues(alpha: 0.85),
+                                    alignment: Alignment.centerLeft,
+                                    padding: const EdgeInsets.only(left: 24),
+                                    child: const Icon(Icons.archive, color: Colors.white, size: 26),
+                                  ),
+                                  secondaryBackground: Container(
+                                    color: KoraColors.purple.withValues(alpha: 0.85),
+                                    alignment: Alignment.centerRight,
+                                    padding: const EdgeInsets.only(right: 24),
+                                    child: const Icon(Icons.push_pin, color: Colors.white, size: 26),
+                                  ),
+                                  confirmDismiss: (direction) async {
+                                    if (direction == DismissDirection.startToEnd) {
+                                      // Swipe right → archive
+                                      await ConversationDirectoryService.instance.setArchived(chat.id, true);
+                                      await _refresh();
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(context).clearSnackBars();
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            backgroundColor: KoraColors.darkSurface,
+                                            duration: const Duration(seconds: 4),
+                                            content: const Text('Chat archived', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500)),
+                                            action: SnackBarAction(
+                                              label: 'UNDO',
+                                              textColor: KoraColors.purple,
+                                              onPressed: () async {
+                                                await ConversationDirectoryService.instance.setArchived(chat.id, false);
+                                                await _refresh();
+                                              },
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                      return false; // don't remove from list — _refresh handles it
+                                    } else {
+                                      // Swipe left → toggle pin
+                                      await ConversationDirectoryService.instance.setPinned(chat.id, !chat.isPinned);
+                                      await _refresh();
+                                      return false;
+                                    }
+                                  },
+                                  child: ChatListItem(
+                                    chat: chat,
+                                    isSelected: _selectedIds.contains(chat.id),
+                                    onTap: () => _onChatTap(chat),
+                                    onLongPress: (_) => _onChatLongPress(chat),
+                                  ),
                                 );
                               },
                             ),
