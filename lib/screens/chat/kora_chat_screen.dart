@@ -246,6 +246,29 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
     }
   }
 
+  Future<void> _sendSticker(String sticker) async {
+    _runDetection(sticker);
+    await _messageService.sendMessage(
+      widget.chatId,
+      sticker,
+      type: KoraMessageType.sticker,
+      replyToId: _replyTarget?.id,
+      replyToText: _replyTarget?.text,
+      replyToName: _replyTarget != null ? (_replyTarget!.isMe ? 'You' : widget.name) : null,
+      recipientEmail: widget.recipientEmail,
+      recipientName: widget.name,
+    );
+    setState(() {
+      _messages = List.from(_messageService.getMessages(widget.chatId));
+      _replyTarget = null;
+    });
+    _scrollToBottom();
+
+    if (_isAiChat) {
+      await _getAiResponse(sticker);
+    }
+  }
+
   void _sendMedia(
     String path, bool isVideo, String? caption, bool isViewOnce, bool isHD, double? width, double? height,
   ) async {
@@ -1489,6 +1512,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
                     ? _buildBlockedBar()
                     : MessageComposer(
                         onSend: _sendMessage,
+                        onSendSticker: _sendSticker,
                         onSendVoice: _sendVoice,
                         onMicTap: () => AudioPlaybackService.instance.stop(),
                         onSendMedia: _sendMedia,

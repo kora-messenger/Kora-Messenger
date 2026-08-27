@@ -182,6 +182,7 @@ class MessageService {
     String? replyToName,
     String? recipientEmail,
     String? recipientName,
+    KoraMessageType type = KoraMessageType.text,
   }) async {
     final messages = _cache.putIfAbsent(chatId, () => <KoraMessage>[]);
     final msgId = 'msg_${DateTime.now().millisecondsSinceEpoch}';
@@ -195,6 +196,7 @@ class MessageService {
       text: text,
       timestamp: DateTime.now(),
       isMe: true,
+      type: type,
       status: isOnline ? MessageStatus.sent : MessageStatus.unsent,
       replyToId: replyToId,
       replyToText: replyToText,

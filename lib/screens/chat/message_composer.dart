@@ -42,6 +42,7 @@ import 'language_picker_screen.dart';
 /// any rebuild because the Listener itself never changes identity.
 class MessageComposer extends StatefulWidget {
   final Function(String) onSend;
+  final Function(String)? onSendSticker;
   final Function(
     String duration, {
     String? filePath,
@@ -58,6 +59,7 @@ class MessageComposer extends StatefulWidget {
   const MessageComposer({
     super.key,
     required this.onSend,
+    this.onSendSticker,
     required this.onSendVoice,
     this.onAttachment,
     this.onAiWriting,
@@ -1147,11 +1149,11 @@ class _MessageComposerState extends State<MessageComposer>
               setState(() {});
             },
             onStickerSelected: (sticker) {
-              widget.onSend(sticker);
-              setState(() => _showEmojiPanel = false);
-            },
-            onGifSelected: (gif) {
-              widget.onSend(gif);
+              if (widget.onSendSticker != null) {
+                widget.onSendSticker!(sticker);
+              } else {
+                widget.onSend(sticker);
+              }
               setState(() => _showEmojiPanel = false);
             },
           ),

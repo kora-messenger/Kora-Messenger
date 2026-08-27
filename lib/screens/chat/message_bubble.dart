@@ -129,6 +129,8 @@ class MessageBubble extends StatelessWidget {
       case KoraMessageType.image:
       case KoraMessageType.video:
         return const EdgeInsets.all(4);
+      case KoraMessageType.sticker:
+        return const EdgeInsets.all(6);
       default:
         return const EdgeInsets.symmetric(horizontal: 14, vertical: 9);
     }
@@ -151,6 +153,10 @@ class MessageBubble extends StatelessWidget {
 
     if (message.type == KoraMessageType.voice) {
       return _buildVoiceContent(context, isMe, sentText, receivedText, textSecondary);
+    }
+
+    if (message.type == KoraMessageType.sticker) {
+      return _buildStickerContent(context, isMe, textSecondary);
     }
 
     return Column(
@@ -373,6 +379,85 @@ class MessageBubble extends StatelessWidget {
             fontSize: 10.5,
             fontWeight: FontWeight.w500,
           ),
+        ),
+      ],
+    );
+  }
+
+
+  Widget _buildStickerContent(BuildContext context, bool isMe, Color textSecondary) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Reply preview
+        if (message.replyToText != null) ...[
+          GestureDetector(
+            onTap: onReplyTap,
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: (isMe ? Colors.white : KoraColors.purple).withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(8),
+                border: BorderDirectional(
+                  start: BorderSide(
+                    color: isMe ? Colors.white.withValues(alpha: 0.5) : KoraColors.purple,
+                    width: 2.5,
+                  ),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    message.replyToName ?? 'Reply',
+                    style: TextStyle(
+                      color: isMe ? Colors.white.withValues(alpha: 0.9) : KoraColors.purple,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 1),
+                  Text(
+                    message.replyToText!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: isMe ? Colors.white.withValues(alpha: 0.7) : textSecondary,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+        // Sticker — large emoji rendered like WhatsApp stickers
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2),
+          child: Text(
+            message.text,
+            style: const TextStyle(fontSize: 64),
+          ),
+        ),
+        // Timestamp + status row
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              _formatTime(message.timestamp),
+              style: TextStyle(
+                fontSize: 10,
+                color: isMe ? Colors.white.withValues(alpha: 0.6) : textSecondary,
+              ),
+            ),
+            if (isMe) ...[
+              const SizedBox(width: 3),
+              _buildStatusIcon(message.status, isMe),
+            ],
+          ],
         ),
       ],
     );

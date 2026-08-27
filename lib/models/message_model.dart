@@ -8,6 +8,7 @@ enum KoraMessageType {
   video,
   voice,
   file,
+  sticker, // sticker messages (large emoji rendered as stickers)
   system, // date separators, inline notices
   action, // messages with an action button (e.g. "Subscribe to Kora Premium")
   issueList, // support AI showing a list of common issues to pick from
@@ -374,6 +375,8 @@ class KoraMessage {
         return 2500000; // ~2.5 MB average video
       case KoraMessageType.file:
         return attachmentName != null ? 350000 : 100000;
+      case KoraMessageType.sticker:
+        return 'Sticker';
       case KoraMessageType.system:
       case KoraMessageType.action:
       case KoraMessageType.issueList:
