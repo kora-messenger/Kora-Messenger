@@ -1053,21 +1053,17 @@ class _MessageComposerState extends State<MessageComposer>
                     ),
             ),
             const SizedBox(width: 6),
-            // Mic (empty) / Send (typing) button — ALWAYS the same
-            // Stack > GestureDetector structure, regardless of state.
+            // ── WhatsApp-exact mic button with recording background ──
+            // Same persistent Stack > Listener structure (never changes
+            // identity across rebuilds — critical for gesture survival).
             Stack(
               key: const ValueKey('kora-mic-send-button'),
               clipBehavior: Clip.none,
               alignment: Alignment.bottomCenter,
-              // NOTE: the lock hint is always present in this children
-              // list (never added/removed) — only its opacity toggles.
-              // If it were conditionally included, the GestureDetector
-              // below would shift list position when isHolding flips,
-              // and Flutter would dispose+recreate it exactly like the
-              // bug this refactor fixes. Same widget, same slot, always.
               children: [
+                // Lock hint — always in the tree, opacity toggles
                 Positioned(
-                  bottom: 48,
+                  bottom: 52,
                   child: IgnorePointer(
                     ignoring: !isHolding,
                     child: Opacity(
@@ -1076,12 +1072,51 @@ class _MessageComposerState extends State<MessageComposer>
                     ),
                   ),
                 ),
-                // ── WhatsApp-style raw pointer tracking ──
-                // Listener (not GestureDetector) so the pointer events
-                // come directly from the framework — no gesture arena,
-                // no recognizer to lose across rebuilds, no widget-swap
-                // bug. This is the Flutter equivalent of Android's
-                // onInterceptTouchEvent / onTouchEvent at the container.
+                // WhatsApp's large semi-transparent recording background
+                // circle that grows behind the mic while holding
+                Positioned(
+                  bottom: -8,
+                  child: IgnorePointer(
+                    child: AnimatedOpacity(
+                      opacity: isHolding ? 1.0 : 0.0,
+                      duration: const Duration(milliseconds: 150),
+                      child: Container(
+                        width: 72,
+                        height: 72,
+                        decoration: BoxDecoration(
+                          color: KoraColors.purple.withValues(alpha: 0.12),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                // Red trash zone — appears as user drags left toward cancel
+                // WhatsApp shows a red circle with trash icon behind the mic
+                Positioned(
+                  bottom: 0,
+                  child: IgnorePointer(
+                    child: Opacity(
+                      opacity: isHolding && _cancelProgress > 0.15
+                          ? _cancelProgress.clamp(0.0, 1.0)
+                          : 0.0,
+                      child: Container(
+                        width: 56,
+                        height: 56,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEF4444).withValues(alpha: 0.18),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.delete_outline_rounded,
+                          color: const Color(0xFFEF4444),
+                          size: 24,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                // The mic/send button itself with raw pointer tracking
                 Listener(
                   behavior: HitTestBehavior.opaque,
                   onPointerDown: _hasText ? null : _onPointerDown,
@@ -1094,18 +1129,21 @@ class _MessageComposerState extends State<MessageComposer>
                             (_dragDy * 0.25).clamp(-24.0, 0.0),
                           )
                         : Offset.zero,
-                    child: Container(
-                      width: isHolding ? 52 : 44,
-                      height: isHolding ? 52 : 44,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 100),
+                      width: isHolding ? 54 : 44,
+                      height: isHolding ? 54 : 44,
                       decoration: BoxDecoration(
-                        color: isHolding ? KoraColors.waGreen : null,
+                        color: isHolding
+                            ? KoraColors.purple
+                            : null,
                         gradient: isHolding ? null : KoraColors.brandGradient,
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
                         _hasText ? Icons.send_rounded : Icons.mic_rounded,
                         color: Colors.white,
-                        size: isHolding ? 24 : 22,
+                        size: isHolding ? 26 : 22,
                       ),
                     ),
                   ),

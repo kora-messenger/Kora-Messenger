@@ -2,20 +2,15 @@ import 'package:flutter/material.dart';
 import '../../theme/kora_colors.dart';
 import '../../widgets/kora_waveform.dart';
 
-/// The locked voice-note recording bar — shown INLINE in place of the
-/// text composer once recording is locked (via swipe-up or a quick tap).
+/// WhatsApp-exact locked recording bar — shown INLINE in place of the
+/// text composer once recording is locked (via swipe-up or quick tap).
 ///
-/// Deliberately NOT a modal/bottom-sheet: it lives in the same widget
-/// tree as [MessageComposer] itself, so it always reflects the composer's
-/// live state (timer, waveform, pause) the instant it changes — no
-/// separate route to fall out of sync with, and no screen-dimming scrim.
+/// Two rows:
+/// **Row 1 (status):** timer + live/scrub waveform + view-once "1" badge
+/// **Row 2 (actions):** delete (trash) | pause/resume pill | send (green circle)
 ///
-/// Mirrors WhatsApp's locked-recording bar structure:
-/// - Recording: timer + live waveform + view-once badge (row 1),
-///   then delete | Pause pill | translate | send (row 2).
-/// - Paused (preview): play/pause + scrubbable waveform + timer +
-///   view-once badge (row 1), then delete | Resume pill | translate |
-///   send (row 2).
+/// When paused, row 1's waveform becomes scrubbable and a play/pause
+/// button appears for preview.
 class VoiceLockedBar extends StatelessWidget {
   final int seconds;
   final List<double> waveformSamples;
@@ -77,7 +72,7 @@ class VoiceLockedBar extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // ── Status badge (translating) ──
+        // ── Translation badge ──
         if (selectedTranslateName != null)
           Padding(
             padding: const EdgeInsets.only(bottom: 6),
@@ -98,61 +93,70 @@ class VoiceLockedBar extends StatelessWidget {
             ),
           ),
 
-        // ── Row 1: play/timer + waveform + view-once badge ──
+        // ── Row 1: timer + waveform + view-once badge ──
         Row(
           children: [
+            // Play/pause preview button (only when paused)
             if (isPaused) ...[
               GestureDetector(
                 onTap: onTogglePreviewPlay,
                 child: Icon(
-                  isPreviewPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                  isPreviewPlaying
+                      ? Icons.pause_rounded
+                      : Icons.play_arrow_rounded,
                   color: KoraColors.purple,
                   size: 22,
                 ),
               ),
               const SizedBox(width: 8),
             ],
+            // Timer
             Text(
               _timerText,
               style: TextStyle(
                 color: textPrimary,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
+                fontSize: 13.5,
+                fontWeight: FontWeight.w500,
                 fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),
             const SizedBox(width: 10),
+            // Waveform
             Expanded(
               child: SizedBox(
-                height: 24,
+                height: 26,
                 child: isPaused
-                    ? _ScrubWaveform(progress: previewProgress, onSeek: onSeekPreview)
+                    ? _ScrubWaveform(
+                        progress: previewProgress,
+                        onSeek: onSeekPreview,
+                      )
                     : KoraWaveform(
                         isLive: true,
                         progress: 0,
-                        barCount: 28,
-                        height: 24,
+                        barCount: 32,
+                        height: 26,
                         barWidth: 2.5,
                         barGap: 2.5,
                         playedColor: KoraColors.purple,
-                        unplayedColor: KoraColors.purple.withValues(alpha: 0.15),
+                        unplayedColor:
+                            KoraColors.purple.withValues(alpha: 0.15),
                         liveAmplitudes: waveformSamples,
                       ),
               ),
             ),
             const SizedBox(width: 10),
-            // ── View-once badge ──
+            // View-once "1" badge
             GestureDetector(
               onTap: onTogglePlayOnce,
               child: Container(
-                width: 24,
-                height: 24,
+                width: 22,
+                height: 22,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: isPlayOnce ? KoraColors.purple : Colors.transparent,
                   border: Border.all(
                     color: isPlayOnce ? KoraColors.purple : border,
-                    width: 1.4,
+                    width: 1.3,
                   ),
                 ),
                 child: Center(
@@ -160,7 +164,7 @@ class VoiceLockedBar extends StatelessWidget {
                     '1',
                     style: TextStyle(
                       color: isPlayOnce ? Colors.white : textMuted,
-                      fontSize: 11,
+                      fontSize: 10,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -175,29 +179,41 @@ class VoiceLockedBar extends StatelessWidget {
         // ── Row 2: delete | pause/resume pill | translate | send ──
         Row(
           children: [
-            _iconButton(
-              icon: Icons.delete_outline_rounded,
-              color: KoraColors.red,
-              bgColor: KoraColors.red.withValues(alpha: 0.12),
+            // Delete
+            GestureDetector(
               onTap: onDiscard,
+              child: Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: KoraColors.red.withValues(alpha: 0.12),
+                ),
+                child: Icon(
+                  Icons.delete_outline_rounded,
+                  color: KoraColors.red,
+                  size: 20,
+                ),
+              ),
             ),
             const SizedBox(width: 10),
+            // Pause/Resume pill
             Expanded(
               child: GestureDetector(
-                onTap: isPaused ? onTogglePause : onTogglePause,
+                onTap: onTogglePause,
                 child: Container(
-                  height: 38,
+                  height: 36,
                   decoration: BoxDecoration(
-                    color: isPaused
-                        ? KoraColors.purple.withValues(alpha: 0.14)
-                        : KoraColors.purple.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(19),
+                    color: KoraColors.purple.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(18),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
-                        isPaused ? Icons.mic_rounded : Icons.pause_rounded,
+                        isPaused
+                            ? Icons.mic_rounded
+                            : Icons.pause_rounded,
                         color: KoraColors.purple,
                         size: 18,
                       ),
@@ -215,57 +231,60 @@ class VoiceLockedBar extends StatelessWidget {
                 ),
               ),
             ),
+            // Translate (optional)
             if (onTranslate != null) ...[
               const SizedBox(width: 10),
-              _iconButton(
-                icon: Icons.language_rounded,
-                color: selectedTranslateName != null ? KoraColors.purple : textMuted,
-                bgColor: selectedTranslateName != null
-                    ? KoraColors.purple.withValues(alpha: 0.18)
-                    : Colors.transparent,
-                hasBorder: selectedTranslateName == null,
-                borderColor: border,
+              GestureDetector(
                 onTap: onTranslate,
+                child: Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: selectedTranslateName != null
+                        ? KoraColors.purple.withValues(alpha: 0.15)
+                        : Colors.transparent,
+                    border: selectedTranslateName == null
+                        ? Border.all(color: border, width: 1)
+                        : null,
+                  ),
+                  child: Icon(
+                    Icons.language_rounded,
+                    color: selectedTranslateName != null
+                        ? KoraColors.purple
+                        : textMuted,
+                    size: 20,
+                  ),
+                ),
               ),
             ],
             const SizedBox(width: 10),
-            _iconButton(
-              icon: isTranslating ? Icons.hourglass_top_rounded : Icons.send_rounded,
-              color: Colors.white,
-              gradient: isTranslating ? null : KoraColors.brandGradient,
-              bgColor: isTranslating ? KoraColors.purple.withValues(alpha: 0.4) : null,
-              size: 44,
+            // Send — WhatsApp's green circle, using Kora's brand gradient
+            GestureDetector(
               onTap: isTranslating ? null : onSend,
+              child: Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  gradient:
+                      isTranslating ? null : KoraColors.brandGradient,
+                  color: isTranslating
+                      ? KoraColors.purple.withValues(alpha: 0.4)
+                      : null,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  isTranslating
+                      ? Icons.hourglass_top_rounded
+                      : Icons.send_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ),
             ),
           ],
         ),
       ],
-    );
-  }
-
-  Widget _iconButton({
-    required IconData icon,
-    required Color color,
-    Color? bgColor,
-    LinearGradient? gradient,
-    bool hasBorder = false,
-    Color? borderColor,
-    double size = 38,
-    VoidCallback? onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          color: bgColor,
-          gradient: gradient,
-          shape: BoxShape.circle,
-          border: hasBorder && borderColor != null ? Border.all(color: borderColor, width: 1) : null,
-        ),
-        child: Icon(icon, color: color, size: size >= 44 ? 20 : 18),
-      ),
     );
   }
 }
@@ -281,27 +300,26 @@ class _ScrubWaveform extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final waveWidth = constraints.maxWidth.isFinite ? constraints.maxWidth : 150.0;
+        final waveWidth =
+            constraints.maxWidth.isFinite ? constraints.maxWidth : 150.0;
         return GestureDetector(
           onTapDown: onSeek != null
-              ? (d) => onSeek!((d.localPosition.dx / waveWidth).clamp(0.0, 1.0))
+              ? (d) =>
+                  onSeek!((d.localPosition.dx / waveWidth).clamp(0.0, 1.0))
               : null,
           onHorizontalDragUpdate: onSeek != null
-              ? (d) => onSeek!((d.localPosition.dx / waveWidth).clamp(0.0, 1.0))
+              ? (d) => onSeek!(
+                  (d.localPosition.dx / waveWidth).clamp(0.0, 1.0))
               : null,
-          child: SizedBox(
-            width: waveWidth,
-            height: 24,
-            child: KoraWaveform(
-              isLive: false,
-              progress: progress,
-              barCount: 28,
-              height: 24,
-              barWidth: 2.5,
-              barGap: 2.5,
-              playedColor: KoraColors.purple,
-              unplayedColor: KoraColors.purple.withValues(alpha: 0.2),
-            ),
+          child: KoraWaveform(
+            isLive: false,
+            progress: progress,
+            barCount: 32,
+            height: 26,
+            barWidth: 2.5,
+            barGap: 2.5,
+            playedColor: KoraColors.purple,
+            unplayedColor: KoraColors.purple.withValues(alpha: 0.2),
           ),
         );
       },
@@ -309,8 +327,6 @@ class _ScrubWaveform extends StatelessWidget {
   }
 }
 
-/// Shown the first time a user enables "view once" on a voice note —
-/// mirrors WhatsApp's explainer sheet (same copy/structure, Kora colors).
 void showPlayOnceInfoSheet(BuildContext context) {
   final brightness = Theme.of(context).brightness;
   final surface = KoraColors.surfaceFor(brightness);
