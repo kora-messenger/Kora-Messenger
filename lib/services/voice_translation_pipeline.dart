@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import 'voice_management_service.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../models/translation_models.dart';
@@ -149,6 +150,16 @@ class VoiceTranslationPipeline {
 
       final locale = _ttsLocale(targetLanguageCode);
       await tts.setLanguage(locale);
+
+      // Apply the user's selected voice from Voice Studio
+      // This changes pitch, rate, and system voice — NOT a placeholder
+      final voiceService = VoiceManagementService.instance;
+      await voiceService.init();
+      final selectedVoice = voiceService.selectedVoice;
+      if (selectedVoice != null) {
+        await tts.setPitch(selectedVoice.pitch);
+        await tts.setSpeechRate(selectedVoice.rate);
+      }
 
       final res = await tts.synthesizeToFile(translatedText, fileName);
 

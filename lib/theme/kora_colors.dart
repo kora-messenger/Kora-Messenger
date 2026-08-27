@@ -18,6 +18,16 @@ class KoraColors {
 
   static const Color deepNavy = Color(0xFF0A0A14);
   static const Color darkSurface = Color(0xFF13131F);
+  // Static shortcuts for dark-mode defaults (most Kora screens use dark mode)
+  static const Color surface = deepNavy;
+  static const Color card = darkCard;
+  static const Color textMuted = Color(0xFF8A8A9E);
+  static const Color textPrimary = Color(0xFFE8E8F0);
+  static const Color textSecondary = Color(0xFFB0B0C0);
+  static const Color border = Color(0xFF2A2A3E);
+  static const Color hint = Color(0xFF6A6A7E);
+  static const Color inputFill = Color(0xFF1A1A2E);
+
   static const Color darkCard = Color(0xFF1A1A2E);
 
   // Secondary "dark pill" button surface (Create Account on Welcome screen)

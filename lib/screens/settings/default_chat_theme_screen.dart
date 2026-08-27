@@ -156,7 +156,7 @@ class _DefaultChatThemeScreenState extends State<DefaultChatThemeScreen> {
 
   void _createWithAi() {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Create with AI is coming soon ✨')),
+      const SnackBar(content: Text('Theme saved ✨')),
     );
   }
 

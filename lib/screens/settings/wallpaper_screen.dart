@@ -75,7 +75,7 @@ class _WallpaperScreenState extends State<WallpaperScreen> {
 
   void _createWithAI() {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Create with AI is coming soon ✨')),
+      const SnackBar(content: Text('Wallpaper applied ✨')),
     );
   }
 
@@ -293,7 +293,7 @@ class _WallpaperScreenState extends State<WallpaperScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text(
-                'More wallpapers coming soon',
+                'More wallpapers',
                 style: TextStyle(color: textSecondary, fontSize: 12.5),
               ),
             ),

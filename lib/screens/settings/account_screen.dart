@@ -8,6 +8,8 @@ import 'passkeys_screen.dart';
 import 'two_factor_screen.dart';
 import 'security_notifications_screen.dart';
 import 'email_address_screen.dart';
+import 'edit_username_screen.dart';
+import 'phone_number_change_screen.dart';
 
 /// Account settings screen — security shortcuts and account details.
 class AccountScreen extends StatefulWidget {
@@ -714,7 +716,7 @@ class _AccountScreenState extends State<AccountScreen> {
                     iconColor: KoraColors.purple,
                     title: '@ Username',
                     subtitle: '@${_session?['username']?.toString() ?? 'user'}',
-                    onTap: () => _showComingSoon('Username editing'),
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const EditUsernameScreen())),
                     onLongPress: () {
                       final username = _session?['username']?.toString() ?? '';
                       if (username.isNotEmpty) {
@@ -737,7 +739,7 @@ class _AccountScreenState extends State<AccountScreen> {
                     iconColor: KoraColors.purple,
                     title: 'Change Phone Number',
                     subtitle: _session?['phoneNumber']?.toString() ?? 'Not set',
-                    onTap: () => _showComingSoon('Phone number change'),
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PhoneNumberChangeScreen())),
                     trailing: Icon(Icons.chevron_right, color: textMuted),
                   ),
 

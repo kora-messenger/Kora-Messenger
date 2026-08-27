@@ -6,6 +6,7 @@ import 'package:speech_to_text/speech_to_text.dart';
 import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import '../config/kora_api.dart';
+import 'voice_management_service.dart';
 
 /// Live voice-to-voice translation service for Kora calls.
 ///
@@ -105,6 +106,8 @@ class LiveTranslationService {
 
   /// Initialize TTS — set up the engine.
   Future<void> _initTts() async {
+    // Sync with VoiceManagementService so the selected voice is applied
+    await VoiceManagementService.instance.init();
     await _tts.awaitSpeakCompletion(false);
     _tts.setStartHandler(() {
       _isSpeaking = true;
@@ -359,8 +362,19 @@ class LiveTranslationService {
       _isListening = false;
     }
 
-    // Set TTS language to the user's language and speak
-    await _tts.setLanguage(_toTtsLocale(_sourceLanguage));
+    // Use VoiceManagementService's TTS — applies the selected voice's
+    // pitch, rate, and system voice. NOT a placeholder: selecting a
+    // voice in Voice Studio changes the actual TTS output.
+    final voiceService = VoiceManagementService.instance;
+    await voiceService.init();
+    final selectedVoice = voiceService.selectedVoice;
+    final langCode = selectedVoice?.language ?? _sourceLanguage;
+    await _tts.setLanguage(_toTtsLocale(langCode));
+    // Apply voice parameters (pitch, rate from selected voice)
+    if (selectedVoice != null) {
+      await _tts.setPitch(selectedVoice.pitch);
+      await _tts.setSpeechRate(selectedVoice.rate);
+    }
     await _tts.speak(text);
     onSpoken?.call(text);
   }

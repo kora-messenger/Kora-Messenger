@@ -13,6 +13,9 @@ import '../../widgets/kora_menu_sheet.dart';
 import '../chat/call_screen.dart';
 import "../../services/session_manager.dart";
 import '../contacts/select_contact_screen.dart';
+import 'scheduled_calls_screen.dart';
+import 'keypad_screen.dart';
+import 'favorites_screen.dart';
 
 /// "Calls" tab — call history plus a "Start a call" quick-dial section,
 /// styled in Kora's own identity (purple-to-blue gradient action
@@ -425,11 +428,11 @@ class _CallsTabState extends State<CallsTab> {
         children: [
           _quickAction(Icons.call_outlined, 'Call', surface, textPrimary, textSecondary, _openNewCallPicker),
           _quickAction(Icons.calendar_month_outlined, 'Schedule', surface, textPrimary, textSecondary,
-              () => _quickActionComingSoon('Scheduled calls')),
+              () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ScheduledCallsScreen()))),
           _quickAction(Icons.dialpad, 'Keypad', surface, textPrimary, textSecondary,
-              () => _quickActionComingSoon('Keypad')),
+              () => Navigator.push(context, MaterialPageRoute(builder: (_) => const KeypadScreen()))),
           _quickAction(Icons.favorite_border, 'Favorites', surface, textPrimary, textSecondary,
-              () => _quickActionComingSoon('Favorites')),
+              () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FavoritesScreen()))),
         ],
       ),
     );

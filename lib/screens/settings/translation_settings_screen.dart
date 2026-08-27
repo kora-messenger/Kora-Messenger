@@ -4,6 +4,7 @@ import '../../services/translation_service.dart';
 import '../../models/translation_models.dart';
 import '../chat/language_picker_screen.dart';
 import 'premium_subscribe_sheet.dart';
+import 'voice_studio_screen.dart';
 import '../../theme/chat_theme_provider.dart';
 
 /// Kora's Translation settings — accessible from Settings > Translation.
@@ -179,6 +180,17 @@ class _TranslationSettingsScreenState extends State<TranslationSettingsScreen> {
                   _service.setTranslateVoice(v);
                   setState(() => _translateVoice = v);
                 },
+              ),
+              _navTile(
+                card: card,
+                icon: Icons.graphic_eq_rounded,
+                iconBg: KoraColors.purple.withValues(alpha: 0.1),
+                title: 'Voice Studio',
+                subtitle: 'Create and manage custom voices for translation',
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const VoiceStudioScreen()),
+                ),
               ),
             ],
           ),

@@ -4,6 +4,12 @@ import '../../theme/kora_colors.dart';
 import '../../config/kora_api.dart';
 import '../../services/session_manager.dart';
 import 'devices_screen.dart';
+import 'live_location_screen.dart';
+import 'blocked_accounts_screen.dart';
+import 'kora_contacts_screen.dart';
+import 'app_lock_screen.dart';
+import 'chat_lock_screen.dart';
+import 'privacy_checkup_screen.dart';
 
 /// Privacy settings screen — controls who can see your personal info,
 /// read receipts, disappearing messages, app lock, and advanced privacy.
@@ -399,7 +405,7 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
               icon: Icons.location_on_outlined,
               title: 'Live location',
               subtitle: 'None',
-              onTap: () => _showComingSoon('Live location'),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LiveLocationScreen())),
             ),
             _switchTile(
               icon: Icons.phone_in_talk_outlined,
@@ -421,13 +427,13 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
               icon: Icons.block_rounded,
               title: 'Blocked accounts',
               subtitle: 'None',
-              onTap: () => _showComingSoon('Blocked accounts'),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BlockedAccountsScreen())),
             ),
             _simpleNavTile(
               icon: Icons.people_outline_rounded,
               title: 'Kora contacts',
               subtitle: 'Manage your contacts on Kora',
-              onTap: () => _showComingSoon('Kora contacts'),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const KoraContactsScreen())),
             ),
 
             const SizedBox(height: 18),
@@ -448,13 +454,13 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
               icon: Icons.lock_outline_rounded,
               title: 'App lock',
               subtitle: _appLockEnabled ? 'Enabled' : 'Disabled',
-              onTap: () => _showComingSoon('App lock setup'),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AppLockScreen())),
             ),
             _simpleNavTile(
               icon: Icons.chat_bubble_outline_rounded,
               title: 'Chat lock',
               subtitle: _chatLockEnabled ? 'Enabled' : 'Disabled',
-              onTap: () => _showComingSoon('Chat lock setup'),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatLockScreen())),
             ),
 
             const SizedBox(height: 18),
@@ -562,7 +568,7 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
           Align(
             alignment: Alignment.centerRight,
             child: TextButton(
-              onPressed: () => _showComingSoon('Privacy checkup'),
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PrivacyCheckupScreen())),
               style: TextButton.styleFrom(
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

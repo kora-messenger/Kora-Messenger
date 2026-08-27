@@ -5,6 +5,9 @@ import '../theme/kora_colors.dart';
 import '../widgets/kora_avatar.dart';
 import '../services/contacts_service.dart';
 import 'kora_home_screen.dart';
+import 'chat/emoji_picker_sheet.dart';
+import 'chat/disappearing_messages_screen.dart';
+import 'group/group_permissions_screen.dart';
 
 /// Group-details screen — shown after selecting members on the New
 /// Group screen. Lets the user name the group, add a group photo,
@@ -512,7 +515,7 @@ class _NewGroupDetailsScreenState extends State<NewGroupDetailsScreen> {
                   ),
                   const SizedBox(width: 10),
                   GestureDetector(
-                    onTap: () => _showComingSoon('The emoji picker'),
+                    onTap: () { showModalBottomSheet(context: context, builder: (_) => const EmojiPickerSheet()); },
                     child: Icon(Icons.emoji_emotions_outlined, color: textMuted, size: 26),
                   ),
                 ],
@@ -524,7 +527,7 @@ class _NewGroupDetailsScreenState extends State<NewGroupDetailsScreen> {
 
             // Disappearing messages
             InkWell(
-              onTap: () => _showComingSoon('Disappearing messages'),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DisappearingMessagesScreen())),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                 child: Row(
@@ -551,7 +554,7 @@ class _NewGroupDetailsScreenState extends State<NewGroupDetailsScreen> {
 
             // Group permissions
             InkWell(
-              onTap: () => _showComingSoon('Group permissions'),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GroupPermissionsScreen())),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                 child: Row(
