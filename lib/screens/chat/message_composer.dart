@@ -96,7 +96,6 @@ class _MessageComposerState extends State<MessageComposer>
   bool _previewPlaying = false;
   double _previewProgress = 0.0;
   int _previewPositionMs = 0;
-  int _previewDurationMs = 0;
   double _previewSpeed = 1.0;
 
   // ── Pointer tracking (WhatsApp onInterceptTouchEvent pattern) ──
@@ -113,7 +112,6 @@ class _MessageComposerState extends State<MessageComposer>
   double _dragDy = 0;
   static const double _kCancelThreshold = 120.0;
   static const double _kLockThreshold = 80.0;
-  static const double _kTapMaxDuration = Duration.millisecondsPerSecond * 0; // unused, kept for clarity
   static const double _kTapMaxDrag = 18.0; // max movement to still count as a tap
   bool _gestureResolved = false;
 
@@ -142,7 +140,6 @@ class _MessageComposerState extends State<MessageComposer>
         _previewPlaying = state.isPlaying;
         _previewProgress = state.progress;
         _previewPositionMs = state.positionMs;
-        _previewDurationMs = state.durationMs;
         _previewSpeed = state.speed;
         if (state.isCompleted) {
           _previewPlaying = false;
@@ -525,24 +522,6 @@ class _MessageComposerState extends State<MessageComposer>
     await _previewPlayback.seekToFraction(fraction);
   }
 
-  void _cyclePreviewSpeed() async {
-    final next = _previewSpeed >= 2.0
-        ? 1.0
-        : _previewSpeed >= 1.5
-            ? 2.0
-            : 1.5;
-    await _previewPlayback.setSpeed(next);
-  }
-
-  Future<void> _stopPreview() async {
-    _previewPlayback.stopIfActive(_previewId);
-    if (mounted) {
-      setState(() {
-        _previewPlaying = false;
-        _previewProgress = 0.0;
-      });
-    }
-  }
 
   void _discardLocked() async {
     final wasPaused = _isPaused;
