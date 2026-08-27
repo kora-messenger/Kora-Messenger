@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
+import 'dart:convert' show utf8;
 import '../models/translation_models.dart';
 import '../config/kora_api.dart';
 
@@ -313,6 +314,122 @@ class TranslationService {
         targetLanguageName: targetLang.name,
         translatedAt: DateTime.now(),
       );
+    }
+  }
+
+  // ── GPT Streaming Translation (models AI Phone's gptTrans/stream) ──
+  /// Streams translation chunks as they arrive from the GPT backend.
+  ///
+  /// [onChunk] is called for each partial translation delta — use this
+  /// to show progressive results in the UI (like AI Phone's live caption).
+  /// [onDone] is called with the complete translated text.
+  /// [onError] is called if the stream fails (falls back to batch mode).
+  Future<TranslationResult> translateStream(
+    String text,
+    String targetCode, {
+    String? sourceCode,
+    void Function(String chunk)? onChunk,
+    void Function(String fullText)? onDone,
+    void Function(String error)? onError,
+  }) async {
+    if (text.trim().isEmpty) {
+      final targetLang = languageByCode(targetCode) ?? _allLanguages.first;
+      final result = TranslationResult(
+        originalText: text,
+        translatedText: text,
+        detectedLanguageCode: sourceCode ?? 'en',
+        detectedLanguageName: languageByCode(sourceCode ?? 'en')?.name ?? 'English',
+        targetLanguageCode: targetCode,
+        targetLanguageName: targetLang.name,
+        translatedAt: DateTime.now(),
+      );
+      onDone?.call(text);
+      return result;
+    }
+
+    final detectedCode = sourceCode ?? await detectLanguage(text) ?? 'en';
+    final targetLang = languageByCode(targetCode) ?? _allLanguages.first;
+    final detectedLang = languageByCode(detectedCode) ?? _allLanguages.first;
+
+    try {
+      final request = http.Request(
+        'POST',
+        Uri.parse(KoraApi.gptTransEndpoint),
+      )
+        ..headers['Content-Type'] = 'application/json'
+        ..headers['Accept'] = 'text/event-stream'
+        ..body = jsonEncode({
+          'text': text,
+          'targetLang': targetCode,
+          'sourceLang': detectedCode,
+          'stream': true,
+          'transactionId': DateTime.now().millisecondsSinceEpoch.toString(),
+        });
+
+      final client = http.Client();
+      final response = await client.send(request);
+
+      if (response.statusCode != 200) {
+        // Fall back to batch translation
+        final batchResult = await translate(text, targetCode, sourceCode: sourceCode);
+        onDone?.call(batchResult.translatedText);
+        return batchResult;
+      }
+
+      // Read SSE stream
+      final fullText = StringBuffer();
+      await for (final chunk in response.stream.transform(utf8.decoder)) {
+        for (final line in chunk.split('\n')) {
+          if (line.startsWith('data: ')) {
+            try {
+              final data = jsonDecode(line.substring(6)) as Map<String, dynamic>;
+              if (data['type'] == 'delta' && data['text'] != null) {
+                fullText.write(data['text']);
+                onChunk?.call(data['text'] as String);
+              } else if (data['type'] == 'done' && data['translatedText'] != null) {
+                final translated = data['translatedText'] as String;
+                onDone?.call(translated);
+                client.close();
+                return TranslationResult(
+                  originalText: text,
+                  translatedText: translated,
+                  detectedLanguageCode: detectedCode,
+                  detectedLanguageName: detectedLang.name,
+                  targetLanguageCode: targetCode,
+                  targetLanguageName: targetLang.name,
+                  translatedAt: DateTime.now(),
+                );
+              }
+            } catch {}
+          }
+        }
+      }
+
+      // If stream ended without explicit 'done', use accumulated text
+      final translated = fullText.toString().trim();
+      if (translated.isNotEmpty) {
+        onDone?.call(translated);
+        return TranslationResult(
+          originalText: text,
+          translatedText: translated,
+          detectedLanguageCode: detectedCode,
+          detectedLanguageName: detectedLang.name,
+          targetLanguageCode: targetCode,
+          targetLanguageName: targetLang.name,
+          translatedAt: DateTime.now(),
+        );
+      }
+
+      // Fall back to batch
+      final batchResult = await translate(text, targetCode, sourceCode: sourceCode);
+      onDone?.call(batchResult.translatedText);
+      return batchResult;
+    } catch (e) {
+      onError?.call('Stream translation failed: $e');
+      // Fall back to batch
+      final batchResult = await translate(text, targetCode, sourceCode: sourceCode);
+      onDone?.call(batchResult.translatedText);
+      return batchResult;
     }
   }
 
