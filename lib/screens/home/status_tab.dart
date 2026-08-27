@@ -435,7 +435,7 @@ class _StatusTabState extends State<StatusTab> {
                 child: Icon(Icons.favorite, color: Colors.green, size: 20),
               ),
               title: Text('Your favorites', style: TextStyle(color: textPrimary)),
-              subtitle: Text('Songs you\\'ve saved', style: TextStyle(color: textSecondary, fontSize: 13)),
+              subtitle: Text("Songs you've saved", style: TextStyle(color: textSecondary, fontSize: 13)),
               onTap: () => Navigator.pop(context),
             ),
             const SizedBox(height: 16),

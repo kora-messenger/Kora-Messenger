@@ -188,6 +188,8 @@ class KoraStatus {
   bool get hasUnviewed =>
       items.any((i) => !i.viewedBy.contains('me') && !i.isExpired);
 
+  bool get isViewed => !hasUnviewed;
+
   String get timeAgo {
     final diff = DateTime.now().difference(lastUpdatedAt);
     if (diff.inMinutes < 1) return 'just now';

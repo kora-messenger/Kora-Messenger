@@ -599,7 +599,6 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
       onReply: () => setState(() => _replyTarget = message),
       onCopy: () => _onCopy(message.text),
       onForward: () => _onForward(message),
-      onViewOnceMedia: () => _onViewOnceMedia(message),
       onTranslate: () => _onTranslate(message),
       onTranscribeVoice: message.type == KoraMessageType.voice && ChatThemeProvider.instance.isPremium
           ? () => VoiceTranslationSheet.show(
@@ -629,7 +628,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
     if (count != null && count > 0 && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Forwarded to \${count} chat\${count > 1 ? 's' : ''}'),
+          content: Text('Forwarded to $count chat${count > 1 ? "s" : ""}'),
           backgroundColor: KoraColors.purple,
           behavior: SnackBarBehavior.floating,
         ),
@@ -1460,6 +1459,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
                                           onRetryVoiceUpload: () => _onRetryVoiceUpload(message.id),
                                           onSelfDestruct: () => _onSelfDestructVoice(message.id),
                                           onRetrySend: () => _onRetrySend(message.id),
+                                          onViewOnceMedia: () => _onViewOnceMedia(message),
                                         ),
                                       ),
                                     ],
