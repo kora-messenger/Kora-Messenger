@@ -376,7 +376,7 @@ class KoraMessage {
       case KoraMessageType.file:
         return attachmentName != null ? 350000 : 100000;
       case KoraMessageType.sticker:
-        return 'Sticker';
+        return 256; // sticker is a single emoji character
       case KoraMessageType.system:
       case KoraMessageType.action:
       case KoraMessageType.issueList:
