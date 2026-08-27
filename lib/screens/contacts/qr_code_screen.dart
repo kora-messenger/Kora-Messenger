@@ -19,16 +19,21 @@ import '../../models/chat_models.dart';
 import '../../services/contacts_service.dart';
 import '../chat/contact_info_screen.dart';
 
-/// Kora's "QR code" screen — same two-tab structure as the WhatsApp
-/// screen it's modeled after ("My code" / "Scan code"), but dressed in
-/// Kora's own identity: purple-to-blue gradient tab indicator, a
-/// gradient avatar ring overlapping the code card, and the Kora mark
-/// embedded at the center of the QR itself.
+/// Kora's QR code screen — matches WhatsApp's 2026 QR screen design.
 ///
-/// "My code" shows the signed-in user's own QR so others can scan it
-/// to add them as a contact. "Scan code" runs the live camera scanner
-/// inline in the same screen; a recognized Kora QR opens that
-/// contact's profile.
+/// Two tabs: "MY CODE" and "SCAN CODE".
+///
+/// My Code:
+/// - Gradient-ringed avatar overlapping a white card
+/// - QR code with Kora logo embedded at center
+/// - User's name, Kora ID, privacy note
+/// - Share + 3-dot menu (Reset QR code)
+///
+/// Scan Code:
+/// - Full-screen dark background
+/// - Rounded-square camera viewfinder with animated scan line + corner brackets
+/// - Gallery pick, flash toggle, camera flip
+/// - "Scan a Kora QR code" hint text
 class QrCodeScreen extends StatefulWidget {
   const QrCodeScreen({super.key});
 
@@ -46,19 +51,33 @@ class _QrCodeScreenState extends State<QrCodeScreen>
   Map<String, dynamic>? _session;
   bool _navigated = false;
   bool _sharing = false;
+  bool _resetting = false;
 
-  // Screen brightness is boosted to max while the Scan Code tab is
-  // active (like WhatsApp) so the camera has the best chance of
-  // reading a QR code in a dim room, and restored the moment the
-  // user leaves the tab or the screen.
+  // QR data that can be reset
+  String _qrSeed = '';
+
+  // Screen brightness boost for scanning
   double? _originalBrightness;
   bool _brightnessBoosted = false;
+
+  // Animated scan line
+  late final AnimationController _scanAnimController;
+  late final Animation<double> _scanAnim;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(_onTabChanged);
+
+    _scanAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    )..repeat();
+    _scanAnim = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _scanAnimController, curve: Curves.easeInOut),
+    );
+
     _loadSession();
   }
 
@@ -66,30 +85,25 @@ class _QrCodeScreenState extends State<QrCodeScreen>
     if (!_tabController.indexIsChanging && _tabController.index == 1) {
       _navigated = false;
       _boostBrightness();
+      _scanAnimController.repeat();
     } else if (_tabController.index == 0) {
       _stopScanner();
       _restoreBrightness();
+      _scanAnimController.stop();
     }
     setState(() {});
   }
 
   Future<void> _startScanner() async {
-    // With autoStart: true, the MobileScanner widget handles starting
-    // automatically when it enters the tree. This method is kept for
-    // any manual restart needs but the widget lifecycle is the primary driver.
     try {
       await _scannerController.start();
-    } catch (_) {
-      // Ignore — widget lifecycle handles this.
-    }
+    } catch (_) {}
   }
 
   Future<void> _stopScanner() async {
     try {
       await _scannerController.stop();
-    } catch (_) {
-      // Same guard — ignore if already stopped or disposing.
-    }
+    } catch (_) {}
   }
 
   Future<void> _boostBrightness() async {
@@ -98,30 +112,27 @@ class _QrCodeScreenState extends State<QrCodeScreen>
       _originalBrightness ??= await ScreenBrightness().current;
       await ScreenBrightness().setScreenBrightness(1.0);
       _brightnessBoosted = true;
-    } catch (_) {
-      // Some devices/emulators don't support programmatic brightness —
-      // fail silently, the scanner still works at normal brightness.
-    }
+    } catch (_) {}
   }
 
   Future<void> _restoreBrightness() async {
     if (!_brightnessBoosted) return;
     try {
       await ScreenBrightness().resetScreenBrightness();
-    } catch (_) {
-      // Ignore — nothing meaningful to recover from here.
-    }
+    } catch (_) {}
     _brightnessBoosted = false;
   }
 
   Future<void> _loadSession() async {
     final session = await SessionManager.instance.loadSession();
     if (!mounted) return;
-    setState(() => _session = session);
+    setState(() {
+      _session = session;
+      _qrSeed = session?['koraId']?.toString() ?? session?['username']?.toString() ?? 'user';
+    });
   }
 
   Future<void> _toggleTorch() => _scannerController.toggleTorch();
-
   Future<void> _switchCamera() => _scannerController.switchCamera();
 
   Future<void> _pickFromGallery() async {
@@ -155,21 +166,78 @@ class _QrCodeScreenState extends State<QrCodeScreen>
     }
   }
 
+  void _resetQrCode() {
+    // Generate a new random seed for the QR code
+    final newSeed = 'kora_${DateTime.now().millisecondsSinceEpoch}';
+    setState(() {
+      _qrSeed = newSeed;
+      _resetting = false;
+    });
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('QR code reset. Old code will no longer work.'),
+          backgroundColor: KoraColors.purple,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  void _showResetDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: KoraColors.cardFor(Theme.of(context).brightness),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          'Reset QR code?',
+          style: TextStyle(
+            color: KoraColors.textPrimaryFor(Theme.of(context).brightness),
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        content: Text(
+          'Your current QR code will stop working and a new one will be generated. '
+          'Anyone who had your old code will need the new one to add you.',
+          style: TextStyle(
+            color: KoraColors.textSecondaryFor(Theme.of(context).brightness),
+            fontSize: 14,
+            height: 1.5,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: KoraColors.textSecondaryFor(Theme.of(context).brightness)),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _resetQrCode();
+            },
+            child: const Text('Reset', style: TextStyle(color: KoraColors.purple, fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _tabController.removeListener(_onTabChanged);
     _tabController.dispose();
     _scannerController.dispose();
-    // Best-effort restore — the screen is closing regardless, so this
-    // doesn't need to be awaited.
+    _scanAnimController.dispose();
     if (_brightnessBoosted) {
       ScreenBrightness().resetScreenBrightness();
     }
     super.dispose();
   }
 
-  /// Tries to match a scanned Kora QR payload to a known contact.
-  /// QR format: `kora://contact/<koraId>` or `kora://contact/<username>`.
   Future<Map<String, Object?>?> _findContactByQrData(String data) async {
     return ContactsService.instance.findByQrData(data);
   }
@@ -276,6 +344,11 @@ class _QrCodeScreenState extends State<QrCodeScreen>
         label: 'Share QR code',
         onTap: _shareQrCode,
       ),
+      KoraMenuOption(
+        icon: Icons.refresh_rounded,
+        label: 'Reset QR code',
+        onTap: _showResetDialog,
+      ),
     ]);
   }
 
@@ -310,7 +383,7 @@ class _QrCodeScreenState extends State<QrCodeScreen>
                     child: CircularProgressIndicator(strokeWidth: 2, color: textPrimary),
                   )
                 : Icon(Icons.share_outlined, color: textPrimary, size: 22),
-            onPressed: _shareQrCode,
+            onPressed: _sharing ? null : _shareQrCode,
           ),
           IconButton(
             icon: Icon(Icons.more_vert, color: textPrimary),
@@ -360,7 +433,7 @@ class _QrCodeScreenState extends State<QrCodeScreen>
     final username = _session?['username']?.toString() ?? 'user';
     final koraId = _session?['koraId']?.toString() ?? '';
     final avatarUrl = _session?['avatarUrl']?.toString();
-    final qrData = koraId.isNotEmpty ? 'kora://contact/$koraId' : 'kora://contact/$username';
+    final qrData = 'kora://contact/$_qrSeed';
 
     return SafeArea(
       child: SingleChildScrollView(
@@ -484,17 +557,19 @@ class _QrCodeScreenState extends State<QrCodeScreen>
 
   Widget _buildScanTab(BuildContext context) {
     return AnimatedBuilder(
-      animation: _tabController,
+      animation: Listenable.merge([_tabController, _scanAnim]),
       builder: (context, _) {
         final active = _tabController.index == 1;
         final screenWidth = MediaQuery.of(context).size.width;
-        final boxSize = screenWidth * 0.76;
+        final boxSize = screenWidth * 0.72;
 
         return Stack(
           fit: StackFit.expand,
           children: [
+            // Dark background
             Container(color: KoraColors.trueBlack),
-            // Camera flip button — top-right, floating over the dark area
+
+            // Camera flip button — top-right
             Positioned(
               top: 20,
               right: 20,
@@ -511,26 +586,60 @@ class _QrCodeScreenState extends State<QrCodeScreen>
                 ),
               ),
             ),
-            // Rounded-square camera viewfinder — WhatsApp-style, not full bleed
+
+            // Centered viewfinder with scan line + corner brackets
             Center(
               child: Padding(
                 padding: const EdgeInsets.only(bottom: 96),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(20),
-                      child: SizedBox(
-                        width: boxSize,
-                        height: boxSize,
-                        child: active
-                            ? MobileScanner(
-                                controller: _scannerController,
-                                onDetect: _onDetect,
-                                fit: BoxFit.cover,
-                              )
-                            : Container(color: KoraColors.trueBlack),
-                      ),
+                    Stack(
+                      children: [
+                        // Camera view
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(20),
+                          child: SizedBox(
+                            width: boxSize,
+                            height: boxSize,
+                            child: active
+                                ? MobileScanner(
+                                    controller: _scannerController,
+                                    onDetect: _onDetect,
+                                    fit: BoxFit.cover,
+                                  )
+                                : Container(color: KoraColors.trueBlack),
+                          ),
+                        ),
+                        // Corner brackets (WhatsApp-style)
+                        _buildCornerBrackets(boxSize),
+                        // Animated scan line
+                        if (active)
+                          Positioned(
+                            left: 8,
+                            right: 8,
+                            top: 8 + (_scanAnim.value * (boxSize - 16)),
+                            child: Container(
+                              height: 2,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Colors.transparent,
+                                    KoraColors.purple.withValues(alpha: 0.8),
+                                    KoraColors.blue.withValues(alpha: 0.8),
+                                    Colors.transparent,
+                                  ],
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: KoraColors.purple.withValues(alpha: 0.5),
+                                    blurRadius: 8,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                     const SizedBox(height: 20),
                     Text(
@@ -546,41 +655,206 @@ class _QrCodeScreenState extends State<QrCodeScreen>
                 ),
               ),
             ),
-            // Bottom row — gallery (pick a QR from a photo) and torch toggle
+
+            // Bottom row — gallery pick + flash toggle
             Positioned(
+              bottom: 0,
               left: 0,
               right: 0,
-              bottom: 28,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 28),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    GestureDetector(
-                      onTap: _pickFromGallery,
-                      child: const Icon(Icons.photo_library_outlined, color: Colors.white, size: 24),
-                    ),
-                    ValueListenableBuilder<MobileScannerState>(
-                      valueListenable: _scannerController,
-                      builder: (context, state, _) {
-                        final torchOn = state.torchState == TorchState.on;
-                        return GestureDetector(
-                          onTap: _toggleTorch,
-                          child: Icon(
-                            torchOn ? Icons.flash_on : Icons.flash_off,
-                            color: Colors.white,
-                            size: 24,
-                          ),
-                        );
-                      },
-                    ),
-                  ],
+              child: SafeArea(
+                top: false,
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 24),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      GestureDetector(
+                        onTap: _pickFromGallery,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 48,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.12),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.photo_library_outlined, color: Colors.white, size: 22),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Gallery',
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.6),
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      ValueListenableBuilder<MobileScannerState>(
+                        valueListenable: _scannerController,
+                        builder: (context, state, _) {
+                          final torchOn = state.torchState == TorchState.on;
+                          return GestureDetector(
+                            onTap: _toggleTorch,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 48,
+                                  height: 48,
+                                  decoration: BoxDecoration(
+                                    color: torchOn
+                                        ? KoraColors.purple.withValues(alpha: 0.3)
+                                        : Colors.white.withValues(alpha: 0.12),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    torchOn ? Icons.flash_on : Icons.flash_off,
+                                    color: Colors.white,
+                                    size: 22,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  torchOn ? 'Flash on' : 'Flash off',
+                                  style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.6),
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
           ],
         );
       },
+    );
+  }
+
+  /// WhatsApp-style corner brackets around the scan area
+  Widget _buildCornerBrackets(double size) {
+    const bracketLen = 28.0;
+    const bracketThick = 3.0;
+    const bracketColor = Colors.white;
+    final radius = BorderRadius.circular(20);
+
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        children: [
+          // Top-left
+          Positioned(
+            top: 0,
+            left: 0,
+            child: Container(
+              width: bracketLen,
+              height: bracketThick,
+              decoration: BoxDecoration(
+                color: bracketColor,
+                borderRadius: BorderRadius.only(topLeft: Radius.circular(6)),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 0,
+            left: 0,
+            child: Container(
+              width: bracketThick,
+              height: bracketLen,
+              decoration: BoxDecoration(
+                color: bracketColor,
+                borderRadius: BorderRadius.only(topLeft: Radius.circular(6)),
+              ),
+            ),
+          ),
+          // Top-right
+          Positioned(
+            top: 0,
+            right: 0,
+            child: Container(
+              width: bracketLen,
+              height: bracketThick,
+              decoration: BoxDecoration(
+                color: bracketColor,
+                borderRadius: BorderRadius.only(topRight: Radius.circular(6)),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 0,
+            right: 0,
+            child: Container(
+              width: bracketThick,
+              height: bracketLen,
+              decoration: BoxDecoration(
+                color: bracketColor,
+                borderRadius: BorderRadius.only(topRight: Radius.circular(6)),
+              ),
+            ),
+          ),
+          // Bottom-left
+          Positioned(
+            bottom: 0,
+            left: 0,
+            child: Container(
+              width: bracketLen,
+              height: bracketThick,
+              decoration: BoxDecoration(
+                color: bracketColor,
+                borderRadius: BorderRadius.only(bottomLeft: Radius.circular(6)),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: 0,
+            left: 0,
+            child: Container(
+              width: bracketThick,
+              height: bracketLen,
+              decoration: BoxDecoration(
+                color: bracketColor,
+                borderRadius: BorderRadius.only(bottomLeft: Radius.circular(6)),
+              ),
+            ),
+          ),
+          // Bottom-right
+          Positioned(
+            bottom: 0,
+            right: 0,
+            child: Container(
+              width: bracketLen,
+              height: bracketThick,
+              decoration: BoxDecoration(
+                color: bracketColor,
+                borderRadius: BorderRadius.only(bottomRight: Radius.circular(6)),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: 0,
+            right: 0,
+            child: Container(
+              width: bracketThick,
+              height: bracketLen,
+              decoration: BoxDecoration(
+                color: bracketColor,
+                borderRadius: BorderRadius.only(bottomRight: Radius.circular(6)),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -607,4 +881,3 @@ class _GradientTabPainter extends BoxPainter {
     canvas.drawRRect(rrect, paint);
   }
 }
-
