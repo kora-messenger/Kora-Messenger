@@ -6,9 +6,9 @@ import '../../services/session_manager.dart';
 import '../../services/device_manager.dart';
 import '../../theme/kora_colors.dart';
 
-/// Devices screen — shows every device currently logged in to the
-/// user's Kora account, styled after Telegram's "Devices" screen.
+/// Telegram-style Devices screen.
 ///
+/// Shows every device currently logged in to the user's Kora account.
 /// The current device is pinned at the top with no terminate option.
 /// Other devices can be individually terminated, or all at once via
 /// "Terminate all other sessions".
@@ -144,9 +144,7 @@ class _DevicesScreenState extends State<DevicesScreen> {
           'email': email,
           'deviceRecordId': d.id,
         });
-      } catch (_) {
-        // Continue with the rest even if one fails
-      }
+      } catch (_) {}
     }
     setState(() {
       _devices.removeWhere((d) => d.deviceId != _currentDeviceId);
@@ -206,12 +204,22 @@ class _DevicesScreenState extends State<DevicesScreen> {
       final dt = DateTime.parse(iso);
       final diff = DateTime.now().difference(dt);
       if (diff.inMinutes < 1) return 'Just now';
-      if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-      if (diff.inHours < 24) return '${diff.inHours}h ago';
-      if (diff.inDays < 30) return '${diff.inDays}d ago';
+      if (diff.inMinutes < 60) return '${diff.inMinutes} min ago';
+      if (diff.inHours < 24) return '${diff.inHours} h ago';
+      if (diff.inDays < 7) return '${diff.inDays} d ago';
       return '${dt.day}/${dt.month}/${dt.year}';
     } catch (_) {
       return 'Unknown';
+    }
+  }
+
+  String _formatDate(String? iso) {
+    if (iso == null || iso.isEmpty) return '';
+    try {
+      final dt = DateTime.parse(iso);
+      return '${dt.day.toString().padLeft(2, '0')}.${dt.month.toString().padLeft(2, '0')}.${dt.year}';
+    } catch (_) {
+      return '';
     }
   }
 
@@ -255,7 +263,7 @@ class _DevicesScreenState extends State<DevicesScreen> {
       ),
       body: SafeArea(
         child: _loading
-            ? const Center(child: CircularProgressIndicator())
+            ? const Center(child: CircularProgressIndicator(color: KoraColors.purple))
             : _error != null
                 ? _buildError(textPrimary, textSecondary)
                 : RefreshIndicator(
@@ -264,6 +272,7 @@ class _DevicesScreenState extends State<DevicesScreen> {
                     child: ListView(
                       padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
                       children: [
+                        // Info banner
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
@@ -287,54 +296,58 @@ class _DevicesScreenState extends State<DevicesScreen> {
                         ),
                         const SizedBox(height: 16),
 
-                        // Link a device button (WhatsApp-style)
+                        // Link a device button
                         _buildLinkDeviceButton(card, border, textPrimary, textSecondary),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 8),
+
                         // Show pairing code button
                         _buildPairingCodeButton(card, border, textPrimary, textSecondary),
+                        const SizedBox(height: 24),
 
-                        const SizedBox(height: 20),
+                        // This device section
                         if (currentDevice.isNotEmpty) ...[
-                          _sectionLabel('This device', textMuted),
-                          _deviceTile(
-                            currentDevice.first,
-                            isCurrent: true,
-                            card: card,
-                            border: border,
-                            textPrimary: textPrimary,
-                            textSecondary: textSecondary,
-                          ),
-                          const SizedBox(height: 20),
+                          _buildSectionHeader('THIS DEVICE', textMuted),
+                          ...currentDevice.map((d) => _buildCurrentDeviceCard(d, card, border, textPrimary, textSecondary, textMuted)),
+                          const SizedBox(height: 24),
                         ],
+
+                        // Other devices section
                         if (otherDevices.isNotEmpty) ...[
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              _sectionLabel('Other devices', textMuted),
-                              TextButton(
-                                onPressed: _terminateAllOthers,
-                                child: const Text(
-                                  'Terminate all',
-                                  style: TextStyle(color: Colors.redAccent, fontSize: 13, fontWeight: FontWeight.w600),
-                                ),
+                          _buildSectionHeader('ACTIVE SESSIONS', textMuted),
+                          ...otherDevices.map((d) => _buildOtherDeviceCard(d, card, border, textPrimary, textSecondary, textMuted)),
+                          const SizedBox(height: 16),
+
+                          // Terminate all button
+                          SizedBox(
+                            width: double.infinity,
+                            child: TextButton.icon(
+                              onPressed: _terminateAllOthers,
+                              icon: const Icon(Icons.logout_rounded, color: Colors.redAccent, size: 20),
+                              label: const Text(
+                                'Terminate all other sessions',
+                                style: TextStyle(color: Colors.redAccent, fontSize: 15, fontWeight: FontWeight.w600),
                               ),
-                            ],
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                              ),
+                            ),
                           ),
-                          ...otherDevices.map((d) => _deviceTile(
-                                d,
-                                isCurrent: false,
-                                card: card,
-                                border: border,
-                                textPrimary: textPrimary,
-                                textSecondary: textSecondary,
-                              )),
                         ] else if (currentDevice.isNotEmpty) ...[
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 24),
-                            child: Center(
-                              child: Text(
-                                'No other devices are logged in.',
-                                style: TextStyle(color: textMuted, fontSize: 13),
+                          // Only one device — show a hint
+                          const SizedBox(height: 32),
+                          Center(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 32),
+                              child: Column(
+                                children: [
+                                  Icon(Icons.devices_other_rounded, color: textMuted, size: 40),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    'This is the only device linked to your account',
+                                    style: TextStyle(color: textMuted, fontSize: 13.5),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
                               ),
                             ),
                           ),
@@ -346,51 +359,77 @@ class _DevicesScreenState extends State<DevicesScreen> {
     );
   }
 
+  Widget _buildError(Color textPrimary, Color textSecondary) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.cloud_off_rounded, color: textSecondary, size: 40),
+          const SizedBox(height: 12),
+          Text(_error!, style: TextStyle(color: textPrimary, fontSize: 14)),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: _load,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: KoraColors.purple,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Retry'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title, Color color) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 8, top: 4),
+      child: Text(
+        title,
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.8,
+        ),
+      ),
+    );
+  }
+
   Widget _buildLinkDeviceButton(Color card, Color border, Color textPrimary, Color textSecondary) {
     return GestureDetector(
       onTap: () async {
-        final linked = await Navigator.push<bool>(
+        final result = await Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => const LinkDeviceScreen()),
+          MaterialPageRoute(builder: (context) => const LinkDeviceScreen()),
         );
-        if (linked == true) {
-          _load();
-        }
+        if (result == true) _load();
       },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
           color: card,
-          border: Border(
-            top: BorderSide(color: border, width: 0.5),
-            bottom: BorderSide(color: border, width: 0.5),
-          ),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: border, width: 0.5),
         ),
         child: Row(
           children: [
             Container(
-              width: 40,
-              height: 40,
+              width: 36, height: 36,
               decoration: BoxDecoration(
-                gradient: KoraColors.brandGradient,
+                color: KoraColors.purple.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.qr_code_scanner_rounded, color: Colors.white, size: 20),
+              child: const Icon(Icons.qr_code_scanner_rounded, color: KoraColors.purple, size: 20),
             ),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Link a device',
-                    style: TextStyle(color: textPrimary, fontSize: 15, fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Scan a QR code to link a new device to your account',
-                    style: TextStyle(color: textSecondary, fontSize: 12.5),
-                  ),
+                  Text('Link a device', style: TextStyle(color: textPrimary, fontSize: 15, fontWeight: FontWeight.w600)),
+                  Text('Scan QR code from another device', style: TextStyle(color: textSecondary, fontSize: 12.5)),
                 ],
               ),
             ),
@@ -404,44 +443,32 @@ class _DevicesScreenState extends State<DevicesScreen> {
   Widget _buildPairingCodeButton(Color card, Color border, Color textPrimary, Color textSecondary) {
     return GestureDetector(
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const PairingQrScreen()),
-        );
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const PairingQrScreen()));
       },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
           color: card,
-          border: Border(
-            bottom: BorderSide(color: border, width: 0.5),
-          ),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: border, width: 0.5),
         ),
         child: Row(
           children: [
             Container(
-              width: 40,
-              height: 40,
+              width: 36, height: 36,
               decoration: BoxDecoration(
                 color: KoraColors.purple.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.qr_code_rounded, color: KoraColors.purple, size: 20),
+              child: const Icon(Icons.qr_code_2_rounded, color: KoraColors.purple, size: 20),
             ),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Show pairing code',
-                    style: TextStyle(color: textPrimary, fontSize: 15, fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Display a QR code for another device to scan',
-                    style: TextStyle(color: textSecondary, fontSize: 12.5),
-                  ),
+                  Text('Show pairing code', style: TextStyle(color: textPrimary, fontSize: 15, fontWeight: FontWeight.w600)),
+                  Text('Display QR code for another device to scan', style: TextStyle(color: textSecondary, fontSize: 12.5)),
                 ],
               ),
             ),
@@ -452,133 +479,126 @@ class _DevicesScreenState extends State<DevicesScreen> {
     );
   }
 
-  Widget _buildError(Color textPrimary, Color textSecondary) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+  Widget _buildCurrentDeviceCard(
+    _KoraDevice device, Color card, Color border, Color textPrimary, Color textSecondary, Color textMuted) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: card,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: border, width: 0.5),
+      ),
+      child: Row(
         children: [
-          Icon(Icons.error_outline_rounded, color: textSecondary, size: 40),
-          const SizedBox(height: 12),
-          Text(_error ?? 'Something went wrong', style: TextStyle(color: textPrimary, fontSize: 14)),
-          const SizedBox(height: 12),
-          TextButton(
-            onPressed: _load,
-            child: const Text('Retry', style: TextStyle(color: KoraColors.purple, fontWeight: FontWeight.w600)),
+          Container(
+            width: 40, height: 40,
+            decoration: BoxDecoration(
+              color: KoraColors.purple.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(_platformIcon(device.platform), color: KoraColors.purple, size: 22),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  device.deviceName,
+                  style: TextStyle(color: textPrimary, fontSize: 15, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(width: 6, height: 6, decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle)),
+                          const SizedBox(width: 6),
+                          Text('Online', style: TextStyle(color: Colors.green.shade300, fontSize: 11, fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    if (device.isTrusted)
+                      Text('Trusted device', style: TextStyle(color: textMuted, fontSize: 11.5)),
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _sectionLabel(String label, Color color) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 4, bottom: 8),
-      child: Text(
-        label,
-        style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w600, letterSpacing: 0.3),
-      ),
-    );
-  }
-
-  Widget _deviceTile(
-    _KoraDevice device, {
-    required bool isCurrent,
-    required Color card,
-    required Color border,
-    required Color textPrimary,
-    required Color textSecondary,
-  }) {
+  Widget _buildOtherDeviceCard(
+    _KoraDevice device, Color card, Color border, Color textPrimary, Color textSecondary, Color textMuted) {
     final isTerminating = _terminating.contains(device.id);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 2),
-      child: Container(
-        decoration: BoxDecoration(
-          color: card,
-          border: Border(
-            top: BorderSide(color: border, width: 0.5),
-            bottom: BorderSide(color: border, width: 0.5),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: card,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: border, width: 0.5),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40, height: 40,
+            decoration: BoxDecoration(
+              color: KoraColors.purple.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(_platformIcon(device.platform), color: textSecondary, size: 22),
           ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  gradient: isCurrent ? KoraColors.brandGradient : null,
-                  color: isCurrent ? null : textSecondary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  device.deviceName,
+                  style: TextStyle(color: textPrimary, fontSize: 15, fontWeight: FontWeight.w600),
                 ),
-                child: Icon(
-                  _platformIcon(device.platform),
-                  color: isCurrent ? Colors.white : textSecondary,
-                  size: 20,
+                const SizedBox(height: 4),
+                Text(
+                  'Last active ${_relativeTime(device.lastLoginDate)}',
+                  style: TextStyle(color: textMuted, fontSize: 12.5),
                 ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            device.deviceName,
-                            style: TextStyle(color: textPrimary, fontSize: 15, fontWeight: FontWeight.w600),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if (isCurrent)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: KoraColors.purple.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: const Text(
-                              'This device',
-                              style: TextStyle(color: KoraColors.purple, fontSize: 11, fontWeight: FontWeight.w700),
-                            ),
-                          ),
-                      ],
+                if (device.firstLoginDate != null && device.firstLoginDate!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      'Linked ${_formatDate(device.firstLoginDate)}',
+                      style: TextStyle(color: textMuted.withValues(alpha: 0.7), fontSize: 11),
                     ),
-                    const SizedBox(height: 3),
-                    Text(
-                      isCurrent
-                          ? 'Active now'
-                          : 'Last active ${_relativeTime(device.lastLoginDate)}',
-                      style: TextStyle(color: textSecondary, fontSize: 12.5),
-                    ),
-                    if (device.isTrusted && !isCurrent)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 3),
-                        child: Text(
-                          'Trusted device',
-                          style: TextStyle(color: textSecondary, fontSize: 11.5),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              if (!isCurrent)
-                isTerminating
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : IconButton(
-                        icon: const Icon(Icons.close_rounded, color: Colors.redAccent, size: 20),
-                        onPressed: () => _terminate(device),
-                        tooltip: 'Terminate session',
-                      ),
-            ],
+                  ),
+              ],
+            ),
           ),
-        ),
+          const SizedBox(width: 8),
+          isTerminating
+              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: KoraColors.purple))
+              : GestureDetector(
+                  onTap: () => _terminate(device),
+                  child: Container(
+                    width: 36, height: 36,
+                    decoration: BoxDecoration(
+                      color: Colors.redAccent.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.close_rounded, color: Colors.redAccent, size: 20),
+                  ),
+                ),
+        ],
       ),
     );
   }

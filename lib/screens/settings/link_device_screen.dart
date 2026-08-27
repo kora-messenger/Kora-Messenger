@@ -6,14 +6,14 @@ import '../../services/session_manager.dart';
 import '../../services/device_manager.dart';
 import '../../theme/kora_colors.dart';
 
-/// WhatsApp-style "Link a device" screen.
+/// Telegram-style "Link a device" QR scanner screen.
 ///
 /// Flow:
-/// 1. User opens this screen from Settings -> Devices -> "Link a device"
-/// 2. Camera opens with a QR viewfinder (WhatsApp companion mode)
-/// 3. User scans the QR code displayed on the device they want to link
-/// 4. Kora validates the pairing token via the backend and registers
-///    the new device session
+/// 1. User opens this on the NEW device they want to link
+/// 2. Camera opens with a QR viewfinder and scanning animation
+/// 3. User scans the QR code displayed on their primary device
+/// 4. Kora validates the pairing token and registers the device session
+/// 5. On success, the user's account data is returned and they're logged in
 class LinkDeviceScreen extends StatefulWidget {
   const LinkDeviceScreen({super.key});
 
@@ -25,6 +25,7 @@ class _LinkDeviceScreenState extends State<LinkDeviceScreen> {
   late final MobileScannerController _scannerController;
   bool _scanning = true;
   bool _linking = false;
+  bool _success = false;
   String? _error;
   bool _torchOn = false;
 
@@ -82,14 +83,14 @@ class _LinkDeviceScreenState extends State<LinkDeviceScreen> {
       final myDeviceId = await DeviceManager.getDeviceId();
       final myDeviceName = await DeviceManager.getDeviceName();
       final myPlatform = DeviceManager.getPlatform();
-      final myEmail = SessionManager.instance.currentEmail;
+      final myEmail = email ?? SessionManager.instance.currentEmail;
 
       final result = await KoraApi.postTo(
         KoraApi.linkDeviceEndpoint,
         {
           'action': 'linkDevice',
           'pairingToken': token,
-          'ownerEmail': email ?? myEmail,
+          'ownerEmail': myEmail,
           'newDeviceId': myDeviceId,
           'newDeviceName': myDeviceName,
           'newPlatform': myPlatform,
@@ -97,14 +98,13 @@ class _LinkDeviceScreenState extends State<LinkDeviceScreen> {
       );
 
       if (result['success'] == true) {
+        setState(() {
+          _success = true;
+          _linking = false;
+        });
+        // Show success state briefly then pop
+        await Future.delayed(const Duration(milliseconds: 1200));
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Device linked successfully'),
-              behavior: SnackBarBehavior.floating,
-              backgroundColor: KoraColors.purple,
-            ),
-          );
           Navigator.pop(context, true);
         }
       } else {
@@ -127,6 +127,15 @@ class _LinkDeviceScreenState extends State<LinkDeviceScreen> {
     _torchOn = !_torchOn;
     _scannerController.toggleTorch();
     setState(() {});
+  }
+
+  void _retry() {
+    setState(() {
+      _error = null;
+      _scanning = true;
+      _linking = false;
+      _success = false;
+    });
   }
 
   @override
@@ -159,19 +168,26 @@ class _LinkDeviceScreenState extends State<LinkDeviceScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
               child: Text(
-                'Point your camera at the QR code displayed on the device you want to link.',
+                _success
+                    ? 'Device linked to your Kora account successfully'
+                    : 'Point your camera at the QR code on the device you want to link',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: textSecondary, fontSize: 13.5, height: 1.5),
+                style: TextStyle(
+                  color: _success ? Colors.green : textSecondary,
+                  fontSize: 13.5,
+                  height: 1.5,
+                ),
               ),
             ),
             const SizedBox(height: 8),
 
-            // Camera viewfinder
+            // Camera / scanner area
             Expanded(
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  if (_scanning)
+                  // Camera or overlay
+                  if (_scanning && !_success)
                     MobileScanner(
                       controller: _scannerController,
                       onDetect: _onDetect,
@@ -179,8 +195,42 @@ class _LinkDeviceScreenState extends State<LinkDeviceScreen> {
                   else
                     Container(color: Colors.black87),
 
-                  // Viewfinder frame overlay
-                  if (_scanning) _buildViewfinderFrame(),
+                  // Viewfinder frame with scanning line
+                  if (_scanning && !_success) _buildViewfinderFrame(),
+
+                  // Success overlay
+                  if (_success)
+                    Container(
+                      color: Colors.black54,
+                      child: Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 80,
+                              height: 80,
+                              decoration: BoxDecoration(
+                                color: Colors.green,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.green.withValues(alpha: 0.5),
+                                    blurRadius: 30,
+                                    spreadRadius: 2,
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(Icons.check_rounded, color: Colors.white, size: 48),
+                            ),
+                            const SizedBox(height: 20),
+                            Text(
+                              'Linked!',
+                              style: TextStyle(color: textPrimary, fontSize: 20, fontWeight: FontWeight.w700),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
 
                   // Linking spinner
                   if (_linking)
@@ -202,7 +252,7 @@ class _LinkDeviceScreenState extends State<LinkDeviceScreen> {
                     ),
 
                   // Error banner
-                  if (_error != null && !_linking)
+                  if (_error != null && !_linking && !_success)
                     Positioned(
                       top: 16,
                       left: 20,
@@ -225,8 +275,8 @@ class _LinkDeviceScreenState extends State<LinkDeviceScreen> {
                               ),
                             ),
                             IconButton(
-                              icon: const Icon(Icons.close, color: Colors.redAccent, size: 16),
-                              onPressed: () => setState(() => _error = null),
+                              icon: const Icon(Icons.refresh, color: Colors.redAccent, size: 18),
+                              onPressed: _retry,
                             ),
                           ],
                         ),
@@ -234,7 +284,7 @@ class _LinkDeviceScreenState extends State<LinkDeviceScreen> {
                     ),
 
                   // Flash toggle
-                  if (_scanning)
+                  if (_scanning && !_success)
                     Positioned(
                       bottom: 24,
                       right: 24,
@@ -288,6 +338,8 @@ class _LinkDeviceScreenState extends State<LinkDeviceScreen> {
                         color: KoraColors.purple,
                         fontSize: 13.5,
                         fontWeight: FontWeight.w600,
+                        decoration: TextDecoration.underline,
+                        decorationColor: KoraColors.purple.withValues(alpha: 0.3),
                       ),
                     ),
                   ),
@@ -300,40 +352,93 @@ class _LinkDeviceScreenState extends State<LinkDeviceScreen> {
     );
   }
 
-  /// WhatsApp-style viewfinder: dark overlay with transparent rounded square
-  /// and animated corner brackets.
   Widget _buildViewfinderFrame() {
-    return IgnorePointer(
-      child: Stack(
-        children: [
-          // Dark overlay with transparent center (srcOut blend)
-          ColorFiltered(
-            colorFilter: ColorFilter.mode(
-              Colors.black.withValues(alpha: 0.5),
-              BlendMode.srcOut,
-            ),
-            child: Center(
-              child: Container(
-                width: 260,
-                height: 260,
-                decoration: BoxDecoration(
-                  color: Colors.red,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-              ),
-            ),
+    return Center(
+      child: Container(
+        width: 250,
+        height: 250,
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: KoraColors.purple.withValues(alpha: 0.4),
+            width: 2,
           ),
-          // Corner brackets
-          Center(
-            child: SizedBox(
-              width: 260,
-              height: 260,
-              child: CustomPaint(painter: _CornerBracketPainter()),
-            ),
-          ),
-        ],
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Stack(
+          children: [
+            // Corner brackets
+            ..._buildCornerBrackets(),
+            // Scanning line animation
+            _ScanningLine(),
+          ],
+        ),
       ),
     );
+  }
+
+  List<Widget> _buildCornerBrackets() {
+    const bracketSize = 30.0;
+    const bracketWidth = 3.0;
+    final color = KoraColors.purple;
+
+    return [
+      // Top-left
+      Positioned(
+        top: 0, left: 0,
+        child: Container(
+          width: bracketSize, height: bracketSize,
+          decoration: BoxDecoration(
+            border: Border(
+              top: BorderSide(color: color, width: bracketWidth),
+              left: BorderSide(color: color, width: bracketWidth),
+            ),
+            borderRadius: const BorderRadius.only(topLeft: Radius.circular(16)),
+          ),
+        ),
+      ),
+      // Top-right
+      Positioned(
+        top: 0, right: 0,
+        child: Container(
+          width: bracketSize, height: bracketSize,
+          decoration: BoxDecoration(
+            border: Border(
+              top: BorderSide(color: color, width: bracketWidth),
+              right: BorderSide(color: color, width: bracketWidth),
+            ),
+            borderRadius: const BorderRadius.only(topRight: Radius.circular(16)),
+          ),
+        ),
+      ),
+      // Bottom-left
+      Positioned(
+        bottom: 0, left: 0,
+        child: Container(
+          width: bracketSize, height: bracketSize,
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(color: color, width: bracketWidth),
+              left: BorderSide(color: color, width: bracketWidth),
+            ),
+            borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(16)),
+          ),
+        ),
+      ),
+      // Bottom-right
+      Positioned(
+        bottom: 0, right: 0,
+        child: Container(
+          width: bracketSize, height: bracketSize,
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(color: color, width: bracketWidth),
+              right: BorderSide(color: color, width: bracketWidth),
+            ),
+            borderRadius: const BorderRadius.only(bottomRight: Radius.circular(16)),
+          ),
+        ),
+      ),
+    ];
   }
 
   void _showHowToLinkSheet(Color textPrimary, Color textSecondary, Color card) {
@@ -344,7 +449,7 @@ class _LinkDeviceScreenState extends State<LinkDeviceScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 24, 24, 36),
+        padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -354,22 +459,22 @@ class _LinkDeviceScreenState extends State<LinkDeviceScreen> {
               style: TextStyle(color: textPrimary, fontSize: 18, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 20),
-            _howToStep('1', 'On your other device, open Kora and go to Settings', textPrimary, textSecondary),
-            _howToStep('2', 'Tap "Devices" then "Link a device"', textPrimary, textSecondary),
-            _howToStep('3', 'A QR code will appear on that device', textPrimary, textSecondary),
-            _howToStep('4', 'Scan that QR code with this phone', textPrimary, textSecondary),
-            _howToStep('5', 'Wait for the confirmation and you are linked!', textPrimary, textSecondary),
-            const SizedBox(height: 24),
+            _buildStep(1, 'Open Kora on your other device and go to Settings > Devices', textPrimary, textSecondary),
+            _buildStep(2, 'Tap "Show pairing code" to display a QR code', textPrimary, textSecondary),
+            _buildStep(3, 'Point this device\'s camera at the QR code', textPrimary, textSecondary),
+            _buildStep(4, 'Confirm the link and you\'re logged in on both devices', textPrimary, textSecondary),
+            const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
-              child: TextButton(
+              child: ElevatedButton(
                 onPressed: () => Navigator.pop(context),
-                style: TextButton.styleFrom(
-                  backgroundColor: KoraColors.purple.withValues(alpha: 0.12),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: KoraColors.purple,
+                  foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                child: const Text('Got it', style: TextStyle(color: KoraColors.purple, fontWeight: FontWeight.w700, fontSize: 15)),
+                child: const Text('Got it', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
               ),
             ),
           ],
@@ -378,21 +483,20 @@ class _LinkDeviceScreenState extends State<LinkDeviceScreen> {
     );
   }
 
-  Widget _howToStep(String num, String text, Color textPrimary, Color textSecondary) {
+  Widget _buildStep(int n, String text, Color textPrimary, Color textSecondary) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.only(bottom: 16),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 24,
-            height: 24,
-            decoration: BoxDecoration(
-              color: KoraColors.purple.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(6),
+            width: 24, height: 24,
+            decoration: const BoxDecoration(
+              gradient: KoraColors.brandGradient,
+              shape: BoxShape.circle,
             ),
             child: Center(
-              child: Text(num, style: const TextStyle(color: KoraColors.purple, fontSize: 13, fontWeight: FontWeight.w700)),
+              child: Text('$n', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
             ),
           ),
           const SizedBox(width: 12),
@@ -405,59 +509,53 @@ class _LinkDeviceScreenState extends State<LinkDeviceScreen> {
   }
 }
 
-/// Paints L-shaped corner brackets around the viewfinder cutout.
-class _CornerBracketPainter extends CustomPainter {
+/// Animated scanning line that moves up and down inside the viewfinder.
+class _ScanningLine extends StatefulWidget {
   @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = KoraColors.purple
-      ..strokeWidth = 3
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
+  State<_ScanningLine> createState() => _ScanningLineState();
+}
 
-    const cornerLen = 28.0;
-    const radius = 20.0;
-    final w = size.width;
-    final h = size.height;
+class _ScanningLineState extends State<_ScanningLine> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
 
-    // Top-left
-    canvas.drawPath(
-      Path()
-        ..moveTo(radius, 0)
-        ..lineTo(cornerLen, 0)
-        ..moveTo(0, cornerLen)
-        ..lineTo(0, radius),
-      paint,
-    );
-    // Top-right
-    canvas.drawPath(
-      Path()
-        ..moveTo(w - cornerLen, 0)
-        ..lineTo(w - radius, 0)
-        ..moveTo(w, cornerLen)
-        ..lineTo(w, radius),
-      paint,
-    );
-    // Bottom-left
-    canvas.drawPath(
-      Path()
-        ..moveTo(0, h - cornerLen)
-        ..lineTo(0, h - radius)
-        ..moveTo(cornerLen, h)
-        ..lineTo(radius, h),
-      paint,
-    );
-    // Bottom-right
-    canvas.drawPath(
-      Path()
-        ..moveTo(w - cornerLen, h)
-        ..lineTo(w - radius, h)
-        ..moveTo(w, h - cornerLen)
-        ..lineTo(w, h - radius),
-      paint,
-    );
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    )..repeat(reverse: true);
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return Positioned(
+          left: 8,
+          right: 8,
+          top: 8 + (_controller.value * 226),
+          child: Container(
+            height: 2,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.transparent,
+                  KoraColors.purple.withValues(alpha: 0.8),
+                  Colors.transparent,
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
 }
