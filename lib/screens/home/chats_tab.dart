@@ -455,12 +455,6 @@ class _ChatsTabState extends State<ChatsTab> {
   }
 
   void _openSelectionOverflowMenu() {
-    final selected = _selectedChats;
-    final anyLocked = selected.any((c) {
-      // Check if any selected chat is locked
-      return false; // simplified — lock state checked on demand
-    });
-
     KoraMenuSheet.show(context, [
       KoraMenuOption(
         icon: Icons.select_all,
@@ -493,27 +487,6 @@ class _ChatsTabState extends State<ChatsTab> {
       ),
     ]);
   }
-  void _openSelectionOverflowMenu() {
-    KoraMenuSheet.show(context, [
-      KoraMenuOption(
-        icon: Icons.select_all,
-        label: 'Select all',
-        onTap: () {
-          setState(() {
-            _selectedIds.addAll(_filteredChats.map((c) => c.id));
-          });
-        },
-      ),
-      KoraMenuOption(
-        icon: Icons.mark_chat_read_outlined,
-        label: 'Mark as read',
-        onTap: () => _markSelectedRead(true),
-      ),
-      KoraMenuOption(
-        icon: Icons.mark_chat_unread_outlined,
-        label: 'Mark as unread',
-        onTap: () => _markSelectedUnread(),
-      ),
     ]);
   }
 
@@ -559,16 +532,6 @@ class _ChatsTabState extends State<ChatsTab> {
 
   // ── Selection mode handlers ──
 
-  void _onRowTap(ChatPreview chat) {
-    if (_isSelecting) {
-      _toggleSelected(chat.id);
-    } else {
-      _openChat(chat);
-    }
-  }
-
-  void _onRowLongPress(ChatPreview chat) {
-    setState(() => _selectedIds.add(chat.id));
   }
 
   void _toggleSelected(String chatId) {
@@ -580,8 +543,6 @@ class _ChatsTabState extends State<ChatsTab> {
       }
     });
   }
-
-  void _exitSelection() => setState(() => _selectedIds.clear());
 
   void _selectAll() {
     setState(() {
@@ -663,16 +624,6 @@ class _ChatsTabState extends State<ChatsTab> {
             MaterialPageRoute(builder: (_) => const ProfileTab()),
           );
         },
-      ),
-    ]);
-  }
-
-  void _openSelectionMenu() {
-    KoraMenuSheet.show(context, [
-      KoraMenuOption(
-        icon: Icons.select_all,
-        label: 'Select all',
-        onTap: _selectAll,
       ),
     ]);
   }
