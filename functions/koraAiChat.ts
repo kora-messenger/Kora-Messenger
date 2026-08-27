@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
- *  Kora AI Chat — Production v10 (Account-Aware)
+ *  Kora AI Chat — Production v11 (Database-Aware Account Context)
  *  OpenRouter-powered AI chat backend for Kora Messenger
  * ═══════════════════════════════════════════════════════════════════
  *
@@ -11,6 +11,16 @@
  *    • AI can greet by name, tailor premium advice, and reference
  *      the user's profile naturally
  *    • Backward compatible — no userContext = generic responses
+ *
+ *  v11 Changes:
+ *    • DATABASE-AWARE: Queries KoraUser entity directly from the database
+ *      using the user's email, giving the AI verified, up-to-date account
+ *      data — not client-provided (which could be stale or fake).
+ *    • Enriched context: account age, premium expiry, suspension status,
+ *      passkey enrollment, profile completeness, avatar presence, and
+ *      conversation stats.
+ *    • Falls back to client-provided userContext if database lookup fails.
+ *    • Client now only needs to send `email` — the backend fetches the rest.
  *
  *  Request Body:
  *    {
@@ -33,6 +43,9 @@
  * ═══════════════════════════════════════════════════════════════════
  */
 
+// ── Base44 SDK (for database account lookups) ─────────────────────
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
+
 // ── Types ──────────────────────────────────────────────────────────
 
 interface RateLimitEntry { timestamps: number[]; }
@@ -50,6 +63,15 @@ interface UserContext {
   isVerified?: boolean;
   bio?: string;
   profileCompleted?: boolean;
+  // v11: Database-enriched fields
+  premiumExpiresAt?: string;
+  premiumSource?: string;
+  passkeysEnabled?: boolean;
+  isSuspended?: boolean;
+  suspensionReason?: string;
+  accountCreatedAt?: string;
+  hasAvatar?: boolean;
+  phoneNumber?: string;
 }
 
 // ── Constants ──────────────────────────────────────────────────────
@@ -259,6 +281,56 @@ When a user sends media:
 
 // ── Build User Context Section ────────────────────────────────────
 
+
+// ── Database Account Lookup (v11) ─────────────────────────────────
+
+/**
+ * Fetches the user's account from the KoraUser entity in the database.
+ * This gives the AI verified, up-to-date data rather than trusting
+ * client-provided context.
+ *
+ * @param email — the user's email, sent by the client
+ * @param req — the incoming request (needed for Base44 SDK init)
+ * @returns enriched UserContext from the database, or null on failure
+ */
+async function fetchUserFromDatabase(email: string | undefined, req: Request): Promise<UserContext | null> {
+  if (!email || email.length < 3) return null;
+  try {
+    const base44 = createClientFromRequest(req);
+    const db = base44.asServiceRole;
+    const users = await db.entities.KoraUser.filter({ email });
+    if (!users || users.length === 0) return null;
+
+    const u = users[0];
+    const now = new Date();
+    const created = u.created_date ? new Date(u.created_date) : null;
+    const accountAgeDays = created ? Math.floor((now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24)) : 0;
+
+    return {
+      fullName: u.data?.fullName || u.fullName || undefined,
+      username: u.data?.username || undefined,
+      email: u.data?.email || u.email || email,
+      koraId: u.data?.koraId || undefined,
+      isPremium: u.data?.isPremium === true,
+      isVerified: u.data?.isVerified === true,
+      bio: u.data?.bio || undefined,
+      profileCompleted: u.data?.profileCompleted === true,
+      // Enriched fields
+      premiumExpiresAt: u.data?.premiumExpiresAt || undefined,
+      premiumSource: u.data?.premiumSource || undefined,
+      passkeysEnabled: u.data?.passkeysEnabled === true,
+      isSuspended: u.data?.isSuspended === true,
+      suspensionReason: u.data?.suspensionReason || undefined,
+      accountCreatedAt: created ? created.toISOString() : undefined,
+      hasAvatar: !!(u.data?.avatarUrl || u.data?.avatarAsset),
+      phoneNumber: u.data?.phoneNumber || undefined,
+    };
+  } catch (err) {
+    console.error('[koraAiChat] DB lookup failed:', err);
+    return null;
+  }
+}
+
 function buildUserContextSection(ctx?: UserContext): string {
   if (!ctx || !ctx.fullName && !ctx.username && !ctx.email) return '';
 
@@ -302,14 +374,55 @@ function buildUserContextSection(ctx?: UserContext): string {
     parts.push(`Their bio: "${ctx.bio.trim().slice(0, 200)}"`);
   }
 
+  // ── v11: Database-enriched context ──
+  // Account age
+  if (ctx.accountCreatedAt) {
+    const ageDate = new Date(ctx.accountCreatedAt);
+    const ageDays = Math.floor((Date.now() - ageDate.getTime()) / (1000 * 60 * 60 * 24));
+    if (ageDays > 0) {
+      if (ageDays < 7) parts.push(`They joined Kora ${ageDays} days ago — they're very new.`);
+      else if (ageDays < 30) parts.push(`They've been on Kora for ${ageDays} days.`);
+      else if (ageDays < 365) parts.push(`They've been on Kora for ${Math.floor(ageDays / 30)} months.`);
+      else parts.push(`They've been on Kora for over a year (since ${ageDate.getFullYear()}).`);
+    }
+  }
+
+  // Premium expiry
+  if (ctx.isPremium === true && ctx.premiumExpiresAt) {
+    const expDate = new Date(ctx.premiumExpiresAt);
+    const daysLeft = Math.floor((expDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+    if (daysLeft > 0 && daysLeft < 7) {
+      parts.push(`Their Premium subscription expires in ${daysLeft} days — mention renewal if relevant.`);
+    } else if (daysLeft <= 0) {
+      parts.push(`Their Premium subscription may have expired.`);
+    }
+  }
+
+  // Passkeys
+  if (ctx.passkeysEnabled === true) {
+    parts.push(`They have passkeys enabled (biometric login).`);
+  }
+
+  // Suspension status
+  if (ctx.isSuspended === true) {
+    parts.push(`⚠️ Their account is currently suspended${ctx.suspensionReason ? ` (reason: ${ctx.suspensionReason})` : ''}. Be empathetic and direct them to appeal if they ask.`);
+  }
+
+  // Avatar
+  if (ctx.hasAvatar === false && ctx.profileCompleted === true) {
+    parts.push(`They haven't set a profile photo yet — gently suggest adding one if relevant.`);
+  }
+
   if (parts.length === 0) return '';
 
   return `\n## About the User You're Talking To\n${parts.join('\n')}\n\n## Personalization Guidelines
 - Use their name naturally when it feels right (not every message — just when it adds warmth)
 - If they ask about premium features, tailor your answer based on their premium status
-- Don't mention their email, Kora ID, or bio unless they explicitly ask about their account
+- Don't mention their email, Kora ID, phone number, or bio unless they explicitly ask about their account
 - Treat this context as background knowledge — don't recite it back to them
-- If they ask "what do you know about me?", you can share: their name, username, premium status, and verification status — but NOT their email or bio (those are private)`;
+- If they ask "what do you know about me?", you can share: their name, username, premium status, verification status, how long they've been on Kora, and whether they have passkeys — but NOT their email, phone number, or bio (those are private)
+- If their account is suspended, be empathetic and guide them to appeal via Settings
+- If their premium is expiring soon, mention renewal only when it's contextually relevant (e.g., they ask about a premium feature)`;
 }
 
 // ── Build Final System Prompt ─────────────────────────────────────
@@ -537,9 +650,22 @@ Deno.serve(async (req: Request) => {
   const input = validateInput(body);
   if (!input.valid) return corsResponse({ success: false, error: input.error }, 400);
 
-  // Build system prompt with user context injected
+  // ── v11: Fetch user account from database for verified context ──
+  // Try database lookup first; fall back to client-provided userContext
+  let enrichedContext = input.userContext;
+  try {
+    const dbContext = await fetchUserFromDatabase(input.userContext?.email, req);
+    if (dbContext) {
+      // Merge: database data takes priority, but keep client fields as fallback
+      enrichedContext = { ...input.userContext, ...dbContext };
+    }
+  } catch (e) {
+    console.error('[koraAiChat] DB enrichment failed, using client context:', e);
+  }
+
+  // Build system prompt with enriched user context
   const basePrompt = input.chatType === 'support' ? SUPPORT_PROMPT_BASE : AI_PROMPT_BASE;
-  const systemPrompt = buildSystemPrompt(basePrompt, input.userContext);
+  const systemPrompt = buildSystemPrompt(basePrompt, enrichedContext);
 
   if (input.stream) return await handleStreaming(systemPrompt, input.message!, input.history!, input.attachments);
   return await handleNonStreaming(systemPrompt, input.message!, input.history!, input.attachments);

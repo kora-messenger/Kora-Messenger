@@ -15,6 +15,9 @@
  *   transcribe_audio   — returns client-provided transcript with AI enhancement (NEW)
  */
 
+// ── Base44 SDK (for account context) ────────────────────────────────
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
+
 // ── Types ──────────────────────────────────────────────────────────
 interface ApiError { status: number; message: string; code: string; }
 interface MediaAttachment {
@@ -22,6 +25,14 @@ interface MediaAttachment {
   base64?: string;
   mimeType?: string;
   url?: string;
+}
+
+interface UserContext {
+  fullName?: string;
+  username?: string;
+  email?: string;
+  isPremium?: boolean;
+  accountCreatedAt?: string;
 }
 
 // ── Constants ──────────────────────────────────────────────────────
@@ -172,12 +183,12 @@ const WRITING_PROMPTS: Record<string, string> = {
   translate: `You are a professional translator. Translate the following text into the specified language.\n\nRules:\n- Return ONLY the translation — no explanations\n- Translate naturally, not word-for-word\n- Preserve tone and intent\n- Use the most common written form of the target language`,
 };
 
-async function handleWriting(body: any): Promise<Response> {
+async function handleWriting(body: any, userCtx?: string): Promise<Response> {
   const { text, mode, targetLanguage } = body;
   if (!text || typeof text !== 'string' || text.trim() === '') return corsResponse({ success: false, error: 'text is required' }, 400);
   if (text.length > MAX_TEXT_LENGTH) return corsResponse({ success: false, error: `Text too long (max ${MAX_TEXT_LENGTH} chars)` }, 400);
   if (!mode || !WRITING_PROMPTS[mode]) return corsResponse({ success: false, error: `Invalid mode. Valid: ${Object.keys(WRITING_PROMPTS).join(', ')}` }, 400);
-  const prompt = WRITING_PROMPTS[mode];
+  const prompt = WRITING_PROMPTS[mode] + (userCtx || '');
   let userMessage = text;
   if (mode === 'translate' && targetLanguage) { userMessage = `Translate to ${targetLanguage}:\n\n${text}`; }
   try {
@@ -190,10 +201,38 @@ async function handleWriting(body: any): Promise<Response> {
   }
 }
 
+
+// ── Database Account Lookup ────────────────────────────────────────
+
+async function fetchUserContext(email: string | undefined, req: Request): Promise<string | null> {
+  if (!email || email.length < 3) return null;
+  try {
+    const base44 = createClientFromRequest(req);
+    const db = base44.asServiceRole;
+    const users = await db.entities.KoraUser.filter({ email });
+    if (!users || users.length === 0) return null;
+    const u = users[0];
+    const name = u.data?.fullName || 'there';
+    const isPremium = u.data?.isPremium === true;
+    const created = u.created_date ? new Date(u.created_date) : null;
+    const ageDays = created ? Math.floor((Date.now() - created.getTime()) / (1000 * 60 * 60 * 24)) : 0;
+
+    const parts: string[] = [];
+    parts.push(`The user's name is ${name}.`);
+    if (isPremium) parts.push(`They are a Premium subscriber.`);
+    else parts.push(`They are a free user.`);
+    if (ageDays > 0) parts.push(`They've been on Kora for ${ageDays} days.`);
+    return `\n## User Context\n${parts.join(' ')}`;
+  } catch (err) {
+    console.error('[koraAiFeatures] DB lookup failed:', err);
+    return null;
+  }
+}
+
 // ── REPLY SUGGESTIONS ─────────────────────────────────────────────
 const REPLY_SUGGESTIONS_PROMPT = `You are a messaging assistant for Kora Messenger. The user received a message and needs 3 short reply suggestions.\n\nRules:\n- Generate exactly 3 reply options — no more, no less\n- Each reply must be natural and concise (1-2 sentences max)\n- Vary the tone: 1. Casual & friendly 2. Direct & practical 3. Thoughtful or creative\n- Return ONLY the 3 suggestions, one per line, numbered: 1. 2. 3.\n- No explanations, no extra text, no preamble\n- Match the language of the received message\n- Keep it appropriate for a messaging context\n- Don't include quotation marks around the suggestions`;
 
-async function handleReplySuggestions(body: any): Promise<Response> {
+async function handleReplySuggestions(body: any, userCtx?: string): Promise<Response> {
   const { receivedMessage, contextMessages } = body;
   if (!receivedMessage || typeof receivedMessage !== 'string' || receivedMessage.trim() === '') return corsResponse({ success: false, error: 'receivedMessage is required' }, 400);
   if (receivedMessage.length > MAX_TEXT_LENGTH) return corsResponse({ success: false, error: 'Message too long' }, 400);
@@ -203,7 +242,7 @@ async function handleReplySuggestions(body: any): Promise<Response> {
     if (context) { userMessage = `Conversation context:\n${context}\n\nReceived message: "${receivedMessage}"`; }
   }
   try {
-    const result = await callWithFallback(REPLY_SUGGESTIONS_PROMPT, userMessage, MAX_TOKENS_REPLY, 0.8);
+    const result = await callWithFallback(REPLY_SUGGESTIONS_PROMPT + (userCtx || ''), userMessage, MAX_TOKENS_REPLY, 0.8);
     const suggestions = result.split('\n').map((line: string) => line.replace(/^\d+\.\s*/, '').trim()).filter((line: string) => line.length > 0).slice(0, 3);
     return corsResponse({ success: true, suggestions });
   } catch (e) {
@@ -384,6 +423,13 @@ async function handleTranscribeAudio(body: any): Promise<Response> {
 
 // ── MAIN SERVER ───────────────────────────────────────────────────
 Deno.serve(async (req: Request) => {
+  // ── Fetch user context from database for personalization ──
+  let userContextSuffix = '';
+  try {
+    const body = await req.clone().json().catch(() => ({}));
+    const ctx = await fetchUserContext(body?.userContext?.email || body?.email, req);
+    if (ctx) userContextSuffix = ctx;
+  } catch {}
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS_HEADERS });
   if (req.method !== 'POST') return corsResponse({ success: false, error: 'Method not allowed. Use POST.' }, 405);
   if (!verifyAuth(req)) return corsResponse({ success: false, error: 'Unauthorized' }, 401);
@@ -391,11 +437,16 @@ Deno.serve(async (req: Request) => {
   if (!checkRateLimit(clientIp)) return corsResponse({ success: false, error: 'Rate limit exceeded. Please slow down.' }, 429);
   let body: any;
   try { body = await req.json(); } catch { return corsResponse({ success: false, error: 'Invalid JSON body' }, 400); }
+  // Fetch user context for personalized features
+  try {
+    const ctx = await fetchUserContext(body?.userContext?.email || body?.email, req);
+    if (ctx) userContextSuffix = ctx;
+  } catch {}
   const { feature } = body;
   if (!feature) return corsResponse({ success: false, error: 'feature is required: writing | reply_suggestions | summarize | analyze_media | transcribe_audio' }, 400);
   switch (feature) {
-    case 'writing': return await handleWriting(body);
-    case 'reply_suggestions': return await handleReplySuggestions(body);
+    case 'writing': return await handleWriting(body, userContextSuffix);
+    case 'reply_suggestions': return await handleReplySuggestions(body, userContextSuffix);
     case 'summarize': return await handleSummarize(body);
     case 'analyze_media': return await handleAnalyzeMedia(body);
     case 'transcribe_audio': return await handleTranscribeAudio(body);
