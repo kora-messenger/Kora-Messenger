@@ -32,6 +32,7 @@ import '../settings/premium_subscribe_sheet.dart';
 import '../settings/billing_screen.dart';
 import '../../config/subscription_pricing.dart';
 import '../../services/session_manager.dart';
+import '../../services/spam_protection_service.dart';
 import '../../services/conversation_directory.dart';
 import '../suspension_screen.dart';
 import '../settings/chat_backup_screen.dart';
@@ -83,6 +84,8 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
   bool _isLoading = true;
   bool _isAiTyping = false;
   bool _isBlocked = false;
+  bool _isSpammer = false;
+  int _spamScore = 0;
   Timer? _statusTimer;
   StreamSubscription<String>? _syncSub;
 
@@ -169,6 +172,16 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
       setState(() {
         _isLoading = false;
         _isBlocked = _messageService.isBlocked(widget.chatId);
+        // Check if the other user is flagged as a spammer
+        if (!_isAiChat && (widget.recipientEmail?.isNotEmpty ?? false)) {
+          final spamStatus = await SpamProtectionService.instance.checkSpamStatus(widget.recipientEmail!);
+          if (mounted) {
+            setState(() {
+              _isSpammer = spamStatus['isSpammer'] ?? false;
+              _spamScore = spamStatus['spamScore'] ?? 0;
+            });
+          }
+        }
       });
       WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
     }
@@ -226,6 +239,18 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
   }
 
   Future<void> _sendMessage(String text) async {
+    // Anti-spam: local rate limit check
+    if (!SpamProtectionService.instance.canSendLocally(widget.chatId)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You\'re sending messages too fast. Please slow down.'),
+          backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
     _runDetection(text);
     await _messageService.sendMessage(
       widget.chatId,
@@ -615,6 +640,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
             )
           : null,
       onDelete: () => _onDelete(message.id),
+      onReportSpam: !message.isMe ? () => _showReportSpamDialog(message) : null,
     );
   }
 
@@ -1000,6 +1026,152 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
         ),
       ),
     );
+  }
+
+
+  // ── Report Spam ─────────────────────────────────────────────
+
+  void _showReportSpamFromMenu() {
+    _showReportSpamDialog(null);
+  }
+
+  void _showReportSpamDialog(KoraMessage? message) {
+    final brightness = Theme.of(context).brightness;
+    final textPrimary = KoraColors.textPrimaryFor(brightness);
+    final textSecondary = KoraColors.textSecondaryFor(brightness);
+    final surface = KoraColors.cardFor(brightness);
+    final border = KoraColors.borderFor(brightness);
+
+    String selectedReason = 'Spam';
+    final reasons = ['Spam', 'Scam or fraud', 'Harassment', 'Inappropriate content', 'Other'];
+
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => Dialog(
+          backgroundColor: surface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          insetPadding: const EdgeInsets.symmetric(horizontal: 28),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 28, 24, 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 54,
+                  height: 54,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.red, width: 2),
+                  ),
+                  child: const Icon(Icons.report_outlined, color: Colors.red, size: 26),
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  'Report ${widget.name}?',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: textPrimary, fontSize: 19, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Report this user for spam or abuse. Kora will review the report and take action if needed. They won\'t know you reported them.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: textSecondary, fontSize: 13.5, height: 1.4),
+                ),
+                const SizedBox(height: 16),
+                // Reason selector
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: border.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: DropdownButton<String>(
+                    value: selectedReason,
+                    isExpanded: true,
+                    underline: const SizedBox(),
+                    items: reasons.map((r) => DropdownMenuItem(value: r, child: Text(r, style: TextStyle(color: textPrimary, fontSize: 14)))).toList(),
+                    onChanged: (v) => setDialogState(() => selectedReason = v ?? 'Spam'),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      child: const Text('Cancel', style: TextStyle(color: KoraColors.purple, fontWeight: FontWeight.w700, fontSize: 15)),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(dialogContext);
+                        _performReportSpam(selectedReason, message);
+                      },
+                      child: const Text('Report', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w700, fontSize: 15)),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _performReportSpam(String reason, KoraMessage? message) async {
+    final brightness = Theme.of(context).brightness;
+    final surface = KoraColors.cardFor(brightness);
+    final textPrimary = KoraColors.textPrimaryFor(brightness);
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => Dialog(
+        backgroundColor: surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(
+                width: 32,
+                height: 32,
+                child: CircularProgressIndicator(color: KoraColors.purple, strokeWidth: 3),
+              ),
+              const SizedBox(height: 16),
+              Text('Submitting report...', style: TextStyle(color: textPrimary, fontSize: 15, fontWeight: FontWeight.w600)),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    final result = await SpamProtectionService.instance.reportSpam(
+      reportedEmail: widget.recipientEmail ?? '',
+      chatId: widget.chatId,
+      messageId: message?.id,
+      messageText: message?.text,
+      reason: reason,
+    );
+
+    if (mounted) {
+      Navigator.pop(context); // dismiss loading
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result['success'] == true
+              ? result['autoFlagged'] == true
+                  ? 'Reported. User has been flagged for review.'
+                  : 'Report submitted. Thank you for keeping Kora safe.'
+              : 'Failed to submit report. Please try again.'),
+          backgroundColor: result['success'] == true ? KoraColors.purple : Colors.red,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
   }
 
   // ── Block ────────────────────────────────────────────────────
@@ -1408,10 +1580,11 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
                 KoraMenuOption(icon: Icons.cleaning_services_outlined, label: 'Clear chat', onTap: () => _showClearChatDialog()),
                 if (!_isAiChat) ...[
                   KoraMenuOption(icon: Icons.block, label: 'Block', onTap: () => _showBlockDialog(), color: Colors.red),
-                  KoraMenuOption(icon: Icons.report_outlined, label: 'Report', onTap: () => _showBlockDialog(), color: Colors.red),
+                  KoraMenuOption(icon: Icons.report_outlined, label: 'Report', onTap: () => _showReportSpamFromMenu(), color: Colors.red),
                 ],
               ],
             ),
+            if (_isSpammer && !_showSearch) _buildSpamWarningBanner(),
             // Message area (or search results when searching).
             // Wallpaper now lives in the fixed background layer above,
             // so this area stays transparent and never rescales it.
@@ -1618,6 +1791,45 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
     final missedCount = _messages.where((m) => !m.isMe && m.type != KoraMessageType.action).length;
 
     AiChatSummarySheet.show(context, messages, isCatchMeUp: true, missedCount: missedCount);
+  }
+
+
+  /// Spam warning banner shown when the other user is flagged.
+  Widget _buildSpamWarningBanner() {
+    final brightness = Theme.of(context).brightness;
+    final textPrimary = KoraColors.textPrimaryFor(brightness);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.orange.withValues(alpha: 0.12),
+        border: Border(
+          bottom: BorderSide(color: Colors.orange.withValues(alpha: 0.2), width: 0.5),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.warning_amber_rounded, color: Colors.orange.shade700, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'This user has been reported for spam. Be cautious.',
+              style: TextStyle(
+                color: textPrimary,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          GestureDetector(
+            onTap: () {
+              setState(() => _isSpammer = false); // dismiss
+            },
+            child: Icon(Icons.close, color: Colors.orange.shade700, size: 18),
+          ),
+        ],
+      ),
+    );
   }
 
   /// The blocked-state bar shown at the bottom of a chat when the

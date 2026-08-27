@@ -40,6 +40,7 @@ class KoraApi {
   /// Crash report endpoint — receives crash data and creates a GitHub Issue.
   static const String crashReportEndpoint = '$baseUrl/koraCrashReport';
   static const String serviceNotificationEndpoint = '$baseUrl/koraServiceNotification';
+  static const String antiSpamEndpoint = '$baseUrl/koraAntiSpam';
 
   /// File upload endpoint — avatar and media uploads.
   static const String uploadEndpoint = '$baseUrl/koraUpload';

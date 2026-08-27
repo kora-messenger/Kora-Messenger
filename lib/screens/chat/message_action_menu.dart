@@ -36,6 +36,7 @@ void showKoraMessageActionMenu(
   required VoidCallback onForward,
   required VoidCallback onTranslate,
   required VoidCallback onDelete,
+  VoidCallback? onReportSpam,
   VoidCallback? onTranscribeVoice,
   VoidCallback? onTranslateVoice,
   VoidCallback? onPremiumUpsell,
@@ -93,6 +94,12 @@ void showKoraMessageActionMenu(
         entry.remove();
         onDelete();
       },
+      onReportSpam: onReportSpam != null
+          ? () {
+              entry.remove();
+              onReportSpam!();
+            }
+          : null,
     ),
   );
 
@@ -115,6 +122,7 @@ class _MessageActionOverlay extends StatelessWidget {
   final VoidCallback? onTranscribeVoice;
   final VoidCallback? onTranslateVoice;
   final VoidCallback onDelete;
+  final VoidCallback? onReportSpam;
 
   const _MessageActionOverlay({
     required this.messageKey,
@@ -132,6 +140,7 @@ class _MessageActionOverlay extends StatelessWidget {
     this.onTranscribeVoice,
     this.onTranslateVoice,
     required this.onDelete,
+    this.onReportSpam,
   });
 
   bool get _isVoice => messageType == KoraMessageType.voice;
@@ -255,6 +264,8 @@ class _MessageActionOverlay extends StatelessWidget {
                   ] else ...[
                     _action(Icons.translate_outlined, 'Translate', onTranslate, textPrimary),
                   ],
+                  if (!isMe && onReportSpam != null)
+                    _action(Icons.report_outlined, 'Report Spam', onReportSpam!, Colors.red),
                   if (isMe)
                     _action(Icons.delete_outline, 'Delete', onDelete, Colors.red),
                 ],
