@@ -4,7 +4,7 @@ import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 /// Dedicated on-device speech-to-text capture service for VOICE NOTE recording.
 ///
-/// This service runs ALONGSIDE the `flutter_sound` audio recorder (used elsewhere
+/// This service runs ALONGSIDE the native audio recorder (used elsewhere
 /// in the app for voice notes) to capture a live transcript of what the user says
 /// while they record, purely for the on-device translate-before-send feature.
 /// It does NOT affect the actual audio file being recorded.
