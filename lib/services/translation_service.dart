@@ -1,8 +1,7 @@
 import 'dart:async';
-import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert' show utf8;
+import 'dart:convert';
 import '../models/translation_models.dart';
 import '../config/kora_api.dart';
 
