@@ -530,7 +530,6 @@ class _ChatsTabState extends State<ChatsTab> {
 
   // ── Selection mode handlers ──
 
-  }
 
   void _toggleSelected(String chatId) {
     setState(() {
@@ -1034,3 +1033,4 @@ class _ChatsTabState extends State<ChatsTab> {
       ),
     );
   }
+}
