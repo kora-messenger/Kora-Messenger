@@ -239,8 +239,12 @@ class _CallScreenState extends State<CallScreen>
     _resetAutoHideTimer();
   }
 
-  void _toggleScreenShare() {
-    // TODO: implement WebRTC screen share
+  void _toggleScreenShare() async {
+    if (_isScreenSharing) {
+      await _webrtcService.stopScreenShare();
+    } else {
+      await _webrtcService.startScreenShare();
+    }
     setState(() => _isScreenSharing = !_isScreenSharing);
     _resetAutoHideTimer();
   }
