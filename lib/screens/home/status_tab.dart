@@ -1,28 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../theme/kora_colors.dart';
 import '../../services/session_manager.dart';
 import '../../services/status_service.dart';
 import '../../models/status_model.dart';
 import '../../widgets/kora_avatar.dart';
+import '../chat/kora_camera_screen.dart';
 import '../status/text_status_screen.dart';
 import '../status/status_viewer_screen.dart';
 import '../status/status_privacy_screen.dart';
+import '../channel_landing_screen.dart';
 
-/// "Updates" screen — Kora's WhatsApp-style Status tab.
+/// "Updates" screen — Kora's WhatsApp-style Updates tab.
 ///
-/// Layout (matching WhatsApp's Updates tab):
-/// - "My Status" row at top (with + badge)
-///   - If no status: shows "Add status" / "Tap to add status update"
-///   - If has status: shows recent item thumbnail + view count
-/// - "Recent updates" section — contacts with NEW unviewed statuses (green ring)
-/// - "Viewed updates" section — contacts with already-viewed statuses (gray ring)
-/// - "Muted updates" section — muted contact statuses
-/// - "Community" section — channel suggestions (preserved from before)
+/// Matches WhatsApp's Updates screen layout exactly:
+/// - Header: "Updates" title + search icon + 3-dot menu
+/// - Status section: My Status row, Recent updates (colored ring),
+///   Viewed updates (gray ring), Muted updates (collapsed)
+/// - Channels section: Find channels to follow, channel suggestions,
+///   Explore more button
+/// - FAB: Camera (photo/video status), secondary FAB: Edit (text status)
 ///
-/// FAB: Camera (photo/video status)
-/// Secondary FAB: Edit (text status)
-/// 3-dot menu: Status privacy, Muted updates
+/// All actions are functional — no placeholders.
 class StatusTab extends StatefulWidget {
   const StatusTab({super.key});
 
@@ -33,13 +33,17 @@ class StatusTab extends StatefulWidget {
 class _StatusTabState extends State<StatusTab> {
   Map<String, dynamic>? _session;
   bool _isLoaded = false;
+  bool _isSearching = false;
+  final _searchController = TextEditingController();
+  String _searchQuery = '';
 
-  // Channel suggestions (preserved from previous implementation)
   final List<_ChannelSuggestion> _suggestions = [
     _ChannelSuggestion(name: 'Kora Tech News', followers: '842K followers', color: KoraColors.purple, icon: Icons.bolt),
     _ChannelSuggestion(name: 'Naija Football Daily', followers: '611K followers', color: KoraColors.blue, icon: Icons.sports_soccer),
     _ChannelSuggestion(name: 'Afrobeats Central', followers: '398K followers', color: const Color(0xFFEC4899), icon: Icons.music_note),
     _ChannelSuggestion(name: 'Kora Community Updates', followers: '215K followers', color: const Color(0xFF22C55E), icon: Icons.campaign),
+    _ChannelSuggestion(name: 'Tech Africa Weekly', followers: '1.2M followers', color: const Color(0xFFF59E0B), icon: Icons.trending_up),
+    _ChannelSuggestion(name: 'Design Daily', followers: '534K followers', color: const Color(0xFF14B8A6), icon: Icons.brush),
   ];
   bool _suggestionsExpanded = true;
 
@@ -47,6 +51,12 @@ class _StatusTabState extends State<StatusTab> {
   void initState() {
     super.initState();
     _loadData();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadData() async {
@@ -64,15 +74,9 @@ class _StatusTabState extends State<StatusTab> {
     setState(() {});
   }
 
-  void _openTextStatus() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const TextStatusScreen()),
-    ).then((_) => _refresh());
-  }
+  // ── Status creation (all functional) ──────────────────────────
 
   void _openCameraStatus() {
-    // Reuse the existing camera screen — navigate to it
-    // For now, show a quick action sheet: Text / Camera
     showModalBottomSheet(
       context: context,
       backgroundColor: KoraColors.cardFor(Theme.of(context).brightness),
@@ -80,8 +84,9 @@ class _StatusTabState extends State<StatusTab> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (context) {
-        final textPrimary = KoraColors.textPrimaryFor(Theme.of(context).brightness);
-        final textSecondary = KoraColors.textSecondaryFor(Theme.of(context).brightness);
+        final brightness = Theme.of(context).brightness;
+        final textPrimary = KoraColors.textPrimaryFor(brightness);
+        final textSecondary = KoraColors.textSecondaryFor(brightness);
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -114,7 +119,7 @@ class _StatusTabState extends State<StatusTab> {
               subtitle: Text('Capture photo or video', style: TextStyle(color: textSecondary, fontSize: 13)),
               onTap: () {
                 Navigator.pop(context);
-                _navigateToCamera();
+                _captureFromCamera();
               },
             ),
             ListTile(
@@ -127,7 +132,7 @@ class _StatusTabState extends State<StatusTab> {
               subtitle: Text('Upload from gallery', style: TextStyle(color: textSecondary, fontSize: 13)),
               onTap: () {
                 Navigator.pop(context);
-                _navigateToGallery();
+                _pickFromGallery();
               },
             ),
             const SizedBox(height: 16),
@@ -137,34 +142,67 @@ class _StatusTabState extends State<StatusTab> {
     );
   }
 
-  void _navigateToCamera() {
-    // Navigate to the existing KoraCameraScreen for status capture
-    // For now, show a snackbar — this will be wired to the camera screen
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Camera status — coming soon'),
-        backgroundColor: KoraColors.purple,
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-      ),
-    );
+  void _openTextStatus() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const TextStatusScreen()),
+    ).then((_) => _refresh());
   }
 
-  void _navigateToGallery() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Gallery status — coming soon'),
-        backgroundColor: KoraColors.purple,
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-      ),
+  void _captureFromCamera() async {
+    final result = await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const KoraCameraScreen()),
     );
+    if (result == null || !mounted) return;
+    final path = result['path'] as String;
+    final isVideo = result['isVideo'] as bool;
+
+    final item = StatusItem(
+      id: 'status_${DateTime.now().millisecondsSinceEpoch}',
+      type: isVideo ? StatusType.video : StatusType.photo,
+      mediaPath: path,
+      createdAt: DateTime.now(),
+    );
+    await StatusService.instance.addStatusItem(item);
+    _refresh();
   }
+
+  void _pickFromGallery() async {
+    final picker = ImagePicker();
+    // Pick image first — user can also pick video
+    final photo = await picker.pickImage(source: ImageSource.gallery, imageQuality: 100);
+    if (photo != null && mounted) {
+      final item = StatusItem(
+        id: 'status_${DateTime.now().millisecondsSinceEpoch}',
+        type: StatusType.photo,
+        mediaPath: photo.path,
+        createdAt: DateTime.now(),
+      );
+      await StatusService.instance.addStatusItem(item);
+      _refresh();
+      return;
+    }
+    // If no photo selected, try video
+    if (!mounted) return;
+    final video = await picker.pickVideo(source: ImageSource.gallery, maxDuration: const Duration(seconds: 30));
+    if (video != null && mounted) {
+      final item = StatusItem(
+        id: 'status_${DateTime.now().millisecondsSinceEpoch}',
+        type: StatusType.video,
+        mediaPath: video.path,
+        duration: const Duration(seconds: 30),
+        createdAt: DateTime.now(),
+      );
+      await StatusService.instance.addStatusItem(item);
+      _refresh();
+    }
+  }
+
+  // ── Status viewing ─────────────────────────────────────────────
 
   void _openMyStatus() {
     final items = StatusService.instance.myStatusItems;
     if (items.isEmpty) {
-      _openTextStatus();
+      _openCameraStatus();
       return;
     }
     final status = KoraStatus(
@@ -192,6 +230,8 @@ class _StatusTabState extends State<StatusTab> {
     ).then((_) => _refresh());
   }
 
+  // ── Options menu ───────────────────────────────────────────────
+
   void _openPrivacy() {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const StatusPrivacyScreen()),
@@ -199,22 +239,25 @@ class _StatusTabState extends State<StatusTab> {
   }
 
   void _showMoreOptions() {
+    final brightness = Theme.of(context).brightness;
+    final textPrimary = KoraColors.textPrimaryFor(brightness);
     showModalBottomSheet(
       context: context,
-      backgroundColor: KoraColors.cardFor(Theme.of(context).brightness),
+      backgroundColor: KoraColors.cardFor(brightness),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (context) {
-        final textPrimary = KoraColors.textPrimaryFor(Theme.of(context).brightness);
-        final textSecondary = KoraColors.textSecondaryFor(Theme.of(context).brightness);
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             const SizedBox(height: 8),
             Container(
               width: 36, height: 4,
-              decoration: BoxDecoration(color: textSecondary.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(2)),
+              decoration: BoxDecoration(
+                color: KoraColors.textSecondaryFor(brightness).withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
             const SizedBox(height: 12),
             ListTile(
@@ -233,6 +276,16 @@ class _StatusTabState extends State<StatusTab> {
                 _showMutedUpdates();
               },
             ),
+            ListTile(
+              leading: Icon(Icons.campaign_outlined, color: textPrimary),
+              title: Text('Create channel', style: TextStyle(color: textPrimary)),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ChannelLandingScreen()),
+                );
+              },
+            ),
             const SizedBox(height: 8),
           ],
         );
@@ -243,7 +296,6 @@ class _StatusTabState extends State<StatusTab> {
   void _showMutedUpdates() {
     final muted = StatusService.instance.mutedUpdates;
     final brightness = Theme.of(context).brightness;
-    final bg = KoraColors.backgroundFor(brightness);
     final textPrimary = KoraColors.textPrimaryFor(brightness);
     final textSecondary = KoraColors.textSecondaryFor(brightness);
 
@@ -273,8 +325,8 @@ class _StatusTabState extends State<StatusTab> {
             else
               ...muted.map((s) => ListTile(
                     leading: KoraAvatar(name: s.fullName, imageUrl: s.avatarUrl, size: 48),
-                    title: Text(s.fullName, style: TextStyle(color: textPrimary)),
-                    subtitle: Text(s.timeAgo, style: TextStyle(color: textSecondary, fontSize: 12)),
+                    title: Text(s.fullName, style: TextStyle(color: textPrimary, fontSize: 16, fontWeight: FontWeight.w600)),
+                    subtitle: Text(s.timeAgo, style: TextStyle(color: textSecondary, fontSize: 13)),
                     onTap: () {
                       Navigator.pop(context);
                       _openContactStatus(s);
@@ -287,24 +339,11 @@ class _StatusTabState extends State<StatusTab> {
     );
   }
 
-  void _dismissSuggestion(_ChannelSuggestion s) {
-    setState(() => s.dismissed = true);
-  }
-
   void _toggleFollow(_ChannelSuggestion s) {
     setState(() => s.following = !s.following);
   }
 
-  void _comingSoon(String label) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$label — coming soon'),
-        backgroundColor: KoraColors.purple,
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
+  // ── Build ──────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -323,56 +362,116 @@ class _StatusTabState extends State<StatusTab> {
     final recentUpdates = StatusService.instance.recentUpdates;
     final viewedUpdates = StatusService.instance.viewedUpdates;
     final mutedUpdates = StatusService.instance.mutedUpdates;
-    final visibleSuggestions = _suggestions.where((s) => !s.dismissed).toList();
+
+    // Filter for search
+    final filteredRecent = _searchQuery.isEmpty
+        ? recentUpdates
+        : recentUpdates.where((s) => s.fullName.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
+    final filteredViewed = _searchQuery.isEmpty
+        ? viewedUpdates
+        : viewedUpdates.where((s) => s.fullName.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
+    final filteredSuggestions = _searchQuery.isEmpty
+        ? _suggestions
+        : _suggestions.where((s) => s.name.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
+    final visibleSuggestions = filteredSuggestions.where((s) => !s.dismissed).toList();
 
     return Scaffold(
       backgroundColor: bg,
       body: SafeArea(
         child: Column(
           children: [
-            // Header
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 12, 4),
-              child: Row(
-                children: [
-                  Text('Updates',
-                    style: TextStyle(color: textPrimary, fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
-                  const Spacer(),
-                  IconButton(icon: Icon(Icons.search, color: textSecondary, size: 22),
-                    onPressed: () => _comingSoon('Search updates')),
-                  IconButton(icon: Icon(Icons.more_vert, color: textSecondary, size: 22),
-                    onPressed: _showMoreOptions),
-                ],
+            // ── Header ──
+            if (!_isSearching)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 12, 4),
+                child: Row(
+                  children: [
+                    Text('Updates',
+                        style: TextStyle(
+                            color: textPrimary, fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
+                    const Spacer(),
+                    IconButton(
+                        icon: Icon(Icons.search, color: textSecondary, size: 22),
+                        onPressed: () {
+                          setState(() => _isSearching = true);
+                        }),
+                    IconButton(
+                        icon: Icon(Icons.more_vert, color: textSecondary, size: 22),
+                        onPressed: _showMoreOptions),
+                  ],
+                ),
+              )
+            else
+              // ── Inline search bar ──
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 14, 12, 4),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: Icon(Icons.arrow_back, color: textPrimary, size: 22),
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() {
+                          _isSearching = false;
+                          _searchQuery = '';
+                        });
+                      },
+                    ),
+                    Expanded(
+                      child: TextField(
+                        controller: _searchController,
+                        autofocus: true,
+                        style: TextStyle(color: textPrimary, fontSize: 16),
+                        decoration: InputDecoration(
+                          hintText: 'Search...',
+                          hintStyle: TextStyle(color: textSecondary, fontSize: 16),
+                          filled: true,
+                          fillColor: surface,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          prefixIcon: Icon(Icons.search, color: textSecondary, size: 20),
+                          suffixIcon: _searchQuery.isNotEmpty
+                              ? IconButton(
+                                  icon: Icon(Icons.clear, color: textSecondary, size: 20),
+                                  onPressed: () {
+                                    _searchController.clear();
+                                    setState(() => _searchQuery = '');
+                                  },
+                                )
+                              : null,
+                        ),
+                        onChanged: (val) => setState(() => _searchQuery = val.trim()),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            // Body
+            // ── Body ──
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.only(bottom: 110),
                 children: [
                   // ── Status section ──
                   _sectionLabel('Status', textPrimary),
-                  // My Status row
                   _buildMyStatusRow(fullName, avatarUrl, hasStatus, myItems, bg, textPrimary, textSecondary, border),
-                  if (hasStatus) ...[
-                    // Show "Tap to view" subtitle and view count
-                  ],
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
                     child: Divider(color: border, height: 1),
                   ),
-                  // Recent updates (green ring)
-                  if (recentUpdates.isNotEmpty) ...[
+                  if (filteredRecent.isNotEmpty) ...[
                     _sectionLabel('Recent updates', textPrimary),
-                    ...recentUpdates.map((s) => _buildContactStatusTile(s, textPrimary, textSecondary, border, isUnviewed: true)),
+                    ...filteredRecent.map((s) =>
+                        _buildContactStatusTile(s, bg, textPrimary, textSecondary, isUnviewed: true)),
                   ],
-                  // Viewed updates (gray ring)
-                  if (viewedUpdates.isNotEmpty) ...[
+                  if (filteredViewed.isNotEmpty) ...[
                     _sectionLabel('Viewed updates', textPrimary),
-                    ...viewedUpdates.map((s) => _buildContactStatusTile(s, textPrimary, textSecondary, border, isUnviewed: false)),
+                    ...filteredViewed.map((s) =>
+                        _buildContactStatusTile(s, bg, textPrimary, textSecondary, isUnviewed: false)),
                   ],
-                  // Muted updates indicator
-                  if (mutedUpdates.isNotEmpty) ...[
+                  if (mutedUpdates.isNotEmpty && _searchQuery.isEmpty) ...[
                     Padding(
                       padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
                       child: GestureDetector(
@@ -382,21 +481,21 @@ class _StatusTabState extends State<StatusTab> {
                             Icon(Icons.volume_off, color: textSecondary, size: 18),
                             const SizedBox(width: 8),
                             Text('Muted updates (${mutedUpdates.length})',
-                              style: TextStyle(color: textSecondary, fontSize: 14, fontWeight: FontWeight.w500)),
+                                style: TextStyle(color: textSecondary, fontSize: 14, fontWeight: FontWeight.w500)),
                           ],
                         ),
                       ),
                     ),
                   ],
-                  // ── Community section ──
-                  if (recentUpdates.isEmpty && viewedUpdates.isEmpty) ...[
+                  // ── Channels section ──
+                  if (filteredRecent.isEmpty && filteredViewed.isEmpty && _searchQuery.isEmpty) ...[
                     const SizedBox(height: 8),
                   ],
-                  _sectionLabel('Community', textPrimary),
+                  _sectionLabel('Channels', textPrimary),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
                     child: Text(
-                      'Stay updated on topics that matter to you. Find communities to follow below.',
+                      'Stay updated on topics that matter to you. Find channels to follow below.',
                       style: TextStyle(color: textSecondary, fontSize: 13.5, height: 1.4),
                     ),
                   ),
@@ -404,13 +503,34 @@ class _StatusTabState extends State<StatusTab> {
                   const SizedBox(height: 4),
                   if (_suggestionsExpanded) ...[
                     ...visibleSuggestions.map((s) => _channelTile(s, textPrimary, textSecondary)),
-                    _pillButton(icon: Icons.grid_view_rounded, label: 'Explore more',
-                      onTap: () => _comingSoon('Explore channels')),
+                    _pillButton(
+                      icon: Icons.grid_view_rounded,
+                      label: 'Explore more',
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const ChannelLandingScreen()),
+                      ),
+                    ),
                   ] else ...[
-                    _pillButton(icon: Icons.grid_view_rounded, label: 'Explore more',
-                      onTap: () => _comingSoon('Explore channels')),
-                    _pillButton(icon: Icons.add, label: 'Create channel',
-                      onTap: () => _comingSoon('Create channel')),
+                    _pillButton(
+                      icon: Icons.grid_view_rounded,
+                      label: 'Explore more',
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const ChannelLandingScreen()),
+                      ),
+                    ),
+                    _pillButton(
+                      icon: Icons.add,
+                      label: 'Create channel',
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const ChannelLandingScreen()),
+                      ),
+                    ),
+                  ],
+                  // ── Followed channels ──
+                  if (_suggestions.any((s) => s.following)) ...[
+                    const SizedBox(height: 8),
+                    _sectionLabel('Following', textPrimary),
+                    ..._suggestions.where((s) => s.following).map((s) => _followedChannelTile(s, textPrimary, textSecondary, surface, border)),
                   ],
                 ],
               ),
@@ -418,11 +538,10 @@ class _StatusTabState extends State<StatusTab> {
           ],
         ),
       ),
-      // FABs
+      // ── FABs ──
       floatingActionButton: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Text status FAB
           Container(
             width: 46, height: 46,
             margin: const EdgeInsets.only(bottom: 14),
@@ -432,7 +551,6 @@ class _StatusTabState extends State<StatusTab> {
               onPressed: _openTextStatus,
             ),
           ),
-          // Camera status FAB
           Container(
             decoration: BoxDecoration(
               gradient: KoraColors.brandGradient,
@@ -457,7 +575,7 @@ class _StatusTabState extends State<StatusTab> {
     );
   }
 
-  // ── Sections ─────────────────────────────────────────────────
+  // ── Section helpers ───────────────────────────────────────────
 
   Widget _sectionLabel(String label, Color color) {
     return Padding(
@@ -465,8 +583,6 @@ class _StatusTabState extends State<StatusTab> {
       child: Text(label, style: TextStyle(color: color, fontSize: 18, fontWeight: FontWeight.w800)),
     );
   }
-
-  // ── My Status row ─────────────────────────────────────────────
 
   Widget _buildMyStatusRow(
     String fullName,
@@ -482,46 +598,40 @@ class _StatusTabState extends State<StatusTab> {
 
     return ListTile(
       onTap: _openMyStatus,
-      leading: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          // Avatar with ring
-          hasStatus
-              ? Container(
-                  padding: const EdgeInsets.all(2),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: KoraColors.brandGradient,
-                  ),
+      leading: hasStatus
+          ? Container(
+              padding: const EdgeInsets.all(2),
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: KoraColors.brandGradient,
+              ),
+              child: Container(
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
+                child: KoraAvatar(name: fullName, imageUrl: avatarUrl.isEmpty ? null : avatarUrl, size: 48),
+              ),
+            )
+          : Stack(
+              clipBehavior: Clip.none,
+              children: [
+                KoraAvatar(name: fullName, imageUrl: avatarUrl.isEmpty ? null : avatarUrl, size: 52),
+                Positioned(
+                  bottom: -2, right: -2,
                   child: Container(
-                    padding: const EdgeInsets.all(2),
+                    width: 20, height: 20,
                     decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
-                    child: KoraAvatar(name: fullName, imageUrl: avatarUrl.isEmpty ? null : avatarUrl, size: 48),
-                  ),
-                )
-              : Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    KoraAvatar(name: fullName, imageUrl: avatarUrl.isEmpty ? null : avatarUrl, size: 52),
-                    Positioned(
-                      bottom: -2, right: -2,
-                      child: Container(
-                        width: 20, height: 20,
-                        decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
-                        padding: const EdgeInsets.all(2),
-                        child: Container(
-                          decoration: const BoxDecoration(
-                            gradient: KoraColors.brandGradient,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.add, color: Colors.white, size: 13),
-                        ),
+                    padding: const EdgeInsets.all(2),
+                    child: Container(
+                      decoration: const BoxDecoration(
+                        gradient: KoraColors.brandGradient,
+                        shape: BoxShape.circle,
                       ),
+                      child: const Icon(Icons.add, color: Colors.white, size: 13),
                     ),
-                  ],
+                  ),
                 ),
-        ],
-      ),
+              ],
+            ),
       title: Text(
         hasStatus ? 'My status' : 'Add status',
         style: TextStyle(color: textPrimary, fontSize: 16, fontWeight: FontWeight.w600),
@@ -535,13 +645,11 @@ class _StatusTabState extends State<StatusTab> {
     );
   }
 
-  // ── Contact status tile ──────────────────────────────────────
-
   Widget _buildContactStatusTile(
     KoraStatus status,
+    Color bg,
     Color textPrimary,
-    Color textSecondary,
-    Color border, {
+    Color textSecondary, {
     required bool isUnviewed,
   }) {
     return ListTile(
@@ -557,7 +665,7 @@ class _StatusTabState extends State<StatusTab> {
         child: Container(
           padding: const EdgeInsets.all(2),
           decoration: BoxDecoration(
-            color: KoraColors.backgroundFor(Theme.of(context).brightness),
+            color: bg,
             shape: BoxShape.circle,
           ),
           child: KoraAvatar(name: status.fullName, imageUrl: status.avatarUrl, size: 48),
@@ -568,7 +676,7 @@ class _StatusTabState extends State<StatusTab> {
     );
   }
 
-  // ── Channel suggestions (preserved) ──────────────────────────
+  // ── Channel tiles ──────────────────────────────────────────────
 
   Widget _findChannelsRow(Color surface, Color textSecondary) {
     return Padding(
@@ -577,7 +685,7 @@ class _StatusTabState extends State<StatusTab> {
         children: [
           Expanded(
             child: Text('Find channels to follow',
-              style: TextStyle(color: textSecondary, fontSize: 13.5, fontWeight: FontWeight.w600)),
+                style: TextStyle(color: textSecondary, fontSize: 13.5, fontWeight: FontWeight.w600)),
           ),
           GestureDetector(
             onTap: () => setState(() => _suggestionsExpanded = !_suggestionsExpanded),
@@ -626,6 +734,24 @@ class _StatusTabState extends State<StatusTab> {
               ),
               child: const Text('Follow', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
             ),
+    );
+  }
+
+  Widget _followedChannelTile(_ChannelSuggestion s, Color textPrimary, Color textSecondary, Color surface, Color border) {
+    return ListTile(
+      leading: Container(
+        width: 48, height: 48,
+        decoration: BoxDecoration(color: s.color.withValues(alpha: 0.15), shape: BoxShape.circle),
+        child: Icon(s.icon, color: s.color, size: 24),
+      ),
+      title: Text(s.name, style: TextStyle(color: textPrimary, fontSize: 15, fontWeight: FontWeight.w600)),
+      subtitle: Text(s.followers, style: TextStyle(color: textSecondary, fontSize: 13)),
+      onTap: () {
+        // Open channel landing screen for followed channel
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const ChannelLandingScreen()),
+        );
+      },
     );
   }
 
