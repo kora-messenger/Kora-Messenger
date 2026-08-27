@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../theme/kora_colors.dart';
-import '../../services/native_audio_recording_service.dart';
+import '../../services/kora_recording_service.dart';
 import '../../services/audio_playback_service.dart';
 import '../../services/voice_note_stt_service.dart';
 import '../../services/voice_translation_pipeline.dart';
@@ -31,7 +31,7 @@ import 'language_picker_screen.dart';
 /// - **Popup** → hands-free recording bar (tap or lock). Trash, timer,
 ///   waveform, pause/resume, translate and send. Only closes on delete/send.
 ///
-/// Waveform data comes from [NativeAudioRecordingService.amplitudeStream] —
+/// Waveform data comes from [KoraRecordingService.amplitudeStream] —
 /// real microphone amplitude, not a placeholder.
 ///
 /// **Why Listener, not GestureDetector:** A GestureDetector's PanRecognizer
@@ -85,7 +85,7 @@ class _MessageComposerState extends State<MessageComposer>
   _ComposerState _state = _ComposerState.idle;
 
   // ── Recording state ──
-  final _recordingService = NativeAudioRecordingService.instance;
+  final _recordingService = KoraRecordingService.instance;
   int _seconds = 0;
   Timer? _timer;
   StreamSubscription<double>? _amplitudeSub;

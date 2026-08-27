@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:audioplayers/audioplayers.dart';
-import 'package:record/record.dart';
+import '../../services/kora_recording_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../theme/kora_colors.dart';
 import '../../models/voice_model.dart';
@@ -31,7 +31,7 @@ class VoiceStudioScreen extends StatefulWidget {
 
 class _VoiceStudioScreenState extends State<VoiceStudioScreen> {
   final _voiceService = VoiceManagementService.instance;
-  final _audioRecorder = AudioRecorder();
+  final _audioRecorder = KoraRecordingService.instance;
   final _audioPlayer = AudioPlayer();
 
   bool _isRecording = false;
@@ -55,7 +55,7 @@ class _VoiceStudioScreenState extends State<VoiceStudioScreen> {
   @override
   void dispose() {
     _timer?.cancel();
-    _audioRecorder.dispose();
+    // KoraRecordingService is a singleton — no dispose needed here
     _audioPlayer.dispose();
     _nameController.dispose();
     _descController.dispose();
@@ -64,24 +64,8 @@ class _VoiceStudioScreenState extends State<VoiceStudioScreen> {
 
   Future<void> _startRecording() async {
     try {
-      if (await _audioRecorder.hasPermission()) {
-        final path = '/data/user/0/com.kora.messenger/cache/voice_clone_${DateTime.now().millisecondsSinceEpoch}.m4a';
-        try {
-          await _audioRecorder.start(
-            RecordConfig(
-              encoder: AudioEncoder.aacLc,
-              bitRate: 128000,
-              sampleRate: 44100,
-            ),
-            path: path,
-          );
-        } catch (e) {
-          // Fallback: try without RecordConfig for older versions
-          await _audioRecorder.start(
-            const RecordConfig(),
-            path: path,
-          );
-        }
+      if (true) {
+        await _audioRecorder.startRecording();
         setState(() {
           _isRecording = true;
           _recordSeconds = 0;
@@ -102,7 +86,7 @@ class _VoiceStudioScreenState extends State<VoiceStudioScreen> {
   Future<void> _stopRecording() async {
     _timer?.cancel();
     try {
-      final path = await _audioRecorder.stop();
+      final path = await _audioRecorder.stopRecording();
       setState(() {
         _isRecording = false;
         _recordedPath = path;

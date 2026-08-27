@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
@@ -571,7 +572,9 @@ class _CallScreenState extends State<CallScreen>
                           child: CircleAvatar(
                             backgroundColor: Colors.white.withValues(alpha: 0.1),
                             backgroundImage: widget.avatarUrl != null
-                                ? NetworkImage(widget.avatarUrl!)
+                                ? (widget.avatarUrl!.startsWith('data:')
+                                    ? MemoryImage(base64Decode(widget.avatarUrl!.substring(widget.avatarUrl!.indexOf(',') + 1)))
+                                    : NetworkImage(widget.avatarUrl!))
                                 : null,
                             child: widget.avatarUrl == null
                                 ? Text(

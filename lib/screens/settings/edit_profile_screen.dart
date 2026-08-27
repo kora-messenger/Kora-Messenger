@@ -293,13 +293,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                 )
                               : _avatarUrl != null && _avatarUrl!.isNotEmpty
                                   ? ClipOval(
-                                      child: _avatarUrl!.startsWith('http')
-                                          ? Image.network(_avatarUrl!, fit: BoxFit.cover,
+                                      child: _avatarUrl!.startsWith('data:')
+                                          ? Image.memory(
+                                              base64Decode(_avatarUrl!.substring(_avatarUrl!.indexOf(',') + 1)),
+                                              fit: BoxFit.cover,
                                               errorBuilder: (_, __, ___) => _buildInitialsCircle(),
                                             )
-                                          : (_avatarUrl!.startsWith('/') && File(_avatarUrl!).existsSync()
-                                              ? Image.file(File(_avatarUrl!), fit: BoxFit.cover)
-                                              : _buildInitialsCircle()),
+                                          : (_avatarUrl!.startsWith('http')
+                                              ? Image.network(_avatarUrl!, fit: BoxFit.cover,
+                                                  errorBuilder: (_, __, ___) => _buildInitialsCircle(),
+                                                )
+                                              : (_avatarUrl!.startsWith('/') && File(_avatarUrl!).existsSync()
+                                                  ? Image.file(File(_avatarUrl!), fit: BoxFit.cover)
+                                                  : _buildInitialsCircle())),
                                     )
                                   : Center(
                                       child: Text(

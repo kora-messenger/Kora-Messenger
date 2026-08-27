@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../theme/kora_colors.dart';
@@ -104,22 +105,35 @@ class KoraAvatar extends StatelessWidget {
     if (assetPath != null) {
       return Image.asset(assetPath!, fit: BoxFit.cover);
     }
-    // Guard against stale local device paths that were saved before
-    // the cloud upload was working.  A real avatar URL is always http(s).
-    if (imageUrl != null && imageUrl!.isNotEmpty && imageUrl!.startsWith('http')) {
-      return CachedNetworkImage(
-        imageUrl: imageUrl!,
-        fit: BoxFit.cover,
-        placeholder: (_, __) => _buildInitials(),
-        errorWidget: (_, __, ___) => _buildInitials(),
-        // Data saving: cap both in-memory and disk cache width.
-        // For a 50px avatar, we only need ~100px of resolution.
-        memCacheWidth: (size * 2).toInt(),
-        maxWidthDiskCache: (size * 2).toInt(),
-        maxHeightDiskCache: (size * 2).toInt(),
-        // Disable fadeIn to reduce unnecessary repaints
-        fadeInDuration: const Duration(milliseconds: 0),
-      );
+    if (imageUrl != null && imageUrl!.isNotEmpty) {
+      // Handle data URLs (base64) — used when backend file upload isn't available
+      if (imageUrl!.startsWith('data:')) {
+        try {
+          final b64 = imageUrl!.substring(imageUrl!.indexOf(',') + 1);
+          return Image.memory(
+            base64Decode(b64),
+            fit: BoxFit.cover,
+            width: size,
+            height: size,
+            errorBuilder: (_, __, ___) => _buildInitials(),
+          );
+        } catch (_) {
+          return _buildInitials();
+        }
+      }
+      // Handle http(s) URLs with caching
+      if (imageUrl!.startsWith('http')) {
+        return CachedNetworkImage(
+          imageUrl: imageUrl!,
+          fit: BoxFit.cover,
+          placeholder: (_, __) => _buildInitials(),
+          errorWidget: (_, __, ___) => _buildInitials(),
+          memCacheWidth: (size * 2).toInt(),
+          maxWidthDiskCache: (size * 2).toInt(),
+          maxHeightDiskCache: (size * 2).toInt(),
+          fadeInDuration: const Duration(milliseconds: 0),
+        );
+      }
     }
     return _buildInitials();
   }

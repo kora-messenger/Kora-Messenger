@@ -16,14 +16,8 @@ class MainActivity : FlutterFragmentActivity() {
         "IconClassic", "IconAuroraCircle", "IconGoldElite"
     )
 
-    private val voiceNoteRecorder = VoiceNoteRecorderPlugin()
-
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-
-        // ── Voice note recorder (native VOICE_COMMUNICATION source) ──
-        voiceNoteRecorder.setContext(this)
-        voiceNoteRecorder.setup(flutterEngine.dartExecutor.binaryMessenger)
 
         // ── App icon switcher ──
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, ICON_CHANNEL)

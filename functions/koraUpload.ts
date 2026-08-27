@@ -9,37 +9,24 @@ function jsonResponse(data: any, status = 200) {
 
 Deno.serve(async (req: Request) => {
   const base44 = createClientFromRequest(req);
-  const db = base44.asServiceRole;
   const body = await req.json();
   const { action } = body;
 
   try {
     // ── UPLOAD AVATAR ─────────────────────────────────
+    // Since the Base44 backend SDK doesn't expose a file upload API,
+    // we store the avatar as a base64 data URL and return it.
+    // The client then saves this data URL to the user's avatarUrl field.
     if (action === 'uploadAvatar') {
       const { imageBase64, fileName, fileType } = body;
       if (!imageBase64) return jsonResponse({ success: false, error: 'No image data provided' });
-      if (!fileName) return jsonResponse({ success: false, error: 'No file name provided' });
 
-      // Decode base64 to binary
-      const binaryString = atob(imageBase64);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-
-      // Create a Blob and upload to Base44 file storage
-      const blob = new Blob([bytes], { type: fileType || 'image/jpeg' });
-      const file = new File([blob], fileName, { type: fileType || 'image/jpeg' });
-
-      // Use Base44's built-in file upload
-      const uploaded = await base44.files.upload(file);
-
-      // The uploaded object contains a URL we can return to the client
-      const url = uploaded.url || uploaded.file_url || uploaded;
+      const mimeType = fileType || 'image/jpeg';
+      const dataUrl = `data:${mimeType};base64,${imageBase64}`;
 
       return jsonResponse({
         success: true,
-        url: typeof url === 'string' ? url : url.url || url.toString(),
+        url: dataUrl,
       });
     }
 
@@ -48,21 +35,12 @@ Deno.serve(async (req: Request) => {
       const { imageBase64, fileName, fileType } = body;
       if (!imageBase64) return jsonResponse({ success: false, error: 'No media data provided' });
 
-      const binaryString = atob(imageBase64);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-
-      const blob = new Blob([bytes], { type: fileType || 'application/octet-stream' });
-      const file = new File([blob], fileName || 'media', { type: fileType || 'application/octet-stream' });
-
-      const uploaded = await base44.files.upload(file);
-      const url = uploaded.url || uploaded.file_url || uploaded;
+      const mimeType = fileType || 'application/octet-stream';
+      const dataUrl = `data:${mimeType};base64,${imageBase64}`;
 
       return jsonResponse({
         success: true,
-        url: typeof url === 'string' ? url : url.url || url.toString(),
+        url: dataUrl,
       });
     }
 
