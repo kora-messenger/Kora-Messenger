@@ -52,8 +52,16 @@ class StatusService {
       if (!_myStatusItems[idx].viewedBy.contains(view.viewerEmail)) {
         _myStatusItems[idx].viewedBy.add(view.viewerEmail);
       }
-      if (view.reaction != null) _myStatusItems[idx].likeCount++;
-      if (view.replyText != null) _myStatusItems[idx].replyCount++;
+      if (view.reaction != null) {
+        _myStatusItems[idx] = _myStatusItems[idx].copyWith(
+          likeCount: _myStatusItems[idx].likeCount + 1,
+        );
+      }
+      if (view.replyText != null) {
+        _myStatusItems[idx] = _myStatusItems[idx].copyWith(
+          replyCount: _myStatusItems[idx].replyCount + 1,
+        );
+      }
       await _persistMyStatuses();
     }
   }
@@ -129,7 +137,10 @@ class StatusService {
     if (sIdx < 0) return;
     final iIdx = _contactStatuses[sIdx].items.indexWhere((i) => i.id == statusItemId);
     if (iIdx >= 0) {
-      _contactStatuses[sIdx].items[iIdx].replyCount++;
+      _contactStatuses[sIdx].items[iIdx] =
+          _contactStatuses[sIdx].items[iIdx].copyWith(
+        replyCount: _contactStatuses[sIdx].items[iIdx].replyCount + 1,
+      );
       await _persistContactStatuses();
     }
   }

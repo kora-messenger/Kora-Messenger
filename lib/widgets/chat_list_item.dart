@@ -233,6 +233,8 @@ class ChatListItem extends StatelessWidget {
         return const Icon(Icons.done_all, size: 15, color: KoraColors.blue);
       case MessageStatus.none:
         return const SizedBox.shrink();
+      case MessageStatus.unsent:
+        return const Icon(Icons.error_outline, size: 14, color: Color(0xFFE53935));
     }
   }
 

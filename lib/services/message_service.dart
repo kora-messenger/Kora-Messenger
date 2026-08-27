@@ -8,6 +8,7 @@ import 'offline_voice_sync.dart';
 import 'conversation_directory.dart';
 import 'chat_sync_service.dart';
 import 'translation_service.dart';
+import '../models/translation_models.dart';
 
 /// Manages all Kora conversations with local persistence.
 ///
@@ -405,7 +406,7 @@ class MessageService {
     final msg = msgs[idx];
 
     final targetCode = targetLangCode ??
-        TranslationService.instance.preferredLangCode;
+        TranslationService.instance.preferredLanguageCode;
 
     // Return cached translation if it matches the requested language
     if (msg.translatedText != null && msg.translatedLanguageCode == targetCode) {
@@ -454,10 +455,10 @@ class MessageService {
   /// already have a translation. Called when the user opens a chat with
   /// auto-translation enabled (mirrors WhatsApp's `auto_translation` flag).
   Future<void> autoTranslateChat(String chatId) async {
-    final autoMode = TranslationService.instance.autoMode;
+    final autoMode = TranslationService.instance.autoTranslateMode;
     if (autoMode == AutoTranslateMode.off) return;
 
-    final targetCode = TranslationService.instance.preferredLangCode;
+    final targetCode = TranslationService.instance.preferredLanguageCode;
     final msgs = _cache[chatId];
     if (msgs == null) return;
 
