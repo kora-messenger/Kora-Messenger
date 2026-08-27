@@ -78,15 +78,18 @@ class KoraApi {
   static const String aiSupportEndpoint = aiChatSupportEndpoint;
   static const String aiHealthEndpoint = '$aiServerUrl/api/ai/health';
 
-  /// Kora AI feature endpoints (writing assistant, reply suggestions, etc.)
-  /// Still on the legacy local URL — not part of this fix; each of these
-  /// has a graceful client-side fallback in AiFeaturesService.
-  static const String aiWritingEndpoint = '$aiServerUrl/api/ai/writing';
-  static const String aiReplySuggestionsEndpoint = '$aiServerUrl/api/ai/reply-suggestions';
-  static const String aiSummarizeChatEndpoint = '$aiServerUrl/api/ai/summarize-chat';
-  static const String aiTranscribeEndpoint = '$aiServerUrl/api/ai/transcribe';
-  static const String aiAnalyzeImageEndpoint = '$aiServerUrl/api/ai/analyze-image';
-  static const String aiAnalyzeFileEndpoint = '$aiServerUrl/api/ai/analyze-file';
+  /// Kora AI feature endpoints (writing assistant, reply suggestions, chat summary)
+  /// Now deployed as a single backend function — koraAiFeatures.
+  /// Each request includes a 'feature' field: 'writing' | 'reply_suggestions' | 'summarize'.
+  static const String aiFeaturesEndpoint = '$baseUrl/koraAiFeatures';
+
+  /// Legacy endpoint aliases (kept for compatibility with existing service code).
+  static const String aiWritingEndpoint = aiFeaturesEndpoint;
+  static const String aiReplySuggestionsEndpoint = aiFeaturesEndpoint;
+  static const String aiSummarizeChatEndpoint = aiFeaturesEndpoint;
+  static const String aiTranscribeEndpoint = aiFeaturesEndpoint;
+  static const String aiAnalyzeImageEndpoint = aiFeaturesEndpoint;
+  static const String aiAnalyzeFileEndpoint = aiFeaturesEndpoint;
 
   /// Auth token for the AI server.
   /// Injected at compile time via --dart-define=KORA_AI_AUTH_TOKEN=...

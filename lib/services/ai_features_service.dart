@@ -105,6 +105,7 @@ class AiFeaturesService {
   }) async {
     try {
       final body = <String, dynamic>{
+        'feature': 'writing',
         'text': text,
         'mode': mode.apiValue,
         if (targetLanguage != null) 'targetLanguage': targetLanguage,
@@ -130,6 +131,7 @@ class AiFeaturesService {
   }) async {
     try {
       final body = <String, dynamic>{
+        'feature': 'reply_suggestions',
         'receivedMessage': receivedMessage,
         if (contextMessages != null) 'contextMessages': contextMessages,
       };
@@ -154,6 +156,7 @@ class AiFeaturesService {
   }) async {
     try {
       final body = <String, dynamic>{
+        'feature': 'summarize',
         'messages': messages,
         'summaryType': summaryType,
       };
@@ -170,7 +173,7 @@ class AiFeaturesService {
   /// Analyze image at [imagePath].
   Future<String?> analyzeImage(String imagePath) async {
     try {
-      final res = await KoraApi.postToAi(KoraApi.aiAnalyzeImageEndpoint, {'imagePath': imagePath});
+      final res = await KoraApi.postToAi(KoraApi.aiAnalyzeImageEndpoint, {'feature': 'analyze_image', 'imagePath': imagePath});
       return res['result'] as String?;
     } catch (e) {
       return 'Image analysis unavailable at this moment.';
@@ -180,7 +183,7 @@ class AiFeaturesService {
   /// Analyze file at [filePath].
   Future<String?> analyzeFile(String filePath) async {
     try {
-      final res = await KoraApi.postToAi(KoraApi.aiAnalyzeFileEndpoint, {'filePath': filePath});
+      final res = await KoraApi.postToAi(KoraApi.aiAnalyzeFileEndpoint, {'feature': 'analyze_file', 'filePath': filePath});
       return res['result'] as String?;
     } catch (e) {
       return 'File analysis unavailable at this moment.';

@@ -1,6 +1,39 @@
-// Kora AI Chat — v6 (OpenRouter, no mock responses)
-// Uses OPENROUTER_API_KEY and OPENROUTER_MODEL from environment.
+// Kora AI Chat — v7 (OpenRouter + API Key Auth + Rate Limiting)
+// Uses OPENROUTER_API_KEY, OPENROUTER_MODEL, and KORA_AI_AUTH_TOKEN from environment.
 // All responses are real AI-generated — no hardcoded fallbacks.
+
+// ── Rate limiting (in-memory, per-IP) ──────────────────────────────
+const rateMap = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT_WINDOW_MS = 60_000; // 1 minute
+const RATE_LIMIT_MAX = 30; // 30 requests per minute per IP
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const entry = rateMap.get(ip);
+  if (!entry || now > entry.resetAt) {
+    rateMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return true;
+  }
+  if (entry.count >= RATE_LIMIT_MAX) return false;
+  entry.count++;
+  return true;
+}
+
+// ── Auth ───────────────────────────────────────────────────────────
+function verifyAuth(req: Request): boolean {
+  const expectedToken = Deno.env.get('KORA_AI_AUTH_TOKEN') || '';
+  if (!expectedToken || expectedToken.length < 8) return true; // No token configured = open (dev mode)
+  const authHeader = req.headers.get('Authorization') || '';
+  if (authHeader.startsWith('Bearer ')) {
+    const token = authHeader.slice(7).trim();
+    return token === expectedToken;
+  }
+  return false;
+}
+
+function getClientIp(req: Request): string {
+  return req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+}
 
 function jsonResponse(data: any, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -9,7 +42,7 @@ function jsonResponse(data: any, status = 200) {
       'Content-Type': 'application/json',
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     },
   });
 }
@@ -125,16 +158,18 @@ You are free for all Kora Messenger users — no Premium required. Be the best a
 function cleanApiKey(raw: string): string {
   let key = raw.trim();
   if (key.startsWith('api_key=')) {
-    key = key.slice('api_key='.length).trim();
-    if ((key.startsWith('"') && key.endsWith('"')) || (key.startsWith("'") && key.endsWith("'"))) {
-      key = key.slice(1, -1);
-    }
+    key = key.slice('api_key='.length);
+  }
+  if (key.startsWith('Bearer ')) {
+    key = key.slice('Bearer '.length);
+  }
+  if (key.length >= 2 && (key[0] === '"' || key[0] === "'") && key[key.length - 1] === key[0]) {
+    key = key.slice(1, -1);
   }
   return key.trim();
 }
 
 /// Calls OpenRouter Chat Completions API.
-/// Returns the AI text, or throws with the actual error for logging.
 async function callOpenRouter(
   systemPrompt: string,
   message: string,
@@ -147,12 +182,10 @@ async function callOpenRouter(
 
   const model = Deno.env.get('OPENROUTER_MODEL') || 'openai/gpt-4o';
 
-  // Build messages array from history + new message
   const messages: any[] = [
     { role: 'system', content: systemPrompt },
   ];
 
-  // Add conversation history (last 10 messages)
   for (const m of (history || []).slice(-10).filter((m: any) => m.text && m.text.trim() !== '')) {
     messages.push({
       role: m.isMe ? 'user' : 'assistant',
@@ -160,11 +193,7 @@ async function callOpenRouter(
     });
   }
 
-  // Add the current user message
-  messages.push({
-    role: 'user',
-    content: message,
-  });
+  messages.push({ role: 'user', content: message });
 
   const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
@@ -190,7 +219,6 @@ async function callOpenRouter(
 
   const data = await response.json();
 
-  // Standard OpenAI-compatible response format
   if (data.choices && Array.isArray(data.choices) && data.choices.length > 0) {
     const content = data.choices[0].message?.content;
     if (content && typeof content === 'string' && content.trim()) {
@@ -210,9 +238,20 @@ Deno.serve(async (req: Request) => {
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       },
     });
+  }
+
+  // ── Auth check ──
+  if (!verifyAuth(req)) {
+    return jsonResponse({ success: false, error: 'Unauthorized' }, 401);
+  }
+
+  // ── Rate limit check ──
+  const clientIp = getClientIp(req);
+  if (!checkRateLimit(clientIp)) {
+    return jsonResponse({ success: false, error: 'Rate limit exceeded. Please slow down.' }, 429);
   }
 
   let body: any;
@@ -235,12 +274,9 @@ Deno.serve(async (req: Request) => {
     const reply = await callOpenRouter(systemPrompt, message, hist);
     return jsonResponse({ success: true, reply });
   } catch (e) {
-    // Log the REAL error for developers
     const errorDetail = e instanceof Error ? e.message : String(e);
     console.error(`[Kora AI] Request failed — chatType=${chatType}, model=${Deno.env.get('OPENROUTER_MODEL') || 'openai/gpt-4o'}, error=${errorDetail}`);
 
-    // Return a friendly message to the user, but include the real error
-    // so the app can log/display it during development.
     return jsonResponse({
       success: false,
       error: errorDetail,
