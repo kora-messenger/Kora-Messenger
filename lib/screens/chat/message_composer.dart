@@ -9,7 +9,6 @@ import '../../services/voice_note_stt_service.dart';
 import '../../services/voice_translation_pipeline.dart';
 import '../../services/translation_service.dart';
 import '../../models/translation_models.dart';
-import 'ai_writing_sheet.dart';
 import 'voice_recorder.dart';
 import 'voice_locked_bar.dart';
 import 'emoji_sticker_panel.dart';
@@ -874,25 +873,7 @@ class _MessageComposerState extends State<MessageComposer>
     );
   }
 
-  void _openAiWriting() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => AiWritingSheet(currentText: _controller.text, onApply: (result) { _controller.text = result; _controller.selection = TextSelection.fromPosition(TextPosition(offset: result.length)); setState(() => _hasText = true); _focusNode.requestFocus(); }),
-    ).then((result) {
-      if (result != null && result is String && result.isNotEmpty) {
-        _controller.text = result;
-        _controller.selection = TextSelection.fromPosition(
-          TextPosition(offset: result.length),
-        );
-        setState(() => _hasText = true);
-        _focusNode.requestFocus();
-      }
-    });
-  }
-
-  /// Opens the popup voice-note bottom sheet.
+/// Opens the popup voice-note bottom sheet.
   /// Uses isDismissible: false so it only closes on delete/send.
   @override
   Widget build(BuildContext context) {
@@ -992,14 +973,7 @@ class _MessageComposerState extends State<MessageComposer>
                                 color: KoraColors.purple, size: 22),
                             ),
                           ),
-                          GestureDetector(
-                            onTap: _openAiWriting,
-                            child: Padding(
-                              padding: const EdgeInsets.only(right: 6),
-                              child: Icon(Icons.auto_awesome_outlined,
-                                  color: KoraColors.purple, size: 22),
-                            ),
-                          ),
+
                           Expanded(
                             child: TextField(
                               controller: _controller,
@@ -1021,7 +995,7 @@ class _MessageComposerState extends State<MessageComposer>
                           IconButton(
                             icon: Icon(Icons.camera_alt_outlined,
                                 color: textMuted, size: 22),
-                            onPressed: () {},
+                            onPressed: _openCamera,
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(
                                 minWidth: 36, minHeight: 36),
@@ -1143,6 +1117,10 @@ class _MessageComposerState extends State<MessageComposer>
         // WhatsApp-style emoji & sticker panel — inline below the input bar
         if (_showEmojiPanel)
           KoraEmojiPanel(
+            onKeyboardToggle: () {
+              setState(() => _showEmojiPanel = false);
+              _focusNode.requestFocus();
+            },
             onEmojiSelected: (emoji) {
               final text = _controller.text;
               final sel = _controller.selection;

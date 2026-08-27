@@ -389,11 +389,13 @@ const _emojiKeywords = <String, List<String>>{
 class KoraEmojiPanel extends StatefulWidget {
   final Function(String) onEmojiSelected;
   final Function(String) onStickerSelected;
+  final VoidCallback? onKeyboardToggle;
 
   const KoraEmojiPanel({
     super.key,
     required this.onEmojiSelected,
     required this.onStickerSelected,
+    this.onKeyboardToggle,
   });
 
   @override
@@ -854,7 +856,13 @@ class _KoraEmojiPanelState extends State<KoraEmojiPanel>
           _buildTab(icon: Icons.sticky_note_2_outlined, isActive: _activeTab == _PanelTab.stickers,
             brightness: brightness, onTap: () => setState(() => _activeTab = _PanelTab.stickers)),
           IconButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              if (widget.onKeyboardToggle != null) {
+                widget.onKeyboardToggle!();
+              } else {
+                Navigator.pop(context);
+              }
+            },
             icon: Icon(Icons.keyboard_outlined, color: KoraColors.textMutedFor(brightness), size: 22),
           ),
         ],
