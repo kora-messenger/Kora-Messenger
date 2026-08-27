@@ -487,8 +487,6 @@ class _ChatsTabState extends State<ChatsTab> {
       ),
     ]);
   }
-    ]);
-  }
 
   /// "Mark as unread" — sets a forced-unread flag so the chat shows
   /// a badge on Home even though every message was actually seen.
@@ -1036,4 +1034,3 @@ class _ChatsTabState extends State<ChatsTab> {
       ),
     );
   }
-}
