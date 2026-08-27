@@ -341,11 +341,11 @@ class _CallScreenState extends State<CallScreen>
       final sourceLang = result['sourceLanguage'] as String;
       final targetLang = result['targetLanguage'] as String;
 
-      _liveTranslation.onRecognizedText = (recognizedText) {
+      _liveTranslation.onSpeechRecognized = (recognizedText) {
         if (mounted) setState(() => _lastRecognized = recognizedText);
       };
 
-      _liveTranslation.onTranslatedText = (translatedText) {
+      _liveTranslation.onSendTranslatedText = (translatedText) {
         if (mounted) setState(() => _lastReceived = translatedText);
         _webrtcService.sendTranslationText(translatedText);
       };

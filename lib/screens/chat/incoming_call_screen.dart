@@ -6,6 +6,7 @@ import '../../services/webrtc_call_service.dart';
 import '../../services/call_service.dart';
 import '../../services/incoming_call_service.dart';
 import '../../services/session_manager.dart';
+import '../../models/call_log.dart';
 import 'call_screen.dart';
 
 /// Incoming call screen — shown when another user is calling.
