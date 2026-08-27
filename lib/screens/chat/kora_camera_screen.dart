@@ -1,15 +1,20 @@
 import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../theme/kora_colors.dart';
 
-/// WhatsApp-style in-app camera for Kora Messenger.
+/// WhatsApp 2026-style in-app camera for Kora Messenger.
 ///
 /// Full-screen viewfinder with:
-/// - Shutter button: tap for photo, hold to record video
-/// - Flash toggle (top right)
-/// - Front/back camera switch (top right)
-/// - Photo/Video mode switch (swipe or tap)
+/// - Shutter button: tap for photo, hold to record video (progress ring)
+/// - Flash toggle (auto / on / off / torch)
+/// - Front/back camera switch
+/// - Photo/Video mode tabs (swipe or tap)
+/// - Pinch-to-zoom and 0.5x / 1x / 2x quick zoom buttons
+/// - Gallery thumbnail (bottom-left) to pick from gallery
+/// - Recording timer with red dot
+/// - Max video duration: 3 minutes
 /// - Captured media goes to MediaEditorScreen for editing before sending
 class KoraCameraScreen extends StatefulWidget {
   const KoraCameraScreen({super.key});
@@ -20,17 +25,23 @@ class KoraCameraScreen extends StatefulWidget {
 
 enum _CameraMode { photo, video }
 
+enum _FlashMode { off, auto, on, torch }
+
 class _KoraCameraScreenState extends State<KoraCameraScreen>
     with WidgetsBindingObserver, TickerProviderStateMixin {
   CameraController? _controller;
   List<CameraDescription> _cameras = [];
   int _selectedCamera = 0;
   _CameraMode _mode = _CameraMode.photo;
-  bool _isFlashOn = false;
+  _FlashMode _flashMode = _FlashMode.off;
   bool _isRecording = false;
   bool _isInitializing = true;
   double _recordProgress = 0.0;
   DateTime? _recordStart;
+  double _currentZoom = 1.0;
+  double _maxZoom = 1.0;
+  double _minZoom = 1.0;
+  String? _galleryThumbnail;
 
   static const _maxVideoDuration = Duration(seconds: 180);
 
@@ -39,6 +50,7 @@ class _KoraCameraScreenState extends State<KoraCameraScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _initCameras();
+    _loadGalleryThumbnail();
   }
 
   void _initCameras() async {
@@ -57,6 +69,16 @@ class _KoraCameraScreenState extends State<KoraCameraScreen>
     }
   }
 
+  void _loadGalleryThumbnail() async {
+    try {
+      final picker = ImagePicker();
+      final media = await picker.pickImage(source: ImageSource.gallery, imageQuality: 30);
+      if (mounted && media != null) {
+        setState(() => _galleryThumbnail = media.path);
+      }
+    } catch (_) {}
+  }
+
   Future<void> _setupController(int cameraIndex) async {
     if (_cameras.isEmpty) return;
     final desc = _cameras[cameraIndex];
@@ -67,12 +89,35 @@ class _KoraCameraScreenState extends State<KoraCameraScreen>
       imageFormatGroup: ImageFormatGroup.jpeg,
     );
     await _controller!.initialize();
-    if (_isFlashOn && _mode == _CameraMode.photo) {
-      await _controller!.setFlashMode(FlashMode.torch);
-    } else {
-      await _controller!.setFlashMode(FlashMode.off);
+
+    try {
+      _minZoom = await _controller!.getMinZoomLevel();
+      _maxZoom = await _controller!.getMaxZoomLevel();
+    } catch (_) {
+      _minZoom = 1.0;
+      _maxZoom = 1.0;
     }
+
+    await _applyFlashMode();
     if (mounted) setState(() {});
+  }
+
+  Future<void> _applyFlashMode() async {
+    if (_controller == null) return;
+    switch (_flashMode) {
+      case _FlashMode.off:
+        await _controller!.setFlashMode(FlashMode.off);
+        break;
+      case _FlashMode.auto:
+        await _controller!.setFlashMode(FlashMode.auto);
+        break;
+      case _FlashMode.on:
+        await _controller!.setFlashMode(FlashMode.always);
+        break;
+      case _FlashMode.torch:
+        await _controller!.setFlashMode(FlashMode.torch);
+        break;
+    }
   }
 
   void _switchCamera() async {
@@ -82,19 +127,30 @@ class _KoraCameraScreenState extends State<KoraCameraScreen>
     await _setupController(_selectedCamera);
   }
 
-  void _toggleFlash() async {
-    _isFlashOn = !_isFlashOn;
-    if (_controller != null) {
-      await _controller!.setFlashMode(
-        _isFlashOn ? FlashMode.torch : FlashMode.off,
-      );
-    }
+  void _cycleFlashMode() async {
+    _flashMode = _flashMode == _FlashMode.off
+        ? _FlashMode.auto
+        : _flashMode == _FlashMode.auto
+            ? _FlashMode.on
+            : _flashMode == _FlashMode.on
+                ? _FlashMode.torch
+                : _FlashMode.off;
+    await _applyFlashMode();
     setState(() {});
   }
 
   void _switchMode(_CameraMode newMode) {
     if (_isRecording) return;
     setState(() => _mode = newMode);
+  }
+
+  void _setZoom(double zoom) async {
+    final clamped = zoom.clamp(_minZoom, _maxZoom);
+    _currentZoom = clamped;
+    try {
+      await _controller!.setZoomLevel(clamped);
+    } catch (_) {}
+    if (mounted) setState(() {});
   }
 
   void _takePhoto() async {
@@ -159,6 +215,20 @@ class _KoraCameraScreenState extends State<KoraCameraScreen>
     });
   }
 
+  void _pickFromGallery() async {
+    final picker = ImagePicker();
+    final photo = await picker.pickImage(source: ImageSource.gallery, imageQuality: 100);
+    if (photo != null && mounted) {
+      _finishCapture(photo.path, false);
+      return;
+    }
+    if (!mounted) return;
+    final video = await picker.pickVideo(source: ImageSource.gallery, maxDuration: const Duration(seconds: 180));
+    if (video != null && mounted) {
+      _finishCapture(video.path, true);
+    }
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (_controller == null) return;
@@ -174,6 +244,24 @@ class _KoraCameraScreenState extends State<KoraCameraScreen>
     WidgetsBinding.instance.removeObserver(this);
     _controller?.dispose();
     super.dispose();
+  }
+
+  IconData _flashIcon() {
+    switch (_flashMode) {
+      case _FlashMode.off:
+        return Icons.flash_off;
+      case _FlashMode.auto:
+        return Icons.flash_auto;
+      case _FlashMode.on:
+        return Icons.flash_on;
+      case _FlashMode.torch:
+        return Icons.flashlight_on;
+    }
+  }
+
+  String _recordTimeString() {
+    final seconds = (_recordProgress * 180).toInt();
+    return '${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')}';
   }
 
   @override
@@ -196,10 +284,38 @@ class _KoraCameraScreenState extends State<KoraCameraScreen>
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          Center(
-            child: AspectRatio(
-              aspectRatio: aspect,
-              child: CameraPreview(_controller!),
+          // Camera preview with pinch-to-zoom
+          GestureDetector(
+            onScaleStart: (_) {},
+            onScaleUpdate: (details) {
+              final newZoom = _currentZoom * details.scale;
+              _setZoom(newZoom);
+            },
+            child: Center(
+              child: AspectRatio(
+                aspectRatio: aspect,
+                child: CameraPreview(_controller!),
+              ),
+            ),
+          ),
+
+          // Top gradient overlay
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              height: 140,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withValues(alpha: 0.5),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
             ),
           ),
 
@@ -211,50 +327,73 @@ class _KoraCameraScreenState extends State<KoraCameraScreen>
             child: SafeArea(
               bottom: false,
               child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     _topButton(Icons.close, () => Navigator.pop(context)),
                     if (_isRecording)
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
                           color: Colors.black54,
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(20),
                         ),
                         child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.fiber_manual_record,
-                                  color: KoraColors.red, size: 12),
-                              const SizedBox(width: 4),
-                              Text(
-                                '${(_recordProgress * 180).toInt() ~/ 60}:${((_recordProgress * 180).toInt() % 60).toString().padLeft(2, '0')}',
-                                style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600),
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 8, height: 8,
+                              decoration: const BoxDecoration(
+                                color: Colors.red,
+                                shape: BoxShape.circle,
                               ),
-                            ]),
-                      ),
-                    Row(children: [
-                      if (!_isRecording) ...[
-                        _topButton(
-                          _isFlashOn ? Icons.flash_on : Icons.flash_off,
-                          _toggleFlash,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              _recordTimeString(),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 8),
+                      ),
+                    Row(
+                      children: [
+                        if (!_isRecording) ...[
+                          _topButton(_flashIcon(), _cycleFlashMode),
+                          const SizedBox(width: 8),
+                        ],
+                        if (!_isRecording) _topButton(Icons.cameraswitch_outlined, _switchCamera),
                       ],
-                      _topButton(Icons.cameraswitch_outlined, _switchCamera),
-                    ]),
+                    ),
                   ],
                 ),
               ),
             ),
           ),
+
+          // Zoom quick buttons (right side)
+          if (!_isRecording)
+            Positioned(
+              bottom: 140,
+              right: 16,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _zoomButton('0.5x', 0.5, _currentZoom == 0.5),
+                  const SizedBox(height: 8),
+                  _zoomButton('1x', 1.0, _currentZoom == 1.0 && _currentZoom != 0.5),
+                  if (_maxZoom >= 2.0) ...[
+                    const SizedBox(height: 8),
+                    _zoomButton('2x', 2.0, _currentZoom == 2.0),
+                  ],
+                ],
+              ),
+            ),
 
           // Bottom controls
           Positioned(
@@ -271,7 +410,7 @@ class _KoraCameraScreenState extends State<KoraCameraScreen>
                     end: Alignment.topCenter,
                     colors: [
                       Colors.black.withValues(alpha: 0.8),
-                      Colors.transparent
+                      Colors.transparent,
                     ],
                   ),
                 ),
@@ -280,7 +419,7 @@ class _KoraCameraScreenState extends State<KoraCameraScreen>
                   children: [
                     if (!_isRecording)
                       Padding(
-                        padding: const EdgeInsets.only(bottom: 24),
+                        padding: const EdgeInsets.only(bottom: 16),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -290,16 +429,47 @@ class _KoraCameraScreenState extends State<KoraCameraScreen>
                           ],
                         ),
                       ),
-                    Center(
-                      child: GestureDetector(
-                        onTap: _mode == _CameraMode.photo ? _takePhoto : null,
-                        onLongPressStart: _mode == _CameraMode.video
-                            ? (_) => _startVideoRecording()
-                            : null,
-                        onLongPressEnd: _mode == _CameraMode.video
-                            ? (_) => _stopVideoRecording()
-                            : null,
-                        child: _shutterButton(),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Row(
+                        children: [
+                          // Gallery thumbnail (bottom-left)
+                          GestureDetector(
+                            onTap: _pickFromGallery,
+                            child: Container(
+                              width: 48, height: 48,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.white38, width: 2),
+                                image: _galleryThumbnail != null
+                                    ? DecorationImage(
+                                        image: FileImage(File(_galleryThumbnail!)),
+                                        fit: BoxFit.cover,
+                                      )
+                                    : null,
+                                color: Colors.white12,
+                              ),
+                              child: _galleryThumbnail == null
+                                  ? const Icon(Icons.photo_outlined, color: Colors.white54, size: 22)
+                                  : null,
+                            ),
+                          ),
+                          const Spacer(),
+                          // Shutter button
+                          GestureDetector(
+                            onTap: _mode == _CameraMode.photo ? _takePhoto : null,
+                            onLongPressStart: _mode == _CameraMode.video
+                                ? (_) => _startVideoRecording()
+                                : null,
+                            onLongPressEnd: _mode == _CameraMode.video
+                                ? (_) => _stopVideoRecording()
+                                : null,
+                            child: _shutterButton(),
+                          ),
+                          const Spacer(),
+                          // Right placeholder for symmetry
+                          const SizedBox(width: 48, height: 48),
+                        ],
                       ),
                     ),
                   ],
@@ -316,13 +486,35 @@ class _KoraCameraScreenState extends State<KoraCameraScreen>
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 40,
-        height: 40,
+        width: 40, height: 40,
         decoration: const BoxDecoration(
           color: Colors.black38,
           shape: BoxShape.circle,
         ),
         child: Icon(icon, color: Colors.white, size: 22),
+      ),
+    );
+  }
+
+  Widget _zoomButton(String label, double zoom, bool isActive) {
+    return GestureDetector(
+      onTap: () => _setZoom(zoom),
+      child: Container(
+        width: 44, height: 44,
+        decoration: BoxDecoration(
+          color: isActive ? KoraColors.purple : Colors.black38,
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white24, width: 1),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ),
     );
   }
@@ -334,9 +526,7 @@ class _KoraCameraScreenState extends State<KoraCameraScreen>
       child: Text(
         label,
         style: TextStyle(
-          color: isActive
-              ? KoraColors.purple
-              : Colors.white.withValues(alpha: 0.5),
+          color: isActive ? Colors.white : Colors.white54,
           fontSize: 14,
           fontWeight: FontWeight.w600,
         ),
@@ -345,29 +535,27 @@ class _KoraCameraScreenState extends State<KoraCameraScreen>
   }
 
   Widget _shutterButton() {
-    if (_mode == _CameraMode.video && _isRecording) {
+    if (_isRecording) {
       return SizedBox(
-        width: 72,
-        height: 72,
+        width: 72, height: 72,
         child: Stack(
           alignment: Alignment.center,
           children: [
             SizedBox(
-              width: 72,
-              height: 72,
+              width: 72, height: 72,
               child: CircularProgressIndicator(
                 value: _recordProgress,
                 strokeWidth: 4,
-                color: KoraColors.red,
-                backgroundColor: Colors.white.withValues(alpha: 0.3),
+                valueColor: AlwaysStoppedAnimation<Color>(KoraColors.purple),
+                backgroundColor: Colors.white24,
               ),
             ),
             Container(
-              width: 28,
-              height: 28,
+              width: 56, height: 56,
               decoration: BoxDecoration(
-                color: KoraColors.red,
-                borderRadius: BorderRadius.circular(6),
+                color: Colors.red,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.white, width: 3),
               ),
             ),
           ],
@@ -376,17 +564,19 @@ class _KoraCameraScreenState extends State<KoraCameraScreen>
     }
 
     return Container(
-      width: 72,
-      height: 72,
+      width: 72, height: 72,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        border: Border.all(color: Colors.white, width: 4),
+        border: Border.all(
+          color: _mode == _CameraMode.video ? Colors.red : Colors.white,
+          width: 4,
+        ),
       ),
       child: Container(
         margin: const EdgeInsets.all(4),
         decoration: BoxDecoration(
+          color: _mode == _CameraMode.video ? Colors.red : Colors.white,
           shape: BoxShape.circle,
-          color: _mode == _CameraMode.video ? KoraColors.red : Colors.white,
         ),
       ),
     );

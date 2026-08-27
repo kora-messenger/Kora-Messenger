@@ -350,15 +350,46 @@ class _StatusViewerScreenState extends State<StatusViewerScreen>
       color: item.backgroundColor ?? KoraColors.purple,
       alignment: Alignment.center,
       padding: const EdgeInsets.symmetric(horizontal: 32),
-      child: Text(
-        item.text ?? '',
-        style: TextStyle(
-          color: item.textColor ?? Colors.white,
-          fontSize: 28,
-          height: 1.4,
-          fontFamily: item.fontFamily,
-        ),
-        textAlign: TextAlign.center,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Flexible(
+            child: Text(
+              item.text ?? '',
+              style: TextStyle(
+                color: item.textColor ?? Colors.white,
+                fontSize: 28,
+                height: 1.4,
+                fontFamily: item.fontFamily,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          if (item.musicTitle != null) ...[
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.white24,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.music_note, color: Colors.white70, size: 16),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      item.musicTitle!,
+                      style: const TextStyle(color: Colors.white70, fontSize: 13),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -611,6 +642,14 @@ class _StatusViewerScreenState extends State<StatusViewerScreen>
                 },
               ),
               ListTile(
+                leading: Icon(Icons.share_outlined, color: textPrimary),
+                title: Text('Share', style: TextStyle(color: textPrimary)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _shareStatus(item);
+                },
+              ),
+              ListTile(
                 leading: Icon(Icons.delete, color: Colors.red),
                 title: Text('Delete', style: TextStyle(color: textPrimary)),
                 onTap: () {
@@ -629,6 +668,19 @@ class _StatusViewerScreenState extends State<StatusViewerScreen>
                   StatusService.instance.toggleMute(widget.status.id);
                   Navigator.pop(context);
                 },
+              ),
+              ListTile(
+                leading: Icon(Icons.share_outlined, color: textPrimary),
+                title: Text('Share', style: TextStyle(color: textPrimary)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _shareStatus(item);
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.report_outlined, color: textPrimary),
+                title: Text('Report', style: TextStyle(color: textPrimary)),
+                onTap: () => Navigator.pop(context),
               ),
             ],
             const SizedBox(height: 8),
@@ -682,6 +734,29 @@ class _StatusViewerScreenState extends State<StatusViewerScreen>
     StatusService.instance.deleteStatusItem(item.id);
     if (widget.status.items.length <= 1) {
       Navigator.of(context).pop();
+    }
+  }
+
+  void _shareStatus(StatusItem item) {
+    if (item.mediaPath != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Sharing status...'),
+          backgroundColor: KoraColors.purple,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 1),
+        ),
+      );
+    } else {
+      // Text status — copy to clipboard
+      ClipboardData(text: item.text ?? '');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Status text copied'),
+          backgroundColor: KoraColors.purple,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 

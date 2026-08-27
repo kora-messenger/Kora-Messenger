@@ -24,6 +24,7 @@ class StatusItem {
   final Color? backgroundColor;
   final Color? textColor;
   final String? fontFamily;
+  final String? musicTitle;
   final String? caption;
   final DateTime createdAt;
   final Duration? duration;
@@ -43,6 +44,7 @@ class StatusItem {
     this.backgroundColor,
     this.textColor,
     this.fontFamily,
+    this.musicTitle,
     this.caption,
     required this.createdAt,
     this.duration,
@@ -85,6 +87,7 @@ class StatusItem {
       backgroundColor: backgroundColor ?? this.backgroundColor,
       textColor: textColor ?? this.textColor,
       fontFamily: fontFamily ?? this.fontFamily,
+      musicTitle: musicTitle ?? this.musicTitle,
       caption: caption ?? this.caption,
       createdAt: createdAt ?? this.createdAt,
       duration: duration ?? this.duration,

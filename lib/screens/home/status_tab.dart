@@ -9,20 +9,20 @@ import '../../widgets/kora_avatar.dart';
 import '../chat/kora_camera_screen.dart';
 import '../status/text_status_screen.dart';
 import '../status/status_viewer_screen.dart';
+import '../status/status_layout_screen.dart';
 import '../status/status_privacy_screen.dart';
 import '../channel_landing_screen.dart';
 
-/// "Updates" screen — Kora's WhatsApp-style Updates tab.
+/// "Updates" screen — Kora's WhatsApp 2026-style Updates tab.
 ///
-/// Matches WhatsApp's Updates screen layout exactly:
+/// Layout:
 /// - Header: "Updates" title + search icon + 3-dot menu
-/// - Status section: My Status row, Recent updates (colored ring),
+/// - Status section: My Status row, Recent updates (gradient ring),
 ///   Viewed updates (gray ring), Muted updates (collapsed)
-/// - Channels section: Find channels to follow, channel suggestions,
-///   Explore more button
+/// - New: Layout/Collage button in status creation
+/// - New: Music integration toggle
+/// - Channels section: Find channels to follow, suggestions, Explore more
 /// - FAB: Camera (photo/video status), secondary FAB: Edit (text status)
-///
-/// All actions are functional — no placeholders.
 class StatusTab extends StatefulWidget {
   const StatusTab({super.key});
 
@@ -74,28 +74,34 @@ class _StatusTabState extends State<StatusTab> {
     setState(() {});
   }
 
-  // ── Status creation (all functional) ──────────────────────────
+  // ── Status creation ───────────────────────────────────────────
 
-  void _openCameraStatus() {
+  void _openStatusCreation() {
+    final brightness = Theme.of(context).brightness;
+    final textPrimary = KoraColors.textPrimaryFor(brightness);
+    final textSecondary = KoraColors.textSecondaryFor(brightness);
+    final surface = KoraColors.surfaceFor(brightness);
+
     showModalBottomSheet(
       context: context,
-      backgroundColor: KoraColors.cardFor(Theme.of(context).brightness),
+      backgroundColor: surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) {
-        final brightness = Theme.of(context).brightness;
-        final textPrimary = KoraColors.textPrimaryFor(brightness);
-        final textSecondary = KoraColors.textSecondaryFor(brightness);
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             const SizedBox(height: 8),
             Container(
               width: 36, height: 4,
-              decoration: BoxDecoration(color: textSecondary.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(2)),
+              decoration: BoxDecoration(
+                color: textSecondary.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
             const SizedBox(height: 16),
+            // Text status
             ListTile(
               leading: Container(
                 width: 44, height: 44,
@@ -104,11 +110,9 @@ class _StatusTabState extends State<StatusTab> {
               ),
               title: Text('Text status', style: TextStyle(color: textPrimary, fontWeight: FontWeight.w600)),
               subtitle: Text('Share a text update', style: TextStyle(color: textSecondary, fontSize: 13)),
-              onTap: () {
-                Navigator.pop(context);
-                _openTextStatus();
-              },
+              onTap: () { Navigator.pop(context); _openTextStatus(); },
             ),
+            // Camera
             ListTile(
               leading: Container(
                 width: 44, height: 44,
@@ -117,22 +121,39 @@ class _StatusTabState extends State<StatusTab> {
               ),
               title: Text('Camera', style: TextStyle(color: textPrimary, fontWeight: FontWeight.w600)),
               subtitle: Text('Capture photo or video', style: TextStyle(color: textSecondary, fontSize: 13)),
-              onTap: () {
-                Navigator.pop(context);
-                _captureFromCamera();
-              },
+              onTap: () { Navigator.pop(context); _captureFromCamera(); },
             ),
+            // Gallery
             ListTile(
               leading: Container(
                 width: 44, height: 44,
-                decoration: BoxDecoration(color: KoraColors.purple.withValues(alpha: 0.2), shape: BoxShape.circle),
+                decoration: BoxDecoration(
+                  color: KoraColors.purple.withValues(alpha: 0.2),
+                  shape: BoxShape.circle,
+                ),
                 child: Icon(Icons.photo_library, color: KoraColors.purple, size: 20),
               ),
               title: Text('Gallery', style: TextStyle(color: textPrimary, fontWeight: FontWeight.w600)),
               subtitle: Text('Upload from gallery', style: TextStyle(color: textSecondary, fontSize: 13)),
+              onTap: () { Navigator.pop(context); _pickFromGallery(); },
+            ),
+            // Layout/Collage (NEW WhatsApp 2026)
+            ListTile(
+              leading: Container(
+                width: 44, height: 44,
+                decoration: BoxDecoration(
+                  color: KoraColors.blue.withValues(alpha: 0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.grid_view_rounded, color: KoraColors.blue, size: 20),
+              ),
+              title: Text('Layout', style: TextStyle(color: textPrimary, fontWeight: FontWeight.w600)),
+              subtitle: Text('Combine 2-6 photos into a collage', style: TextStyle(color: textSecondary, fontSize: 13)),
               onTap: () {
                 Navigator.pop(context);
-                _pickFromGallery();
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const StatusLayoutScreen()),
+                ).then((_) => _refresh());
               },
             ),
             const SizedBox(height: 16),
@@ -168,7 +189,6 @@ class _StatusTabState extends State<StatusTab> {
 
   void _pickFromGallery() async {
     final picker = ImagePicker();
-    // Pick image first — user can also pick video
     final photo = await picker.pickImage(source: ImageSource.gallery, imageQuality: 100);
     if (photo != null && mounted) {
       final item = StatusItem(
@@ -181,7 +201,6 @@ class _StatusTabState extends State<StatusTab> {
       _refresh();
       return;
     }
-    // If no photo selected, try video
     if (!mounted) return;
     final video = await picker.pickVideo(source: ImageSource.gallery, maxDuration: const Duration(seconds: 30));
     if (video != null && mounted) {
@@ -202,7 +221,7 @@ class _StatusTabState extends State<StatusTab> {
   void _openMyStatus() {
     final items = StatusService.instance.myStatusItems;
     if (items.isEmpty) {
-      _openCameraStatus();
+      _openStatusCreation();
       return;
     }
     final status = KoraStatus(
@@ -241,11 +260,12 @@ class _StatusTabState extends State<StatusTab> {
   void _showMoreOptions() {
     final brightness = Theme.of(context).brightness;
     final textPrimary = KoraColors.textPrimaryFor(brightness);
+    final surface = KoraColors.surfaceFor(brightness);
     showModalBottomSheet(
       context: context,
-      backgroundColor: KoraColors.cardFor(brightness),
+      backgroundColor: surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) {
         return Column(
@@ -263,28 +283,27 @@ class _StatusTabState extends State<StatusTab> {
             ListTile(
               leading: Icon(Icons.lock_outline, color: textPrimary),
               title: Text('Status privacy', style: TextStyle(color: textPrimary)),
-              onTap: () {
-                Navigator.pop(context);
-                _openPrivacy();
-              },
+              onTap: () { Navigator.pop(context); _openPrivacy(); },
             ),
             ListTile(
               leading: Icon(Icons.volume_off, color: textPrimary),
               title: Text('Muted updates', style: TextStyle(color: textPrimary)),
-              onTap: () {
-                Navigator.pop(context);
-                _showMutedUpdates();
-              },
+              onTap: () { Navigator.pop(context); _showMutedUpdates(); },
             ),
             ListTile(
-              leading: Icon(Icons.campaign_outlined, color: textPrimary),
-              title: Text('Create channel', style: TextStyle(color: textPrimary)),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const ChannelLandingScreen()),
-                );
-              },
+              leading: Icon(Icons.music_note, color: textPrimary),
+              title: Text('Music settings', style: TextStyle(color: textPrimary)),
+              onTap: () { Navigator.pop(context); _showMusicSettings(); },
+            ),
+            ListTile(
+              leading: Icon(Icons.share_outlined, color: textPrimary),
+              title: Text('Cross-posting', style: TextStyle(color: textPrimary)),
+              onTap: () { Navigator.pop(context); _showCrossPostingSettings(); },
+            ),
+            ListTile(
+              leading: Icon(Icons.settings_outlined, color: textPrimary),
+              title: Text('Status settings', style: TextStyle(color: textPrimary)),
+              onTap: () => Navigator.pop(context),
             ),
             const SizedBox(height: 8),
           ],
@@ -294,16 +313,73 @@ class _StatusTabState extends State<StatusTab> {
   }
 
   void _showMutedUpdates() {
-    final muted = StatusService.instance.mutedUpdates;
+    final muted = StatusService.instance.contactStatuses.where((s) => s.isMuted).toList();
     final brightness = Theme.of(context).brightness;
     final textPrimary = KoraColors.textPrimaryFor(brightness);
     final textSecondary = KoraColors.textSecondaryFor(brightness);
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: KoraColors.cardFor(brightness),
+      backgroundColor: KoraColors.surfaceFor(brightness),
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      isScrollControlled: true,
+      builder: (context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.6,
+          minChildSize: 0.3,
+          maxChildSize: 0.9,
+          expand: false,
+          builder: (context, scrollController) => Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Text('Muted updates', style: TextStyle(color: textPrimary, fontSize: 18, fontWeight: FontWeight.w700)),
+                    const Spacer(),
+                    GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Icon(Icons.close, color: textSecondary, size: 22),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: ListView.builder(
+                  controller: scrollController,
+                  itemCount: muted.length,
+                  itemBuilder: (context, i) {
+                    final s = muted[i];
+                    return ListTile(
+                      leading: KoraAvatar(name: s.fullName, imageUrl: s.avatarUrl, size: 44),
+                      title: Text(s.fullName, style: TextStyle(color: textPrimary, fontWeight: FontWeight.w600)),
+                      subtitle: Text(_timeAgo(s.lastUpdatedAt), style: TextStyle(color: textSecondary, fontSize: 13)),
+                      onTap: () { Navigator.pop(context); _openContactStatus(s); },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showMusicSettings() {
+    final brightness = Theme.of(context).brightness;
+    final textPrimary = KoraColors.textPrimaryFor(brightness);
+    final textSecondary = KoraColors.textSecondaryFor(brightness);
+    final surface = KoraColors.surfaceFor(brightness);
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) {
         return Column(
@@ -312,26 +388,56 @@ class _StatusTabState extends State<StatusTab> {
             const SizedBox(height: 8),
             Container(
               width: 36, height: 4,
-              decoration: BoxDecoration(color: textSecondary.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(2)),
+              decoration: BoxDecoration(
+                color: textSecondary.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
             const SizedBox(height: 16),
-            Text('Muted updates', style: TextStyle(color: textPrimary, fontSize: 18, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 8),
-            if (muted.isEmpty)
-              Padding(
-                padding: const EdgeInsets.all(32),
-                child: Text('No muted updates', style: TextStyle(color: textSecondary, fontSize: 15)),
-              )
-            else
-              ...muted.map((s) => ListTile(
-                    leading: KoraAvatar(name: s.fullName, imageUrl: s.avatarUrl, size: 48),
-                    title: Text(s.fullName, style: TextStyle(color: textPrimary, fontSize: 16, fontWeight: FontWeight.w600)),
-                    subtitle: Text(s.timeAgo, style: TextStyle(color: textSecondary, fontSize: 13)),
-                    onTap: () {
-                      Navigator.pop(context);
-                      _openContactStatus(s);
-                    },
-                  )),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  Icon(Icons.music_note, color: textPrimary, size: 24),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text('Add music to your status',
+                      style: TextStyle(color: textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            ListTile(
+              leading: Container(
+                width: 44, height: 44,
+                decoration: BoxDecoration(color: KoraColors.purple.withValues(alpha: 0.15), shape: BoxShape.circle),
+                child: Icon(Icons.search, color: KoraColors.purple, size: 20),
+              ),
+              title: Text('Search for music', style: TextStyle(color: textPrimary)),
+              subtitle: Text('Find songs to add to your status', style: TextStyle(color: textSecondary, fontSize: 13)),
+              onTap: () => Navigator.pop(context),
+            ),
+            ListTile(
+              leading: Container(
+                width: 44, height: 44,
+                decoration: BoxDecoration(color: KoraColors.blue.withValues(alpha: 0.15), shape: BoxShape.circle),
+                child: Icon(Icons.trending_up, color: KoraColors.blue, size: 20),
+              ),
+              title: Text('Trending now', style: TextStyle(color: textPrimary)),
+              subtitle: Text('Popular songs in your region', style: TextStyle(color: textSecondary, fontSize: 13)),
+              onTap: () => Navigator.pop(context),
+            ),
+            ListTile(
+              leading: Container(
+                width: 44, height: 44,
+                decoration: BoxDecoration(color: Colors.green.withValues(alpha: 0.15), shape: BoxShape.circle),
+                child: Icon(Icons.favorite, color: Colors.green, size: 20),
+              ),
+              title: Text('Your favorites', style: TextStyle(color: textPrimary)),
+              subtitle: Text('Songs you\\'ve saved', style: TextStyle(color: textSecondary, fontSize: 13)),
+              onTap: () => Navigator.pop(context),
+            ),
             const SizedBox(height: 16),
           ],
         );
@@ -339,70 +445,156 @@ class _StatusTabState extends State<StatusTab> {
     );
   }
 
-  void _toggleFollow(_ChannelSuggestion s) {
-    setState(() => s.following = !s.following);
+  void _showCrossPostingSettings() {
+    final brightness = Theme.of(context).brightness;
+    final textPrimary = KoraColors.textPrimaryFor(brightness);
+    final textSecondary = KoraColors.textSecondaryFor(brightness);
+    final surface = KoraColors.surfaceFor(brightness);
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 8),
+                Container(
+                  width: 36, height: 4,
+                  decoration: BoxDecoration(
+                    color: textSecondary.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Row(
+                    children: [
+                      Icon(Icons.share_outlined, color: textPrimary, size: 24),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text('Cross-posting',
+                          style: TextStyle(color: textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _crossPostingToggle('Instagram', Icons.camera_alt_outlined, Colors.pink, false, (v) {}, setSheetState),
+                _crossPostingToggle('Facebook', Icons.facebook, Colors.blue, false, (v) {}, setSheetState),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(
+                    'When enabled, your Kora status will also be shared to the selected platforms.',
+                    style: TextStyle(color: textSecondary, fontSize: 13),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _crossPostingToggle(String label, IconData icon, Color color, bool value, Function(bool) onChanged, StateSetter setSheetState) {
+    final brightness = Theme.of(context).brightness;
+    final textPrimary = KoraColors.textPrimaryFor(brightness);
+    return SwitchListTile(
+      secondary: Container(
+        width: 44, height: 44,
+        decoration: BoxDecoration(color: color.withValues(alpha: 0.15), shape: BoxShape.circle),
+        child: Icon(icon, color: color, size: 22),
+      ),
+      title: Text(label, style: TextStyle(color: textPrimary)),
+      value: value,
+      onChanged: (v) {
+        onChanged(v);
+        setSheetState(() {});
+      },
+      activeColor: KoraColors.purple,
+    );
+  }
+
+  String _timeAgo(DateTime dt) {
+    final diff = DateTime.now().difference(dt);
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes} minutes ago';
+    if (diff.inHours < 24) return '${diff.inHours} hours ago';
+    return '${diff.inDays} days ago';
   }
 
   // ── Build ──────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
+    if (!_isLoaded) {
+      return Scaffold(
+        backgroundColor: KoraColors.backgroundFor(Theme.of(context).brightness),
+        body: Center(child: CircularProgressIndicator(color: KoraColors.purple)),
+      );
+    }
+
     final brightness = Theme.of(context).brightness;
     final bg = KoraColors.backgroundFor(brightness);
     final surface = KoraColors.surfaceFor(brightness);
     final textPrimary = KoraColors.textPrimaryFor(brightness);
     final textSecondary = KoraColors.textSecondaryFor(brightness);
+    final textMuted = KoraColors.textMutedFor(brightness);
     final border = KoraColors.borderFor(brightness);
 
-    final fullName = _session?['fullName'] as String? ?? 'You';
+    final fullName = _session?['fullName'] ?? 'You';
     final avatarUrl = _session?['avatarUrl'] as String? ?? '';
     final myItems = StatusService.instance.myStatusItems;
     final hasStatus = myItems.isNotEmpty;
+    final allStatuses = StatusService.instance.contactStatuses;
+    final recentStatuses = allStatuses.where((s) => !s.isViewed && !s.isMuted).toList();
+    final viewedStatuses = allStatuses.where((s) => s.isViewed && !s.isMuted).toList();
+    final mutedUpdates = allStatuses.where((s) => s.isMuted).toList();
 
-    final recentUpdates = StatusService.instance.recentUpdates;
-    final viewedUpdates = StatusService.instance.viewedUpdates;
-    final mutedUpdates = StatusService.instance.mutedUpdates;
-
-    // Filter for search
+    // Search filtering
     final filteredRecent = _searchQuery.isEmpty
-        ? recentUpdates
-        : recentUpdates.where((s) => s.fullName.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
+        ? recentStatuses
+        : recentStatuses.where((s) => s.fullName.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
     final filteredViewed = _searchQuery.isEmpty
-        ? viewedUpdates
-        : viewedUpdates.where((s) => s.fullName.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
-    final filteredSuggestions = _searchQuery.isEmpty
+        ? viewedStatuses
+        : viewedStatuses.where((s) => s.fullName.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
+    final visibleSuggestions = _searchQuery.isEmpty
         ? _suggestions
         : _suggestions.where((s) => s.name.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
-    final visibleSuggestions = filteredSuggestions.where((s) => !s.dismissed).toList();
 
     return Scaffold(
       backgroundColor: bg,
       body: SafeArea(
+        bottom: false,
         child: Column(
           children: [
-            // ── Header ──
+            // Header
             if (!_isSearching)
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 16, 12, 4),
                 child: Row(
                   children: [
                     Text('Updates',
-                        style: TextStyle(
-                            color: textPrimary, fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
+                      style: TextStyle(color: textPrimary, fontSize: 24, fontWeight: FontWeight.w800)),
                     const Spacer(),
                     IconButton(
-                        icon: Icon(Icons.search, color: textSecondary, size: 22),
-                        onPressed: () {
-                          setState(() => _isSearching = true);
-                        }),
+                      icon: Icon(Icons.search, color: textPrimary, size: 22),
+                      onPressed: () => setState(() => _isSearching = true)),
                     IconButton(
-                        icon: Icon(Icons.more_vert, color: textSecondary, size: 22),
-                        onPressed: _showMoreOptions),
+                      icon: Icon(Icons.more_vert, color: textPrimary, size: 22),
+                      onPressed: _showMoreOptions),
                   ],
                 ),
               )
             else
-              // ── Inline search bar ──
               Padding(
                 padding: const EdgeInsets.fromLTRB(12, 14, 12, 4),
                 child: Row(
@@ -411,10 +603,7 @@ class _StatusTabState extends State<StatusTab> {
                       icon: Icon(Icons.arrow_back, color: textPrimary, size: 22),
                       onPressed: () {
                         _searchController.clear();
-                        setState(() {
-                          _isSearching = false;
-                          _searchQuery = '';
-                        });
+                        setState(() { _isSearching = false; _searchQuery = ''; });
                       },
                     ),
                     Expanded(
@@ -436,25 +625,23 @@ class _StatusTabState extends State<StatusTab> {
                           suffixIcon: _searchQuery.isNotEmpty
                               ? IconButton(
                                   icon: Icon(Icons.clear, color: textSecondary, size: 20),
-                                  onPressed: () {
-                                    _searchController.clear();
-                                    setState(() => _searchQuery = '');
-                                  },
+                                  onPressed: () { _searchController.clear(); setState(() => _searchQuery = ''); },
                                 )
                               : null,
                         ),
                         onChanged: (val) => setState(() => _searchQuery = val.trim()),
                       ),
                     ),
+                    const SizedBox(width: 8),
                   ],
                 ),
               ),
-            // ── Body ──
+            // Body
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.only(bottom: 110),
                 children: [
-                  // ── Status section ──
+                  // Status section
                   _sectionLabel('Status', textPrimary),
                   _buildMyStatusRow(fullName, avatarUrl, hasStatus, myItems, bg, textPrimary, textSecondary, border),
                   Padding(
@@ -487,10 +674,7 @@ class _StatusTabState extends State<StatusTab> {
                       ),
                     ),
                   ],
-                  // ── Channels section ──
-                  if (filteredRecent.isEmpty && filteredViewed.isEmpty && _searchQuery.isEmpty) ...[
-                    const SizedBox(height: 8),
-                  ],
+                  // Channels section
                   _sectionLabel('Channels', textPrimary),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
@@ -526,7 +710,6 @@ class _StatusTabState extends State<StatusTab> {
                       ),
                     ),
                   ],
-                  // ── Followed channels ──
                   if (_suggestions.any((s) => s.following)) ...[
                     const SizedBox(height: 8),
                     _sectionLabel('Following', textPrimary),
@@ -538,7 +721,7 @@ class _StatusTabState extends State<StatusTab> {
           ],
         ),
       ),
-      // ── FABs ──
+      // FABs
       floatingActionButton: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -564,7 +747,7 @@ class _StatusTabState extends State<StatusTab> {
               ],
             ),
             child: FloatingActionButton(
-              onPressed: _openCameraStatus,
+              onPressed: _openStatusCreation,
               backgroundColor: Colors.transparent,
               elevation: 0,
               child: const Icon(Icons.camera_alt, color: Colors.white),
@@ -633,13 +816,13 @@ class _StatusTabState extends State<StatusTab> {
               ],
             ),
       title: Text(
-        hasStatus ? 'My status' : 'Add status',
-        style: TextStyle(color: textPrimary, fontSize: 16, fontWeight: FontWeight.w600),
+        hasStatus ? 'My status' : 'My status',
+        style: TextStyle(color: textPrimary, fontSize: 15, fontWeight: FontWeight.w600),
       ),
       subtitle: Text(
         hasStatus
-            ? (totalViews > 0 ? '$totalViews views' : 'Tap to view')
-            : 'Disappears after 24 hours',
+            ? (totalViews > 0 ? '$totalViews ${totalViews == 1 ? 'view' : 'views'}' : 'Tap to view')
+            : 'Tap to add status update',
         style: TextStyle(color: textSecondary, fontSize: 13),
       ),
     );
@@ -658,46 +841,42 @@ class _StatusTabState extends State<StatusTab> {
         padding: const EdgeInsets.all(2),
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          gradient: isUnviewed
-              ? KoraColors.brandGradient
-              : LinearGradient(colors: [textSecondary.withValues(alpha: 0.4), textSecondary.withValues(alpha: 0.4)]),
+          gradient: isUnviewed ? KoraColors.brandGradient : null,
+          color: isUnviewed ? null : textSecondary.withValues(alpha: 0.3),
         ),
         child: Container(
           padding: const EdgeInsets.all(2),
-          decoration: BoxDecoration(
-            color: bg,
-            shape: BoxShape.circle,
-          ),
-          child: KoraAvatar(name: status.fullName, imageUrl: status.avatarUrl, size: 48),
+          decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
+          child: KoraAvatar(name: status.fullName, imageUrl: status.avatarUrl, size: 44),
         ),
       ),
-      title: Text(status.fullName, style: TextStyle(color: textPrimary, fontSize: 16, fontWeight: FontWeight.w600)),
-      subtitle: Text(status.timeAgo, style: TextStyle(color: textSecondary, fontSize: 13)),
+      title: Text(status.fullName,
+          style: TextStyle(color: textPrimary, fontSize: 15, fontWeight: FontWeight.w600)),
+      subtitle: Text(_timeAgo(status.lastUpdatedAt),
+          style: TextStyle(color: textSecondary, fontSize: 13)),
     );
   }
 
-  // ── Channel tiles ──────────────────────────────────────────────
-
   Widget _findChannelsRow(Color surface, Color textSecondary) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 12, 8),
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
       child: Row(
         children: [
+          Container(
+            width: 44, height: 44,
+            decoration: BoxDecoration(
+              color: surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: textSecondary.withValues(alpha: 0.2), width: 0.5),
+            ),
+            child: Icon(Icons.search, color: textSecondary, size: 22),
+          ),
+          const SizedBox(width: 16),
           Expanded(
             child: Text('Find channels to follow',
-                style: TextStyle(color: textSecondary, fontSize: 13.5, fontWeight: FontWeight.w600)),
+                style: TextStyle(color: textSecondary, fontSize: 15)),
           ),
-          GestureDetector(
-            onTap: () => setState(() => _suggestionsExpanded = !_suggestionsExpanded),
-            child: Container(
-              width: 34, height: 34,
-              decoration: BoxDecoration(color: surface, shape: BoxShape.circle),
-              child: Icon(
-                _suggestionsExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
-                color: textSecondary, size: 22,
-              ),
-            ),
-          ),
+          Icon(Icons.chevron_right, color: textSecondary, size: 22),
         ],
       ),
     );
@@ -707,32 +886,25 @@ class _StatusTabState extends State<StatusTab> {
     return ListTile(
       leading: Container(
         width: 48, height: 48,
-        decoration: BoxDecoration(color: s.color.withValues(alpha: 0.15), shape: BoxShape.circle),
-        child: Icon(s.icon, color: s.color, size: 24),
+        decoration: BoxDecoration(
+          color: s.color,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(s.icon, color: Colors.white, size: 24),
       ),
       title: Text(s.name, style: TextStyle(color: textPrimary, fontSize: 15, fontWeight: FontWeight.w600)),
       subtitle: Text(s.followers, style: TextStyle(color: textSecondary, fontSize: 13)),
       trailing: s.following
-          ? OutlinedButton(
-              onPressed: () => _toggleFollow(s),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: textPrimary,
-                side: BorderSide(color: textSecondary.withValues(alpha: 0.3)),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                minimumSize: const Size(72, 32),
-              ),
-              child: const Text('Following', style: TextStyle(fontSize: 13)),
+          ? TextButton(
+              onPressed: () => setState(() => s.following = false),
+              child: Text('Following', style: TextStyle(color: textSecondary, fontSize: 13)),
             )
-          : ElevatedButton(
-              onPressed: () => _toggleFollow(s),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: KoraColors.purple,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                minimumSize: const Size(56, 32),
+          : TextButton(
+              onPressed: () => setState(() => s.following = true),
+              style: TextButton.styleFrom(
+                backgroundColor: KoraColors.purple.withValues(alpha: 0.1),
               ),
-              child: const Text('Follow', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+              child: Text('Follow', style: TextStyle(color: KoraColors.purple, fontSize: 13, fontWeight: FontWeight.w600)),
             ),
     );
   }
@@ -741,60 +913,62 @@ class _StatusTabState extends State<StatusTab> {
     return ListTile(
       leading: Container(
         width: 48, height: 48,
-        decoration: BoxDecoration(color: s.color.withValues(alpha: 0.15), shape: BoxShape.circle),
-        child: Icon(s.icon, color: s.color, size: 24),
+        decoration: BoxDecoration(
+          color: s.color,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(s.icon, color: Colors.white, size: 24),
       ),
       title: Text(s.name, style: TextStyle(color: textPrimary, fontSize: 15, fontWeight: FontWeight.w600)),
       subtitle: Text(s.followers, style: TextStyle(color: textSecondary, fontSize: 13)),
-      onTap: () {
-        // Open channel landing screen for followed channel
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const ChannelLandingScreen()),
-        );
-      },
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const ChannelLandingScreen()),
+      ),
     );
   }
 
-  Widget _pillButton({required IconData icon, required String label, required VoidCallback onTap}) {
+  Widget _pillButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
     final brightness = Theme.of(context).brightness;
     final textPrimary = KoraColors.textPrimaryFor(brightness);
-    final surface = KoraColors.surfaceFor(brightness);
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 4),
       child: GestureDetector(
         onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: surface,
-            borderRadius: BorderRadius.circular(24),
-          ),
-          child: Row(
-            children: [
-              Icon(icon, color: textPrimary, size: 20),
-              const SizedBox(width: 10),
-              Text(label, style: TextStyle(color: textPrimary, fontSize: 15, fontWeight: FontWeight.w500)),
-            ],
-          ),
+        child: Row(
+          children: [
+            Container(
+              width: 44, height: 44,
+              decoration: BoxDecoration(
+                color: KoraColors.purple.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: KoraColors.purple, size: 22),
+            ),
+            const SizedBox(width: 16),
+            Text(label, style: TextStyle(color: textPrimary, fontSize: 15, fontWeight: FontWeight.w500)),
+          ],
         ),
       ),
     );
   }
 }
 
-// ── Channel suggestion helper class ──────────────────────────
 class _ChannelSuggestion {
   final String name;
   final String followers;
   final Color color;
   final IconData icon;
-  bool following = false;
-  bool dismissed = false;
+  bool following;
 
   _ChannelSuggestion({
     required this.name,
     required this.followers,
     required this.color,
     required this.icon,
+    this.following = false,
   });
 }
