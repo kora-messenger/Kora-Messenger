@@ -13,6 +13,7 @@ import '../../widgets/kora_menu_sheet.dart';
 import '../../widgets/new_chat_sheet.dart';
 import '../chat/kora_chat_screen.dart';
 import '../new_group_screen.dart';
+import '../kora_notifications_screen.dart';
 import '../settings/privacy_screen.dart';
 import 'package:local_auth/local_auth.dart';
 import '../archived_chats_screen.dart';
@@ -96,6 +97,13 @@ class _ChatsTabState extends State<ChatsTab> {
   /// user taps the header (avatar/name) inside the Chat Peek.
 
   void _openChat(ChatPreview chat) {
+    if (chat.id == 'kora_notifications') {
+      pushSlideUp(
+        context,
+        const KoraNotificationsScreen(),
+      );
+      return;
+    }
     pushSlideUp(
       context,
       KoraChatScreen(

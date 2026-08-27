@@ -20,16 +20,19 @@ class ChatService {
   static const Map<String, String> _builtinAiChats = {
     'kora_support': 'Kora Support',
     'kora_ai': 'Kora AI',
+    'kora_notifications': 'Kora Notifications',
   };
 
   static const Map<String, String> _builtinAiAvatars = {
     'kora_support': 'assets/images/kora_ai_avatar.png',
     'kora_ai': 'assets/images/kora_support_avatar.png',
+    'kora_notifications': 'kora_icon',
   };
 
   static const Map<String, String> _builtinAiPlaceholders = {
     'kora_support': 'Welcome to Kora Messenger!',
     'kora_ai': 'Ask me anything — inside or outside Kora.',
+    'kora_notifications': 'Service messages from Kora',
   };
 
   /// Makes sure Kora Support and Kora AI always have a directory entry
