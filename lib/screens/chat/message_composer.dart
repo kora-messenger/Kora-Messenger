@@ -515,6 +515,11 @@ class _MessageComposerState extends State<MessageComposer>
     await _previewPlayback.toggle(_filePath!, messageId: _previewId);
   }
 
+  /// Stops the in-line recording preview if it's currently playing.
+  Future<void> _stopPreview() async {
+    _previewPlayback.stopIfActive(_previewId);
+  }
+
   Future<void> _seekPreview(double fraction) async {
     if (!_isPaused || _filePath == null) return;
     if (_previewPlayback.currentSource != _filePath) {
