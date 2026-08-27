@@ -399,7 +399,7 @@ class TranslationService {
                   translatedAt: DateTime.now(),
                 );
               }
-            } catch {}
+            } catch (e) {}
           }
         }
       }

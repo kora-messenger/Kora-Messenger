@@ -283,7 +283,7 @@ class LiveTranslationService {
                     onSendTranslatedText?.call(translated);
                     onTranslationSent?.call(translated);
                   }
-                } catch {}
+                } catch (e) {}
               }
             }
           }
