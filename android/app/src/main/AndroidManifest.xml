@@ -12,7 +12,6 @@
     <!-- Gallery / storage permissions (for photo picking) -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
-    <!-- For older Android versions -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
 
     <!-- Microphone — voice messages and voice/video calls -->
@@ -20,23 +19,50 @@
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
 
-    <!-- Notifications — new message, call, and group alerts (Android 13+) -->
+    <!-- Notifications — Android 13+ runtime permission -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-    <!-- Location — for sharing live location in chats -->
+    <!-- Location -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
-    <!-- Contacts — for finding friends already on Kora -->
+    <!-- Contacts -->
     <uses-permission android:name="android.permission.READ_CONTACTS" />
     <uses-permission android:name="android.permission.WRITE_CONTACTS" />
 
-    <!-- Phone state — for handling in-call interruptions during voice/video calls -->
+    <!-- Phone state -->
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
     <uses-permission android:name="android.permission.CALL_PHONE" />
 
-    <!-- Storage — for saving received media (Android <13) -->
+    <!-- Storage -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" tools:replace="maxSdkVersion" />
+
+    <!-- ═══ NOTIFICATION SYSTEM PERMISSIONS (WhatsApp-grade) ═══ -->
+    <!-- Foreground services for push processing -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
+
+    <!-- Wake lock for push processing -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <!-- Exact alarm scheduling -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+
+    <!-- Vibration -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!-- Receive boot completed (re-register tokens, reschedule alarms) -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- Full screen intent for incoming calls -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
 
     <application
         android:label="Kora Messenger"
@@ -61,9 +87,6 @@
         </activity>
 
         <!-- ── App icon activity aliases ── -->
-        <!-- Each alias has its own icon + LAUNCHER intent-filter. -->
-        <!-- Only ONE is enabled at a time. The platform channel switches them. -->
-        <!-- Default: IconClassic (enabled, free) -->
         <activity-alias
             android:name=".IconClassic"
             android:enabled="true"
@@ -77,7 +100,6 @@
             </intent-filter>
         </activity-alias>
 
-        <!-- Premium: Aurora Circle -->
         <activity-alias
             android:name=".IconAuroraCircle"
             android:enabled="false"
@@ -91,7 +113,6 @@
             </intent-filter>
         </activity-alias>
 
-        <!-- Premium: Gold Elite -->
         <activity-alias
             android:name=".IconGoldElite"
             android:enabled="false"
@@ -108,6 +129,62 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
+        <!-- ═══ NOTIFICATION SYSTEM COMPONENTS ═══ -->
+
+        <!-- FCM Service (receives push messages from Firebase) -->
+        <service
+            android:name=".notifications.KoraFcmService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <!-- Foreground Service (processes push, prevents killing) -->
+        <service
+            android:name=".notifications.KoraForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
+        <!-- Direct Reply Receiver (quick reply from notification) -->
+        <receiver
+            android:name=".notifications.KoraDirectReplyReceiver"
+            android:exported="false" />
+
+        <!-- Call Action Receiver (accept/reject/hangup) -->
+        <receiver
+            android:name=".notifications.KoraCallActionReceiver"
+            android:exported="false" />
+
+        <!-- Notification Dismissed Receiver (per-type dismiss tracking) -->
+        <receiver
+            android:name=".notifications.KoraNotificationDismissedReceiver"
+            android:exported="false" />
+
+        <!-- Boot Receiver (re-register tokens, reschedule alarms) -->
+        <receiver
+            android:name=".notifications.KoraBootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Alarm Receiver (periodic scheduled tasks) -->
+        <receiver
+            android:name=".notifications.KoraAlarmReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.kora.messenger.action.DAILY_CRON" />
+                <action android:name="com.kora.messenger.action.HOURLY_CRON" />
+                <action android:name="com.kora.messenger.action.HEARTBEAT_WAKEUP" />
+                <action android:name="com.kora.messenger.action.ROTATE_SIGNED_PREKEY" />
+                <action android:name="com.kora.messenger.action.BACKUP_MESSAGES" />
+            </intent-filter>
+        </receiver>
+
     </application>
 
     <queries>
@@ -115,7 +192,6 @@
             <action android:name="android.intent.action.PROCESS_TEXT" />
             <data android:mimeType="text/plain" />
         </intent>
-        <!-- Allow canLaunchUrl / launchUrl to detect https browsers (Android 11+) -->
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="https" />
