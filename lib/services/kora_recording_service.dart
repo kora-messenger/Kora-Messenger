@@ -37,10 +37,7 @@ class KoraRecordingService {
   /// Lazily create the RecorderController with WhatsApp-style settings.
   RecorderController _ensureController() {
     if (_controller != null) return _controller!;
-    _controller = RecorderController()
-      ..audioFormat = AudioFormat.aac
-      ..sampleRate = 44100
-      ..bitRate = 128000;
+    _controller = RecorderController();
     return _controller!;
   }
 

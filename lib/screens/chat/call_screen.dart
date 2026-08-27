@@ -573,8 +573,8 @@ class _CallScreenState extends State<CallScreen>
                             backgroundColor: Colors.white.withValues(alpha: 0.1),
                             backgroundImage: widget.avatarUrl != null
                                 ? (widget.avatarUrl!.startsWith('data:')
-                                    ? MemoryImage(base64Decode(widget.avatarUrl!.substring(widget.avatarUrl!.indexOf(',') + 1)))
-                                    : NetworkImage(widget.avatarUrl!))
+                                    ? MemoryImage(base64Decode(widget.avatarUrl!.substring(widget.avatarUrl!.indexOf(',') + 1))) as ImageProvider
+                                    : NetworkImage(widget.avatarUrl!) as ImageProvider)
                                 : null,
                             child: widget.avatarUrl == null
                                 ? Text(
