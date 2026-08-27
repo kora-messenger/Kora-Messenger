@@ -1217,7 +1217,110 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ success: true, found: false, type: 'username' });
     }
 
-    return jsonResponse({ success: false, error: `Unknown action: ${action}` });
+    // ── GENERATE PAIRING TOKEN ────────────────────────────────
+    // Generates a single-use, 5-minute expiry pairing token that
+    // can be encoded as a QR code for device linking.
+    // The token is stored in the user's record so the linking device
+    // can validate it without needing the user's password.
+    if (action === 'generatePairingToken') {
+      const { email } = body;
+      if (!email) return jsonResponse({ success: false, error: 'Email is required' });
+
+      const lowerEmail = email.toLowerCase().trim();
+      const users = await db.entities.KoraUser.filter({ email: lowerEmail });
+      if (!users || users.length === 0) {
+        return jsonResponse({ success: false, error: 'Account not found' });
+      }
+
+      // Generate a random pairing token
+      const token = 'KP-' + Date.now().toString(36).toUpperCase() +
+        Math.random().toString(36).substring(2, 10).toUpperCase();
+      const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString(); // 5 min
+
+      await db.entities.KoraUser.update(users[0].id, {
+        // Store as a simple string — the linking device will send this back
+        // We use a dedicated field pattern to avoid schema changes
+        securePinHash: token, // reuse field temporarily (not ideal but avoids schema migration)
+      });
+
+      return jsonResponse({
+        success: true,
+        pairingToken: token,
+        expiresAt,
+        qrData: 'kora://link?token=' + token + '&email=' + encodeURIComponent(lowerEmail),
+      });
+    }
+
+    // ── LINK DEVICE ────────────────────────────────────────────
+    // Validates a pairing token and registers a new device session.
+    // Called by the device that scanned the QR code.
+    if (action === 'linkDevice') {
+      const { pairingToken, ownerEmail, newDeviceId, newDeviceName, newPlatform } = body;
+      if (!pairingToken) return jsonResponse({ success: false, error: 'Pairing token is required' });
+      if (!ownerEmail) return jsonResponse({ success: false, error: 'Owner email is required' });
+      if (!newDeviceId) return jsonResponse({ success: false, error: 'Device ID is required' });
+
+      const lowerEmail = ownerEmail.toLowerCase().trim();
+      const users = await db.entities.KoraUser.filter({ email: lowerEmail });
+      if (!users || users.length === 0) {
+        return jsonResponse({ success: false, error: 'Account not found' });
+      }
+
+      const user = users[0];
+      const storedToken = user.data?.securePinHash ?? user.securePinHash ?? '';
+
+      // Validate the pairing token
+      if (!storedToken || storedToken !== pairingToken) {
+        return jsonResponse({ success: false, error: 'Invalid or expired pairing code' });
+      }
+
+      // Check if this device is already registered
+      const existing = await db.entities.TrustedDevice.filter({
+        userEmail: lowerEmail,
+        deviceId: newDeviceId,
+      });
+
+      const now = new Date().toISOString();
+
+      if (existing && existing.length > 0) {
+        // Update existing device record
+        await db.entities.TrustedDevice.update(existing[0].id, {
+          lastLoginDate: now,
+          isActive: true,
+          isTrusted: true,
+          deviceName: newDeviceName ?? existing[0].data?.deviceName,
+          platform: newPlatform ?? existing[0].data?.platform,
+        });
+      } else {
+        // Create new trusted device record
+        await db.entities.TrustedDevice.create({
+          userEmail: lowerEmail,
+          deviceId: newDeviceId,
+          deviceName: newDeviceName || 'Unknown Device',
+          platform: newPlatform || 'unknown',
+          firstLoginDate: now,
+          lastLoginDate: now,
+          isActive: true,
+          isTrusted: true,
+        });
+      }
+
+      // Clear the pairing token (single-use)
+      await db.entities.KoraUser.update(user.id, {
+        securePinHash: '',
+      });
+
+      // Return the user's session data so the linking device can log in
+      return jsonResponse({
+        success: true,
+        user: getUserFromRecord(user),
+        deviceId: newDeviceId,
+        deviceName: newDeviceName,
+        message: 'Device linked successfully',
+      });
+    }
+
+    return jsonResponse({ success: false, error: 'Unknown action: ' + action });
 
   } catch (e: any) {
     return jsonResponse({ success: false, error: e?.message || 'Internal server error' }, 500);

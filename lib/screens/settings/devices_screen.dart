@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'link_device_screen.dart';
+import 'pairing_qr_screen.dart';
 import '../../config/kora_api.dart';
 import '../../services/session_manager.dart';
 import '../../services/device_manager.dart';
@@ -283,6 +285,14 @@ class _DevicesScreenState extends State<DevicesScreen> {
                             ],
                           ),
                         ),
+                        const SizedBox(height: 16),
+
+                        // Link a device button (WhatsApp-style)
+                        _buildLinkDeviceButton(card, border, textPrimary, textSecondary),
+                        const SizedBox(height: 2),
+                        // Show pairing code button
+                        _buildPairingCodeButton(card, border, textPrimary, textSecondary),
+
                         const SizedBox(height: 20),
                         if (currentDevice.isNotEmpty) ...[
                           _sectionLabel('This device', textMuted),
@@ -332,6 +342,112 @@ class _DevicesScreenState extends State<DevicesScreen> {
                       ],
                     ),
                   ),
+      ),
+    );
+  }
+
+  Widget _buildLinkDeviceButton(Color card, Color border, Color textPrimary, Color textSecondary) {
+    return GestureDetector(
+      onTap: () async {
+        final linked = await Navigator.push<bool>(
+          context,
+          MaterialPageRoute(builder: (_) => const LinkDeviceScreen()),
+        );
+        if (linked == true) {
+          _load();
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: card,
+          border: Border(
+            top: BorderSide(color: border, width: 0.5),
+            bottom: BorderSide(color: border, width: 0.5),
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                gradient: KoraColors.brandGradient,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.qr_code_scanner_rounded, color: Colors.white, size: 20),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Link a device',
+                    style: TextStyle(color: textPrimary, fontSize: 15, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Scan a QR code to link a new device to your account',
+                    style: TextStyle(color: textSecondary, fontSize: 12.5),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded, color: textSecondary, size: 22),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPairingCodeButton(Color card, Color border, Color textPrimary, Color textSecondary) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const PairingQrScreen()),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: card,
+          border: Border(
+            bottom: BorderSide(color: border, width: 0.5),
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: KoraColors.purple.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.qr_code_rounded, color: KoraColors.purple, size: 20),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Show pairing code',
+                    style: TextStyle(color: textPrimary, fontSize: 15, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Display a QR code for another device to scan',
+                    style: TextStyle(color: textSecondary, fontSize: 12.5),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded, color: textSecondary, size: 22),
+          ],
+        ),
       ),
     );
   }

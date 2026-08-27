@@ -32,3 +32,4 @@ backend/*.pyc
 backend/kora_ai_images/
 build_logs.zip
 build_logs/
+koraAuth_full.txt
