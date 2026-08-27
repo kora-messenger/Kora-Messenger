@@ -72,7 +72,7 @@ class _DevicesScreenState extends State<DevicesScreen> {
     try {
       _currentDeviceId = await DeviceManager.getDeviceId();
       final email = SessionManager.instance.currentEmail;
-      final result = await KoraApi.post({
+      final result = await KoraApi.postTo(KoraApi.linkDeviceEndpoint, {
         'action': 'listDevices',
         'email': email,
       });
@@ -105,7 +105,7 @@ class _DevicesScreenState extends State<DevicesScreen> {
     setState(() => _terminating.add(device.id));
     try {
       final email = SessionManager.instance.currentEmail;
-      final result = await KoraApi.post({
+      final result = await KoraApi.postTo(KoraApi.linkDeviceEndpoint, {
         'action': 'logoutDevice',
         'email': email,
         'deviceRecordId': device.id,
@@ -139,7 +139,7 @@ class _DevicesScreenState extends State<DevicesScreen> {
     setState(() => _terminating.addAll(others.map((d) => d.id)));
     for (final d in others) {
       try {
-        await KoraApi.post({
+        await KoraApi.postTo(KoraApi.linkDeviceEndpoint, {
           'action': 'logoutDevice',
           'email': email,
           'deviceRecordId': d.id,

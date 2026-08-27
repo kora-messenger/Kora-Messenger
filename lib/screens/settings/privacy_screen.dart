@@ -71,7 +71,7 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
     try {
       final email = SessionManager.instance.currentEmail;
       if (email.isEmpty) return;
-      final result = await KoraApi.post({'action': 'listDevices', 'email': email});
+      final result = await KoraApi.postTo(KoraApi.linkDeviceEndpoint, {'action': 'listDevices', 'email': email});
       if (result['success'] == true && mounted) {
         final devices = result['devices'] as List? ?? [];
         setState(() => _deviceCount = devices.length);
