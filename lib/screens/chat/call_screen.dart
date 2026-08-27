@@ -9,16 +9,16 @@ import '../../models/chat_models.dart';
 import '../../models/call_log.dart';
 import 'call_translation_sheet.dart';
 
-/// WhatsApp-style call screen for Kora Messenger.
+/// WhatsApp-style call screen for Kora Messenger (2025 redesign).
 ///
-/// Voice call: full-screen gradient with large avatar, name, status,
-///   and a floating pill control bar at the bottom.
-/// Video call: full-screen remote video, draggable local PiP,
-///   semi-transparent top info bar, floating pill controls.
-///
-/// The control bar is a horizontal pill (not a 2x2 grid) matching
-/// WhatsApp's current design: [Mute] [Speaker] [Video] [End] [More]
-/// Each button is 48dp circular inside a rounded pill container.
+/// Matches WhatsApp's latest calling UI:
+/// - Top-left: Minimize button (not back) — call continues in background
+/// - Top-right: 3-dot overflow menu (Add person, Audio & Video, etc.)
+/// - Center: Large profile picture (voice) or full-screen video (video)
+/// - Floating island bottom bar with circular outlined buttons
+/// - Two-row layout: Row 1 = controls, Row 2 = End call (red)
+/// - Each button has its own circular outline with label
+/// - Translation feature accessed via overflow menu
 class CallScreen extends StatefulWidget {
   final String contactName;
   final String? avatarUrl;
@@ -39,7 +39,8 @@ class CallScreen extends StatefulWidget {
   State<CallScreen> createState() => _CallScreenState();
 }
 
-class _CallScreenState extends State<CallScreen> {
+class _CallScreenState extends State<CallScreen>
+    with SingleTickerProviderStateMixin {
   final _webrtcService = WebRTCCallService.instance;
   final _callService = CallService.instance;
   final _liveTranslation = LiveTranslationService.instance;
@@ -59,13 +60,21 @@ class _CallScreenState extends State<CallScreen> {
   String _lastRecognized = '';
   String _lastReceived = '';
 
-  // Draggable PiP position
-  Offset _pipOffset = Offset.zero;
-  bool _pipInitialized = false;
+  // UI state
+  bool _controlsVisible = true;
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
 
   @override
   void initState() {
     super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    )..repeat(reverse: true);
+    _pulseAnimation = Tween<double>(begin: 0.92, end: 1.08).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
     _startCall();
   }
 
@@ -117,18 +126,16 @@ class _CallScreenState extends State<CallScreen> {
   void _setupRemoteRenderer(MediaStream stream) {
     _remoteRenderer = RTCVideoRenderer();
     _remoteRenderer!.initialize().then((_) {
-      if (!mounted) return;
-      _remoteRenderer?.srcObject = stream;
-      setState(() {});
+      _remoteRenderer!.srcObject = stream;
+      if (mounted) setState(() {});
     });
   }
 
   void _setupLocalRenderer(MediaStream stream) {
     _localRenderer = RTCVideoRenderer();
     _localRenderer!.initialize().then((_) {
-      if (!mounted) return;
-      _localRenderer?.srcObject = stream;
-      setState(() {});
+      _localRenderer!.srcObject = stream;
+      if (mounted) setState(() {});
     });
   }
 
@@ -146,14 +153,22 @@ class _CallScreenState extends State<CallScreen> {
 
   String get _statusText {
     switch (_callState) {
-      case 'connecting': return widget.isOutgoing ? 'Calling…' : 'Incoming call';
-      case 'ringing': return 'Ringing…';
-      case 'connected': return _durationString;
-      case 'disconnected': return 'Reconnecting…';
-      case 'failed': return 'Call failed';
-      case 'rejected': return 'Call rejected';
-      case 'ended': return 'Call ended';
-      default: return _callState;
+      case 'connecting':
+        return widget.isOutgoing ? 'Calling…' : 'Incoming call';
+      case 'ringing':
+        return 'Ringing…';
+      case 'connected':
+        return _durationString;
+      case 'disconnected':
+        return 'Reconnecting…';
+      case 'failed':
+        return 'Call failed';
+      case 'rejected':
+        return 'Call rejected';
+      case 'ended':
+        return 'Call ended';
+      default:
+        return _callState;
     }
   }
 
@@ -179,6 +194,7 @@ class _CallScreenState extends State<CallScreen> {
       _localRenderer = RTCVideoRenderer();
       await _localRenderer!.initialize();
       _localRenderer!.srcObject = _webrtcService.localStream;
+      setState(() => _isCameraOn = true);
       if (mounted) {
         Navigator.pushReplacement(
           context,
@@ -198,8 +214,11 @@ class _CallScreenState extends State<CallScreen> {
     }
   }
 
-  /// WhatsApp's "More" popup — bottom sheet with options.
-  void _showMorePopup() {
+  void _minimizeCall() {
+    Navigator.pop(context);
+  }
+
+  void _showOverflowMenu() {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -222,25 +241,36 @@ class _CallScreenState extends State<CallScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              _moreItem(
+              _overflowItem(
                 icon: Icons.translate_rounded,
-                label: 'Live Translation',
+                label: 'Translation',
                 isActive: _translationActive,
-                onTap: () { Navigator.pop(ctx); _openTranslationSheet(); },
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _openTranslationSheet();
+                },
               ),
-              _moreItem(
+              _overflowItem(
                 icon: Icons.flip_camera_ios,
                 label: 'Flip Camera',
-                onTap: () { Navigator.pop(ctx); _webrtcService.switchCamera(); },
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _webrtcService.switchCamera();
+                },
               ),
-              _moreItem(
+              _overflowItem(
                 icon: Icons.person_add_outlined,
                 label: 'Add Person',
                 onTap: () => Navigator.pop(ctx),
               ),
-              _moreItem(
+              _overflowItem(
                 icon: Icons.volume_up_outlined,
                 label: 'Audio & Video',
+                onTap: () => Navigator.pop(ctx),
+              ),
+              _overflowItem(
+                icon: Icons.wallpaper_outlined,
+                label: 'Wallpaper',
                 onTap: () => Navigator.pop(ctx),
               ),
               const SizedBox(height: 12),
@@ -251,9 +281,11 @@ class _CallScreenState extends State<CallScreen> {
     );
   }
 
-  Widget _moreItem({
-    required IconData icon, required String label,
-    bool isActive = false, required VoidCallback onTap,
+  Widget _overflowItem({
+    required IconData icon,
+    required String label,
+    bool isActive = false,
+    required VoidCallback onTap,
   }) {
     return ListTile(
       leading: Container(
@@ -268,10 +300,14 @@ class _CallScreenState extends State<CallScreen> {
             color: isActive ? KoraColors.purple : Colors.white.withValues(alpha: 0.9),
             size: 20),
       ),
-      title: Text(label, style: TextStyle(
-        color: Colors.white.withValues(alpha: 0.9),
-        fontSize: 15, fontWeight: FontWeight.w500,
-      )),
+      title: Text(
+        label,
+        style: TextStyle(
+          color: Colors.white.withValues(alpha: 0.9),
+          fontSize: 15,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
       trailing: isActive
           ? Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -280,7 +316,7 @@ class _CallScreenState extends State<CallScreen> {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Text('ON',
-                style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
+                  style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
             )
           : Icon(Icons.chevron_right, color: Colors.white.withValues(alpha: 0.4)),
       onTap: onTap,
@@ -305,27 +341,33 @@ class _CallScreenState extends State<CallScreen> {
       final sourceLang = result['sourceLanguage'] as String;
       final targetLang = result['targetLanguage'] as String;
 
-      _liveTranslation.onSpeechRecognized = (text) {
-        if (mounted) setState(() => _lastRecognized = text);
+      _liveTranslation.onRecognizedText = (recognizedText) {
+        if (mounted) setState(() => _lastRecognized = recognizedText);
       };
-      _liveTranslation.onTranslationReceived = (text) {
-        if (mounted) setState(() => _lastReceived = text);
-      };
-      _liveTranslation.onSendTranslatedText = (translatedText) {
+
+      _liveTranslation.onTranslatedText = (translatedText) {
+        if (mounted) setState(() => _lastReceived = translatedText);
         _webrtcService.sendTranslationText(translatedText);
       };
+
       _liveTranslation.onError = (error) {
         debugPrint('Translation error: $error');
       };
 
-      await _liveTranslation.start(sourceLanguage: sourceLang, targetLanguage: targetLang);
+      await _liveTranslation.start(
+        sourceLanguage: sourceLang,
+        targetLanguage: targetLang,
+      );
+
       setState(() => _translationActive = true);
     }
   }
 
   void _endCall() async {
     _timer?.cancel();
-    if (_translationActive) await _liveTranslation.stop();
+    if (_translationActive) {
+      await _liveTranslation.stop();
+    }
 
     final duration = _callStartTime != null
         ? DateTime.now().difference(_callStartTime!).inSeconds
@@ -349,7 +391,10 @@ class _CallScreenState extends State<CallScreen> {
   @override
   void dispose() {
     _timer?.cancel();
-    if (_translationActive) _liveTranslation.stop();
+    _pulseController.dispose();
+    if (_translationActive) {
+      _liveTranslation.stop();
+    }
     _remoteRenderer?.dispose();
     _localRenderer?.dispose();
     super.dispose();
@@ -359,264 +404,361 @@ class _CallScreenState extends State<CallScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: KoraColors.deepNavy,
-      body: SafeArea(
-        child: widget.isVideoCall && _remoteRenderer != null
-            ? _buildVideoCallView()
-            : _buildVoiceCallView(),
-      ),
+      body: widget.isVideoCall && _remoteRenderer != null
+          ? _buildVideoCallView()
+          : _buildVoiceCallView(),
     );
   }
 
-  // ── Voice Call View ──
-  // WhatsApp: full-screen gradient, large centered avatar with pulse,
-  // contact name, status/timer, floating pill control bar at bottom.
+  // ── Voice call view ──────────────────────────────────────────
+
   Widget _buildVoiceCallView() {
     return Container(
-      decoration: const BoxDecoration(gradient: KoraColors.brandGradient),
-      child: Stack(
-        children: [
-          Column(
-            children: [
-              const Spacer(flex: 3),
-
-              // Avatar with subtle pulse ring
-              _buildPulsingAvatar(),
-
-              const SizedBox(height: 24),
-
-              // Name
-              Text(widget.contactName,
-                style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w600)),
-
-              const SizedBox(height: 8),
-
-              // Status + translation indicator
-              _buildStatusRow(),
-
-              // Translation subtitle
-              if (_translationActive && (_lastRecognized.isNotEmpty || _lastReceived.isNotEmpty))
-                Padding(
-                  padding: const EdgeInsets.only(top: 6, bottom: 4),
-                  child: Text(
-                    _lastReceived.isNotEmpty ? '🔊 $_lastReceived' : '🗣️ $_lastRecognized',
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 13),
-                    maxLines: 1, overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-
-              const Spacer(flex: 4),
-            ],
-          ),
-
-          // Floating pill control bar at bottom
-          Positioned(
-            bottom: 0, left: 0, right: 0,
-            child: _buildControlPill(false),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── Video Call View ──
-  // WhatsApp: full-screen remote video, draggable local PiP,
-  // semi-transparent top info bar, floating pill controls.
-  Widget _buildVideoCallView() {
-    return Stack(
-      children: [
-        // Remote video (full screen)
-        Positioned.fill(
-          child: RTCVideoView(_remoteRenderer!,
-            objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
-            mirror: false),
-        ),
-
-        // Dark gradient at top
-        Positioned(
-          top: 0, left: 0, right: 0,
-          child: Container(
-            height: 120,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                colors: [Colors.black.withValues(alpha: 0.6), Colors.transparent],
-              ),
-            ),
-          ),
-        ),
-
-        // Top info bar
-        Positioned(
-          top: 16, left: 0, right: 0,
-          child: Column(children: [
-            Text(widget.contactName,
-              style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 4),
-            _buildStatusRow(),
-          ]),
-        ),
-
-        // Draggable local PiP (WhatsApp: 90x160dp, top-right default, draggable)
-        if (_localRenderer != null && _isCameraOn)
-          Positioned(
-            left: _pipInitialized ? _pipOffset.dx : null,
-            top: _pipInitialized ? _pipOffset.dy : 80,
-            right: _pipInitialized ? null : 16,
-            child: GestureDetector(
-              onPanUpdate: (details) {
-                setState(() {
-                  _pipInitialized = true;
-                  _pipOffset += details.delta;
-                  // Clamp within screen bounds
-                  final size = MediaQuery.of(context).size;
-                  _pipOffset = Offset(
-                    _pipOffset.dx.clamp(8.0, size.width - 128),
-                    _pipOffset.dy.clamp(8.0, size.height - 200),
-                  );
-                });
-              },
-              child: Container(
-                width: 90, height: 160,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 2),
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: RTCVideoView(_localRenderer!,
-                  mirror: true,
-                  objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover),
-              ),
-            ),
-          ),
-
-        // Floating pill controls at bottom
-        Positioned(
-          bottom: 0, left: 0, right: 0,
-          child: _buildControlPill(true),
-        ),
-      ],
-    );
-  }
-
-  // ── Pulsing Avatar (voice call) ──
-  Widget _buildPulsingAvatar() {
-    return Container(
-      width: 120, height: 120,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 3),
-      ),
-      child: CircleAvatar(
-        backgroundColor: Colors.white.withValues(alpha: 0.15),
-        backgroundImage: widget.avatarUrl != null ? NetworkImage(widget.avatarUrl!) : null,
-        child: widget.avatarUrl == null
-            ? Text(
-                widget.contactName.isNotEmpty ? widget.contactName[0].toUpperCase() : '?',
-                style: const TextStyle(color: Colors.white, fontSize: 48, fontWeight: FontWeight.w600))
-            : null,
-      ),
-    );
-  }
-
-  // ── Status Row ──
-  Widget _buildStatusRow() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        if (_translationActive) ...[
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(Icons.translate_rounded, color: Colors.white, size: 12),
-              const SizedBox(width: 4),
-              Text('Translation ON',
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 11, fontWeight: FontWeight.w600)),
-            ]),
-          ),
-          const SizedBox(width: 8),
-        ],
-        Text(_statusText,
-          style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 16)),
-      ],
-    );
-  }
-
-  // ── Floating Pill Control Bar ──
-  // WhatsApp's current design: a horizontal pill with circular buttons.
-  // [Mute] [Speaker/Camera] [Video/Flip] [End] [More]
-  // Each button: 48dp circular, semi-transparent white background.
-  // End call: 56dp, red.
-  Widget _buildControlPill(bool isVideo) {
-    return Container(
-      padding: const EdgeInsets.only(bottom: 48, top: 20),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         gradient: LinearGradient(
-          begin: Alignment.bottomCenter, end: Alignment.topCenter,
-          colors: [
-            Colors.black.withValues(alpha: 0.7),
-            Colors.transparent,
-          ],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFF0A0A14), Color(0xFF13131F), Color(0xFF0A0A14)],
         ),
       ),
       child: SafeArea(
-        top: false,
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           children: [
-            // Pill bar
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            // ── Top bar ──
+            _buildTopBar(),
+            // ── Center: Avatar + info ──
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Mute
-                  _pillButton(
-                    icon: _isMuted ? Icons.mic_off : Icons.mic,
-                    label: _isMuted ? 'Unmute' : 'Mute',
-                    isActive: _isMuted,
-                    onTap: _toggleMute,
+                  // Pulsing avatar ring
+                  AnimatedBuilder(
+                    animation: _pulseAnimation,
+                    builder: (context, child) {
+                      return Container(
+                        width: 140 * _pulseAnimation.value,
+                        height: 140 * _pulseAnimation.value,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: const LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [KoraColors.purple, KoraColors.blue],
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: KoraColors.purple.withValues(alpha: 0.3),
+                              blurRadius: 40,
+                              spreadRadius: 5,
+                            ),
+                          ],
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(4),
+                          child: CircleAvatar(
+                            backgroundColor: Colors.white.withValues(alpha: 0.1),
+                            backgroundImage: widget.avatarUrl != null
+                                ? NetworkImage(widget.avatarUrl!)
+                                : null,
+                            child: widget.avatarUrl == null
+                                ? Text(
+                                    widget.contactName.isNotEmpty
+                                        ? widget.contactName[0].toUpperCase()
+                                        : '?',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 48,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  )
+                                : null,
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                  // Speaker (voice) or Camera (video)
-                  _pillButton(
-                    icon: isVideo
-                        ? (_isCameraOn ? Icons.videocam : Icons.videocam_off)
-                        : Icons.volume_up,
-                    label: isVideo ? 'Camera' : 'Speaker',
-                    isActive: isVideo ? !_isCameraOn : _isSpeakerOn,
-                    onTap: isVideo ? _toggleCamera : _toggleSpeaker,
+                  const SizedBox(height: 28),
+                  // Name
+                  Text(
+                    widget.contactName,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 26,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                  // Video (voice) or Flip (video)
-                  _pillButton(
-                    icon: isVideo ? Icons.flip_camera_ios : Icons.videocam_outlined,
-                    label: isVideo ? 'Flip' : 'Video',
-                    isActive: false,
-                    onTap: isVideo ? () => _webrtcService.switchCamera() : _upgradeToVideoCall,
+                  const SizedBox(height: 6),
+                  // Status + translation indicator
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      if (_translationActive) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: KoraColors.purple.withValues(alpha: 0.25),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.translate_rounded, color: Colors.white, size: 12),
+                              const SizedBox(width: 4),
+                              Text('Translation ON',
+                                  style: TextStyle(
+                                      color: Colors.white.withValues(alpha: 0.9),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600)),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                      Text(
+                        _statusText,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.65),
+                          fontSize: 15,
+                        ),
+                      ),
+                    ],
                   ),
-                  // End call (red, larger)
-                  _endCallButton(),
-                  // More
-                  _pillButton(
-                    icon: Icons.more_horiz,
-                    label: 'More',
-                    isActive: _translationActive,
-                    onTap: _showMorePopup,
-                  ),
+                  // Translation subtitle
+                  if (_translationActive && (_lastRecognized.isNotEmpty || _lastReceived.isNotEmpty))
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Text(
+                        _lastReceived.isNotEmpty ? '🔊 $_lastReceived' : '🗣️ $_lastRecognized',
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 13),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
                 ],
               ),
             ),
+            // ── Floating island bottom bar ──
+            _buildFloatingIslandBar(false),
+            const SizedBox(height: 28),
           ],
         ),
       ),
     );
   }
 
-  Widget _pillButton({
-    required IconData icon, required String label,
-    required bool isActive, required VoidCallback onTap,
+  // ── Video call view ──────────────────────────────────────────
+
+  Widget _buildVideoCallView() {
+    return Stack(
+      children: [
+        // Remote video full screen
+        Positioned.fill(
+          child: GestureDetector(
+            onTap: () => setState(() => _controlsVisible = !_controlsVisible),
+            child: RTCVideoView(
+              _remoteRenderer!,
+              objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+              mirror: false,
+            ),
+          ),
+        ),
+        // Dark gradient at top
+        if (_controlsVisible)
+          Positioned(
+            top: 0, left: 0, right: 0,
+            child: Container(
+              height: 120,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Colors.black.withValues(alpha: 0.6), Colors.transparent],
+                ),
+              ),
+            ),
+          ),
+        // Top bar
+        if (_controlsVisible)
+          Positioned(
+            top: 0, left: 0, right: 0,
+            child: _buildTopBar(transparent: true),
+          ),
+        // Local video PiP (WhatsApp-style: top-right)
+        if (_localRenderer != null && _isCameraOn)
+          Positioned(
+            top: 80, right: 16,
+            child: Container(
+              width: 120, height: 180,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 2),
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 12, offset: const Offset(0, 4)),
+                ],
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: RTCVideoView(
+                _localRenderer!,
+                mirror: true,
+                objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+              ),
+            ),
+          ),
+        // Dark gradient at bottom
+        if (_controlsVisible)
+          Positioned(
+            bottom: 0, left: 0, right: 0,
+            child: Container(
+              height: 200,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                  colors: [Colors.black.withValues(alpha: 0.7), Colors.transparent],
+                ),
+              ),
+            ),
+          ),
+        // Floating island bar
+        if (_controlsVisible)
+          Positioned(
+            bottom: 0, left: 0, right: 0,
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 28),
+              child: _buildFloatingIslandBar(true),
+            ),
+          ),
+      ],
+    );
+  }
+
+  // ── Top bar (Minimize + 3-dot menu) ──────────────────────────
+
+  Widget _buildTopBar({bool transparent = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      child: Row(
+        children: [
+          // Minimize button (WhatsApp replaces Back with Minimize)
+          _topBarButton(
+            icon: Icons.keyboard_arrow_down_rounded,
+            onTap: _minimizeCall,
+          ),
+          const Spacer(),
+          // Add person
+          _topBarButton(
+            icon: Icons.person_add_outlined,
+            onTap: () {},
+          ),
+          const SizedBox(width: 4),
+          // 3-dot overflow menu
+          _topBarButton(
+            icon: Icons.more_vert,
+            onTap: _showOverflowMenu,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _topBarButton({required IconData icon, required VoidCallback onTap}) {
+    return IconButton(
+      icon: Icon(icon, color: Colors.white.withValues(alpha: 0.9), size: 24),
+      onPressed: onTap,
+    );
+  }
+
+  // ── Floating island bottom bar ───────────────────────────────
+
+  /// WhatsApp's latest design: a floating pill-shaped bar containing
+  /// circular outlined buttons in a row. The End Call button sits
+  /// separately below the island.
+  Widget _buildFloatingIslandBar(bool isVideo) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Floating island with control buttons
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.35),
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              // Mute
+              _islandButton(
+                icon: _isMuted ? Icons.mic_off : Icons.mic,
+                label: _isMuted ? 'Unmute' : 'Mute',
+                isActive: _isMuted,
+                onTap: _toggleMute,
+              ),
+              // Speaker
+              _islandButton(
+                icon: _isSpeakerOn ? Icons.volume_up : Icons.volume_off,
+                label: 'Speaker',
+                isActive: _isSpeakerOn,
+                onTap: _toggleSpeaker,
+              ),
+              // Video (voice call: upgrade; video call: toggle camera)
+              if (!isVideo)
+                _islandButton(
+                  icon: Icons.videocam_outlined,
+                  label: 'Video',
+                  isActive: false,
+                  onTap: _upgradeToVideoCall,
+                )
+              else
+                _islandButton(
+                  icon: _isCameraOn ? Icons.videocam : Icons.videocam_off,
+                  label: 'Camera',
+                  isActive: _isCameraOn,
+                  onTap: _toggleCamera,
+                ),
+              // Flip camera (video only)
+              if (isVideo)
+                _islandButton(
+                  icon: Icons.flip_camera_ios,
+                  label: 'Flip',
+                  isActive: false,
+                  onTap: () => _webrtcService.switchCamera(),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        // End call button — separate, red, centered
+        GestureDetector(
+          onTap: _endCall,
+          child: Container(
+            width: 64, height: 64,
+            decoration: BoxDecoration(
+              color: const Color(0xFFEF4444),
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFEF4444).withValues(alpha: 0.4),
+                  blurRadius: 16,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: const Icon(Icons.call_end, color: Colors.white, size: 28),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Circular outlined button inside the floating island.
+  Widget _islandButton({
+    required IconData icon,
+    required String label,
+    required bool isActive,
+    required VoidCallback onTap,
   }) {
     return GestureDetector(
       onTap: onTap,
@@ -624,37 +766,28 @@ class _CallScreenState extends State<CallScreen> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 48, height: 48,
+            width: 54, height: 54,
             decoration: BoxDecoration(
               color: isActive
                   ? Colors.white.withValues(alpha: 0.25)
-                  : Colors.white.withValues(alpha: 0.1),
+                  : Colors.white.withValues(alpha: 0.08),
               shape: BoxShape.circle,
+              border: Border.all(
+                color: Colors.white.withValues(alpha: isActive ? 0.4 : 0.15),
+                width: 1.5,
+              ),
             ),
             child: Icon(icon, color: Colors.white, size: 22),
           ),
           const SizedBox(height: 6),
-          Text(label,
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 10)),
-        ],
-      ),
-    );
-  }
-
-  Widget _endCallButton() {
-    return GestureDetector(
-      onTap: _endCall,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 56, height: 56,
-            decoration: const BoxDecoration(
-              color: KoraColors.red, shape: BoxShape.circle),
-            child: const Icon(Icons.call_end, color: Colors.white, size: 28),
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.7),
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+            ),
           ),
-          const SizedBox(height: 6),
-          Text('End', style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 10)),
         ],
       ),
     );
