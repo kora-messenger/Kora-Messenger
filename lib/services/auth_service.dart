@@ -195,16 +195,23 @@ class AuthService {
       // Debug: log raw response for troubleshooting
       print('[AuthService] login response: ${response.statusCode} ${response.body.substring(0, response.body.length > 200 ? 200 : response.body.length)}');
 
-      if (response.statusCode != 200) {
+      // Try to parse the JSON body FIRST, even on non-200 — the backend's
+      // error handler still returns a meaningful {success:false, error:...}
+      // body on 4xx/5xx. Only fall back to a raw status-code message if the
+      // body genuinely isn't parseable JSON (e.g. a proxy/HTML error page).
+      Map<String, dynamic> data;
+      try {
+        data = jsonDecode(response.body) as Map<String, dynamic>;
+      } catch (_) {
         return (
           success: false,
           needsDeviceVerification: false,
-          error: 'Server error (${response.statusCode}). Please try again.',
+          error: response.statusCode == 200
+              ? 'Unexpected response from server. Please try again.'
+              : 'Server error (${response.statusCode}). Please try again.',
           user: null,
         );
       }
-
-      final data = jsonDecode(response.body);
 
       // Handle success — check both boolean true and string 'true'
       final isSuccess = data['success'] == true || data['success'] == 'true';
