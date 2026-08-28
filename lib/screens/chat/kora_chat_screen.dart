@@ -1506,7 +1506,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
     final hasWallpaperImage = _themeProvider.wallpaperImagePath != null;
     final hasWallpaperAsset = _themeProvider.wallpaperAssetPath != null;
     // When the default theme has no custom wallpaper override, use
-    // Kora's signature milk doodle wallpaper.
+    // Kora's signature professional wallpaper.
     final usesDefaultDoodle = _themeProvider.usesDefaultWallpaperAsset;
     final wallpaperAssetPath = hasWallpaperAsset
         ? _themeProvider.wallpaperAssetPath!

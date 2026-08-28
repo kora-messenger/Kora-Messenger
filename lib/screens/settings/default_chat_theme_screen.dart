@@ -52,7 +52,7 @@ class _DefaultChatThemeScreenState extends State<DefaultChatThemeScreen> {
   // card (top row).
   late final List<_ThemeCard> _cards = [
     _ThemeCard(
-      id: kDefaultChatThemes[0].id, // Default — Kora's milk doodle wallpaper
+      id: kDefaultChatThemes[0].id, // Default — Kora's professional wallpaper
       wallpaperAsset: kDefaultWallpaperAsset,
       sentBubble: kDefaultChatThemes[0].sentBubble,
       receivedBubble: kDefaultChatThemes[0].receivedBubble,

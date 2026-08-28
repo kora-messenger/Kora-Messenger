@@ -36,21 +36,21 @@ class ChatThemePreset {
 const List<ChatThemePreset> kDefaultChatThemes = [
   ChatThemePreset(
     id: 'default',
-    name: 'Default',
-    sentBubble: Color(0xFFDCF8C6),
+    name: 'Kora Default',
+    sentBubble: Color(0xFF6C63FF),
     receivedBubble: Color(0xFFFFFFFF),
-    wallpaper: Color(0xFFECE5DD),
-    sentTextColor: Color(0xFF111B21),
-    receivedTextColor: Color(0xFF111B21),
+    wallpaper: Color(0xFFF7F8FC),
+    sentTextColor: Colors.white,
+    receivedTextColor: Color(0xFF1A1A2E),
   ),
   ChatThemePreset(
     id: 'midnight',
     name: 'Midnight',
-    sentBubble: Color(0xFF6366F1),
+    sentBubble: Color(0xFF4A90D9),
     receivedBubble: Color(0xFF1E293B),
-    wallpaper: Color(0xFF0F172A),
+    wallpaper: Color(0xFF0B1120),
     sentTextColor: Colors.white,
-    receivedTextColor: Colors.white,
+    receivedTextColor: Color(0xFFE2E8F0),
   ),
   ChatThemePreset(
     id: 'coral',
@@ -102,7 +102,7 @@ const List<ChatThemePreset> kDefaultChatThemes = [
 /// The default wallpaper asset — a warm cream doodle pattern matching
 /// the classic WhatsApp look. Used automatically when the active chat
 /// theme is "Default".
-const String kDefaultWallpaperAsset = 'assets/wallpapers/kora_default_doodle_milk.png';
+const String kDefaultWallpaperAsset = 'assets/wallpapers/kora_default_pro.png';
 
 /// 20 app theme colors (Premium feature).
 const List<Color> kAppThemeColors = [
