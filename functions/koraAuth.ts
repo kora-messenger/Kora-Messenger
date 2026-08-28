@@ -271,7 +271,11 @@ Deno.serve(async (req: Request) => {
         email, code, type, expiresAt, used: false, attempts: 0,
       });
 
-      await sendVerificationEmail(email, code, type);
+      try {
+        await sendVerificationEmail(email, code, type);
+      } catch (emailErr) {
+        console.error('Failed to send verification email:', emailErr);
+      }
       return jsonResponse({ success: true, message: 'Verification code sent' });
     }
 
@@ -426,12 +430,23 @@ Deno.serve(async (req: Request) => {
         email, code, type: 'login', expiresAt, used: false, attempts: 0,
       });
 
-      await sendVerificationEmail(email, code, 'login');
+      // Try to send the verification email — but don't fail the entire
+      // login if the email service is down. The code is already saved in
+      // the database, so the user can still verify (or we can resend later).
+      let emailSent = true;
+      try {
+        await sendVerificationEmail(email, code, 'login');
+      } catch (emailErr) {
+        console.error('Failed to send login verification email:', emailErr);
+        emailSent = false;
+      }
 
       return jsonResponse({
         success: false,
         needsDeviceVerification: true,
-        message: 'Verification code sent to your email',
+        message: emailSent
+          ? 'Verification code sent to your email'
+          : 'Verification code created but email delivery failed. Please try again or resend.',
       });
     }
 

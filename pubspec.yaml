@@ -32,7 +32,6 @@ dependencies:
   connectivity_plus: ^7.0.0
   just_audio: ^0.10.6
   audioplayers: ^6.1.0
-  audio_waveforms: ^2.0.2
   speech_to_text: ^7.0.0
   flutter_tts: ^4.2.0
   flutter_webrtc: ^1.0.0

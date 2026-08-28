@@ -1,23 +1,25 @@
 import 'dart:async';
 import 'dart:io';
-import 'package:audio_waveforms/audio_waveforms.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 
-/// In-app voice recording service for Kora Messenger.
+/// Native voice recording service for Kora Messenger.
 ///
-/// Uses the [audio_waveforms] package's [RecorderController] — a pure
-/// Flutter-managed recording engine (no custom native Kotlin code).
+/// Uses the native Kotlin [KoraVoiceRecorder] via a MethodChannel —
+/// a MediaRecorder-based engine that captures microphone input only
+/// (VOICE_COMMUNICATION source not needed — MIC source with AAC encoder).
 ///
 /// This mirrors WhatsApp's in-app recording engine:
-///   - Captures microphone input only
-///   - Streams real-time amplitude data for the live waveform UI
+///   - Captures microphone input only (no system audio/notifications)
+///   - Streams simulated amplitude data for the live waveform UI
 ///   - Supports pause / resume / cancel
-///   - Output: AAC / MPEG4, 44100 Hz, mono
+///   - Output: AAC / MPEG4, 44100 Hz, 64kbps, mono
 class KoraRecordingService {
   static final KoraRecordingService instance = KoraRecordingService._();
   KoraRecordingService._();
 
-  RecorderController? _controller;
+  static const _channel = MethodChannel('com.kora.messenger/voice');
+
   bool _isRecording = false;
   bool _isPaused = false;
   String? _currentPath;
@@ -28,36 +30,31 @@ class KoraRecordingService {
   Stream<double> get amplitudeStream => _amplitudeController.stream;
 
   Timer? _amplitudeTimer;
+  Timer? _waveTimer;
+  int _waveIndex = 0;
 
   bool get isRecording => _isRecording;
   bool get isPaused => _isPaused;
   String? get currentPath => _currentPath;
-  RecorderController? get controller => _controller;
-
-  /// Lazily create the RecorderController with WhatsApp-style settings.
-  RecorderController _ensureController() {
-    if (_controller != null) return _controller!;
-    _controller = RecorderController();
-    return _controller!;
-  }
 
   /// Start recording. Returns a non-empty string on success.
   Future<String> startRecording() async {
     if (_isRecording) return _currentPath ?? '';
 
     try {
-      final controller = _ensureController();
-
-      // record() internally checks permission and handles platform init
-      await controller.record();
+      final path = await _channel.invokeMethod<String>('start');
+      if (path == null || path.isEmpty) {
+        debugPrint('[KoraRecording] Native recorder returned null path');
+        return '';
+      }
 
       _isRecording = true;
       _isPaused = false;
-      _currentPath = null;
+      _currentPath = path;
 
       _startAmplitudePolling();
 
-      return 'recording_in_progress';
+      return path;
     } catch (e) {
       debugPrint('[KoraRecording] Start failed: $e');
       return '';
@@ -66,16 +63,22 @@ class KoraRecordingService {
 
   void _startAmplitudePolling() {
     _amplitudeTimer?.cancel();
+    _waveTimer?.cancel();
+    _waveIndex = 0;
+
+    // Simulated waveform pattern for the live UI — the native recorder
+    // uses MediaRecorder which doesn't expose real-time amplitude.
+    // We use a natural-looking sine-based pattern that varies over time.
+    final pattern = [
+      0.25, 0.55, 0.35, 0.80, 0.42, 0.70, 0.32, 0.90,
+      0.50, 0.75, 0.38, 0.62, 0.45, 0.85, 0.30, 0.65,
+    ];
+
     _amplitudeTimer = Timer.periodic(const Duration(milliseconds: 50), (_) {
       if (!_isRecording || _isPaused) return;
-      final controller = _controller;
-      if (controller == null) return;
-
-      // audio_waveforms stores amplitudes in waveData (0.0 - 1.0)
-      final waves = controller.waveData;
-      if (waves.isNotEmpty) {
-        _amplitudeController.add(waves.last);
-      }
+      final value = pattern[_waveIndex % pattern.length];
+      _amplitudeController.add(value);
+      _waveIndex++;
     });
   }
 
@@ -86,10 +89,7 @@ class KoraRecordingService {
     _stopAmplitudePolling();
 
     try {
-      final controller = _controller;
-      if (controller == null) return null;
-
-      final path = await controller.stop();
+      final path = await _channel.invokeMethod<String>('stop');
       _isRecording = false;
       _isPaused = false;
       _currentPath = null;
@@ -106,16 +106,15 @@ class KoraRecordingService {
   Future<void> pauseRecording() async {
     if (!_isRecording || _isPaused) return;
     try {
-      await _controller?.pause();
+      await _channel.invokeMethod('pause');
       _isPaused = true;
     } catch (_) {}
   }
 
-  /// Resume from paused state — calling record() again resumes recording.
   Future<void> resumeRecording() async {
     if (!_isRecording || !_isPaused) return;
     try {
-      await _controller?.record();
+      await _channel.invokeMethod('resume');
       _isPaused = false;
     } catch (_) {}
   }
@@ -124,16 +123,9 @@ class KoraRecordingService {
   Future<void> cancelRecording() async {
     _stopAmplitudePolling();
     if (_isRecording) {
-      String? path;
       try {
-        path = await _controller?.stop(false);
+        await _channel.invokeMethod('cancel');
       } catch (_) {}
-      if (path != null && path.isNotEmpty) {
-        try {
-          final file = File(path);
-          if (await file.exists()) await file.delete();
-        } catch (_) {}
-      }
     }
     _isRecording = false;
     _isPaused = false;
@@ -143,6 +135,8 @@ class KoraRecordingService {
   void _stopAmplitudePolling() {
     _amplitudeTimer?.cancel();
     _amplitudeTimer = null;
+    _waveTimer?.cancel();
+    _waveTimer = null;
   }
 
   void dispose() {
@@ -150,7 +144,5 @@ class KoraRecordingService {
     if (_isRecording) {
       cancelRecording();
     }
-    _controller?.dispose();
-    _controller = null;
   }
 }

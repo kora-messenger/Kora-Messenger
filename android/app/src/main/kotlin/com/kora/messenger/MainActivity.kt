@@ -9,6 +9,7 @@ import android.os.Build
 import android.view.WindowManager
 import com.kora.messenger.notifications.KoraNotificationChannels
 import com.kora.messenger.notifications.KoraAlarmScheduler
+import com.kora.messenger.voice.KoraVoiceRecorder
 import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -17,6 +18,8 @@ class MainActivity : FlutterFragmentActivity() {
     private val ICON_CHANNEL = "com.kora.messenger/icon"
     private val SECURE_CHANNEL = "com.kora.messenger/secure"
     private val NOTIF_CHANNEL = "com.kora.messenger/notifications"
+    private val VOICE_CHANNEL = "com.kora.messenger/voice"
+    private var voiceRecorder: KoraVoiceRecorder? = null
 
     private val allAliases = listOf(
         "IconClassic", "IconAuroraCircle", "IconGoldElite"
@@ -173,6 +176,37 @@ class MainActivity : FlutterFragmentActivity() {
                         status["last_daily_cron"] = prefs.getLong("last_daily_cron", 0)
                         status["last_key_rotation"] = prefs.getLong("last_key_rotation", 0)
                         result.success(status)
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+
+        // ── Native voice recorder ──
+        voiceRecorder = KoraVoiceRecorder(this)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, VOICE_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "start" -> {
+                        val file = voiceRecorder?.start()
+                        if (file != null) result.success(file.absolutePath)
+                        else result.error("RECORD_FAILED", "Failed to start recording", null)
+                    }
+                    "stop" -> {
+                        val file = voiceRecorder?.stop()
+                        if (file != null) result.success(file.absolutePath)
+                        else result.success(null)
+                    }
+                    "pause" -> {
+                        voiceRecorder?.pause()
+                        result.success(true)
+                    }
+                    "resume" -> {
+                        voiceRecorder?.resume()
+                        result.success(true)
+                    }
+                    "cancel" -> {
+                        voiceRecorder?.cancel()
+                        result.success(true)
                     }
                     else -> result.notImplemented()
                 }
