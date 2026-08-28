@@ -42,15 +42,12 @@ class VoiceHoldingContent extends StatelessWidget {
     final brightness = Theme.of(context).brightness;
     final textSecondary = KoraColors.textSecondaryFor(brightness);
 
-    // WhatsApp translates the entire recording content left as the user
-    // drags toward cancel — proportional but eased, not 1:1.
     final slideX = (dragOffsetX * 0.35).clamp(-90.0, 0.0);
 
     return Transform.translate(
       offset: Offset(slideX, 0),
       child: Row(
         children: [
-          // ── Red pulsing dot ──
           ScaleTransition(
             scale: Tween(begin: 0.75, end: 1.25).animate(
               CurvedAnimation(parent: pulseController, curve: Curves.easeInOut),
@@ -65,7 +62,6 @@ class VoiceHoldingContent extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          // ── Timer ──
           Text(
             _durationString,
             style: TextStyle(
@@ -76,7 +72,6 @@ class VoiceHoldingContent extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 10),
-          // ── Live waveform (center) ──
           Expanded(
             child: SizedBox(
               height: 28,
@@ -94,7 +89,6 @@ class VoiceHoldingContent extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 10),
-          // ── "Slide to cancel" (fades as you drag left) ──
           Opacity(
             opacity: (1 - cancelProgress * 1.5).clamp(0.0, 1.0),
             child: Row(
@@ -125,10 +119,6 @@ class VoiceHoldingContent extends StatelessWidget {
 /// WhatsApp-exact lock capsule — a small vertical pill that floats above
 /// the mic button while holding.
 ///
-/// Structure (top → bottom inside the capsule):
-///   lock icon (changes from open to locked as progress -> 1)
-///   up chevron (hinting "drag up to lock")
-///
 /// As [progress] increases (0 -> 1):
 ///   - The capsule rises above the mic button
 ///   - Opacity increases from semi-transparent to fully visible
@@ -145,7 +135,6 @@ class VoiceLockHint extends StatelessWidget {
     final border = KoraColors.borderFor(brightness);
     final textMuted = KoraColors.textMutedFor(brightness);
 
-    // WhatsApp's capsule rises smoothly as you drag up
     final rise = (progress * 18).clamp(0.0, 18.0);
 
     return Transform.translate(

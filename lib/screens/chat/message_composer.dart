@@ -9,8 +9,8 @@ import '../../services/voice_note_stt_service.dart';
 import '../../services/voice_translation_pipeline.dart';
 import '../../services/translation_service.dart';
 import '../../models/translation_models.dart';
-import 'voice_recorder.dart';
-import 'voice_locked_bar.dart';
+import 'kora_voice_locked_bar.dart';
+import 'kora_voice_holding.dart';
 import 'emoji_sticker_panel.dart';
 import 'kora_camera_screen.dart';
 import 'media_editor_screen.dart';
@@ -928,7 +928,7 @@ class _MessageComposerState extends State<MessageComposer>
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           color: bg,
-          child: VoiceLockedBar(
+          child: KoraVoiceLockedBar(
             seconds: _seconds,
             waveformSamples: _waveformSamples,
             isPaused: _isPaused,
