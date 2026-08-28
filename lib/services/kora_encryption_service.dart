@@ -159,8 +159,7 @@ class KoraEncryptionService {
     final rootKey = await _hkdf.deriveKey(
       secretKey: SecretKey(sharedSecretBytes),
       info: utf8.encode('kora_e2ee_root_key'),
-      nonce: const [],
-      length: 32,
+      nonce: const []
     );
     final rootKeyBytes = await rootKey.extractBytes();
 
@@ -277,8 +276,7 @@ class KoraEncryptionService {
       final kdfResult = await _hkdf.deriveKey(
         secretKey: SecretKey(dhBytes),
         info: utf8.encode('kora_e2ee_recv_chain'),
-        nonce: const [],
-        length: 32,
+        nonce: const []
       );
       session.receivingChainKey = await kdfResult.extractBytes();
     }
@@ -394,16 +392,14 @@ class KoraEncryptionService {
     final newRootKeyResult = await _hkdf.deriveKey(
       secretKey: SecretKey(rootKeyBytes),
       info: utf8.encode('kora_e2ee_root'),
-      nonce: const [],
-      length: 32,
+      nonce: const []
     );
 
     // Derive chain key
     final chainKeyResult = await _hkdf.deriveKey(
       secretKey: SecretKey(rootKeyBytes),
       info: utf8.encode('kora_e2ee_chain'),
-      nonce: const [],
-      length: 32,
+      nonce: const []
     );
 
     return _ChainResult(
@@ -418,15 +414,13 @@ class KoraEncryptionService {
     final messageKeyResult = await _hkdf.deriveKey(
       secretKey: SecretKey(chainKeyBytes),
       info: utf8.encode('kora_e2ee_message'),
-      nonce: const [],
-      length: 32,
+      nonce: const []
     );
 
     final newChainKeyResult = await _hkdf.deriveKey(
       secretKey: SecretKey(chainKeyBytes),
       info: utf8.encode('kora_e2ee_chain_advance'),
-      nonce: const [],
-      length: 32,
+      nonce: const []
     );
 
     return _MessageKeyResult(

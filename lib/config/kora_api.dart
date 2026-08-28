@@ -107,6 +107,10 @@ class KoraApi {
   static const String termsOfServiceUrl = '$legalBaseUrl/terms-of-service.html';
   static const String communityGuidelinesUrl = '$legalBaseUrl/community-guidelines.html';
   static const String aiPolicyUrl = '$legalBaseUrl/ai-policy.html';
+  static const String e2eePolicyUrl = '$legalBaseUrl/e2ee-policy.html';
+
+  /// E2EE key exchange endpoint for public key publish/lookup.
+  static const String e2eeKeysEndpoint = '$baseUrl/koraE2eeKeys';
   static const String learnMoreUrl = '$legalBaseUrl/index.html';
 
   /// Link shared when inviting a friend to Kora — swap this for the
