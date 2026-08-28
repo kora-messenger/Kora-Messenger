@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../theme/kora_colors.dart';
 
 /// Replacement for the old VoiceLockedBar, matching the design
 /// from KoraVoiceNoteRecorder.kt.
@@ -21,7 +22,7 @@ class KoraVoiceLockedBar extends StatelessWidget {
   final double previewProgress;
   final int previewPositionMs;
   final VoidCallback onTogglePreviewPlay;
-  final void Function(int) onSeekPreview;
+  final void Function(double) onSeekPreview;
 
   const KoraVoiceLockedBar({
     super.key,
@@ -268,3 +269,4 @@ class _LockedWaveformPainter extends CustomPainter {
       active != oldDelegate.active ||
       progress != oldDelegate.progress;
 }
+
