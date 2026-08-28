@@ -354,10 +354,17 @@ Deno.serve(async (req: Request) => {
       const { email, password, deviceId, deviceName, platform } = body;
       if (!email || !password) return jsonResponse({ success: false, error: 'Email and password are required' });
 
+      // Check email first, then password — gives the user a specific,
+      // actionable error instead of a generic "invalid email or password".
+      const accountsWithEmail = await db.entities.KoraUser.filter({ email });
+      if (!accountsWithEmail || accountsWithEmail.length === 0) {
+        return jsonResponse({ success: false, error: 'No account found with this email' });
+      }
+
       const passwordHash = crypto.createHash('sha256').update(password).digest('hex');
       const users = await db.entities.KoraUser.filter({ email, passwordHash });
       if (!users || users.length === 0) {
-        return jsonResponse({ success: false, error: 'Invalid email or password' });
+        return jsonResponse({ success: false, error: 'Incorrect password. Please try again.' });
       }
 
       const user = getUserFromRecord(users[0]);
