@@ -132,10 +132,7 @@
 
         <!-- ═══ NOTIFICATION SYSTEM COMPONENTS ═══ -->
 
-        <!-- FCM Service (receives push messages from Firebase) -->
-        
-            </intent-filter>
-        </service>
+        <!-- FCM Service removed (Firebase not yet configured) -->
 
         <!-- Foreground Service (processes push, prevents killing) -->
         <service
