@@ -270,3 +270,110 @@ class _LockedWaveformPainter extends CustomPainter {
       progress != oldDelegate.progress;
 }
 
+
+/// Shows a bottom sheet explaining the "view once" voice note feature.
+void showPlayOnceInfoSheet(BuildContext context) {
+  final brightness = Theme.of(context).brightness;
+  final surface = KoraColors.surfaceFor(brightness);
+  final textPrimary = KoraColors.textPrimaryFor(brightness);
+  final textSecondary = KoraColors.textSecondaryFor(brightness);
+  final textMuted = KoraColors.textMutedFor(brightness);
+
+  showModalBottomSheet(
+    context: context,
+    backgroundColor: surface,
+    isScrollControlled: true,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (sheetCtx) => SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 12, 24, 28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Align(
+              alignment: Alignment.topLeft,
+              child: GestureDetector(
+                onTap: () => Navigator.pop(sheetCtx),
+                child: Icon(Icons.close_rounded, color: textMuted, size: 22),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Center(
+              child: Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  gradient: KoraColors.brandGradient,
+                  shape: BoxShape.circle,
+                ),
+                child: const Center(
+                  child: Text(
+                    '1',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            Text(
+              'View once messages give you more privacy',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: textPrimary, fontSize: 18, fontWeight: FontWeight.w700, height: 1.3),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.autorenew_rounded, color: textMuted, size: 18),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    "When you send a voice note, it disappears from the chat after it's opened.",
+                    style: TextStyle(color: textSecondary, fontSize: 13.5, height: 1.4),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.lock_outline_rounded, color: textMuted, size: 18),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    "For added privacy, the recipient can't forward, save, or share it.",
+                    style: TextStyle(color: textSecondary, fontSize: 13.5, height: 1.4),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(sheetCtx),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: KoraColors.purple,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                  elevation: 0,
+                ),
+                child: const Text('OK', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
