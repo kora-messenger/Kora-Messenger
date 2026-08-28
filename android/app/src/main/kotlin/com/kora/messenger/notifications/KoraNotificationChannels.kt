@@ -131,12 +131,17 @@ object KoraNotificationChannels {
         channel.group = groupId
         channel.enableVibration(enableVibration)
         channel.enableLights(enableLights)
-        // lightColor is val in SDK 36 — LED color not settable after construction
-        // if (lightColor != 0) channel.lightColor = lightColor
-        channel.sound = sound ?: android.media.RingtoneManager.getDefaultUri(
+        // In SDK 36+, sound/lightColor/vibrationPattern/lockscreenVisibility are read-only
+        // (setters removed or changed signature). Use setSound() with AudioAttributes.
+        val soundUri = sound ?: android.media.RingtoneManager.getDefaultUri(
             android.media.RingtoneManager.TYPE_NOTIFICATION)
-        if (vibrationPattern != null) channel.vibrationPattern = vibrationPattern
-        channel.lockscreenVisibility = NotificationManager.IMPORTANCE_HIGH
+        val audioAttrs = android.media.AudioAttributes.Builder()
+            .setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION)
+            .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            .build()
+        channel.setSound(soundUri, audioAttrs)
+        if (vibrationPattern != null) channel.setVibrationPattern(vibrationPattern)
+        channel.setLockscreenVisibility(NotificationManager.IMPORTANCE_HIGH)
         mgr.createNotificationChannel(channel)
     }
 
