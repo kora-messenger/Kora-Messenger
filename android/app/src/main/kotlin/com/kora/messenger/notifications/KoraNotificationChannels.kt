@@ -131,7 +131,8 @@ object KoraNotificationChannels {
         channel.group = groupId
         channel.enableVibration(enableVibration)
         channel.enableLights(enableLights)
-        if (lightColor != 0) channel.lightColor = lightColor
+        // lightColor is val in SDK 36 — LED color not settable after construction
+        // if (lightColor != 0) channel.lightColor = lightColor
         channel.sound = sound ?: android.media.RingtoneManager.getDefaultUri(
             android.media.RingtoneManager.TYPE_NOTIFICATION)
         if (vibrationPattern != null) channel.vibrationPattern = vibrationPattern
