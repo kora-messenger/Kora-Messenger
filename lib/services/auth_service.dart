@@ -193,13 +193,13 @@ class AuthService {
       ).timeout(const Duration(seconds: 15));
 
       // Debug: log raw response for troubleshooting
-      print('[AuthService] login response: \${response.statusCode} \${response.body.substring(0, response.body.length > 200 ? 200 : response.body.length)}');
+      print('[AuthService] login response: ${response.statusCode} ${response.body.substring(0, response.body.length > 200 ? 200 : response.body.length)}');
 
       if (response.statusCode != 200) {
         return (
           success: false,
           needsDeviceVerification: false,
-          error: 'Server error (\${response.statusCode}). Please try again.',
+          error: 'Server error (${response.statusCode}). Please try again.',
           user: null,
         );
       }
