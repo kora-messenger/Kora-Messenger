@@ -864,7 +864,7 @@ class _MessageComposerState extends State<MessageComposer>
     final result = await Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => Scaffold(appBar: AppBar(title: const Text('Media Editor')), body: Center(child: Text(isVideo ? 'Video Editor' : 'Image Editor'))),
-    );
+    ));
     if (result == null || !mounted) return;
     widget.onSendMedia?.call(
       result['path'] as String,

@@ -1,22 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../theme/kora_colors.dart';
 import '../../models/message_model.dart';
-
-enum MessageStatus { sending, sent, delivered, read, failed }
-
-class EditedLabel extends StatelessWidget {
-  final bool isEdited;
-  const EditedLabel({super.key, this.isEdited = true});
-
-  @override
-  Widget build(BuildContext context) {
-    if (!isEdited) return const SizedBox.shrink();
-    return Text(
-      'edited',
-      style: TextStyle(fontSize: 10, color: Colors.grey[600], fontStyle: FontStyle.italic),
-    );
-  }
-}
+import '../../models/chat_models.dart';
+import '../../widgets/deleted_message_bubble.dart' show EditedLabel;
 
 
 
@@ -238,7 +224,11 @@ class MessageInfoScreen extends StatelessWidget {
   Widget _buildStatusIcon(MessageStatus status) {
     switch (status) {
       case MessageStatus.none:
-        return Icon(Icons.check, size: 14, color: KoraColors.textMutedFor(Brightness.dark));
+        return Icon(Icons.access_time, size: 14, color: KoraColors.textMutedFor(Brightness.dark));
+      case MessageStatus.unsent:
+        return Icon(Icons.error_outline, size: 14, color: Colors.red);
+      case MessageStatus.pendingOffline:
+        return Icon(Icons.schedule, size: 14, color: KoraColors.textMutedFor(Brightness.dark));
       case MessageStatus.sent:
         return Icon(Icons.check, size: 14, color: KoraColors.textMutedFor(Brightness.dark));
       case MessageStatus.delivered:

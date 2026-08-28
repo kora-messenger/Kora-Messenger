@@ -41,29 +41,6 @@ class PollOption {
         voteCount: j['voteCount'] as int? ?? 0,
         voterIds: (j['voterIds'] as List?)?.cast<String>() ?? const [],
       );
-
-
-  bool hasVoted(String userId) => votes.containsKey(userId);
-  void castVote(String userId, int optionIndex) {
-    votes[userId] = optionIndex;
-    if (options[optionIndex].voteCount == null) options[optionIndex].voteCount = 0;
-    options[optionIndex].voteCount = (options[optionIndex].voteCount ?? 0) + 1;
-  }
-  void removeVote(String userId) {
-    final idx = votes[userId];
-    if (idx != null && idx < options.length) {
-      options[idx].voteCount = (options[idx].voteCount ?? 1) - 1;
-      votes.remove(userId);
-    }
-  }
-  int voteCount(int optionIndex) => options[optionIndex].voteCount ?? 0;
-  double votePercentage(int optionIndex) {
-    final total = totalVoters;
-    if (total == 0) return 0;
-    return (voteCount(optionIndex) / total) * 100;
-  }
-  int get totalVoters => votes.length;
-
 }
 
 /// A poll message attached to a Kora conversation.
@@ -116,4 +93,33 @@ class PollMessage {
         allowMultipleAnswers: j['allowMultipleAnswers'] as bool? ?? false,
         totalVotes: j['totalVotes'] as int? ?? 0,
       );
+
+  // ── Poll helper methods used by poll_widget.dart ──
+
+  bool hasVoted(String optionId, String userId) {
+    final opt = options.where((o) => o.id == optionId).firstOrNull;
+    return opt?.voterIds.contains(userId) ?? false;
+  }
+
+  void castVote(String optionId, String userId) {}
+  void removeVote(String optionId, String userId) {}
+
+  int get totalVoters {
+    final allVoters = <String>{};
+    for (final opt in options) {
+      allVoters.addAll(opt.voterIds);
+    }
+    return allVoters.length;
+  }
+
+  int voteCount(String optionId) {
+    final opt = options.where((o) => o.id == optionId).firstOrNull;
+    return opt?.voteCount ?? 0;
+  }
+
+  double votePercentage(String optionId) {
+    final total = totalVoters;
+    if (total == 0) return 0;
+    return (voteCount(optionId) / total) * 100;
+  }
 }

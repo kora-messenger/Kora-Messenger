@@ -57,7 +57,7 @@ class ChatService {
   /// everything else by most recent message timestamp. Archived and
   /// locked chats are excluded — see [getArchivedChats]/[getLockedChats].
   Future<List<ChatPreview>> getChats() async {
-    final chats = await _buildChats(_ChatListFilter.all);
+    final chats = await _buildChats(_ChatListFilter.main);
     cachedChats = chats;
     return chats;
     return _buildChats(_ChatListFilter.main);
