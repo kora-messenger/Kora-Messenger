@@ -23,6 +23,7 @@ import 'message_bubble.dart';
 import 'message_composer.dart';
 import 'call_screen.dart';
 import 'message_action_menu.dart';
+import 'e2ee_verification_screen.dart';
 import 'contact_info_screen.dart';
 import 'reply_preview.dart';
 import 'chat_empty_state.dart';
@@ -1572,6 +1573,15 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
               onVideoCall: _isAiChat ? null : () => _openCallScreen(isVideo: true),
               menuOptions: [
                 KoraMenuOption(icon: Icons.person_outline, label: 'Contact info', onTap: () => _showContactInfo()),
+                KoraMenuOption(icon: Icons.lock_outline, label: 'Encryption', onTap: () {
+                  Navigator.push(context, MaterialPageRoute(
+                    builder: (_) => E2eeVerificationScreen(
+                      chatId: widget.chatId,
+                      chatName: widget.name,
+                      peerPublicKey: '',
+                    ),
+                  ));
+                }),
                 KoraMenuOption(icon: Icons.search, label: 'Search', onTap: () => _showChatSearch()),
                 KoraMenuOption(icon: Icons.photo_library_outlined, label: 'Media & files', onTap: () {}),
                 KoraMenuOption(icon: Icons.notifications_outlined, label: 'Mute notifications', onTap: () => _showMuteDialog()),

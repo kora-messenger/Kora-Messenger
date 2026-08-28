@@ -159,6 +159,19 @@ class AboutKoraScreen extends StatelessWidget {
             border: border,
             onTap: () => _launchUrl(KoraApi.aiPolicyUrl),
           ),
+          const SizedBox(height: 12),
+          _buildLinkCard(
+            icon: Icons.lock,
+            iconColor: const Color(0xFF6C63FF),
+            title: 'End-to-End Encryption',
+            subtitle: 'How Kora protects your private communication',
+            card: card,
+            textPrimary: textPrimary,
+            textSecondary: textSecondary,
+            textMuted: textMuted,
+            border: border,
+            onTap: () => _launchUrl(KoraApi.e2eePolicyUrl),
+          ),
           const SizedBox(height: 20),
 
           // Credits

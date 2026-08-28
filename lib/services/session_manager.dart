@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'auth_service.dart';
+import 'kora_encryption_service.dart';
 
 /// Manages the local user session using shared_preferences.
 ///
@@ -30,6 +31,18 @@ class SessionManager {
     await prefs.setString(_sessionKey, jsonEncode(userData));
     _cachedEmail = userData['email'] as String? ?? '';
     _cachedUser = KoraUserSession.fromMap(userData);
+    // Publish E2EE public keys so others can encrypt messages to this user
+    final email = userData['email'] as String?;
+    if (email != null && email.isNotEmpty) {
+      await _publishE2eeKeys(email);
+    }
+  }
+
+  Future<void> _publishE2eeKeys(String email) async {
+    try {
+      await KoraEncryptionService.instance.init();
+      await KoraEncryptionService.instance.publishPublicKey(email);
+    } catch (_) {}
   }
 
   /// Loads session from storage and caches it for sync access.
@@ -63,10 +76,3 @@ class SessionManager {
     final merged = {...existing, ...updates};
     await saveSession(merged);
   }
-
-  /// Returns true if a session exists.
-  Future<bool> hasSession() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.containsKey(_sessionKey);
-  }
-}

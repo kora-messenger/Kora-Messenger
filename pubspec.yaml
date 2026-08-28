@@ -36,6 +36,7 @@ dependencies:
   flutter_tts: ^4.2.0
   flutter_webrtc: ^1.0.0
   webview_flutter: ^4.10.0
+  cryptography: ^2.7.0
 
 dev_dependencies:
   flutter_test:
