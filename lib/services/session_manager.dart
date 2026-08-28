@@ -76,3 +76,4 @@ class SessionManager {
     final merged = {...existing, ...updates};
     await saveSession(merged);
   }
+}

@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:cryptography/cryptography.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
@@ -28,7 +27,7 @@ class KoraEncryptionService {
   static final _x25519 = X25519();
   static final _ed25519 = Ed25519();
   static final _aesGcm = AesGcm.with256bits();
-  static final _hkdf = HkdfSha256();
+  static final _hkdf = Hkdf(hmac: Hmac.sha256(), outputLength: 32);
   static final _sha256 = Sha256();
 
   // ── Storage keys ──
@@ -37,7 +36,6 @@ class KoraEncryptionService {
   static const _kSigningPrivKey = 'kora_e2ee_signing_priv';
   static const _kSigningPubKey = 'kora_e2ee_signing_pub';
   static const _kSessionPrefix = 'kora_e2ee_session_';
-  static const _kSafetyNumbers = 'kora_e2ee_safety_numbers';
 
   // ── In-memory caches ──
   SimpleKeyPair? _identityKeyPair;
@@ -61,9 +59,9 @@ class KoraEncryptionService {
         Uint8List.fromList(base64Decode(privBytes)),
         publicKey: SimplePublicKey(
           base64Decode(pubBytes),
-          keyType: KeyPairType.x25519,
+          type: KeyPairType.x25519,
         ),
-        keyType: KeyPairType.x25519,
+        type: KeyPairType.x25519,
       );
     } else {
       _identityKeyPair = await _x25519.newKeyPair();
@@ -82,9 +80,9 @@ class KoraEncryptionService {
         Uint8List.fromList(base64Decode(sigPriv)),
         publicKey: SimplePublicKey(
           base64Decode(sigPub),
-          keyType: KeyPairType.ed25519,
+          type: KeyPairType.ed25519,
         ),
-        keyType: KeyPairType.ed25519,
+        type: KeyPairType.ed25519,
       );
     } else {
       _signingKeyPair = await _ed25519.newKeyPair();
@@ -146,7 +144,7 @@ class KoraEncryptionService {
     if (_sessions.containsKey(chatId) && _sessions[chatId]!.isValid) return;
 
     final peerPubBytes = base64Decode(peerPublicKey);
-    final peerKey = SimplePublicKey(peerPubBytes, keyType: KeyPairType.x25519);
+    final peerKey = SimplePublicKey(peerPubBytes, type: KeyPairType.x25519);
 
     // ECDH: derive shared secret
     final sharedSecret = await _x25519.sharedSecretKey(
@@ -159,7 +157,7 @@ class KoraEncryptionService {
 
     // Derive root key from shared secret via HKDF
     final rootKey = await _hkdf.deriveKey(
-      keyMaterial: SecretKey(sharedSecretBytes),
+      secretKey: SecretKey(sharedSecretBytes),
       info: utf8.encode('kora_e2ee_root_key'),
       nonce: const [],
       length: 32,
@@ -261,23 +259,23 @@ class KoraEncryptionService {
       // First received message — derive receiving chain from root key + peer ratchet
       final peerRatchetKey = SimplePublicKey(
         base64Decode(session.peerRatchetPub),
-        keyType: KeyPairType.x25519,
+        type: KeyPairType.x25519,
       );
       final dhResult = await _x25519.sharedSecretKey(
         keyPair: SimpleKeyPairData(
           base64Decode(session.ratchetKeyPairPriv),
           publicKey: SimplePublicKey(
             base64Decode(session.ratchetKeyPairPub),
-            keyType: KeyPairType.x25519,
+            type: KeyPairType.x25519,
           ),
-          keyType: KeyPairType.x25519,
+          type: KeyPairType.x25519,
         ),
         remotePublicKey: peerRatchetKey,
       );
       final dhBytes = await dhResult.extractBytes();
 
       final kdfResult = await _hkdf.deriveKey(
-        keyMaterial: SecretKey(dhBytes),
+        secretKey: SecretKey(dhBytes),
         info: utf8.encode('kora_e2ee_recv_chain'),
         nonce: const [],
         length: 32,
@@ -394,7 +392,7 @@ class KoraEncryptionService {
   Future<_ChainResult> _deriveChainKey(List<int> rootKeyBytes) async {
     // Derive new root key
     final newRootKeyResult = await _hkdf.deriveKey(
-      keyMaterial: SecretKey(rootKeyBytes),
+      secretKey: SecretKey(rootKeyBytes),
       info: utf8.encode('kora_e2ee_root'),
       nonce: const [],
       length: 32,
@@ -402,7 +400,7 @@ class KoraEncryptionService {
 
     // Derive chain key
     final chainKeyResult = await _hkdf.deriveKey(
-      keyMaterial: SecretKey(rootKeyBytes),
+      secretKey: SecretKey(rootKeyBytes),
       info: utf8.encode('kora_e2ee_chain'),
       nonce: const [],
       length: 32,
@@ -418,14 +416,14 @@ class KoraEncryptionService {
   /// Message key = HMAC(chain_key, 0x01), new chain key = HMAC(chain_key, 0x02)
   Future<_MessageKeyResult> _deriveMessageKey(List<int> chainKeyBytes) async {
     final messageKeyResult = await _hkdf.deriveKey(
-      keyMaterial: SecretKey(chainKeyBytes),
+      secretKey: SecretKey(chainKeyBytes),
       info: utf8.encode('kora_e2ee_message'),
       nonce: const [],
       length: 32,
     );
 
     final newChainKeyResult = await _hkdf.deriveKey(
-      keyMaterial: SecretKey(chainKeyBytes),
+      secretKey: SecretKey(chainKeyBytes),
       info: utf8.encode('kora_e2ee_chain_advance'),
       nonce: const [],
       length: 32,
