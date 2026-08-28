@@ -12,6 +12,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import androidx.core.app.NotificationCompat
+import androidx.core.graphics.drawable.IconCompat
 import androidx.core.app.Person
 import androidx.core.app.RemoteInput
 import androidx.core.content.ContextCompat
@@ -74,7 +75,7 @@ object KoraNotificationBuilder {
             .setName(payload.senderName ?: "Unknown")
             .setKey(payload.senderJid ?: payload.chatId ?: "")
             .apply {
-                if (avatarBitmap != null) setIcon(avatarBitmap.toIcon())
+                if (avatarBitmap != null) setIcon(IconCompat.createWithBitmap(avatarBitmap))
             }
             .build()
 

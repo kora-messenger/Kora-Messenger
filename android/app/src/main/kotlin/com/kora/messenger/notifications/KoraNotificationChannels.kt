@@ -129,8 +129,8 @@ object KoraNotificationChannels {
         val channel = NotificationChannel(id, name, importance).apply {
             this.description = description
             this.group = groupId
-            this.enableVibration = enableVibration
-            this.enableLights = enableLights
+            this.enableVibration(enableVibration)
+            this.enableLights(enableLights)
             if (lightColor != 0) this.lightColor = lightColor
             this.sound = sound ?: android.media.RingtoneManager.getDefaultUri(
                 android.media.RingtoneManager.TYPE_NOTIFICATION)

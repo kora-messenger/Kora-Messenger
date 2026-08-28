@@ -133,11 +133,7 @@
         <!-- ═══ NOTIFICATION SYSTEM COMPONENTS ═══ -->
 
         <!-- FCM Service (receives push messages from Firebase) -->
-        <service
-            android:name=".notifications.KoraFcmService"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+        
             </intent-filter>
         </service>
 
