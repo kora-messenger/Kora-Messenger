@@ -23,8 +23,8 @@ class _ReportScreenState extends State<ReportScreen> {
   final _detailsController = TextEditingController();
   bool _alsoBlock = false;
 
-  static const _reasons = [
-    ('spam', 'Spam', Icons.spam_outlined),
+  static _reasons = [
+    ('spam', 'Spam', Icons.report),
     ('harassment', 'Harassment or bullying', Icons.report_problem_outlined),
     ('fake_account', 'Fake account', Icons.person_off_outlined),
     ('scam', 'Scam or fraud', Icons.security_outlined),

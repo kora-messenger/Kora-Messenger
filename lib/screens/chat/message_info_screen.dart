@@ -2,6 +2,24 @@ import 'package:flutter/material.dart';
 import '../../theme/kora_colors.dart';
 import '../../models/message_model.dart';
 
+enum MessageStatus { sending, sent, delivered, read, failed }
+
+class EditedLabel extends StatelessWidget {
+  final bool isEdited;
+  const EditedLabel({super.key, this.isEdited = true});
+
+  @override
+  Widget build(BuildContext context) {
+    if (!isEdited) return const SizedBox.shrink();
+    return Text(
+      'edited',
+      style: TextStyle(fontSize: 10, color: Colors.grey[600], fontStyle: FontStyle.italic),
+    );
+  }
+}
+
+
+
 /// Message Info screen — shows delivery and read status for a specific
 /// message, exactly like WhatsApp's "Message Info" screen.
 ///

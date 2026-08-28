@@ -22,7 +22,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
   bool _isHD = true;
 
   static const _filters = [
-    ('None', ColorFilter.mode(Color.transparent, BlendMode.dst)),
+    ('None', ColorFilter.mode(Colors.transparent, BlendMode.dst)),
     ('Bright', ColorFilter.matrix(<double>[
       1.2, 0, 0, 0, 0,
       0, 1.2, 0, 0, 0,

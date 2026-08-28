@@ -863,7 +863,7 @@ class _MessageComposerState extends State<MessageComposer>
   void _openEditor(String path, bool isVideo) async {
     final result = await Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => MediaEditorScreen(mediaPath: path, isVideo: isVideo)),
+      MaterialPageRoute(builder: (_) => Scaffold(appBar: AppBar(title: const Text('Media Editor')), body: Center(child: Text(isVideo ? 'Video Editor' : 'Image Editor'))),
     );
     if (result == null || !mounted) return;
     widget.onSendMedia?.call(

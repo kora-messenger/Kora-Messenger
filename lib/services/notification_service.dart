@@ -1,3 +1,5 @@
+import 'dart:ui' show Color;
+import 'package:flutter/material.dart' show Colors;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:async';
@@ -290,7 +292,7 @@ class KoraNotificationService {
       category: AndroidNotificationCategory.call,
       ongoing: true,
       fullScreenIntent: true,
-      color: Color(0xFF6C63FF),
+      color: const Color(0xFF6C63FF),
       colorized: true,
       visibility: NotificationVisibility.public,
     );
@@ -419,7 +421,7 @@ class KoraNotificationService {
       priority: Priority.low,
       importance: Importance.low,
       category: AndroidNotificationCategory.reminder,
-      color: Color(0xFF6C63FF),
+      color: const Color(0xFF6C63FF),
       colorized: true,
       autoCancel: true,
     );

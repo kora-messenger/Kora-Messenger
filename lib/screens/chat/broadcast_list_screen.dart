@@ -6,6 +6,8 @@ import '../../models/chat_models.dart';
 import '../../widgets/kora_avatar.dart';
 import '../chat/kora_chat_screen.dart';
 import '../../utils/kora_page_routes.dart';
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Broadcast List screen — create and manage broadcast lists.
 /// A broadcast list lets you send the same message to multiple
@@ -110,7 +112,7 @@ class _BroadcastListScreenState extends State<BroadcastListScreen> {
     return ListTile(
       leading: CircleAvatar(
         backgroundColor: KoraColors.purple.withValues(alpha: 0.15),
-        child: Icon(Icons.broadcast_on_individual,
+        child: Icon(Icons.campaign,
             color: KoraColors.purple, size: 24),
       ),
       title: Text(list.name,
@@ -359,8 +361,6 @@ class BroadcastList {
 }
 
 /// Manages broadcast lists in SharedPreferences.
-import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class BroadcastManager {
   static final BroadcastManager instance = BroadcastManager._();

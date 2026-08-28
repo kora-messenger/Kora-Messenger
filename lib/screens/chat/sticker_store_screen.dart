@@ -224,11 +224,10 @@ class _MediaGalleryScreenState extends State<MediaGalleryScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         bottom: TabBar(
-          currentIndex: _selectedTab,
           onTap: (i) => setState(() => _selectedTab = i),
-          tabs: const ['Media', 'Links', 'Docs'],
-          activeColor: KoraColors.purple,
-          inactiveColor: textMuted,
+          tabs: const [Text('Media'), Text('Links'), Text('Docs')],
+          labelColor: Theme.of(context).colorScheme.primary,
+          unselectedLabelColor: Theme.of(context).colorScheme.onSurfaceVariant,
         ),
       ),
       body: _selectedTab == 0
@@ -339,9 +338,4 @@ class _TabBarImpl extends StatelessWidget implements PreferredSizeWidget {
       ),
     );
   }
-}
-
-/// Extension to use TabBar with simple API
-extension on AppBar {
-  static TabBar get bottom => TabBar();
 }

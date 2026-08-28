@@ -24,8 +24,9 @@ class _CallLinkScreenState extends State<CallLinkScreen> {
     setState(() => _generating = true);
     try {
       final link = await WebRTCCallService.instance.generateCallLinkToken(
-        callName: 'Kora Call',
-        isVideo: _isVideo,
+        name: 'Kora Call',
+        callType: _isVideo ? 'video' : 'audio',
+      isVideoCall: _isVideo,
       );
       setState(() {
         _callLink = 'https://kora.chat/call/$link';
@@ -53,7 +54,8 @@ class _CallLinkScreenState extends State<CallLinkScreen> {
       MaterialPageRoute(
         builder: (_) => CallWaitingRoomScreen(
           callLink: _callLink!,
-          isVideo: _isVideo,
+          callType: _isVideo ? 'video' : 'audio',
+      isVideoCall: _isVideo,
           isHost: true,
         ),
       ),
@@ -273,7 +275,7 @@ class _CallWaitingRoomScreenState extends State<CallWaitingRoomScreen> {
       MaterialPageRoute(
         builder: (_) => _WaitingRoomToCall(
           callLink: widget.callLink,
-          isVideo: widget.isVideo,
+          isVideoCall: widget.isVideo,
         ),
       ),
     );

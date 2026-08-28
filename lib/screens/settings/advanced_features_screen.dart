@@ -568,7 +568,7 @@ class ChannelAdminScreen extends StatelessWidget {
             subtitle: Text('Copy invite link', style: TextStyle(color: textMuted, fontSize: 13)),
           ),
           ListTile(
-            leading: Icon(Icons.reactions, color: KoraColors.purple),
+            leading: Icon(Icons.emoji_emotions, color: KoraColors.purple),
             title: Text('Reactions', style: TextStyle(color: textPrimary)),
             subtitle: Text('Allow reactions', style: TextStyle(color: textMuted, fontSize: 13)),
           ),

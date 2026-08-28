@@ -106,7 +106,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   ChatPreview? _getChatForId(String chatId) {
     try {
-      final chats = ChatService.instance.getCachedChats();
+      final chats = ChatService.instance.cachedChats;
       return chats.firstWhere((c) => c.id == chatId);
     } catch (_) {
       // Not found in cache — create a minimal preview
@@ -114,10 +114,10 @@ class _SearchScreenState extends State<SearchScreen> {
         id: chatId,
         name: chatId.replaceAll('kora_support', 'Kora Support').replaceAll('kora_ai', 'Kora AI'),
         lastMessage: '',
-        lastMessageTime: '',
+        timestamp: DateTime.now(),
         avatarAsset: null,
         avatarUrl: null,
-        badge: null,
+        badge: KoraBadgeType.none,
         isOnline: false,
         unreadCount: 0,
         recipientEmail: null,
