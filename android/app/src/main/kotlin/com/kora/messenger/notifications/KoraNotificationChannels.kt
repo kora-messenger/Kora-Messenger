@@ -126,17 +126,16 @@ object KoraNotificationChannels {
         // Don't recreate if exists (preserves user modifications)
         if (mgr.getNotificationChannel(id) != null) return
 
-        val channel = NotificationChannel(id, name, importance).apply {
-            this.description = description
-            this.group = groupId
-            this.enableVibration(enableVibration)
-            this.enableLights(enableLights)
-            if (lightColor != 0) this.lightColor = lightColor
-            this.sound = sound ?: android.media.RingtoneManager.getDefaultUri(
-                android.media.RingtoneManager.TYPE_NOTIFICATION)
-            if (vibrationPattern != null) this.vibrationPattern = vibrationPattern
-            this.lockscreenVisibility = NotificationManager.IMPORTANCE_HIGH
-        }
+        val channel = NotificationChannel(id, name, importance)
+        channel.description = description
+        channel.group = groupId
+        channel.enableVibration(enableVibration)
+        channel.enableLights(enableLights)
+        if (lightColor != 0) channel.lightColor = lightColor
+        channel.sound = sound ?: android.media.RingtoneManager.getDefaultUri(
+            android.media.RingtoneManager.TYPE_NOTIFICATION)
+        if (vibrationPattern != null) channel.vibrationPattern = vibrationPattern
+        channel.lockscreenVisibility = NotificationManager.IMPORTANCE_HIGH
         mgr.createNotificationChannel(channel)
     }
 
