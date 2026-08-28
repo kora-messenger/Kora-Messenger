@@ -328,7 +328,7 @@ class _LogInScreenState extends State<LogInScreen> {
         }
       } else {
         setState(() {
-          _errorMessage = result.error ?? 'Login failed. Please try again.';
+          _errorMessage = result.error ?? 'Unable to login. Please check your connection and try again.';
           _isLoading = false;
         });
       }
