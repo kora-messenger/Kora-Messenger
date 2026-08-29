@@ -37,9 +37,9 @@ body {
   --auth-bg-1: #ECE9FE;
   --auth-bg-2: #E2ECFB;
   --auth-card-bg: #FFFFFF;
-  --auth-text: #14141F;
-  --auth-muted: #6B6B80;
-  --auth-hint: #9A9AAE;
+  --auth-text: #000000;
+  --auth-muted: #1A1A1A;
+  --auth-hint: #333333;
   --auth-border: #E9E7F5;
   --auth-input-bg: #FAFAFE;
 }
@@ -172,6 +172,7 @@ html.auth-dark .checkmark { background: #1C1A2E; border-color: #2E2B47; }
   font-size: 12px; color: var(--auth-muted);
 }
 .auth-footer-note svg { width: 14px; height: 14px; fill: var(--purple); }
+.auth-footer-note { color: #1A1A1A; }
 
 /* QR screen specifics */
 .qr-box {
