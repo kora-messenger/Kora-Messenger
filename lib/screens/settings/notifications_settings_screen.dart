@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../theme/kora_colors.dart';
+import '../../services/chat_sound_service.dart';
 
 /// Notifications settings screen — matches native Android notification
 /// settings layout: a general section, then per-surface sections
@@ -143,6 +144,7 @@ class _NotificationsSettingsScreenState extends State<NotificationsSettingsScree
                   onChanged: (v) {
                     setState(() => _conversationTones = v);
                     _setBool('notif_conversation_tones', v);
+                    ChatSoundService.instance.setEnabled(v);
                   },
                 ),
                 _toggleRow(

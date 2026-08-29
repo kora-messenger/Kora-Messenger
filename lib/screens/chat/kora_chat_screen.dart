@@ -11,6 +11,7 @@ import '../../models/message_model.dart';
 import '../../services/message_service.dart';
 import '../../services/offline_voice_sync.dart';
 import '../../services/audio_playback_service.dart';
+import '../../services/chat_sound_service.dart';
 import 'voice_translation_sheet.dart';
 import 'forward_message_screen.dart';
 import 'view_once_viewer.dart';
@@ -236,6 +237,16 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
 
   void _refreshMessages() {
     final newMsgs = _messageService.getMessages(widget.chatId);
+    // Detect incoming messages (not from me) and play sound
+    if (newMsgs.length > _messages.length) {
+      final newOnes = newMsgs.sublist(_messages.length);
+      for (final m in newOnes) {
+        if (!m.isMe && !m.isAi) {
+          ChatSoundService.instance.playIncoming();
+          break; // one sound per refresh cycle
+        }
+      }
+    }
     // Count new messages that arrived while the user is scrolled up
     if (!_isAtBottom && newMsgs.length > _messages.length) {
       _newMessagesCount += newMsgs.length - _messages.length;
@@ -270,6 +281,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
       recipientEmail: widget.recipientEmail,
       recipientName: widget.name,
     );
+    ChatSoundService.instance.playOutgoing();
     setState(() {
       _messages = List.from(_messageService.getMessages(widget.chatId));
       _replyTarget = null;
@@ -295,6 +307,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
       recipientEmail: widget.recipientEmail,
       recipientName: widget.name,
     );
+    ChatSoundService.instance.playOutgoing();
     setState(() {
       _messages = List.from(_messageService.getMessages(widget.chatId));
       _replyTarget = null;
@@ -325,6 +338,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
       recipientEmail: widget.recipientEmail,
       recipientName: widget.name,
     );
+    ChatSoundService.instance.playOutgoing();
     setState(() {
       _messages = List.from(_messageService.getMessages(widget.chatId));
       _replyTarget = null;
