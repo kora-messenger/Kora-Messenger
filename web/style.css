@@ -139,7 +139,7 @@ body {
 .auth-link:hover { text-decoration: underline; }
 .auth-hint { font-size: 12px; color: var(--auth-hint); line-height: 1.5; }
 /* Stay logged in checkbox */
-.stay-loggedin { position: relative; z-index: 1; margin-top: 20px; }
+.stay-loggedin { position: relative; z-index: 1; margin: 4px 0 14px; text-align: left; }
 .stay-checkbox {
   display: flex; align-items: center; gap: 10px; cursor: pointer;
   font-size: 13px; color: var(--auth-muted); user-select: none;
