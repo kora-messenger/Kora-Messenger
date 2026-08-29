@@ -14,14 +14,17 @@
 </head>
 <body>
 
-<!-- ═══ LOGIN SCREEN ═══ -->
+<!-- ═══ LOGIN SCREEN (Telegram Web-style light auth) ═══ -->
 <div id="loginScreen">
-  <div class="login-card">
-    <div class="login-logo">
-      <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8 12H8v-2h4v2zm4-4H8V8h8v2z"/></svg>
-    </div>
-    <h1>Welcome to Kora</h1>
-    <p>Log in to continue messaging from your browser.</p>
+  <div class="auth-doodles"></div>
+  <button id="themeToggleBtn" class="theme-toggle" title="Toggle background">
+    <svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg>
+  </button>
+
+  <div class="auth-card">
+    <div class="auth-logo"><img src="assets/kora_icon.png" alt="Kora Messenger"></div>
+    <h1>Sign in to Kora Messenger</h1>
+    <p>Enter your email to continue.<br>We'll send a code if a new device is detected.</p>
 
     <div class="input-group">
       <label class="input-label" for="loginEmail">Email</label>
@@ -33,25 +36,63 @@
       <input type="password" id="loginPassword" class="input-field" placeholder="Enter your password" autocomplete="current-password">
     </div>
 
-    <button id="loginBtn" class="login-btn">Log In</button>
+    <button id="loginBtn" class="auth-btn">Next</button>
 
-    <div id="loginError" class="login-error"></div>
+    <div id="loginError" class="auth-error"></div>
 
-    <div class="login-footer">
-      Kora Messenger is end-to-end encrypted. Your messages stay private.
+    <div class="auth-links">
+      <a href="#" id="showQrBtn" class="auth-link">Log in by QR code<svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg></a>
+    </div>
+  </div>
+
+  <div class="auth-footer-note">
+    <svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9V6z"/></svg>
+    End-to-end encrypted. Your messages stay private.
+  </div>
+</div>
+
+<!-- ═══ QR LOGIN SCREEN ═══ -->
+<div id="qrScreen">
+  <div class="auth-doodles"></div>
+  <div class="auth-card">
+    <button id="qrBackBtn" class="auth-back">
+      <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+    </button>
+    <div class="auth-logo" style="width:56px;height:56px;margin-bottom:20px;"><img src="assets/kora_icon.png" alt="Kora Messenger"></div>
+    <h1>Log in by QR Code</h1>
+    <p>Scan this code from Kora Messenger on your phone.</p>
+
+    <div class="qr-box">
+      <img id="qrImage" class="qr-image" alt="QR code">
+      <div id="qrLoading" class="qr-loading">Generating code…</div>
+      <div id="qrExpired" class="qr-expired" style="display:none;">
+        <span>Code expired</span>
+        <button id="qrRefreshBtn">Refresh</button>
+      </div>
+    </div>
+
+    <ol class="qr-steps">
+      <li>Open <b>Kora Messenger</b> on your phone</li>
+      <li>Go to <b>Settings → Linked Devices</b></li>
+      <li>Tap <b>Link a Device</b> and point your phone here</li>
+    </ol>
+
+    <div class="auth-links">
+      <a href="#" id="showEmailBtn" class="auth-link">Log in by email<svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg></a>
     </div>
   </div>
 </div>
 
 <!-- ═══ VERIFICATION SCREEN ═══ -->
 <div id="verificationScreen">
-  <div class="verify-card">
-    <button id="verifyBack" class="verify-back">←</button>
-    <div class="login-logo" style="width:56px;height:56px;border-radius:16px;">
-      <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" fill="white"/></svg>
-    </div>
+  <div class="auth-doodles"></div>
+  <div class="auth-card">
+    <button id="verifyBack" class="auth-back">
+      <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+    </button>
+    <div class="auth-logo" style="width:56px;height:56px;margin-bottom:20px;"><img src="assets/kora_icon.png" alt="Kora Messenger"></div>
     <h1>Verify Your Login</h1>
-    <p class="subtitle" id="verifyEmailLabel">Enter the code sent to your email</p>
+    <p id="verifyEmailLabel">Enter the code sent to your email</p>
 
     <div class="code-inputs">
       <input type="text" id="verifyCode1" class="code-input" maxlength="1" inputmode="numeric" pattern="[0-9]">
@@ -62,12 +103,12 @@
       <input type="text" id="verifyCode6" class="code-input" maxlength="1" inputmode="numeric" pattern="[0-9]">
     </div>
 
-    <button id="verifyBtn" class="login-btn">Verify</button>
+    <button id="verifyBtn" class="auth-btn">Verify</button>
 
-    <div id="verifyError" class="login-error"></div>
+    <div id="verifyError" class="auth-error"></div>
 
-    <div class="login-footer">
-      Didn't get the code? Check your spam folder. The code expires in 10 minutes.
+    <div class="auth-links" style="justify-content:center;">
+      <span class="auth-hint">Didn't get the code? Check your spam folder — it expires in 10 minutes.</span>
     </div>
   </div>
 </div>

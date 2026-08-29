@@ -505,6 +505,103 @@ async function pollMessages() {
 }
 
 // ════════════════════════════════════════════════════════
+// QR LOGIN (WhatsApp/Telegram-style device pairing)
+// ════════════════════════════════════════════════════════
+let qrPollTimer = null;
+let qrCurrentToken = null;
+
+function showQrScreen() {
+  $('loginScreen').style.display = 'none';
+  $('qrScreen').style.display = 'flex';
+  requestQrCode();
+}
+
+function showLoginFromQr() {
+  stopQrPolling();
+  $('qrScreen').style.display = 'none';
+  $('loginScreen').style.display = 'flex';
+}
+
+function stopQrPolling() {
+  if (qrPollTimer) { clearInterval(qrPollTimer); qrPollTimer = null; }
+}
+
+async function requestQrCode() {
+  $('qrImage').style.display = 'none';
+  $('qrExpired').style.display = 'none';
+  $('qrLoading').style.display = 'block';
+  $('qrLoading').textContent = 'Generating code…';
+
+  try {
+    const res = await api(KORA_CONFIG.WEB_PAIR_URL, { action: 'requestPair' });
+    if (!res.success) throw new Error(res.error || 'Failed to generate code');
+
+    qrCurrentToken = res.pairingToken;
+    const qrImgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=380x380&margin=0&color=8B5CF6&data=${encodeURIComponent(res.qrData)}`;
+
+    $('qrImage').onload = () => {
+      $('qrLoading').style.display = 'none';
+      $('qrImage').style.display = 'block';
+    };
+    $('qrImage').src = qrImgUrl;
+
+    startQrPolling(res.ttlSeconds || 120);
+  } catch (e) {
+    $('qrLoading').textContent = 'Unable to generate code. Please try again.';
+  }
+}
+
+function startQrPolling(ttlSeconds) {
+  stopQrPolling();
+  const deadline = Date.now() + ttlSeconds * 1000;
+
+  qrPollTimer = setInterval(async () => {
+    if (Date.now() > deadline) {
+      stopQrPolling();
+      $('qrImage').style.display = 'none';
+      $('qrExpired').style.display = 'flex';
+      return;
+    }
+    if (!qrCurrentToken) return;
+
+    try {
+      const res = await api(KORA_CONFIG.WEB_PAIR_URL, { action: 'pollPair', token: qrCurrentToken });
+      if (!res.success) return;
+
+      if (res.status === 'accepted' && res.user) {
+        stopQrPolling();
+        currentUser = res.user;
+        saveSession();
+        showApp();
+      } else if (res.status === 'expired') {
+        stopQrPolling();
+        $('qrImage').style.display = 'none';
+        $('qrExpired').style.display = 'flex';
+      }
+    } catch (e) { /* silent retry */ }
+  }, 2500);
+}
+
+// ════════════════════════════════════════════════════════
+// AUTH BACKGROUND THEME TOGGLE (cosmetic, per-browser)
+// ════════════════════════════════════════════════════════
+function initAuthThemeToggle() {
+  const KEY = 'kora_web_auth_theme';
+  const apply = (dark) => {
+    document.documentElement.classList.toggle('auth-dark', dark);
+  };
+  apply(localStorage.getItem(KEY) === 'dark');
+
+  const btn = $('themeToggleBtn');
+  if (btn) {
+    btn.addEventListener('click', () => {
+      const isDark = document.documentElement.classList.toggle('auth-dark');
+      localStorage.setItem(KEY, isDark ? 'dark' : 'light');
+    });
+  }
+}
+
+// ════════════════════════════════════════════════════════
 // INIT
 // ════════════════════════════════════════════════════════
 
@@ -519,6 +616,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   $('loginBtn').addEventListener('click', handleLogin);
   $('loginPassword').addEventListener('keydown', (e) => { if (e.key === 'Enter') handleLogin(); });
+
+  $('showQrBtn').addEventListener('click', (e) => { e.preventDefault(); showQrScreen(); });
+  $('showEmailBtn').addEventListener('click', (e) => { e.preventDefault(); showLoginFromQr(); });
+  $('qrBackBtn').addEventListener('click', showLoginFromQr);
+  $('qrRefreshBtn').addEventListener('click', requestQrCode);
+  initAuthThemeToggle();
 
   // Verification code inputs — auto-advance + auto-verify
   for (let i = 1; i <= 6; i++) {
