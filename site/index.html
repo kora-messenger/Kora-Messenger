@@ -3,21 +3,246 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Kora Messenger — simple, private messaging and calling. End-to-end encrypted, free Kora AI, and available on Android and the web.">
-  <meta name="theme-color" content="#FFFFFF">
+  <meta name="description" content="Kora Messenger — private, encrypted messaging with free AI. Available on Android, iOS, and the web.">
+  <meta name="theme-color" content="#08080F">
   <title>Kora Messenger — Message Privately</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="icon" href="assets/kora_icon.png">
-  <link rel="stylesheet" href="style.css">
+  <style>
+    *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+    html{scroll-behavior:smooth;font-size:16px}
+    :root{
+      --purple:#7C3AED;--blue:#2563EB;--purple-light:#A78BFA;--blue-light:#60A5FA;
+      --gradient:linear-gradient(135deg,#7C3AED,#2563EB);
+      --gradient-soft:linear-gradient(135deg,rgba(124,58,237,.15),rgba(37,99,235,.15));
+      --bg:#08080F;--bg-card:#11111C;--bg-elevated:#1A1A2E;
+      --text:#F0F0F5;--text-secondary:#A0A0B8;--text-muted:#6B6B85;
+      --border:rgba(255,255,255,.08);--border-hover:rgba(255,255,255,.16);
+      --glass:rgba(255,255,255,.04);--glass-hover:rgba(255,255,255,.07);
+      --shadow-glow:0 0 80px rgba(124,58,237,.25);
+      --shadow-card:0 24px 60px rgba(0,0,0,.4);
+      --radius:20px;--radius-sm:14px;
+    }
+    body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+    a{color:inherit;text-decoration:none}
+    img{max-width:100%;display:block}
+    ::selection{background:var(--purple);color:#fff}
+    ::-webkit-scrollbar{width:8px}
+    ::-webkit-scrollbar-track{background:var(--bg)}
+    ::-webkit-scrollbar-thumb{background:var(--bg-elevated);border-radius:4px}
+
+    /* MESH BG */
+    .mesh-bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+    .mesh-blob{position:absolute;border-radius:50%;filter:blur(120px);opacity:.35;animation:float 20s infinite ease-in-out}
+    .mesh-blob.b1{width:600px;height:600px;background:var(--purple);top:-200px;left:-100px}
+    .mesh-blob.b2{width:500px;height:500px;background:var(--blue);bottom:-150px;right:-50px;animation-delay:7s}
+    .mesh-blob.b3{width:400px;height:400px;background:var(--purple-light);top:40%;right:10%;opacity:.15;animation-delay:14s}
+    @keyframes float{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(60px,-40px) scale(1.1)}66%{transform:translate(-40px,50px) scale(.95)}}
+
+    /* NAV */
+    .nav{position:fixed;top:0;left:0;right:0;z-index:100;transition:background .3s,border-color .3s}
+    .nav.scrolled{background:rgba(8,8,15,.80);backdrop-filter:blur(20px);border-bottom:1px solid var(--border)}
+    .nav-inner{display:flex;align-items:center;justify-content:space-between;padding:16px 28px;max-width:1200px;margin:0 auto}
+    .nav-brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:17px;letter-spacing:-.3px}
+    .nav-brand img{width:34px;height:34px;border-radius:10px}
+    .nav-brand span{background:var(--gradient);-webkit-background-clip:text;background-clip:text;color:transparent}
+    .nav-links{display:flex;align-items:center;gap:36px}
+    .nav-links a{font-size:14px;font-weight:500;color:var(--text-secondary);transition:color .2s;position:relative}
+    .nav-links a:hover{color:var(--text)}
+    .nav-links a::after{content:'';position:absolute;bottom:-4px;left:0;right:0;height:1px;background:var(--gradient);transform:scaleX(0);transition:transform .2s}
+    .nav-links a:hover::after{transform:scaleX(1)}
+    .nav-cta{padding:9px 20px;background:var(--gradient);border-radius:10px;font-size:13.5px;font-weight:700;color:#fff!important;transition:transform .15s,box-shadow .2s}
+    .nav-cta:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(124,58,237,.35)}
+    .nav-toggle{display:none;background:none;border:none;color:var(--text);font-size:22px;cursor:pointer}
+    .mobile-nav{display:none;flex-direction:column;gap:4px;padding:0 28px 16px;max-width:1200px;margin:0 auto}
+    .mobile-nav.open{display:flex}
+    .mobile-nav a{padding:10px 0;font-size:15px;color:var(--text-secondary);border-bottom:1px solid var(--border)}
+
+    /* HERO */
+    .hero{position:relative;z-index:1;min-height:100vh;display:flex;align-items:center;padding:120px 28px 80px}
+    .hero-inner{max-width:1200px;margin:0 auto;width:100%;display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center}
+    .hero-badge{display:inline-flex;align-items:center;gap:8px;padding:7px 16px;background:var(--glass);border:1px solid var(--border);border-radius:100px;font-size:13px;font-weight:500;color:var(--text-secondary);margin-bottom:24px;backdrop-filter:blur(10px)}
+    .hero-badge .dot{width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 8px #22c55e;animation:pulse 2s infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+    .hero h1{font-size:clamp(40px,5.5vw,68px);font-weight:900;line-height:1.05;letter-spacing:-2px;margin-bottom:20px}
+    .hero h1 .grad{background:var(--gradient);-webkit-background-clip:text;background-clip:text;color:transparent}
+    .hero p.lead{font-size:18px;color:var(--text-secondary);line-height:1.6;margin-bottom:36px;max-width:480px}
+    .hero-actions{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:8px}
+    .btn{display:inline-flex;align-items:center;gap:9px;padding:15px 28px;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;transition:all .2s;border:none;white-space:nowrap}
+    .btn:active{transform:scale(.97)}
+    .btn-primary{background:var(--gradient);color:#fff;box-shadow:0 12px 32px rgba(124,58,237,.3)}
+    .btn-primary:hover{transform:translateY(-2px);box-shadow:0 16px 44px rgba(124,58,237,.45)}
+    .btn-ghost{background:var(--glass);color:var(--text);border:1px solid var(--border);backdrop-filter:blur(10px)}
+    .btn-ghost:hover{background:var(--glass-hover);border-color:var(--border-hover)}
+    .btn svg{width:19px;height:19px;fill:currentColor}
+
+    /* STORE BADGES */
+    .store-badges{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:8px}
+    .store-badge{display:inline-flex;align-items:center;gap:10px;background:var(--glass);border:1px solid var(--border);color:var(--text);padding:11px 20px;border-radius:14px;transition:all .2s;backdrop-filter:blur(10px)}
+    .store-badge:hover{transform:translateY(-2px);background:var(--glass-hover);border-color:var(--border-hover)}
+    .store-badge .bt{display:flex;flex-direction:column;line-height:1.2}
+    .store-badge .bt small{font-size:.65rem;opacity:.6;text-transform:uppercase;letter-spacing:.5px}
+    .store-badge .bt strong{font-size:.95rem;font-weight:700}
+    .store-badge svg{width:22px;height:22px;flex-shrink:0;fill:currentColor}
+    .store-badge.primary{background:var(--gradient);border:none;color:#fff;box-shadow:0 8px 24px rgba(124,58,237,.25)}
+    .hero-note{margin-top:20px;font-size:13px;color:var(--text-muted);display:flex;align-items:center;gap:8px}
+    .hero-note svg{width:16px;height:16px;fill:var(--text-muted)}
+
+    /* PHONE MOCKUP */
+    .phone-wrap{position:relative;display:flex;justify-content:center;align-items:center;perspective:1000px}
+    .phone{width:280px;height:570px;background:linear-gradient(145deg,#1A1A2E,#0F0F18);border:3px solid rgba(255,255,255,.06);border-radius:42px;box-shadow:0 40px 100px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.03);position:relative;overflow:hidden;animation:phoneFloat 6s ease-in-out infinite}
+    @keyframes phoneFloat{0%,100%{transform:translateY(0) rotate(-1deg)}50%{transform:translateY(-12px) rotate(1deg)}}
+    .phone .notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:100px;height:26px;background:#000;border-radius:0 0 18px 18px;z-index:10}
+    .phone .screen{height:100%;display:flex;flex-direction:column;background:#0D0D18}
+    .phone .ph-top{display:flex;align-items:center;gap:10px;padding:34px 16px 12px;background:#11111C;border-bottom:1px solid var(--border)}
+    .phone .ph-avatar{width:38px;height:38px;border-radius:50%;background:var(--gradient);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff}
+    .phone .ph-info{flex:1}
+    .phone .ph-name{font-size:14px;font-weight:600;color:var(--text)}
+    .phone .ph-status{font-size:11px;color:#22c55e;margin-top:1px}
+    .phone .ph-body{flex:1;padding:14px 10px;display:flex;flex-direction:column;gap:10px;overflow:hidden}
+    .phone .ph-date{text-align:center;font-size:10px;color:var(--text-muted);margin-bottom:4px}
+    .phone .ph-encrypt{text-align:center;font-size:10px;color:var(--text-muted);padding:6px 12px;background:rgba(255,255,255,.03);border-radius:8px;margin-bottom:6px}
+    .phone .ph-encrypt svg{width:10px;height:10px;display:inline-block;margin-right:4px;fill:var(--text-muted);vertical-align:middle}
+    .phone .msg{max-width:78%;padding:9px 13px;border-radius:14px;font-size:12.5px;line-height:1.4}
+    .phone .msg.in{background:#1A1A2E;color:var(--text);align-self:flex-start;border-bottom-left-radius:4px}
+    .phone .msg.out{background:var(--gradient);color:#fff;align-self:flex-end;border-bottom-right-radius:4px}
+    .phone .msg .time{font-size:9px;opacity:.5;margin-top:3px;text-align:right}
+    .phone .ph-input{padding:10px 12px 16px;display:flex;align-items:center;gap:8px}
+    .phone .ph-input-bar{flex:1;height:34px;background:var(--bg-elevated);border-radius:18px;display:flex;align-items:center;padding:0 14px;font-size:12px;color:var(--text-muted)}
+    .phone .ph-mic{width:34px;height:34px;border-radius:50%;background:var(--gradient);display:flex;align-items:center;justify-content:center}
+    .phone .ph-mic svg{width:16px;height:16px;fill:#fff}
+    .phone-glow{position:absolute;inset:-40px;border-radius:50%;background:radial-gradient(circle,rgba(124,58,237,.15),transparent 70%);pointer-events:none;z-index:-1}
+
+    /* SECTIONS */
+    section{position:relative;z-index:1}
+    .section{padding:120px 28px}
+    .section-header{text-align:center;max-width:680px;margin:0 auto 64px}
+    .section-tag{display:inline-block;padding:6px 16px;background:var(--gradient-soft);border:1px solid var(--border);border-radius:100px;font-size:13px;font-weight:600;color:var(--purple-light);margin-bottom:16px}
+    .section-header h2{font-size:clamp(30px,4vw,46px);font-weight:900;letter-spacing:-1.2px;line-height:1.1;margin-bottom:16px}
+    .section-header h2 .grad{background:var(--gradient);-webkit-background-clip:text;background-clip:text;color:transparent}
+    .section-header p{font-size:17px;color:var(--text-secondary);line-height:1.6}
+
+    /* FEATURE GRID */
+    .feature-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;max-width:1200px;margin:0 auto}
+    .feature-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:32px 28px;transition:all .3s;position:relative;overflow:hidden}
+    .feature-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--purple),transparent);opacity:0;transition:opacity .3s}
+    .feature-card:hover{transform:translateY(-4px);border-color:var(--border-hover);box-shadow:var(--shadow-card)}
+    .feature-card:hover::before{opacity:1}
+    .feature-icon{width:52px;height:52px;border-radius:14px;background:var(--gradient-soft);display:flex;align-items:center;justify-content:center;margin-bottom:20px;border:1px solid var(--border)}
+    .feature-icon svg{width:26px;height:26px;fill:var(--purple-light)}
+    .feature-card h3{font-size:18px;font-weight:700;margin-bottom:10px;color:var(--text)}
+    .feature-card p{font-size:14.5px;color:var(--text-muted);line-height:1.6}
+
+    /* SECURITY */
+    .security-section{background:linear-gradient(180deg,transparent,rgba(124,58,237,.04),transparent)}
+    .split{display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:center;max-width:1200px;margin:0 auto}
+    .split-visual{display:flex;justify-content:center}
+    .lock-orb{width:280px;height:280px;position:relative;display:flex;align-items:center;justify-content:center}
+    .lock-orb .ring{position:absolute;inset:0;border-radius:50%;border:1px solid var(--border);animation:spinRing 12s linear infinite}
+    .lock-orb .ring.r2{inset:20px;border-color:rgba(255,255,255,.06);animation-duration:8s;animation-direction:reverse}
+    .lock-orb .ring.r3{inset:40px;border-color:rgba(255,255,255,.04);animation-duration:6s}
+    @keyframes spinRing{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+    .lock-orb .core{width:120px;height:120px;border-radius:30px;background:var(--gradient);display:flex;align-items:center;justify-content:center;box-shadow:0 20px 60px rgba(124,58,237,.4);position:relative;z-index:1}
+    .lock-orb .core svg{width:52px;height:52px;fill:#fff}
+    .lock-orb .particle{position:absolute;width:6px;height:6px;border-radius:50%;background:var(--purple-light);opacity:.6;animation:orbit 6s linear infinite}
+    .lock-orb .particle:nth-child(5){top:0;left:50%;animation-delay:0s}
+    .lock-orb .particle:nth-child(6){top:50%;right:0;animation-delay:1.5s;background:var(--blue-light)}
+    .lock-orb .particle:nth-child(7){bottom:0;left:50%;animation-delay:3s}
+    .lock-orb .particle:nth-child(8){top:50%;left:0;animation-delay:4.5s;background:var(--blue-light)}
+    @keyframes orbit{from{transform:rotate(0) translateX(130px) rotate(0)}to{transform:rotate(360deg) translateX(130px) rotate(-360deg)}}
+    .split-text h2{font-size:clamp(28px,3.5vw,40px);font-weight:900;letter-spacing:-1px;margin-bottom:18px;line-height:1.1}
+    .split-text h2 .grad{background:var(--gradient);-webkit-background-clip:text;background-clip:text;color:transparent}
+    .split-text p{font-size:16px;color:var(--text-secondary);line-height:1.7;margin-bottom:16px}
+    .security-list{list-style:none;padding:0;margin-top:24px}
+    .security-list li{display:flex;align-items:center;gap:12px;padding:10px 0;font-size:15px;color:var(--text-secondary)}
+    .security-list li svg{width:20px;height:20px;fill:var(--purple-light);flex-shrink:0}
+
+    /* STATS */
+    .stats-band{padding:80px 28px;display:flex;justify-content:center}
+    .stats-inner{display:grid;grid-template-columns:repeat(4,1fr);gap:40px;max-width:1000px;width:100%}
+    .stat{text-align:center}
+    .stat .num{font-size:clamp(32px,4vw,48px);font-weight:900;background:var(--gradient);-webkit-background-clip:text;background-clip:text;color:transparent;margin-bottom:4px}
+    .stat .label{font-size:14px;color:var(--text-muted)}
+
+    /* DOWNLOAD */
+    .download-section{padding:120px 28px;position:relative}
+    .download-card{max-width:760px;margin:0 auto;text-align:center;background:var(--bg-card);border:1px solid var(--border);border-radius:32px;padding:64px 40px;position:relative;overflow:hidden}
+    .download-card::before{content:'';position:absolute;top:-50%;left:50%;transform:translateX(-50%);width:600px;height:600px;background:radial-gradient(circle,rgba(124,58,237,.12),transparent 60%);pointer-events:none}
+    .download-card h2{font-size:clamp(30px,4vw,42px);font-weight:900;letter-spacing:-1px;margin-bottom:14px;position:relative}
+    .download-card h2 .grad{background:var(--gradient);-webkit-background-clip:text;background-clip:text;color:transparent}
+    .download-card p{font-size:17px;color:var(--text-secondary);margin-bottom:36px;position:relative}
+    .download-badges{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;position:relative}
+    .download-badge{display:inline-flex;align-items:center;gap:10px;background:#000;border:1px solid rgba(255,255,255,.15);color:#fff;padding:12px 24px;border-radius:14px;transition:all .2s}
+    .download-badge:hover{transform:translateY(-2px);background:#111}
+    .download-badge .bt{display:flex;flex-direction:column;line-height:1.2}
+    .download-badge .bt small{font-size:.65rem;opacity:.6;text-transform:uppercase;letter-spacing:.5px}
+    .download-badge .bt strong{font-size:1rem;font-weight:700}
+    .download-badge svg{width:24px;height:24px;fill:currentColor}
+    .download-badge.kora{background:var(--gradient);border:none;box-shadow:0 12px 32px rgba(124,58,237,.3)}
+    .download-badge.kora:hover{box-shadow:0 16px 44px rgba(124,58,237,.45)}
+    .download-badge.web{background:var(--glass);border:1px solid var(--border);backdrop-filter:blur(10px)}
+
+    /* FOOTER */
+    .footer{padding:80px 28px 32px;border-top:1px solid var(--border);position:relative;z-index:1}
+    .footer-inner{max-width:1200px;margin:0 auto}
+    .footer-top{display:grid;grid-template-columns:1fr 2fr;gap:60px;margin-bottom:48px}
+    .footer-brand-block .footer-brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px;margin-bottom:12px}
+    .footer-brand-block .footer-brand img{width:36px;height:36px;border-radius:10px}
+    .footer-brand-block .footer-brand span{background:var(--gradient);-webkit-background-clip:text;background-clip:text;color:transparent}
+    .footer-brand-block p{font-size:14px;color:var(--text-muted);max-width:280px;line-height:1.6}
+    .footer-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:40px}
+    .footer-col-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;text-transform:uppercase;letter-spacing:.5px}
+    .footer-col a{display:block;font-size:14px;color:var(--text-muted);margin-bottom:10px;transition:color .2s}
+    .footer-col a:hover{color:var(--text)}
+    .footer-bottom{display:flex;justify-content:space-between;align-items:center;padding-top:28px;border-top:1px solid var(--border);font-size:13px;color:var(--text-muted)}
+    .footer-bottom .socials{display:flex;gap:16px}
+    .footer-bottom .socials a{display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:10px;background:var(--glass);border:1px solid var(--border);transition:all .2s}
+    .footer-bottom .socials a:hover{background:var(--glass-hover);border-color:var(--border-hover)}
+    .footer-bottom .socials svg{width:18px;height:18px;fill:var(--text-secondary)}
+
+    /* REVEAL */
+    .reveal{opacity:0;transform:translateY(30px);transition:opacity .6s ease,transform .6s ease}
+    .reveal.visible{opacity:1;transform:translateY(0)}
+    .reveal:nth-child(2){transition-delay:.1s}
+    .reveal:nth-child(3){transition-delay:.2s}
+
+    /* RESPONSIVE */
+    @media(max-width:900px){
+      .nav-links{display:none}
+      .nav-toggle{display:block}
+      .hero-inner{grid-template-columns:1fr;text-align:center;gap:40px}
+      .hero p.lead{margin-left:auto;margin-right:auto}
+      .hero-actions,.store-badges{justify-content:center}
+      .hero-note{justify-content:center}
+      .phone-wrap{order:-1}
+      .feature-grid{grid-template-columns:1fr;max-width:420px}
+      .split{grid-template-columns:1fr;gap:40px;text-align:center}
+      .security-list{max-width:320px;margin:24px auto 0}
+      .stats-inner{grid-template-columns:repeat(2,1fr);gap:32px}
+      .footer-top{grid-template-columns:1fr;gap:32px}
+      .footer-grid{grid-template-columns:repeat(2,1fr)}
+    }
+    @media(max-width:500px){
+      .phone{width:240px;height:490px}
+      .download-card{padding:40px 24px}
+      .footer-grid{grid-template-columns:1fr}
+      .footer-bottom{flex-direction:column;gap:16px;text-align:center}
+    }
+  </style>
 </head>
 <body>
 
-<!-- NAV -->
-<nav class="nav">
+<div class="mesh-bg">
+  <div class="mesh-blob b1"></div>
+  <div class="mesh-blob b2"></div>
+  <div class="mesh-blob b3"></div>
+</div>
+
+<nav class="nav" id="nav">
   <div class="nav-inner">
-    <a href="#" class="nav-brand"><img src="assets/kora_icon.png" alt="Kora"> Kora</a>
+    <a href="#" class="nav-brand"><img src="assets/kora_icon.png" alt="Kora"> <span>Kora</span></a>
     <div class="nav-links">
       <a href="#features">Features</a>
       <a href="#security">Security</a>
@@ -34,64 +259,64 @@
   </div>
 </nav>
 
-<!-- HERO -->
 <section class="hero">
   <div class="hero-inner">
     <div class="hero-text">
-      <h1>Message <span>privately.</span></h1>
-      <p>Simple, reliable, end-to-end encrypted messaging and calling — free, and available on Android and the web.</p>
-      <div class="hero-buttons">
+      <div class="hero-badge"><span class="dot"></span> Now available on Android &amp; Web</div>
+      <h1>Message <span class="grad">privately.</span><br>Connect freely.</h1>
+      <p class="lead">End-to-end encrypted messaging and calling with free built-in AI. No ads, no tracking, no compromises — built for everyone.</p>
+      <div class="hero-actions">
         <a href="#download" class="btn btn-primary">
           <svg viewBox="0 0 24 24"><path d="M17.523 15.34c.44 0 .845-.152 1.174-.454.11-.1.2-.222.244-.36l3.85-11.65c.09-.27.02-.567-.183-.77-.202-.203-.5-.273-.77-.183l-11.65 3.85c-.14.045-.26.135-.36.245-.303.33-.454.735-.454 1.174v.01c0 .5.19.98.53 1.34l3.14 3.14c.36.34.84.53 1.34.53h.01zM12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10c0-.34-.02-.67-.05-1H20c0 4.42-3.58 8-8 8s-8-3.58-8-8 3.58-8 8-8c1.85 0 3.55.63 4.9 1.69l1.42-1.42C16.73 2.85 14.44 2 12 2z"/></svg>
-          Download for Android
+          Get Kora
         </a>
-        <a href="app/" class="btn btn-secondary">
+        <a href="app/" class="btn btn-ghost">
           <svg viewBox="0 0 24 24"><path d="M20 3H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h4l-1 3h6l-1-3h4c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 14H4V5h16v12z"/></svg>
-          Open Kora Web
+          Open Web
         </a>
       </div>
       <div class="store-badges">
         <a href="https://play.google.com/store/apps/details?id=com.kora.messenger" target="_blank" rel="noopener" class="store-badge">
-          <svg viewBox="0 0 24 24"><path fill="currentColor" d="M3.609 1.814L13.792 12 3.61 22.186a.996.996 0 0 1-.61-.92V2.734a1 1 0 0 1 .609-.92zm10.89 10.893l2.302 2.302-10.937 6.333 8.635-8.635zm3.199-3.199l2.807 1.626a1 1 0 0 1 0 1.732l-2.808 1.626-2.299-2.299 2.3-2.685zm-3.199-3.199L5.155 1.06l10.937 6.333-2.302 2.916z"/></svg>
-          <div class="badge-text"><small>Get it on</small><strong>Google Play</strong></div>
+          <svg viewBox="0 0 24 24"><path d="M3.609 1.814L13.792 12 3.61 22.186a.996.996 0 0 1-.61-.92V2.734a1 1 0 0 1 .609-.92zm10.89 10.893l2.302 2.302-10.937 6.333 8.635-8.635zm3.199-3.199l2.807 1.626a1 1 0 0 1 0 1.732l-2.808 1.626-2.299-2.299 2.3-2.685zm-3.199-3.199L5.155 1.06l10.937 6.333-2.302 2.916z"/></svg>
+          <div class="bt"><small>Get it on</small><strong>Google Play</strong></div>
         </a>
         <a href="https://apps.apple.com/app/kora-messenger/idCOMING_SOON" target="_blank" rel="noopener" class="store-badge">
-          <svg viewBox="0 0 24 24"><path fill="currentColor" d="M17.05 12.04c-.03-2.66 2.17-3.93 2.27-4-1.24-1.81-3.17-2.06-3.85-2.09-1.64-.17-3.2.96-4.03.96-.83 0-2.11-.94-3.47-.91-1.79.03-3.44 1.04-4.36 2.64-1.85 3.22-.47 7.99 1.33 10.61.88 1.28 1.93 2.71 3.31 2.66 1.33-.05 1.84-.86 3.45-.86 1.61 0 2.07.86 3.49.83 1.44-.03 2.35-1.31 3.24-2.59 1.02-1.49 1.44-2.93 1.46-3.01-.03-.01-2.81-1.08-2.84-4.24zM14.31 4.32c.74-.9 1.24-2.14 1.1-3.39-1.07.04-2.37.71-3.14 1.61-.69.8-1.29 2.06-1.13 3.28 1.2.09 2.43-.61 3.17-1.5z"/></svg>
-          <div class="badge-text"><small>Download on the</small><strong>App Store</strong></div>
+          <svg viewBox="0 0 24 24"><path d="M17.05 12.04c-.03-2.66 2.17-3.93 2.27-4-1.24-1.81-3.17-2.06-3.85-2.09-1.64-.17-3.2.96-4.03.96-.83 0-2.11-.94-3.47-.91-1.79.03-3.44 1.04-4.36 2.64-1.85 3.22-.47 7.99 1.33 10.61.88 1.28 1.93 2.71 3.31 2.66 1.33-.05 1.84-.86 3.45-.86 1.61 0 2.07.86 3.49.83 1.44-.03 2.35-1.31 3.24-2.59 1.02-1.49 1.44-2.93 1.46-3.01-.03-.01-2.81-1.08-2.84-4.24zM14.31 4.32c.74-.9 1.24-2.14 1.1-3.39-1.07.04-2.37.71-3.14 1.61-.69.8-1.29 2.06-1.13 3.28 1.2.09 2.43-.61 3.17-1.5z"/></svg>
+          <div class="bt"><small>Download on the</small><strong>App Store</strong></div>
         </a>
-        <a href="https://github.com/kora-messenger/Kora-Messenger/releases/download/latest-apk/Kora-Messenger.apk" class="store-badge" style="background:linear-gradient(135deg,#6C63FF,#4A90D9);border:none;">
-          <svg viewBox="0 0 24 24"><path fill="currentColor" d="M17.523 15.34c.44 0 .845-.152 1.174-.454.11-.1.2-.222.244-.36l3.85-11.65c.09-.27.02-.567-.183-.77-.202-.203-.5-.273-.77-.183l-11.65 3.85c-.14.045-.26.135-.36.245-.303.33-.454.735-.454 1.174v.01c0 .5.19.98.53 1.34l3.14 3.14c.36.34.84.53 1.34.53h.01zM12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10c0-.34-.02-.67-.05-1H20c0 4.42-3.58 8-8 8s-8-3.58-8-8 3.58-8 8-8c1.85 0 3.55.63 4.9 1.69l1.42-1.42C16.73 2.85 14.44 2 12 2z"/></svg>
-          <div class="badge-text"><small>Direct</small><strong>Download APK</strong></div>
+        <a href="https://github.com/kora-messenger/Kora-Messenger/releases/download/latest-apk/Kora-Messenger.apk" class="store-badge primary">
+          <svg viewBox="0 0 24 24"><path d="M17.523 15.34c.44 0 .845-.152 1.174-.454.11-.1.2-.222.244-.36l3.85-11.65c.09-.27.02-.567-.183-.77-.202-.203-.5-.273-.77-.183l-11.65 3.85c-.14.045-.26.135-.36.245-.303.33-.454.735-.454 1.174v.01c0 .5.19.98.53 1.34l3.14 3.14c.36.34.84.53 1.34.53h.01zM12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10c0-.34-.02-.67-.05-1H20c0 4.42-3.58 8-8 8s-8-3.58-8-8 3.58-8 8-8c1.85 0 3.55.63 4.9 1.69l1.42-1.42C16.73 2.85 14.44 2 12 2z"/></svg>
+          <div class="bt"><small>Direct</small><strong>APK</strong></div>
         </a>
       </div>
-      <div class="hero-note">Free forever. No ads. Your messages stay yours.</div>
+      <div class="hero-note">
+        <svg viewBox="0 0 24 24"><path d="M12 2L4 5v6.09c0 5.05 3.41 9.76 8 11.91 4.59-2.15 8-6.86 8-11.91V5l-8-3zm-2 16l-4-4 1.41-1.41L10 15.17l6.59-6.59L18 10l-8 8z"/></svg>
+        Free forever · No ads · End-to-end encrypted
+      </div>
     </div>
-    <div class="mockup-wrap">
-      <div class="device-laptop">
-        <div class="screen">
-          <div class="lp-sidebar">
-            <div class="lp-row active"><div class="lp-dot"></div><div class="lp-lines"><div class="lp-line"></div><div class="lp-line short"></div></div></div>
-            <div class="lp-row"><div class="lp-dot"></div><div class="lp-lines"><div class="lp-line"></div><div class="lp-line short"></div></div></div>
-            <div class="lp-row"><div class="lp-dot"></div><div class="lp-lines"><div class="lp-line"></div><div class="lp-line short"></div></div></div>
-            <div class="lp-row"><div class="lp-dot"></div><div class="lp-lines"><div class="lp-line"></div><div class="lp-line short"></div></div></div>
-          </div>
-          <div class="lp-chat">
-            <div class="lp-bubble in" style="width:50%"></div>
-            <div class="lp-bubble out" style="width:35%"></div>
-            <div class="lp-bubble in" style="width:60%"></div>
-            <div class="lp-bubble out" style="width:40%"></div>
-          </div>
-        </div>
-      </div>
-      <div class="device-phone">
+    <div class="phone-wrap">
+      <div class="phone-glow"></div>
+      <div class="phone">
         <div class="notch"></div>
         <div class="screen">
-          <div class="ph-header"><div class="ph-avatar"></div><div class="ph-lines"><div class="ph-line"></div></div></div>
-          <div class="ph-chat">
-            <div class="ph-bubble in">Hey! Are we still on for later?</div>
-            <div class="ph-bubble out">Yes! See you at 6 🎉</div>
-            <div class="ph-bubble in">Perfect, can't wait</div>
-            <div class="ph-bubble out">Same here 💜</div>
+          <div class="ph-top">
+            <div class="ph-avatar">S</div>
+            <div class="ph-info">
+              <div class="ph-name">Sarah</div>
+              <div class="ph-status">online</div>
+            </div>
+          </div>
+          <div class="ph-body">
+            <div class="ph-date">Today</div>
+            <div class="ph-encrypt"><svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9V6z"/></svg>Messages are end-to-end encrypted</div>
+            <div class="msg in">Hey! Are we still on for dinner? 😊<div class="time">7:02 PM</div></div>
+            <div class="msg out">Absolutely! See you at 8 ✨<div class="time">7:03 PM ✓✓</div></div>
+            <div class="msg in">Perfect — I'll bring the wine 🍷<div class="time">7:04 PM</div></div>
+            <div class="msg out">You're the best 💜<div class="time">7:04 PM ✓✓</div></div>
+          </div>
+          <div class="ph-input">
+            <div class="ph-input-bar">Type a message…</div>
+            <div class="ph-mic"><svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5-3c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg></div>
           </div>
         </div>
       </div>
@@ -99,39 +324,39 @@
   </div>
 </section>
 
-<!-- FEATURES -->
 <section class="section" id="features">
-  <div class="section-header">
-    <h2>Everything you need to stay connected</h2>
+  <div class="section-header reveal">
+    <span class="section-tag">Features</span>
+    <h2>Everything you need to <span class="grad">stay connected</span></h2>
     <p>Kora brings together private messaging, calling, and AI — built for speed and privacy from the ground up.</p>
   </div>
   <div class="feature-grid">
-    <div class="feature-card">
+    <div class="feature-card reveal">
       <div class="feature-icon"><svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9V6z"/></svg></div>
       <h3>End-to-end encrypted</h3>
-      <p>Your messages and calls are secured so only you and the person you're talking to can read or hear them.</p>
+      <p>Your messages and calls are secured so only you and the person you're talking to can read or hear them. Not even Kora can see them.</p>
     </div>
-    <div class="feature-card">
+    <div class="feature-card reveal">
       <div class="feature-icon"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg></div>
       <h3>Kora AI, free for everyone</h3>
-      <p>Get writing help, chat summaries, and instant answers — Kora AI is built in and free for every user, no premium required.</p>
+      <p>Writing help, chat summaries, instant answers, and live translation — Kora AI is built in and completely free for every user.</p>
     </div>
-    <div class="feature-card">
+    <div class="feature-card reveal">
       <div class="feature-icon"><svg viewBox="0 0 24 24"><path d="M20 3H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h4l-1 3h6l-1-3h4c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 14H4V5h16v12z"/></svg></div>
       <h3>Available everywhere</h3>
-      <p>Start a conversation on your phone and pick it right back up on the web — synced instantly across devices.</p>
+      <p>Start a conversation on your phone and pick it right back up on the web — synced instantly across all your devices.</p>
     </div>
-    <div class="feature-card">
+    <div class="feature-card reveal">
       <div class="feature-icon"><svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5-3c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg></div>
       <h3>Voice-to-text translation</h3>
-      <p>Voice notes are transcribed and translated on the fly, so you never miss what was said — in any language.</p>
+      <p>Voice messages are transcribed and translated on the fly, so you never miss what was said — in any language.</p>
     </div>
-    <div class="feature-card">
+    <div class="feature-card reveal">
       <div class="feature-icon"><svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg></div>
-      <h3>Groups, communities & channels</h3>
+      <h3>Groups, communities &amp; channels</h3>
       <p>Organize conversations at any scale — from close friend groups to large communities and broadcast channels.</p>
     </div>
-    <div class="feature-card">
+    <div class="feature-card reveal">
       <div class="feature-icon"><svg viewBox="0 0 24 24"><path d="M13 2.05v3.03c3.39.49 6 3.39 6 6.92 0 .9-.18 1.75-.48 2.54l2.6 1.53c.56-1.24.88-2.62.88-4.07 0-5.18-3.95-9.45-9-9.95zM12 19c-3.87 0-7-3.13-7-7 0-3.53 2.61-6.43 6-6.92V2.05c-5.06.5-9 4.76-9 9.95 0 5.52 4.47 10 9.99 10 3.31 0 6.24-1.61 8.06-4.09l-2.6-1.53C17.15 17.85 14.72 19 12 19z"/></svg></div>
       <h3>Fast, lightweight, reliable</h3>
       <p>Built to feel instant everywhere — no lag, no bloat, whether you're on 5G or a spotty connection.</p>
@@ -139,87 +364,123 @@
   </div>
 </section>
 
-<!-- SECURITY -->
-<section class="section section-alt" id="security">
+<section class="section security-section" id="security">
   <div class="split">
-    <div class="split-visual">
-      <div class="lock-badge">
-        <div class="lock-inner">
+    <div class="split-visual reveal">
+      <div class="lock-orb">
+        <div class="ring"></div>
+        <div class="ring r2"></div>
+        <div class="ring r3"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="core">
           <svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9V6z"/></svg>
         </div>
       </div>
     </div>
-    <div class="split-text">
-      <h2>Privacy is in our DNA</h2>
-      <p>With end-to-end encryption on Kora, your personal messages and calls are secured with a lock. Only you and the person you're talking to can read or listen to them, and no one else — not even Kora.</p>
-      <a href="https://kora-messenger.github.io/Kora-Messenger-Docs/e2ee-policy.html" target="_blank" rel="noopener" class="btn btn-secondary">Learn more about encryption</a>
+    <div class="split-text reveal">
+      <span class="section-tag">Security</span>
+      <h2>Privacy is not <span class="grad">optional</span></h2>
+      <p>Every message, call, photo, and voice note on Kora is protected by end-to-end encryption. Your conversations stay between you and the people you're talking to — no one else, not even Kora.</p>
+      <ul class="security-list">
+        <li><svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> End-to-end encryption for all messages &amp; calls</li>
+        <li><svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Keys generated &amp; stored on your device</li>
+        <li><svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> No ad tracking, no data selling, ever</li>
+        <li><svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Security codes &amp; device verification</li>
+      </ul>
+      <a href="https://kora-messenger.github.io/Kora-Messenger-Docs/e2ee-policy.html" target="_blank" rel="noopener" class="btn btn-ghost" style="margin-top:28px">Read the E2EE Policy →</a>
     </div>
   </div>
 </section>
 
-<!-- DOWNLOAD CTA -->
-<section class="cta-band" id="download">
-  <h2>Get started with Kora</h2>
-  <p>Get Kora Messenger on Google Play, the App Store, or download the APK directly. Prefer no install? Open Kora Web right in your browser.</p>
-  <div class="store-badges" style="justify-content:center;">
-    <a href="https://play.google.com/store/apps/details?id=com.kora.messenger" target="_blank" rel="noopener" class="store-badge">
-      <svg viewBox="0 0 24 24"><path fill="currentColor" d="M3.609 1.814L13.792 12 3.61 22.186a.996.996 0 0 1-.61-.92V2.734a1 1 0 0 1 .609-.92zm10.89 10.893l2.302 2.302-10.937 6.333 8.635-8.635zm3.199-3.199l2.807 1.626a1 1 0 0 1 0 1.732l-2.808 1.626-2.299-2.299 2.3-2.685zm-3.199-3.199L5.155 1.06l10.937 6.333-2.302 2.916z"/></svg>
-      <div class="badge-text"><small>Get it on</small><strong>Google Play</strong></div>
-    </a>
-    <a href="https://apps.apple.com/app/kora-messenger/idCOMING_SOON" target="_blank" rel="noopener" class="store-badge">
-      <svg viewBox="0 0 24 24"><path fill="currentColor" d="M17.05 12.04c-.03-2.66 2.17-3.93 2.27-4-1.24-1.81-3.17-2.06-3.85-2.09-1.64-.17-3.2.96-4.03.96-.83 0-2.11-.94-3.47-.91-1.79.03-3.44 1.04-4.36 2.64-1.85 3.22-.47 7.99 1.33 10.61.88 1.28 1.93 2.71 3.31 2.66 1.33-.05 1.84-.86 3.45-.86 1.61 0 2.07.86 3.49.83 1.44-.03 2.35-1.31 3.24-2.59 1.02-1.49 1.44-2.93 1.46-3.01-.03-.01-2.81-1.08-2.84-4.24zM14.31 4.32c.74-.9 1.24-2.14 1.1-3.39-1.07.04-2.37.71-3.14 1.61-.69.8-1.29 2.06-1.13 3.28 1.2.09 2.43-.61 3.17-1.5z"/></svg>
-      <div class="badge-text"><small>Download on the</small><strong>App Store</strong></div>
-    </a>
-    <a href="https://github.com/kora-messenger/Kora-Messenger/releases/download/latest-apk/Kora-Messenger.apk" class="store-badge" style="background:linear-gradient(135deg,#6C63FF,#4A90D9);border:none;">
-      <svg viewBox="0 0 24 24"><path fill="currentColor" d="M17.523 15.34c.44 0 .845-.152 1.174-.454.11-.1.2-.222.244-.36l3.85-11.65c.09-.27.02-.567-.183-.77-.202-.203-.5-.273-.77-.183l-11.65 3.85c-.14.045-.26.135-.36.245-.303.33-.454.735-.454 1.174v.01c0 .5.19.98.53 1.34l3.14 3.14c.36.34.84.53 1.34.53h.01zM12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10c0-.34-.02-.67-.05-1H20c0 4.42-3.58 8-8 8s-8-3.58-8-8 3.58-8 8-8c1.85 0 3.55.63 4.9 1.69l1.42-1.42C16.73 2.85 14.44 2 12 2z"/></svg>
-      <div class="badge-text"><small>Direct</small><strong>Download APK</strong></div>
-    </a>
-    <a href="app/" class="store-badge" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);">
-      <svg viewBox="0 0 24 24"><path fill="currentColor" d="M20 3H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h4l-1 3h6l-1-3h4c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 14H4V5h16v12z"/></svg>
-      <div class="badge-text"><small>No download</small><strong>Open Kora Web</strong></div>
-    </a>
+<section class="stats-band">
+  <div class="stats-inner">
+    <div class="stat reveal"><div class="num">100%</div><div class="label">Free forever</div></div>
+    <div class="stat reveal"><div class="num">0</div><div class="label">Ads or trackers</div></div>
+    <div class="stat reveal"><div class="num">∞</div><div class="label">Messages &amp; calls</div></div>
+    <div class="stat reveal"><div class="num">24/7</div><div class="label">Kora AI assistant</div></div>
   </div>
 </section>
 
-<!-- FOOTER -->
+<section class="download-section" id="download">
+  <div class="download-card reveal">
+    <h2>Get started with <span class="grad">Kora</span></h2>
+    <p>Download on your phone or open Kora Web right in your browser — no install required.</p>
+    <div class="download-badges">
+      <a href="https://play.google.com/store/apps/details?id=com.kora.messenger" target="_blank" rel="noopener" class="download-badge">
+        <svg viewBox="0 0 24 24"><path d="M3.609 1.814L13.792 12 3.61 22.186a.996.996 0 0 1-.61-.92V2.734a1 1 0 0 1 .609-.92zm10.89 10.893l2.302 2.302-10.937 6.333 8.635-8.635zm3.199-3.199l2.807 1.626a1 1 0 0 1 0 1.732l-2.808 1.626-2.299-2.299 2.3-2.685zm-3.199-3.199L5.155 1.06l10.937 6.333-2.302 2.916z"/></svg>
+        <div class="bt"><small>Get it on</small><strong>Google Play</strong></div>
+      </a>
+      <a href="https://apps.apple.com/app/kora-messenger/idCOMING_SOON" target="_blank" rel="noopener" class="download-badge">
+        <svg viewBox="0 0 24 24"><path d="M17.05 12.04c-.03-2.66 2.17-3.93 2.27-4-1.24-1.81-3.17-2.06-3.85-2.09-1.64-.17-3.2.96-4.03.96-.83 0-2.11-.94-3.47-.91-1.79.03-3.44 1.04-4.36 2.64-1.85 3.22-.47 7.99 1.33 10.61.88 1.28 1.93 2.71 3.31 2.66 1.33-.05 1.84-.86 3.45-.86 1.61 0 2.07.86 3.49.83 1.44-.03 2.35-1.31 3.24-2.59 1.02-1.49 1.44-2.93 1.46-3.01-.03-.01-2.81-1.08-2.84-4.24zM14.31 4.32c.74-.9 1.24-2.14 1.1-3.39-1.07.04-2.37.71-3.14 1.61-.69.8-1.29 2.06-1.13 3.28 1.2.09 2.43-.61 3.17-1.5z"/></svg>
+        <div class="bt"><small>Download on the</small><strong>App Store</strong></div>
+      </a>
+      <a href="https://github.com/kora-messenger/Kora-Messenger/releases/download/latest-apk/Kora-Messenger.apk" class="download-badge kora">
+        <svg viewBox="0 0 24 24"><path d="M17.523 15.34c.44 0 .845-.152 1.174-.454.11-.1.2-.222.244-.36l3.85-11.65c.09-.27.02-.567-.183-.77-.202-.203-.5-.273-.77-.183l-11.65 3.85c-.14.045-.26.135-.36.245-.303.33-.454.735-.454 1.174v.01c0 .5.19.98.53 1.34l3.14 3.14c.36.34.84.53 1.34.53h.01zM12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10c0-.34-.02-.67-.05-1H20c0 4.42-3.58 8-8 8s-8-3.58-8-8 3.58-8 8-8c1.85 0 3.55.63 4.9 1.69l1.42-1.42C16.73 2.85 14.44 2 12 2z"/></svg>
+        <div class="bt"><small>Direct</small><strong>Download APK</strong></div>
+      </a>
+      <a href="app/" class="download-badge web">
+        <svg viewBox="0 0 24 24"><path d="M20 3H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h4l-1 3h6l-1-3h4c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 14H4V5h16v12z"/></svg>
+        <div class="bt"><small>No download</small><strong>Open Kora Web</strong></div>
+      </a>
+    </div>
+  </div>
+</section>
+
 <footer class="footer">
   <div class="footer-inner">
-    <div class="footer-grid">
-      <div>
-        <div class="footer-brand"><img src="assets/kora_icon.png" alt="Kora"> Kora Messenger</div>
-        <p class="footer-tagline">Simple, private messaging and calling — free, and built for everyone.</p>
+    <div class="footer-top">
+      <div class="footer-brand-block">
+        <div class="footer-brand"><img src="assets/kora_icon.png" alt="Kora"> <span>Kora Messenger</span></div>
+        <p>Simple, private messaging and calling — free, and built for everyone.</p>
       </div>
-      <div class="footer-col">
-        <div class="footer-col-title">Product</div>
-        <a href="#features">Features</a>
-        <a href="#security">Security</a>
-        <a href="app/">Kora Web</a>
-        <a href="#download">Download</a>
-      </div>
-      <div class="footer-col">
-        <div class="footer-col-title">Company</div>
-        <a href="https://kora-messenger.github.io/Kora-Messenger-Docs/index.html" target="_blank" rel="noopener">About</a>
-        <a href="https://kora-messenger.github.io/Kora-Messenger-Docs/community-guidelines.html" target="_blank" rel="noopener">Community Guidelines</a>
-        <a href="https://kora-messenger.github.io/Kora-Messenger-Docs/ai-policy.html" target="_blank" rel="noopener">AI Policy</a>
-      </div>
-      <div class="footer-col">
-        <div class="footer-col-title">Legal</div>
-        <a href="https://kora-messenger.github.io/Kora-Messenger-Docs/privacy-policy.html" target="_blank" rel="noopener">Privacy Policy</a>
-        <a href="https://kora-messenger.github.io/Kora-Messenger-Docs/terms-of-service.html" target="_blank" rel="noopener">Terms of Service</a>
-        <a href="https://kora-messenger.github.io/Kora-Messenger-Docs/account-deletion-policy.html" target="_blank" rel="noopener">Account Deletion</a>
+      <div class="footer-grid">
+        <div class="footer-col">
+          <div class="footer-col-title">Product</div>
+          <a href="#features">Features</a>
+          <a href="#security">Security</a>
+          <a href="#download">Download</a>
+          <a href="app/">Kora Web</a>
+        </div>
+        <div class="footer-col">
+          <div class="footer-col-title">Legal</div>
+          <a href="https://kora-messenger.github.io/Kora-Messenger-Docs/privacy-policy.html">Privacy Policy</a>
+          <a href="https://kora-messenger.github.io/Kora-Messenger-Docs/terms-of-service.html">Terms of Service</a>
+          <a href="https://kora-messenger.github.io/Kora-Messenger-Docs/e2ee-policy.html">E2EE Policy</a>
+          <a href="https://kora-messenger.github.io/Kora-Messenger-Docs/acceptable-use.html">Acceptable Use</a>
+        </div>
+        <div class="footer-col">
+          <div class="footer-col-title">Company</div>
+          <a href="https://kora-messenger.github.io/Kora-Messenger-Docs/about.html">About</a>
+          <a href="https://kora-messenger.github.io/Kora-Messenger-Docs/contact.html">Contact</a>
+          <a href="https://github.com/kora-messenger/Kora-Messenger" target="_blank" rel="noopener">GitHub</a>
+        </div>
       </div>
     </div>
     <div class="footer-bottom">
-      <div>© 2026 Kora Messenger. All rights reserved.</div>
-      <div class="footer-bottom-links">
-        <a href="https://kora-messenger.github.io/Kora-Messenger-Docs/privacy-policy.html" target="_blank" rel="noopener">Privacy</a>
-        <a href="https://kora-messenger.github.io/Kora-Messenger-Docs/terms-of-service.html" target="_blank" rel="noopener">Terms</a>
-        <a href="app/">Kora Web</a>
+      <span>© 2026 Kora Messenger. All rights reserved.</span>
+      <div class="socials">
+        <a href="#" aria-label="Twitter"><svg viewBox="0 0 24 24"><path d="M22 5.92a8.3 8.3 0 0 1-2.36.65 4.12 4.12 0 0 0 1.8-2.27 8.22 8.22 0 0 1-2.6 1 4.1 4.1 0 0 0-7 3.74A11.65 11.65 0 0 1 3.4 4.86a4.1 4.1 0 0 0 1.27 5.48 4.07 4.07 0 0 1-1.86-.51v.05a4.1 4.1 0 0 0 3.3 4.02 4.1 4.1 0 0 1-1.85.07 4.11 4.11 0 0 0 3.83 2.85A8.24 8.24 0 0 1 2 18.57a11.62 11.62 0 0 0 6.29 1.84c7.55 0 11.67-6.25 11.67-11.67v-.53A8.3 8.3 0 0 0 22 5.92z"/></svg></a>
+        <a href="https://github.com/kora-messenger/Kora-Messenger" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12c0 4.42 2.87 8.17 6.84 9.5.5.09.66-.22.66-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.89 1.53 2.34 1.09 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.02a9.56 9.56 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.38.2 2.4.1 2.65.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.69-4.57 4.94.36.31.68.92.68 1.85v2.74c0 .27.16.58.67.48A10 10 0 0 0 22 12c0-5.52-4.48-10-10-10z"/></svg></a>
       </div>
     </div>
   </div>
 </footer>
 
-<script src="app.js"></script>
+<script>
+  const nav = document.getElementById('nav');
+  window.addEventListener('scroll', () => { nav.classList.toggle('scrolled', window.scrollY > 20); });
+  const toggle = document.getElementById('navToggle');
+  const mobileNav = document.getElementById('mobileNav');
+  toggle.addEventListener('click', () => mobileNav.classList.toggle('open'));
+  mobileNav.querySelectorAll('a').forEach(a => a.addEventListener('click', () => mobileNav.classList.remove('open')));
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
+  }, { threshold: 0.15 });
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+</script>
+
 </body>
 </html>
