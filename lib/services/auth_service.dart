@@ -70,7 +70,7 @@ class AuthService {
         Uri.parse(_endpoint),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'action': 'checkUsername', 'username': username}),
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 30));
       final data = jsonDecode(response.body);
 
       if (data['success'] == true && data['available'] == true) {
@@ -105,7 +105,7 @@ class AuthService {
           'email': email,
           'type': type,
         }),
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 30));
       final data = jsonDecode(response.body);
 
       if (data['success'] == true) {
@@ -137,7 +137,7 @@ class AuthService {
           'code': code,
           'userData': userData,
         }),
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 30));
       final data = jsonDecode(response.body);
 
       if (data['success'] == true) {
@@ -190,7 +190,7 @@ class AuthService {
           'deviceName': deviceName,
           'platform': platform,
         }),
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 30));
 
       // Debug: log raw response for troubleshooting
       print('[AuthService] login response: ${response.statusCode} ${response.body.substring(0, response.body.length > 200 ? 200 : response.body.length)}');
@@ -253,6 +253,7 @@ class AuthService {
         user: null,
       );
     } catch (e) {
+      print('[AuthService] login error: \$e');
       return (
         success: false,
         needsDeviceVerification: false,
@@ -292,7 +293,7 @@ class AuthService {
           'platform': platform,
           'recognizeDevice': recognizeDevice,
         }),
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 30));
       final data = jsonDecode(response.body);
 
       if (data['success'] == true) {
@@ -332,7 +333,7 @@ class AuthService {
           'code': code,
           'type': type,
         }),
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 30));
       final data = jsonDecode(response.body);
 
       if (data['success'] == true) {
@@ -359,7 +360,7 @@ class AuthService {
           'code': code,
           'newPassword': newPassword,
         }),
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 30));
       final data = jsonDecode(response.body);
 
       if (data['success'] == true) {
@@ -395,7 +396,7 @@ class AuthService {
           'bio': bio,
           'avatarUrl': avatarUrl,
         }),
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 30));
       final data = jsonDecode(response.body);
 
       if (data['success'] == true) {
@@ -431,7 +432,7 @@ class AuthService {
           'action': 'getProfile',
           'userId': userId,
         }),
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 30));
       final data = jsonDecode(response.body);
 
       if (data['success'] == true) {
@@ -484,7 +485,7 @@ class AuthService {
           'email': email,
           'pin': pin,
         }),
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 30));
       final data = jsonDecode(response.body);
 
       if (data['success'] == true) {
@@ -524,7 +525,7 @@ class AuthService {
           'deviceName': deviceName,
           'platform': platform,
         }),
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 30));
       final data = jsonDecode(response.body);
 
       if (data['success'] == true) {
@@ -563,7 +564,7 @@ class AuthService {
           'userId': userId,
           'phoneNumber': phoneNumber,
         }),
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 30));
       final data = jsonDecode(response.body);
 
       if (data['success'] == true) {
@@ -598,7 +599,7 @@ class AuthService {
           'oldEmail': oldEmail,
           'newEmail': newEmail,
         }),
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 30));
       final data = jsonDecode(response.body);
       if (data['success'] == true) return (success: true, error: null);
       return (success: false, error: data['error'] as String?);
@@ -624,7 +625,7 @@ class AuthService {
           'newEmail': newEmail,
           'code': code,
         }),
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 30));
       final data = jsonDecode(response.body);
       if (data['success'] == true) return (success: true, error: null);
       return (success: false, error: data['error'] as String?);
@@ -653,7 +654,7 @@ class AuthService {
           'oldEmail': oldEmail,
           'code': code,
         }),
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 30));
       final data = jsonDecode(response.body);
       if (data['success'] == true) {
         return (success: true, error: null, user: data['user'] as Map<String, dynamic>?);
@@ -678,7 +679,7 @@ class AuthService {
           'email': email,
           'type': type,
         }),
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 30));
       final data = jsonDecode(response.body);
       if (data['success'] == true) return (success: true, error: null);
       return (success: false, error: data['error'] as String?);
@@ -703,7 +704,7 @@ class AuthService {
           'email': email,
           'enabled': enabled,
         }),
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 30));
       final data = jsonDecode(response.body);
 
       if (data['success'] == true) return (success: true, error: null);
@@ -733,7 +734,7 @@ class AuthService {
           'deviceName': deviceName,
           'platform': platform,
         }),
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 30));
       final data = jsonDecode(response.body);
 
       if (data['success'] == true) {
@@ -754,7 +755,7 @@ class AuthService {
         Uri.parse(_endpoint),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'action': 'listPasskeys', 'email': email}),
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 30));
       final data = jsonDecode(response.body);
 
       if (data['success'] == true) {
@@ -777,7 +778,7 @@ class AuthService {
         Uri.parse(_endpoint),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'action': 'deletePasskey', 'email': email, 'passkeyId': passkeyId}),
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 30));
       final data = jsonDecode(response.body);
 
       if (data['success'] == true) return (success: true, error: null);
@@ -807,7 +808,7 @@ class AuthService {
           'deviceName': deviceName,
           'platform': platform,
         }),
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 30));
       final data = jsonDecode(response.body);
 
       if (data['success'] == true) {
@@ -830,7 +831,7 @@ class AuthService {
         Uri.parse(_endpoint),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'action': 'checkSignInOptions', 'email': email}),
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 30));
       final data = jsonDecode(response.body);
 
       if (data['success'] == true) {

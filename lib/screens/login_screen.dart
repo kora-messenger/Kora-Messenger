@@ -331,6 +331,7 @@ class _LogInScreenState extends State<LogInScreen> {
           _errorMessage = result.error ?? 'Unable to login. Please check your connection and try again.';
           _isLoading = false;
         });
+        print('[LoginScreen] login failed: success=\${result.success}, needsVerification=\${result.needsDeviceVerification}, error=\${result.error}');
       }
     } catch (e, stack) {
       await CrashLogger.log(e, stackTrace: stack, context: 'LoginScreen._submit');
