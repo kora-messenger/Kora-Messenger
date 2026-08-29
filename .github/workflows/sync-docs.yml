@@ -1,50 +1,40 @@
-name: Sync Legal Docs to Pages Repo
+name: Deploy Legal Docs
 
 on:
   push:
     branches: [main]
     paths:
       - 'docs/**'
+  workflow_dispatch:
 
 permissions:
   contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "docs-pages"
+  cancel-in-progress: true
 
 jobs:
-  sync:
+  deploy:
+    name: Deploy Docs to GitHub Pages
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Checkout main repo
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Checkout docs repo
-        uses: actions/checkout@v4
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload docs/ as Pages artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          repository: 24Bada2/Kora-Messenger-Docs
-          token: ${{ secrets.DOCS_SYNC_TOKEN }}
-          path: docs-repo
+          path: './docs'
 
-      - name: Sync files
-        run: |
-          # Copy all files from docs/ to the docs repo root
-          cp -f docs/*.html docs-repo/
-          cp -f docs/*.md docs-repo/ 2>/dev/null || true
-          cp -f docs/*.css docs-repo/ 2>/dev/null || true
-          cp -f docs/*.js docs-repo/ 2>/dev/null || true
-          # Copy any subdirectories
-          cp -rf docs/assets docs-repo/ 2>/dev/null || true
-
-      - name: Commit and push
-        run: |
-          cd docs-repo
-          git config user.email "koramessengerofficial@gmail.com"
-          git config user.name "Kora Messenger Bot"
-          git add -A
-          if git diff --cached --quiet; then
-            echo "No changes to sync."
-          else
-            git commit -m "Auto-sync legal docs from Kora-Messenger@${{ github.sha }}
-
-            Triggered by push to main that modified docs/"
-            git push origin main
-            echo "Docs synced successfully."
-          fi
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

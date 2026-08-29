@@ -105,7 +105,7 @@ class KoraApi {
   /// Legal documents — hosted on GitHub Pages.
   /// When you get your .com domain, change these to e.g.
   /// 'https://koramessenger.com/privacy-policy'
-  static const String legalBaseUrl = 'https://24bada2.github.io/Kora-Messenger-Docs';
+  static const String legalBaseUrl = 'https://kora-messenger.github.io/Kora-Messenger-Docs';
   static const String privacyPolicyUrl = '$legalBaseUrl/privacy-policy.html';
   static const String termsOfServiceUrl = '$legalBaseUrl/terms-of-service.html';
   static const String communityGuidelinesUrl = '$legalBaseUrl/community-guidelines.html';
