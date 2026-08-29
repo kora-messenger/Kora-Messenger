@@ -138,6 +138,34 @@ body {
 .auth-link svg { width: 15px; height: 15px; fill: currentColor; }
 .auth-link:hover { text-decoration: underline; }
 .auth-hint { font-size: 12px; color: var(--auth-hint); line-height: 1.5; }
+/* Stay logged in checkbox */
+.stay-loggedin { position: relative; z-index: 1; margin-top: 20px; }
+.stay-checkbox {
+  display: flex; align-items: center; gap: 10px; cursor: pointer;
+  font-size: 13px; color: var(--auth-muted); user-select: none;
+}
+.stay-checkbox input { position: absolute; opacity: 0; width: 0; height: 0; }
+.checkmark {
+  width: 20px; height: 20px; border-radius: 6px;
+  border: 2px solid var(--auth-border); background: var(--auth-input-bg);
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.2s, border-color 0.2s; flex-shrink: 0;
+}
+.stay-checkbox input:checked ~ .checkmark {
+  background: var(--gradient); border-color: transparent;
+}
+.stay-checkbox input:checked ~ .checkmark::after {
+  content: ''; width: 6px; height: 10px;
+  border: solid white; border-width: 0 2px 2px 0;
+  transform: rotate(45deg) translateY(-1px);
+}
+.stay-checkbox:hover .checkmark { border-color: var(--purple); }
+.stay-checkbox input:checked ~ span:last-child { color: var(--auth-text); }
+
+html.auth-dark .stay-checkbox { color: #9C9AB5; }
+html.auth-dark .stay-checkbox input:checked ~ span:last-child { color: #F0EEFB; }
+html.auth-dark .checkmark { background: #1C1A2E; border-color: #2E2B47; }
+
 .auth-footer-note {
   position: relative; z-index: 1; margin-top: 26px;
   display: flex; align-items: center; gap: 6px;

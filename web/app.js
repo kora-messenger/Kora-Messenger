@@ -98,13 +98,27 @@ function getDeviceName() {
 }
 
 // ── Session persistence ────────────────────────────────
+// "Stay logged in" — when checked (default), session persists in localStorage.
+// When unchecked, session lives only in sessionStorage and clears on browser close.
 function saveSession() {
-  if (currentUser) localStorage.setItem('kora_web_user', JSON.stringify(currentUser));
-  else localStorage.removeItem('kora_web_user');
+  const stay = $('stayLoggedInCheck')?.checked ?? true;
+  if (currentUser) {
+    const data = JSON.stringify(currentUser);
+    if (stay) {
+      localStorage.setItem('kora_web_user', data);
+      sessionStorage.removeItem('kora_web_user');
+    } else {
+      sessionStorage.setItem('kora_web_user', data);
+      localStorage.removeItem('kora_web_user');
+    }
+  } else {
+    localStorage.removeItem('kora_web_user');
+    sessionStorage.removeItem('kora_web_user');
+  }
 }
 
 function loadSession() {
-  const saved = localStorage.getItem('kora_web_user');
+  const saved = localStorage.getItem('kora_web_user') || sessionStorage.getItem('kora_web_user');
   if (saved) { try { return JSON.parse(saved); } catch { return null; } }
   return null;
 }
@@ -217,7 +231,8 @@ function backToLogin() {
 
 function logout() {
   currentUser = null;
-  saveSession();
+  localStorage.removeItem('kora_web_user');
+  sessionStorage.removeItem('kora_web_user');
   if (pollTimer) clearInterval(pollTimer);
   $('app').style.display = 'none';
   $('loginScreen').style.display = 'flex';
