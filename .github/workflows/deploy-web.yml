@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'web/**'
+      - 'site/**'
   workflow_dispatch:
 
 permissions:
@@ -27,13 +28,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Assemble site
+        run: |
+          mkdir -p _pages_out
+          # Marketing landing page at the root
+          cp -r site/. _pages_out/
+          # Web chat client under /app
+          mkdir -p _pages_out/app
+          cp -r web/. _pages_out/app/
+
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
-      - name: Upload web/ as Pages artifact
+      - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './web'
+          path: './_pages_out'
 
       - name: Deploy to GitHub Pages
         id: deployment

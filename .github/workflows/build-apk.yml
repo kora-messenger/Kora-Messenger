@@ -5,6 +5,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build APK
@@ -43,3 +46,18 @@ jobs:
           name: kora-messenger-apk
           path: build/app/outputs/flutter-apk/app-release.apk
           retention-days: 30
+
+      - name: Rename APK for release
+        run: cp build/app/outputs/flutter-apk/app-release.apk Kora-Messenger.apk
+
+      - name: Publish public download release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest-apk
+          name: "Kora Messenger — Latest Build"
+          body: "Automatically published on every push to main. This is the latest Kora Messenger APK, always kept up to date."
+          files: Kora-Messenger.apk
+          prerelease: false
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
