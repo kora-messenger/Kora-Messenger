@@ -255,7 +255,7 @@ class _LogInScreenState extends State<LogInScreen> {
               'action': 'checkSuspensionStatus',
               'email': email,
             }),
-          );
+          ).timeout(const Duration(seconds: 15));
           final suspData = jsonDecode(suspensionResp.body);
           if (suspData['suspended'] == true && mounted) {
             setState(() => _isLoading = false);
