@@ -972,10 +972,10 @@ class _ChatsTabState extends State<ChatsTab> {
           ),
           const SizedBox(width: 10),
           Text(
-            'Kora',
+            'Kora Messenger',
             style: TextStyle(
               color: textPrimary,
-              fontSize: 24,
+              fontSize: 22,
               fontWeight: FontWeight.w800,
               letterSpacing: -0.5,
             ),
