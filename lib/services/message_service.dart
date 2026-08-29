@@ -184,6 +184,7 @@ class MessageService {
     String? replyToId,
     String? replyToText,
     String? replyToName,
+    KoraMessageType? replyToType,
     String? recipientEmail,
     String? recipientName,
     KoraMessageType type = KoraMessageType.text,
@@ -217,6 +218,7 @@ class MessageService {
           replyToId: replyToId,
           replyToText: replyToText,
           replyToName: replyToName,
+          replyToType: replyToType,
         ));
         await _persist(chatId, recipientEmail: recipientEmail, recipientName: recipientName);
         _unsentQueue.putIfAbsent(chatId, () => <String>{}).add(msgId);
@@ -259,6 +261,7 @@ class MessageService {
     String? replyToId,
     String? replyToText,
     String? replyToName,
+    KoraMessageType? replyToType,
     String? recipientEmail,
     String? recipientName,
   }) async {

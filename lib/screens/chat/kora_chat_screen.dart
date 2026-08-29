@@ -265,6 +265,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
       replyToId: _replyTarget?.id,
       replyToText: _replyTarget?.text,
       replyToName: _replyTarget != null ? (_replyTarget!.isMe ? 'You' : widget.name) : null,
+      replyToType: _replyTarget?.type,
       recipientEmail: widget.recipientEmail,
       recipientName: widget.name,
     );
@@ -289,6 +290,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
       replyToId: _replyTarget?.id,
       replyToText: _replyTarget?.text,
       replyToName: _replyTarget != null ? (_replyTarget!.isMe ? 'You' : widget.name) : null,
+      replyToType: _replyTarget?.type,
       recipientEmail: widget.recipientEmail,
       recipientName: widget.name,
     );
@@ -318,6 +320,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
       replyToId: _replyTarget?.id,
       replyToText: _replyTarget?.text,
       replyToName: _replyTarget != null ? (_replyTarget!.isMe ? 'You' : widget.name) : null,
+      replyToType: _replyTarget?.type,
       recipientEmail: widget.recipientEmail,
       recipientName: widget.name,
     );
@@ -609,6 +612,43 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
       _messages = List.from(_messageService.getMessages(widget.chatId));
       setState(() {});
     }
+  }
+
+  /// Scroll to a specific message by ID and highlight it briefly.
+  /// Used when the user taps a quoted reply to jump to the original.
+  void _scrollToMessage(String messageId) {
+    final index = _messages.indexWhere((m) => m.id == messageId);
+    if (index == -1) return;
+    
+    final rk = _rowKeys.putIfAbsent(messageId, () => GlobalKey());
+    
+    // Use the row key to get the actual rendered position
+    final ctx = rk.currentContext;
+    if (ctx != null) {
+      Scrollable.ensureVisible(
+        ctx,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+        alignment: 0.5, // center the message in the viewport
+      );
+      
+      // Brief highlight effect
+      _highlightedMessageId = messageId;
+      setState(() {});
+      Future.delayed(const Duration(milliseconds: 1500), () {
+        if (mounted) {
+          _highlightedMessageId = null;
+          setState(() {});
+        }
+      });
+    }
+  }
+  
+  /// Reply to a message — sets the reply target and scrolls to compose.
+  void _replyToMessage(KoraMessage message) {
+    setState(() {
+      _replyTarget = message;
+    });
   }
 
   void _showMessageActions(GlobalKey key, KoraMessage message) {
@@ -1641,7 +1681,10 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
                                         child: MessageBubble(
                                           key: ValueKey(message.id),
                                           message: message,
+                                          isHighlighted: _highlightedMessageId == message.id,
                                           onLongPress: () => _showMessageActions(rk, message),
+                                          onReplyTap: message.replyToId != null ? () => _scrollToMessage(message.replyToId!) : null,
+                                          onSwipeReply: () => _replyToMessage(message),
                                           onActionTap: () => _onActionTap(message),
                                           onIssueTap: (issue) => _onIssueSelected(issue),
                                           onCancelVoiceUpload: () => _onCancelVoiceUpload(message.id),

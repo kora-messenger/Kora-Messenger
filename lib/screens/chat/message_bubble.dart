@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../models/message_model.dart';
 import '../../models/chat_models.dart';
 import '../../theme/kora_colors.dart';
@@ -16,6 +17,8 @@ class MessageBubble extends StatelessWidget {
   final KoraMessage message;
   final VoidCallback? onLongPress;
   final VoidCallback? onReplyTap;
+
+  final bool isHighlighted;
 
   /// Called when the user swipes right on a message to reply to it.
   final VoidCallback? onSwipeReply;
@@ -47,6 +50,7 @@ class MessageBubble extends StatelessWidget {
     required this.message,
     this.onLongPress,
     this.onReplyTap,
+    this.isHighlighted = false,
     this.onSwipeReply,
     this.onActionTap,
     this.onIssueTap,
@@ -98,6 +102,11 @@ class MessageBubble extends StatelessWidget {
       );
     }
 
+    // Brief yellow highlight when scrolled to via quoted reply
+    final bubbleColor = isHighlighted
+        ? (isMe ? KoraColors.purple.withValues(alpha: 0.35) : Colors.yellow.withValues(alpha: 0.15))
+        : null;
+
     return GestureDetector(
       onLongPress: onLongPress,
       onHorizontalDragEnd: onSwipeReply != null
@@ -108,6 +117,14 @@ class MessageBubble extends StatelessWidget {
                 onSwipeReply!();
               } else if (isMe && velocity < -200) {
                 onSwipeReply!();
+              }
+            }
+          : null,
+      onHorizontalDragUpdate: onSwipeReply != null
+          ? (details) {
+              // Visual feedback: haptic on first swipe movement
+              if ((details.delta.dx).abs() > 0.5) {
+                HapticFeedback.selectionClick();
               }
             }
           : null,
@@ -123,6 +140,10 @@ class MessageBubble extends StatelessWidget {
             top: 2,
             bottom: 2,
           ),
+          decoration: isHighlighted ? BoxDecoration(
+            color: bubbleColor,
+            borderRadius: BorderRadius.circular(12),
+          ) : null,
           child: Column(
             crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
@@ -249,14 +270,39 @@ class MessageBubble extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 1),
-                  Text(
-                    message.replyToText!,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: isMe ? Colors.white.withValues(alpha: 0.7) : textSecondary,
-                      fontSize: 12,
-                    ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (message.replyToType != null && message.replyToType != KoraMessageType.text) ...[
+                        Icon(
+                          message.replyToType == KoraMessageType.image
+                              ? Icons.photo_outlined
+                              : message.replyToType == KoraMessageType.voice
+                                  ? Icons.mic_outlined
+                                  : message.replyToType == KoraMessageType.video
+                                      ? Icons.play_circle_outline
+                                      : message.replyToType == KoraMessageType.file
+                                          ? Icons.insert_drive_file_outlined
+                                          : message.replyToType == KoraMessageType.sticker
+                                              ? Icons.emoji_emotions_outlined
+                                              : null,
+                          size: 14,
+                          color: isMe ? Colors.white.withValues(alpha: 0.7) : textSecondary,
+                        ),
+                        const SizedBox(width: 4),
+                      ],
+                      Flexible(
+                        child: Text(
+                          message.replyToText!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: isMe ? Colors.white.withValues(alpha: 0.7) : textSecondary,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -489,14 +535,39 @@ class MessageBubble extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 1),
-                  Text(
-                    message.replyToText!,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: isMe ? Colors.white.withValues(alpha: 0.7) : textSecondary,
-                      fontSize: 12,
-                    ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (message.replyToType != null && message.replyToType != KoraMessageType.text) ...[
+                        Icon(
+                          message.replyToType == KoraMessageType.image
+                              ? Icons.photo_outlined
+                              : message.replyToType == KoraMessageType.voice
+                                  ? Icons.mic_outlined
+                                  : message.replyToType == KoraMessageType.video
+                                      ? Icons.play_circle_outline
+                                      : message.replyToType == KoraMessageType.file
+                                          ? Icons.insert_drive_file_outlined
+                                          : message.replyToType == KoraMessageType.sticker
+                                              ? Icons.emoji_emotions_outlined
+                                              : null,
+                          size: 14,
+                          color: isMe ? Colors.white.withValues(alpha: 0.7) : textSecondary,
+                        ),
+                        const SizedBox(width: 4),
+                      ],
+                      Flexible(
+                        child: Text(
+                          message.replyToText!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: isMe ? Colors.white.withValues(alpha: 0.7) : textSecondary,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -891,9 +962,34 @@ class MessageBubble extends StatelessWidget {
                     color: isMe ? Colors.white.withValues(alpha: 0.9) : KoraColors.purple,
                     fontSize: 12, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 1),
-                Text(message.replyToText!,
-                  maxLines: 1, overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: isMe ? Colors.white.withValues(alpha: 0.7) : textSecondary, fontSize: 12)),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (message.replyToType != null && message.replyToType != KoraMessageType.text) ...[
+                      Icon(
+                        message.replyToType == KoraMessageType.image
+                            ? Icons.photo_outlined
+                            : message.replyToType == KoraMessageType.voice
+                                ? Icons.mic_outlined
+                                : message.replyToType == KoraMessageType.video
+                                    ? Icons.play_circle_outline
+                                    : message.replyToType == KoraMessageType.file
+                                        ? Icons.insert_drive_file_outlined
+                                        : message.replyToType == KoraMessageType.sticker
+                                            ? Icons.emoji_emotions_outlined
+                                            : null,
+                        size: 14,
+                        color: isMe ? Colors.white.withValues(alpha: 0.7) : textSecondary,
+                      ),
+                      const SizedBox(width: 4),
+                    ],
+                    Flexible(
+                      child: Text(message.replyToText!,
+                        maxLines: 1, overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: isMe ? Colors.white.withValues(alpha: 0.7) : textSecondary, fontSize: 12)),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),

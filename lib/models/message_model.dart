@@ -37,6 +37,7 @@ class KoraMessage {
   final String? replyToId; // if this is a reply
   final String? replyToText;
   final String? replyToName;
+  final KoraMessageType? replyToType; // type of the replied-to message for media icon
   /// Emoji reactions on this message. Free users: 1 max. Premium: up to 3.
   final List<String> reactions;
 
@@ -170,6 +171,7 @@ class KoraMessage {
     this.replyToId,
     this.replyToText,
     this.replyToName,
+    this.replyToType,
     this.reactions = const [],
     this.voiceDuration,
     this.voiceFilePath,
@@ -259,6 +261,7 @@ class KoraMessage {
       replyToId: replyToId ?? this.replyToId,
       replyToText: replyToText ?? this.replyToText,
       replyToName: replyToName ?? this.replyToName,
+      replyToType: replyToType ?? this.replyToType,
       reactions: reactions ?? this.reactions,
       voiceDuration: voiceDuration ?? this.voiceDuration,
       voiceFilePath: voiceFilePath ?? this.voiceFilePath,
@@ -306,6 +309,7 @@ class KoraMessage {
     'replyToId': replyToId,
     'replyToText': replyToText,
     'replyToName': replyToName,
+    'replyToType': replyToType?.name,
     'reactions': reactions,
     'reaction': reaction, // backward compat
     'voiceDuration': voiceDuration,
@@ -359,6 +363,7 @@ class KoraMessage {
     replyToId: j['replyToId'] as String?,
     replyToText: j['replyToText'] as String?,
     replyToName: j['replyToName'] as String?,
+    replyToType: (j['replyToType'] as String?) != null ? KoraMessageType.values.byName(j['replyToType']!) : null,
     reactions: _parseReactions(j),
     voiceDuration: j['voiceDuration'] as String?,
     voiceFilePath: j['voiceFilePath'] as String?,
