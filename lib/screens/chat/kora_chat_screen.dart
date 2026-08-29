@@ -82,6 +82,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
   List<KoraMessage> _messages = [];
   final Map<String, GlobalKey> _rowKeys = {};
   KoraMessage? _replyTarget;
+  String? _highlightedMessageId;
   bool _isLoading = true;
   bool _isAiTyping = false;
   bool _isBlocked = false;
