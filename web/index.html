@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#050508">
+  <title>Kora Web</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- QR code library -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <style>
+    :root {
+      --purple: #8B5CF6;
+      --blue: #3B82F6;
+      --gradient: linear-gradient(135deg, #8B5CF6, #3B82F6);
+      --true-black: #050508;
+      --deep-navy: #0A0A14;
+      --dark-surface: #13131F;
+      --dark-card: #1A1A2E;
+      --dark-pill: #1C1C2B;
+      --text-primary: #E8E8F0;
+      --text-secondary: #B0B0C0;
+      --text-muted: #8A8A9E;
+      --text-hint: #6A6A7E;
+      --border: #2A2A3E;
+      --input-fill: #1A1A2E;
+      --red: #EF4444;
+      --green: #25D366;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; overflow: hidden; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--true-black);
+      color: var(--text-primary);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── LOGIN SCREEN ── */
+    #loginScreen {
+      display: flex; align-items: center; justify-content: center;
+      height: 100%; width: 100%;
+      background: var(--true-black);
+      position: relative;
+    }
+    #loginScreen::before {
+      content: ''; position: absolute; top: -50%; left: -20%;
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(139,92,246,0.08), transparent 70%);
+      pointer-events: none;
+    }
+    #loginScreen::after {
+      content: ''; position: absolute; bottom: -50%; right: -20%;
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(59,130,246,0.08), transparent 70%);
+      pointer-events: none;
+    }
+    .login-card {
+      position: relative; z-index: 1;
+      background: var(--dark-card);
+      border-radius: 24px; padding: 40px;
+      max-width: 380px; width: 90%;
+      text-align: center;
+      border: 1px solid var(--border);
+      box-shadow: 0 24px 80px rgba(0,0,0,0.5);
+    }
+    .login-logo {
+      width: 64px; height: 64px;
+      background: var(--gradient);
+      border-radius: 18px;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 20px;
+      box-shadow: 0 8px 24px rgba(139,92,246,0.35);
+    }
+    .login-logo svg { width: 32px; height: 32px; fill: white; }
+    .login-card h1 { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 6px; }
+    .login-card p { color: var(--text-muted); font-size: 13.5px; line-height: 1.5; margin-bottom: 28px; }
+
+    #qrCanvas { border-radius: 16px; background: white; padding: 16px; display: inline-block; }
+    #qrContainer { position: relative; display: inline-block; margin-bottom: 20px; }
+
+    .qr-expiry-ring {
+      position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+      pointer-events: none;
+    }
+
+    .qr-status {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      margin-top: 16px; font-size: 13px; color: var(--text-muted);
+    }
+    .qr-status .dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--green); animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+    .login-error {
+      margin-top: 16px; padding: 12px;
+      background: rgba(239,68,68,0.1);
+      border: 1px solid rgba(239,68,68,0.3);
+      border-radius: 12px; color: #FCA5A5; font-size: 13px;
+    }
+    .login-hint {
+      margin-top: 24px; font-size: 12px; color: var(--text-hint); line-height: 1.5;
+    }
+    .login-link {
+      color: var(--purple); font-weight: 600; cursor: pointer; text-decoration: none;
+    }
+    .login-link:hover { text-decoration: underline; }
+
+    .spinner {
+      width: 32px; height: 32px;
+      border: 3px solid var(--border);
+      border-top-color: var(--purple);
+      border-radius: 50%; animation: spin 0.8s linear infinite;
+      margin: 20px auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── MAIN APP ── */
+    #app { display: none; height: 100%; flex-direction: row; }
+
+    /* Sidebar */
+    .sidebar {
+      width: 420px; min-width: 420px;
+      background: var(--deep-navy);
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      height: 100%;
+    }
+    .sidebar-header {
+      padding: 14px 16px; background: var(--deep-navy);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 12px;
+    }
+    .sidebar-header .avatar {
+      width: 40px; height: 40px; border-radius: 50%;
+      background: var(--gradient);
+      display: flex; align-items: center; justify-content: center;
+      color: white; font-weight: 700; font-size: 16px;
+      object-fit: cover; flex-shrink: 0;
+    }
+    .sidebar-header .avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+    .sidebar-header .name { font-weight: 600; font-size: 15px; flex: 1; }
+    .sidebar-header .actions { display: flex; gap: 8px; }
+    .icon-btn {
+      width: 40px; height: 40px; border-radius: 50%;
+      background: transparent; border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text-muted); transition: background 0.2s;
+    }
+    .icon-btn:hover { background: var(--dark-card); color: var(--text-primary); }
+    .icon-btn svg { width: 20px; height: 20px; fill: currentColor; }
+
+    .search-bar {
+      padding: 8px 12px; background: var(--deep-navy);
+      border-bottom: 1px solid var(--border);
+    }
+    .search-input {
+      width: 100%; padding: 8px 14px 8px 40px;
+      background: var(--input-fill); border: 1px solid var(--border);
+      border-radius: 10px; color: var(--text-primary); font-size: 14px;
+      font-family: inherit; outline: none; transition: border 0.2s;
+    }
+    .search-input:focus { border-color: var(--purple); }
+    .search-wrap { position: relative; }
+    .search-wrap svg {
+      position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+      width: 18px; height: 18px; fill: var(--text-hint);
+    }
+
+    .chat-list { flex: 1; overflow-y: auto; }
+    .chat-list::-webkit-scrollbar { width: 6px; }
+    .chat-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    .chat-list::-webkit-scrollbar-track { background: transparent; }
+
+    .chat-item {
+      padding: 12px 16px; display: flex; gap: 12px; cursor: pointer;
+      border-bottom: 1px solid rgba(42,42,62,0.4);
+      transition: background 0.15s;
+    }
+    .chat-item:hover { background: var(--dark-card); }
+    .chat-item.active { background: var(--dark-card); }
+    .chat-item .avatar {
+      width: 48px; height: 48px; border-radius: 50%;
+      background: var(--gradient); flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      color: white; font-weight: 700; font-size: 18px;
+      object-fit: cover;
+    }
+    .chat-item .avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+    .chat-item .info { flex: 1; min-width: 0; }
+    .chat-item .row1 { display: flex; justify-content: space-between; align-items: center; }
+    .chat-item .name { font-weight: 600; font-size: 15px; color: var(--text-primary); }
+    .chat-item .time { font-size: 12px; color: var(--text-muted); flex-shrink: 0; margin-left: 8px; }
+    .chat-item .row2 { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; }
+    .chat-item .preview { font-size: 13px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
+    .chat-item .badge {
+      background: var(--green); color: white; font-size: 11px; font-weight: 700;
+      padding: 1px 7px; border-radius: 10px; min-width: 20px; text-align: center;
+    }
+
+    /* Chat view */
+    .chat-view {
+      flex: 1; display: flex; flex-direction: column;
+      background: var(--dark-surface); height: 100%;
+      position: relative;
+    }
+    .chat-header {
+      padding: 12px 16px; background: var(--deep-navy);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 12px; z-index: 10;
+    }
+    .chat-header .avatar {
+      width: 40px; height: 40px; border-radius: 50%;
+      background: var(--gradient); flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      color: white; font-weight: 700; font-size: 15px;
+      object-fit: cover;
+    }
+    .chat-header .avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+    .chat-header .name { font-weight: 600; font-size: 15px; }
+    .chat-header .status { font-size: 12px; color: var(--text-muted); }
+    .chat-header .actions { display: flex; gap: 4px; }
+
+    .messages {
+      flex: 1; overflow-y: auto; padding: 16px 12%;
+      display: flex; flex-direction: column; gap: 2px;
+      background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"><circle cx="20" cy="20" r="1" fill="%232A2A3E" opacity="0.3"/></svg>');
+    }
+    .messages::-webkit-scrollbar { width: 6px; }
+    .messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    .msg {
+      max-width: 65%; padding: 8px 12px; border-radius: 12px;
+      font-size: 14px; line-height: 1.4; word-wrap: break-word;
+      position: relative; margin-bottom: 2px;
+    }
+    .msg.outgoing {
+      align-self: flex-end; background: linear-gradient(135deg, rgba(139,92,246,0.9), rgba(59,130,246,0.85));
+      color: white; border-bottom-right-radius: 4px;
+    }
+    .msg.incoming {
+      align-self: flex-start; background: var(--dark-card);
+      color: var(--text-primary); border-bottom-left-radius: 4px;
+    }
+    .msg .time { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 2px; text-align: right; }
+    .msg.incoming .time { color: var(--text-muted); }
+    .msg .ticks { display: inline-block; margin-left: 4px; }
+    .msg-date-sep {
+      align-self: center; padding: 4px 12px; background: var(--dark-pill);
+      border-radius: 8px; font-size: 12px; color: var(--text-muted);
+      margin: 12px 0;
+    }
+    .e2ee-banner {
+      align-self: center; padding: 6px 12px; background: rgba(139,92,246,0.08);
+      border: 1px solid rgba(139,92,246,0.2); border-radius: 8px;
+      font-size: 12px; color: var(--text-muted); margin-bottom: 12px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .e2ee-banner svg { width: 14px; height: 14px; fill: var(--purple); }
+
+    .composer {
+      padding: 10px 12%; display: flex; gap: 10px; align-items: center;
+      background: var(--deep-navy); border-top: 1px solid var(--border);
+    }
+    .composer input {
+      flex: 1; padding: 12px 16px; background: var(--input-fill);
+      border: 1px solid var(--border); border-radius: 24px;
+      color: var(--text-primary); font-size: 14px; font-family: inherit;
+      outline: none; transition: border 0.2s;
+    }
+    .composer input:focus { border-color: var(--purple); }
+    .send-btn {
+      width: 44px; height: 44px; border-radius: 50%;
+      background: var(--gradient); border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: white; transition: transform 0.1s;
+    }
+    .send-btn:active { transform: scale(0.92); }
+    .send-btn svg { width: 20px; height: 20px; fill: white; }
+    .send-btn:disabled { opacity: 0.4; cursor: default; }
+
+    /* Empty state */
+    .empty-chat {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      color: var(--text-muted); gap: 12px;
+    }
+    .empty-chat svg { width: 80px; height: 80px; fill: var(--border); }
+    .empty-chat h2 { font-size: 18px; font-weight: 600; color: var(--text-secondary); }
+    .empty-chat p { font-size: 14px; max-width: 300px; text-align: center; }
+
+    /* Mobile responsive */
+    @media (max-width: 768px) {
+      .sidebar { width: 100%; min-width: 100%; }
+      .chat-view { display: none; }
+      #app.mobile-chat-open .sidebar { display: none; }
+      #app.mobile-chat-open .chat-view { display: flex; }
+      .messages { padding: 16px 8px; }
+      .composer { padding: 10px 8px; }
+    }
+
+    /* Loading overlay */
+    .overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(5,5,8,0.8); z-index: 100;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .overlay .spinner { width: 40px; height: 40px; border-width: 4px; }
+
+    /* Toast */
+    .toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      padding: 12px 24px; background: var(--dark-card);
+      border: 1px solid var(--border); border-radius: 12px;
+      color: var(--text-primary); font-size: 14px; z-index: 200;
+      animation: toast-in 0.3s ease; box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    }
+    @keyframes toast-in { from { opacity: 0; transform: translate(-50%, 20px); } to { opacity: 1; transform: translate(-50%, 0); } }
+  </style>
+</head>
+<body>
+
+<!-- ══ LOGIN SCREEN ══ -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo">
+      <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08s5.97 1.09 6 3.08c-1.29 1.94-3.5 3.22-6 3.22z"/></svg>
+    </div>
+    <h1>Kora Web</h1>
+    <p>Open Kora on your phone, go to Settings → Linked Devices, and scan the QR code below.</p>
+
+    <div id="qrContainer">
+      <canvas id="qrCanvas" width="220" height="220"></canvas>
+    </div>
+
+    <div class="qr-status" id="qrStatus">
+      <div class="dot"></div>
+      <span id="qrStatusText">Waiting for device scan...</span>
+    </div>
+
+    <div id="loginError" style="display:none;" class="login-error"></div>
+
+    <div class="login-hint">
+      <span>By using Kora Web you agree to our </span>
+      <a class="login-link" href="https://24bada2.github.io/Kora-Messenger-Docs/terms-of-service.html" target="_blank">Terms</a>
+      <span> & </span>
+      <a class="login-link" href="https://24bada2.github.io/Kora-Messenger-Docs/privacy-policy.html" target="_blank">Privacy Policy</a>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MAIN APP ══ -->
+<div id="app">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <div class="avatar" id="myAvatar"></div>
+      <div class="name" id="myName">Kora</div>
+      <div class="actions">
+        <button class="icon-btn" onclick="logoutWeb()" title="Log out">
+          <svg viewBox="0 0 24 24"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="search-bar">
+      <div class="search-wrap">
+        <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+        <input class="search-input" id="searchInput" placeholder="Search or start a new chat" oninput="filterChats()">
+      </div>
+    </div>
+    <div class="chat-list" id="chatList">
+      <div style="padding:40px;text-align:center;color:var(--text-muted);font-size:14px;">Loading chats...</div>
+    </div>
+  </div>
+
+  <!-- Chat View -->
+  <div class="chat-view" id="chatView">
+    <div class="empty-chat" id="emptyChat">
+      <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/></svg>
+      <h2>Kora Web</h2>
+      <p>Send and receive messages without keeping your phone online. Select a chat to start messaging.</p>
+    </div>
+    <div id="chatContent" style="display:none;flex-direction:column;height:100%;">
+      <div class="chat-header">
+        <button class="icon-btn" id="backBtn" style="display:none;" onclick="closeChatMobile()">
+          <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+        </button>
+        <div class="avatar" id="chatAvatar"></div>
+        <div style="flex:1;">
+          <div class="name" id="chatName"></div>
+          <div class="status" id="chatStatus"></div>
+        </div>
+        <div class="actions">
+          <button class="icon-btn" title="Search">
+            <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="messages" id="messages"></div>
+      <div class="composer">
+        <input id="msgInput" placeholder="Type a message" onkeydown="if(event.key==='Enter')sendMessage()">
+        <button class="send-btn" onclick="sendMessage()">
+          <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+// KORA WEB CLIENT
+// ══════════════════════════════════════════════
+
+// ── Config ──
+// Backend URL — injected at build time or overridden here
+const BACKEND_URL = window.KORA_BACKEND_URL || 'https://solas-463874c8.base44.app/functions';
+const WEB_PAIR_URL = BACKEND_URL + '/koraWebPair';
+const CHAT_SYNC_URL = BACKEND_URL + '/koraChatSync';
+
+// ── State ──
+let currentUser = null;
+let conversations = [];
+let messages = [];
+let activeChatId = null;
+let activeChatMessages = [];
+let pollTimer = null;
+let qrPollTimer = null;
+let qrToken = null;
+let lastPollTimestamp = null;
+
+// ── API helpers ──
+async function api(url, body) {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+// ── Utility ──
+function escapeHtml(str) {
+  if (!str) return '';
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function formatTime(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  const now = new Date();
+  const diff = now - d;
+  const days = Math.floor(diff / 86400000);
+  if (days === 0) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  if (days === 1) return 'Yesterday';
+  if (days < 7) return d.toLocaleDateString([], { weekday: 'short' });
+  return d.toLocaleDateString([], { day: '2-digit', month: '2-digit', year: '2-digit' });
+}
+
+function formatDateSeparator(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  const now = new Date();
+  const diff = now - d;
+  const days = Math.floor(diff / 86400000);
+  if (days === 0) return 'Today';
+  if (days === 1) return 'Yesterday';
+  return d.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' });
+}
+
+function getInitials(name) {
+  if (!name) return '?';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0][0].toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function getAvatarHtml(avatarUrl, name, size) {
+  if (avatarUrl) return `<img src="${avatarUrl}" alt="">`;
+  return getInitials(name);
+}
+
+// ══════════════════════════════════════════════
+// QR LOGIN
+// ══════════════════════════════════════════════
+
+async function startQrLogin() {
+  const statusText = document.getElementById('qrStatusText');
+  const errorDiv = document.getElementById('loginError');
+  errorDiv.style.display = 'none';
+
+  try {
+    const res = await api(WEB_PAIR_URL, { action: 'requestPair' });
+    if (!res.success) throw new Error(res.error || 'Failed to generate QR code');
+
+    qrToken = res.pairingToken;
+    const qrData = res.qrData;
+
+    // Render QR
+    const canvas = document.getElementById('qrCanvas');
+    QRCode.toCanvas(canvas, qrData, {
+      width: 220,
+      margin: 1,
+      color: { dark: '#050508', light: '#ffffff' },
+      errorCorrectionLevel: 'M',
+    });
+
+    statusText.textContent = 'Waiting for device scan...';
+
+    // Start polling for acceptance
+    startPairPolling();
+
+    // Auto-refresh token before expiry (25s of 30s)
+    setTimeout(() => {
+      if (qrToken === res.pairingToken && !currentUser) {
+        refreshQrToken();
+      }
+    }, 25000);
+
+  } catch (e) {
+    errorDiv.textContent = e.message || 'Network error. Retrying...';
+    errorDiv.style.display = 'block';
+    setTimeout(startQrLogin, 3000);
+  }
+}
+
+async function refreshQrToken() {
+  if (currentUser) return;
+  qrPollTimer && clearInterval(qrPollTimer);
+  startQrLogin();
+}
+
+function startPairPolling() {
+  qrPollTimer && clearInterval(qrPollTimer);
+  qrPollTimer = setInterval(async () => {
+    if (!qrToken || currentUser) return;
+
+    try {
+      const res = await api(WEB_PAIR_URL, { action: 'pollPair', pairingToken: qrToken });
+
+      if (res.status === 'accepted' && res.user) {
+        qrPollTimer && clearInterval(qrPollTimer);
+        currentUser = res.user;
+        localStorage.setItem('kora_web_user', JSON.stringify(res.user));
+        showApp();
+      } else if (res.status === 'expired') {
+        qrPollTimer && clearInterval(qrPollTimer);
+        refreshQrToken();
+      }
+    } catch (e) {
+      // Keep polling on network errors
+    }
+  }, 2000);
+}
+
+// ══════════════════════════════════════════════
+// APP
+// ══════════════════════════════════════════════
+
+function showApp() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+
+  // Render user avatar + name
+  const avatarEl = document.getElementById('myAvatar');
+  const nameEl = document.getElementById('myName');
+  if (currentUser.avatarUrl) {
+    avatarEl.innerHTML = `<img src="${currentUser.avatarUrl}" alt="">`;
+  } else {
+    avatarEl.textContent = getInitials(currentUser.fullName || currentUser.email);
+  }
+  nameEl.textContent = currentUser.fullName || currentUser.email;
+
+  loadChats();
+  startMessagePolling();
+}
+
+async function loadChats() {
+  try {
+    const res = await api(CHAT_SYNC_URL, {
+      action: 'fetch',
+      userEmail: currentUser.email,
+    });
+
+    if (res.success) {
+      conversations = res.conversations || [];
+      messages = res.messages || [];
+      renderChatList();
+      if (conversations.length > 0) {
+        lastPollTimestamp = new Date().toISOString();
+      }
+    }
+  } catch (e) {
+    document.getElementById('chatList').innerHTML =
+      '<div style="padding:40px;text-align:center;color:var(--text-muted);font-size:14px;">Failed to load chats. Retrying...</div>';
+    setTimeout(loadChats, 3000);
+  }
+}
+
+function renderChatList() {
+  const list = document.getElementById('chatList');
+
+  if (conversations.length === 0) {
+    list.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-muted);font-size:14px;">No conversations yet. Start chatting from your phone!</div>';
+    return;
+  }
+
+  // Sort by last message timestamp (newest first)
+  conversations.sort((a, b) => {
+    const ta = new Date(a.lastMessageTimestamp || 0).getTime();
+    const tb = new Date(b.lastMessageTimestamp || 0).getTime();
+    return tb - ta;
+  });
+
+  list.innerHTML = conversations.map(c => `
+    <div class="chat-item ${c.chatId === activeChatId ? 'active' : ''}" onclick="openChat('${c.chatId}')">
+      <div class="avatar">${getAvatarHtml(c.avatarUrl, c.name)}</div>
+      <div class="info">
+        <div class="row1">
+          <div class="name">${escapeHtml(c.name || c.chatId)}</div>
+          <div class="time">${formatTime(c.lastMessageTimestamp)}</div>
+        </div>
+        <div class="row2">
+          <div class="preview">${escapeHtml(c.lastMessageText || '')}</div>
+          ${c.unreadCount > 0 ? `<div class="badge">${c.unreadCount}</div>` : ''}
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function filterChats() {
+  const query = document.getElementById('searchInput').value.toLowerCase().trim();
+  const items = document.querySelectorAll('.chat-item');
+  items.forEach(item => {
+    const name = item.querySelector('.name').textContent.toLowerCase();
+    item.style.display = name.includes(query) ? '' : 'none';
+  });
+}
+
+function openChat(chatId) {
+  activeChatId = chatId;
+  const conv = conversations.find(c => c.chatId === chatId);
+  if (!conv) return;
+
+  // Mark as read
+  conv.unreadCount = 0;
+  renderChatList();
+
+  // Show chat view
+  document.getElementById('emptyChat').style.display = 'none';
+  document.getElementById('chatContent').style.display = 'flex';
+  document.getElementById('app').classList.add('mobile-chat-open');
+
+  // Render header
+  document.getElementById('chatAvatar').innerHTML = getAvatarHtml(conv.avatarUrl, conv.name);
+  document.getElementById('chatName').textContent = conv.name || chatId;
+  document.getElementById('chatStatus').textContent = conv.isOnline ? 'online' : '';
+
+  // Render messages
+  activeChatMessages = messages.filter(m => m.chatId === chatId);
+  renderMessages();
+
+  // Focus input
+  document.getElementById('msgInput').focus();
+}
+
+function closeChatMobile() {
+  document.getElementById('app').classList.remove('mobile-chat-open');
+}
+
+function renderMessages() {
+  const container = document.getElementById('messages');
+
+  if (activeChatMessages.length === 0) {
+    container.innerHTML = `
+      <div class="e2ee-banner">
+        <svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9V6z"/></svg>
+        Messages are end-to-end encrypted
+      </div>
+    `;
+    return;
+  }
+
+  let html = `
+    <div class="e2ee-banner">
+      <svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9V6z"/></svg>
+      Messages are end-to-end encrypted
+    </div>
+  `;
+
+  let lastDate = '';
+  activeChatMessages.forEach(m => {
+    const msgDate = formatDateSeparator(m.timestamp);
+    if (msgDate && msgDate !== lastDate) {
+      html += `<div class="msg-date-sep">${msgDate}</div>`;
+      lastDate = msgDate;
+    }
+
+    const isOutgoing = m.isMe;
+    const tick = isOutgoing ? (m.isSeen ? '✓✓' : '✓') : '';
+    html += `
+      <div class="msg ${isOutgoing ? 'outgoing' : 'incoming'}">
+        ${escapeHtml(m.text)}
+        <div class="time">${formatTime(m.timestamp)} <span class="ticks">${tick}</span></div>
+      </div>
+    `;
+  });
+
+  container.innerHTML = html;
+  container.scrollTop = container.scrollHeight;
+}
+
+async function sendMessage() {
+  const input = document.getElementById('msgInput');
+  const text = input.value.trim();
+  if (!text || !activeChatId) return;
+
+  input.value = '';
+
+  const conv = conversations.find(c => c.chatId === activeChatId);
+  if (!conv) return;
+
+  const msgId = 'web_' + Date.now() + '_' + Math.random().toString(36).substr(2, 8);
+  const now = new Date().toISOString();
+
+  // Optimistic: add message locally
+  const newMsg = {
+    chatId: activeChatId,
+    messageId: msgId,
+    text: text,
+    timestamp: now,
+    isMe: true,
+    type: 'text',
+    status: 'sent',
+    isSeen: false,
+    isStarred: false,
+  };
+  activeChatMessages.push(newMsg);
+  messages.push(newMsg);
+  renderMessages();
+
+  // Update conversation preview
+  conv.lastMessageText = text;
+  conv.lastMessageTimestamp = now;
+  renderChatList();
+
+  // Send to backend
+  try {
+    await api(CHAT_SYNC_URL, {
+      action: 'sync',
+      userEmail: currentUser.email,
+      recipientEmail: conv.recipientEmail || '',
+      recipientName: conv.name || '',
+      senderName: currentUser.fullName || currentUser.email,
+      messages: [newMsg],
+      conversations: [{
+        chatId: activeChatId,
+        name: conv.name || activeChatId,
+        avatarUrl: conv.avatarUrl || '',
+        lastMessageText: text,
+        lastMessageTimestamp: now,
+        lastMessageType: 'text',
+        unreadCount: 0,
+      }],
+    });
+  } catch (e) {
+    showToast('Failed to send message');
+  }
+}
+
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+// ── Polling for new messages ──
+function startMessagePolling() {
+  pollTimer && clearInterval(pollTimer);
+  pollTimer = setInterval(async () => {
+    if (!currentUser) return;
+
+    try {
+      const res = await api(CHAT_SYNC_URL, {
+        action: 'fetchNew',
+        userEmail: currentUser.email,
+        sinceTimestamp: lastPollTimestamp,
+      });
+
+      if (res.success) {
+        lastPollTimestamp = new Date().toISOString();
+
+        let changed = false;
+
+        // Update conversations
+        if (res.conversations && res.conversations.length > 0) {
+          res.conversations.forEach(nc => {
+            const idx = conversations.findIndex(c => c.chatId === nc.chatId);
+            if (idx >= 0) {
+              conversations[idx] = { ...conversations[idx], ...nc };
+            } else {
+              conversations.push(nc);
+            }
+          });
+          changed = true;
+        }
+
+        // Add new messages
+        if (res.messages && res.messages.length > 0) {
+          res.messages.forEach(nm => {
+            const exists = messages.find(m => m.messageId === nm.messageId);
+            if (!exists) {
+              messages.push(nm);
+              if (nm.chatId === activeChatId) {
+                activeChatMessages.push(nm);
+              }
+              changed = true;
+            }
+          });
+        }
+
+        if (changed) {
+          renderChatList();
+          if (activeChatId) renderMessages();
+        }
+      }
+    } catch (e) {
+      // Keep polling
+    }
+  }, 3000);
+}
+
+// ── Logout ──
+function logoutWeb() {
+  if (!confirm('Log out of Kora Web?')) return;
+  pollTimer && clearInterval(pollTimer);
+  localStorage.removeItem('kora_web_user');
+  currentUser = null;
+  conversations = [];
+  messages = [];
+  activeChatId = null;
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('chatList').innerHTML = '';
+  startQrLogin();
+}
+
+// ── Init ──
+window.addEventListener('load', () => {
+  // Check for existing session
+  const saved = localStorage.getItem('kora_web_user');
+  if (saved) {
+    try {
+      currentUser = JSON.parse(saved);
+      showApp();
+      return;
+    } catch (e) {
+      localStorage.removeItem('kora_web_user');
+    }
+  }
+  startQrLogin();
+});
+</script>
+</body>
+</html>

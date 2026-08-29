@@ -41,6 +41,9 @@ class KoraApi {
   /// Link device endpoint — QR-based device pairing (generate token + link).
   static const String linkDeviceEndpoint = '$baseUrl/koraLinkDevice';
 
+  /// Web companion pairing endpoint — QR-based web login (like WhatsApp Web).
+  static const String webPairEndpoint = '$baseUrl/koraWebPair';
+
   /// Crash report endpoint — receives crash data and creates a GitHub Issue.
   static const String crashReportEndpoint = '$baseUrl/koraCrashReport';
   static const String serviceNotificationEndpoint = '$baseUrl/koraServiceNotification';

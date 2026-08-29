@@ -59,11 +59,14 @@ class _LinkDeviceScreenState extends State<LinkDeviceScreen> {
   Future<void> _handleScannedData(String data) async {
     String? token;
     String? email;
+    bool isWebPair = false;
 
     if (data.startsWith('kora://link')) {
       final uri = Uri.parse(data);
       token = uri.queryParameters['token'];
       email = uri.queryParameters['email'];
+      // Web companion QR codes include web=true
+      isWebPair = uri.queryParameters['web'] == 'true';
     } else {
       token = data.trim();
     }
@@ -85,17 +88,32 @@ class _LinkDeviceScreenState extends State<LinkDeviceScreen> {
       final myPlatform = DeviceManager.getPlatform();
       final myEmail = email ?? SessionManager.instance.currentEmail;
 
-      final result = await KoraApi.postTo(
-        KoraApi.linkDeviceEndpoint,
-        {
+      // Route to the correct endpoint:
+      // - Web companion QR → koraWebPair/acceptPair
+      // - Phone-to-phone QR → koraLinkDevice/linkDevice
+      final String endpoint;
+      final Map<String, dynamic> requestBody;
+
+      if (isWebPair) {
+        endpoint = KoraApi.webPairEndpoint;
+        requestBody = {
+          'action': 'acceptPair',
+          'pairingToken': token,
+          'ownerEmail': myEmail,
+        };
+      } else {
+        endpoint = KoraApi.linkDeviceEndpoint;
+        requestBody = {
           'action': 'linkDevice',
           'pairingToken': token,
           'ownerEmail': myEmail,
           'newDeviceId': myDeviceId,
           'newDeviceName': myDeviceName,
           'newPlatform': myPlatform,
-        },
-      );
+        };
+      }
+
+      final result = await KoraApi.postTo(endpoint, requestBody);
 
       if (result['success'] == true) {
         setState(() {
