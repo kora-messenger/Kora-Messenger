@@ -271,11 +271,10 @@ Deno.serve(async (req: Request) => {
         email, code, type, expiresAt, used: false, attempts: 0,
       });
 
-      try {
-        await sendVerificationEmail(email, code, type);
-      } catch (emailErr) {
+      // Send verification email — fire-and-forget
+      sendVerificationEmail(email, code, type).catch(emailErr => {
         console.error('Failed to send verification email:', emailErr);
-      }
+      });
       return jsonResponse({ success: true, message: 'Verification code sent' });
     }
 
@@ -343,9 +342,9 @@ Deno.serve(async (req: Request) => {
         isPremium: true, premiumExpiresAt: trialExpiry.toISOString(), premiumSource: 'trial',
       });
 
-      // Send welcome email (non-blocking — don't fail signup if email fails)
+      // Send welcome email — fire-and-forget
       try {
-        await sendWelcomeEmail(email, userData.fullName || '');
+        sendWelcomeEmail(email, userData.fullName || '').catch(e => console.error('Failed to send welcome email:', e));
       } catch (e) {
         console.error('Failed to send welcome email:', e);
       }
@@ -388,7 +387,8 @@ Deno.serve(async (req: Request) => {
             isTrusted: monthsSinceFirstLogin >= 1 ? true : (device.data?.isTrusted || device.isTrusted || false),
           });
 
-      // Send login security alert email
+      // Send login security alert email — fire-and-forget so it never
+      // delays the login response. SMTP can be slow/unreliable.
       try {
         const _ipAddress = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
           || req.headers.get('x-real-ip')
@@ -399,14 +399,14 @@ Deno.serve(async (req: Request) => {
           dateStyle: 'full',
           timeStyle: 'short',
         });
-        await sendSecurityAlertEmail(
+        sendSecurityAlertEmail(
           email,
           deviceName || 'Unknown Device',
           'Account Login',
           _loginTimestamp,
           deviceId,
           _ipAddress,
-        );
+        ).catch(e => console.error('Failed to send login security email:', e));
       } catch (e) {
         console.error('Failed to send login security email:', e);
       }
@@ -430,23 +430,16 @@ Deno.serve(async (req: Request) => {
         email, code, type: 'login', expiresAt, used: false, attempts: 0,
       });
 
-      // Try to send the verification email — but don't fail the entire
-      // login if the email service is down. The code is already saved in
-      // the database, so the user can still verify (or we can resend later).
-      let emailSent = true;
-      try {
-        await sendVerificationEmail(email, code, 'login');
-      } catch (emailErr) {
+      // Send verification email — fire-and-forget so the login response
+      // is never delayed by SMTP. The code is already saved in the DB.
+      sendVerificationEmail(email, code, 'login').catch(emailErr => {
         console.error('Failed to send login verification email:', emailErr);
-        emailSent = false;
-      }
+      });
 
       return jsonResponse({
         success: false,
         needsDeviceVerification: true,
-        message: emailSent
-          ? 'Verification code sent to your email'
-          : 'Verification code created but email delivery failed. Please try again or resend.',
+        message: 'Verification code sent to your email',
       });
     }
 
@@ -512,7 +505,7 @@ Deno.serve(async (req: Request) => {
         }
       }
 
-      // Send login security alert email
+      // Send login security alert email — fire-and-forget
       try {
         const _ipAddress = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
           || req.headers.get('x-real-ip')
@@ -523,14 +516,14 @@ Deno.serve(async (req: Request) => {
           dateStyle: 'full',
           timeStyle: 'short',
         });
-        await sendSecurityAlertEmail(
+        sendSecurityAlertEmail(
           email,
           deviceName || 'Unknown Device',
           'Account Login',
           _loginTimestamp,
           deviceId,
           _ipAddress,
-        );
+        ).catch(e => console.error('Failed to send login security email:', e));
       } catch (e) {
         console.error('Failed to send login security email:', e);
       }
@@ -782,14 +775,14 @@ Deno.serve(async (req: Request) => {
           dateStyle: 'full',
           timeStyle: 'short',
         });
-        await sendSecurityAlertEmail(
+        sendSecurityAlertEmail(
           email,
           deviceName || 'Unknown Device',
           'Account Login',
           _loginTimestamp,
           deviceId,
           _ipAddress,
-        );
+        ).catch(e => console.error('Failed to send login security email:', e));
       } catch (e) {
         console.error('Failed to send login security email:', e);
       }
@@ -1000,14 +993,14 @@ Deno.serve(async (req: Request) => {
           dateStyle: 'full',
           timeStyle: 'short',
         });
-        await sendSecurityAlertEmail(
+        sendSecurityAlertEmail(
           email,
           deviceName || 'Unknown Device',
           'Account Login',
           _loginTimestamp,
           deviceId,
           _ipAddress,
-        );
+        ).catch(e => console.error('Failed to send login security email:', e));
       } catch (e) {
         console.error('Failed to send login security email:', e);
       }
@@ -1048,21 +1041,21 @@ Deno.serve(async (req: Request) => {
         timeStyle: 'short',
       });
 
-      // Send security alert email with device ID and IP
+      // Send security alert email with device ID and IP — fire-and-forget
       try {
-        await sendSecurityAlertEmail(
+        sendSecurityAlertEmail(
           email,
           deviceName || 'Unknown Device',
           'Account Logout',
           timestamp,
           deviceId,
           ipAddress,
-        );
+        ).catch(e => console.error('Failed to send logout email:', e));
       } catch (e) {
         console.error('Failed to send logout email:', e);
       }
 
-      return jsonResponse({ success: true, message: 'Logout email sent' });
+      return jsonResponse({ success: true, message: 'Logout successful' });
     }
 
     // ── CHECK PHONE NUMBERS IN BULK (contact sync) ─────────

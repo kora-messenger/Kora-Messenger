@@ -365,6 +365,23 @@ class _LogInScreenState extends State<LogInScreen> {
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             children: [
               const SizedBox(height: 8),
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  gradient: KoraColors.brandGradient,
+                  borderRadius: BorderRadius.circular(18),
+                  boxShadow: [
+                    BoxShadow(
+                      color: KoraColors.purple.withValues(alpha: 0.35),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: const Icon(Icons.lock_outline_rounded, color: Colors.white, size: 28),
+              ),
+              const SizedBox(height: 20),
               const Text(
                 'Welcome back',
                 style: TextStyle(

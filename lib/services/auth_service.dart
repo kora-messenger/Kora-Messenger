@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'device_manager.dart';
 import '../config/kora_api.dart';
+import 'crash_logger.dart';
 
 /// Real authentication service for Kora Messenger.
 /// Calls the backend API for all auth operations.
@@ -244,8 +245,19 @@ class AuthService {
         );
       }
 
-      // Return the backend's error message, or a specific fallback
+      // Return the backend's error message, or a specific fallback.
+      // If the backend returned neither an 'error' string NOR
+      // needsDeviceVerification, that's an unexpected/ambiguous shape —
+      // log the raw response so we can diagnose it (creates a GitHub
+      // issue via CrashLogger) instead of silently guessing.
       final backendError = data['error'] as String?;
+      if (backendError == null) {
+        CrashLogger.log(
+          'Ambiguous login response: status=${response.statusCode}, '
+          'body=${response.body}',
+          context: 'AuthService.login (no error/needsVerification field)',
+        );
+      }
       return (
         success: false,
         needsDeviceVerification: false,
