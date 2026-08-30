@@ -51,13 +51,13 @@ class _BusinessAwayMessageScreenState extends State<BusinessAwayMessageScreen> {
             decoration: const InputDecoration(border: OutlineInputBorder(), hintText: 'Enter your away message...'),
             onChanged: (v) => _save())),
           _section('Schedule', b, [
-            _radio('Always send', 'always', b),
-            _radio('Custom schedule', 'custom', b),
-            _radio('Outside business hours', 'outside_hours', b),
+            _radioTile('Always send', 'always', _settings.schedule, (v) { setState(() => _settings = _settings.copyWith(schedule: v)); _save(); }, b),
+            _radioTile('Custom schedule', 'custom', _settings.schedule, (v) { setState(() => _settings = _settings.copyWith(schedule: v)); _save(); }, b),
+            _radioTile('Outside business hours', 'outside_hours', _settings.schedule, (v) { setState(() => _settings = _settings.copyWith(schedule: v)); _save(); }, b),
           ]),
           _section('Recipients', b, [
-            _radio('Everyone', 'everyone', b),
-            _radio('My contacts', 'my_contacts', b),
+            _radioTile('Everyone', 'everyone', _settings.recipients, (v) { setState(() => _settings = _settings.copyWith(recipients: v)); _save(); }, b),
+            _radioTile('My contacts', 'my_contacts', _settings.recipients, (v) { setState(() => _settings = _settings.copyWith(recipients: v)); _save(); }, b),
           ]),
         ],
       ]),
@@ -72,9 +72,9 @@ class _BusinessAwayMessageScreenState extends State<BusinessAwayMessageScreen> {
     ]);
   }
 
-  Widget _radio(String label, String value, Brightness b) {
-    return RadioListTile<String>(value: value, groupValue: _settings.schedule == value ? value : (_settings.recipients == value ? value : null),
+  Widget _radioTile(String label, String value, String groupValue, ValueChanged<String?> onChanged, Brightness b) {
+    return RadioListTile<String>(value: value, groupValue: groupValue,
       title: Text(label, style: TextStyle(color: KoraColors.textPrimaryFor(b))),
-      onChanged: (v) { setState(() {}); _save(); }, activeColor: KoraColors.purple);
+      onChanged: onChanged, activeColor: KoraColors.purple);
   }
 }
