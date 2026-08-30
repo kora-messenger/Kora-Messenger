@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../theme/kora_colors.dart';
+import '../theme/kora_colors.dart';
 
 /// Save to Gallery button — appears on media messages.
 /// Mirrors WhatsApp's "Save to gallery" long-press action.

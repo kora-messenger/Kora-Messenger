@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../theme/kora_colors.dart';
-import '../../models/message_model.dart';
+import '../theme/kora_colors.dart';
+import '../models/message_model.dart';
 
 /// A message bubble that displays "This message was deleted" in a grey,
 /// italic style — used when isDeletedForEveryone is true on a KoraMessage.

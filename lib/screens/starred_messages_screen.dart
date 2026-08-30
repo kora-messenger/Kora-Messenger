@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../theme/kora_colors.dart';
-import '../../widgets/kora_empty_state.dart';
+import '../theme/kora_colors.dart';
+import '../widgets/kora_empty_state.dart';
 
 /// Starred messages screen — shows messages the user has starred.
 class StarredMessagesScreen extends StatefulWidget {

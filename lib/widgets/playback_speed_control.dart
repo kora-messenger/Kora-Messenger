@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../theme/kora_colors.dart';
+import '../theme/kora_colors.dart';
 
 /// Playback Speed control — a popup menu for changing media playback speed.
 /// Mirrors WhatsApp's playback speed control on videos and voice messages.

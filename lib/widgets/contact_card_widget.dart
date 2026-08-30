@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../theme/kora_colors.dart';
-import '../../models/message_model.dart';
+import '../theme/kora_colors.dart';
+import '../models/message_model.dart';
 
 /// Contact card widget — renders a vCard (contact card) inline in chat.
 /// Shows the contact name, phone number, and an "Add to contacts" button.

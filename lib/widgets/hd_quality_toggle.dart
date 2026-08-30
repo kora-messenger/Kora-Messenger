@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../theme/kora_colors.dart';
+import '../theme/kora_colors.dart';
 
 /// HD Quality toggle — choose between HD and Standard quality when sending media.
 /// Mirrors WhatsApp's HD photo/video quality selector.

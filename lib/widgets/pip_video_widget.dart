@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../theme/kora_colors.dart';
+import '../theme/kora_colors.dart';
 
 /// PiP Video widget — floating picture-in-picture video player.
 /// Mirrors WhatsApp's PiP video playback when navigating away from a video.

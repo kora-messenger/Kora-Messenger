@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../theme/kora_colors.dart';
-import '../../models/poll_model.dart';
+import '../theme/kora_colors.dart';
+import '../models/poll_model.dart';
 
 /// Poll widget — renders a poll in the chat with options, vote counts,
 /// and tap-to-vote. Matches WhatsApp's poll UI.

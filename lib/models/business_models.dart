@@ -108,6 +108,11 @@ class AwayMessageSettings {
   const AwayMessageSettings({this.enabled = false, this.message = '',
     this.schedule = 'always', this.recipients = 'everyone'});
 
+  AwayMessageSettings copyWith({bool? enabled, String? message,
+    String? schedule, String? recipients}) => AwayMessageSettings(
+    enabled: enabled ?? this.enabled, message: message ?? this.message,
+    schedule: schedule ?? this.schedule, recipients: recipients ?? this.recipients);
+
   Map<String, dynamic> toJson() => {'enabled': enabled, 'message': message,
     'schedule': schedule, 'recipients': recipients};
   factory AwayMessageSettings.fromJson(Map<String, dynamic> j) => AwayMessageSettings(
@@ -125,6 +130,11 @@ class GreetingMessageSettings {
   const GreetingMessageSettings({this.enabled = false, this.message = '',
     this.recipients = 'everyone'});
 
+  GreetingMessageSettings copyWith({bool? enabled, String? message,
+    String? recipients}) => GreetingMessageSettings(
+    enabled: enabled ?? this.enabled, message: message ?? this.message,
+    recipients: recipients ?? this.recipients);
+
   Map<String, dynamic> toJson() => {'enabled': enabled, 'message': message, 'recipients': recipients};
   factory GreetingMessageSettings.fromJson(Map<String, dynamic> j) => GreetingMessageSettings(
     enabled: j['enabled'] ?? false, message: j['message'] ?? '',
@@ -139,6 +149,9 @@ class BusinessLabel {
   final int colorIndex;
 
   const BusinessLabel({required this.id, this.name = '', this.colorIndex = 0});
+
+  BusinessLabel copyWith({String? name, int? colorIndex}) =>
+    BusinessLabel(id: id, name: name ?? this.name, colorIndex: colorIndex ?? this.colorIndex);
 
   Map<String, dynamic> toJson() => {'id': id, 'name': name, 'colorIndex': colorIndex};
   factory BusinessLabel.fromJson(Map<String, dynamic> j) => BusinessLabel(
