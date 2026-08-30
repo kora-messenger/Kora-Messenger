@@ -19,6 +19,7 @@ import '../settings/business_tools_screen.dart';
 import '../settings/future_features_screen.dart';
 import '../settings/premium_subscribe_sheet.dart';
 import '../settings/billing_screen.dart';
+import '../config/subscription_pricing.dart';
 import '../settings/storage_data_screen.dart';
 import '../settings/app_language_screen.dart';
 import '../ai/kora_support_screen.dart';
@@ -94,7 +95,7 @@ class _ProfileTabState extends State<ProfileTab> {
     ).then((_) => _loadSession());
   }
 
-  void _openPremium() {
+  Future<void> _openPremium() async {
     if (_isPremium) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
