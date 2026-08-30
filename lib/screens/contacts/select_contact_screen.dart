@@ -144,6 +144,7 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
       MaterialPageRoute(
         builder: (_) => ContactInfoScreen(
           name: contact.displayName,
+          chatId: contact.koraId.isNotEmpty ? contact.koraId : contact.username,
           koraId: contact.koraId.isNotEmpty ? contact.koraId : null,
           username: contact.username.isNotEmpty ? contact.username : null,
           about: 'Hey there! I\'m on Kora.',

@@ -861,6 +861,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
       MaterialPageRoute(
         builder: (_) => ContactInfoScreen(
           name: fullName,
+          chatId: widget.chatId,
           avatarAsset: widget.avatarAsset,
           avatarUrl: avatarUrl,
           badge: widget.badge,

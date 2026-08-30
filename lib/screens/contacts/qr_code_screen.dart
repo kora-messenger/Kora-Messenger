@@ -290,6 +290,7 @@ class _QrCodeScreenState extends State<QrCodeScreen>
       MaterialPageRoute(
         builder: (_) => ContactInfoScreen(
           name: name,
+          chatId: koraId.isNotEmpty ? koraId : username,
           koraId: koraId.isNotEmpty ? koraId : null,
           username: username.isNotEmpty ? username : null,
           badge: isPremium ? KoraBadgeType.premiumBlue : KoraBadgeType.none,

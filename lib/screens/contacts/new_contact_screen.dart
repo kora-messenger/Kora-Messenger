@@ -547,9 +547,10 @@ class _NewContactScreenState extends State<NewContactScreen> {
       MaterialPageRoute(
         builder: (_) => ContactInfoScreen(
           name: name,
-          koraId: koraId,
-          username: username,
-          phone: userPhone,
+          chatId: koraId.isNotEmpty ? koraId : username,
+          koraId: koraId.isNotEmpty ? koraId : null,
+          username: username.isNotEmpty ? username : null,
+          phone: userPhone.isNotEmpty ? userPhone : null,
           badge: isPremium ? KoraBadgeType.premiumBlue : KoraBadgeType.none,
           isOnline: true,
           about: 'Hey there! I\'m on Kora.',
