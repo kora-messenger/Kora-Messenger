@@ -236,6 +236,7 @@ class ChatSyncService {
     String? lastVoiceDuration,
     int unreadCount = 0,
     String? recipientEmail,
+    bool isGroupChat = false,
   }) async {
     if (_userEmail == null) return;
 
@@ -259,6 +260,7 @@ class ChatSyncService {
             'lastMessageType': lastMessageType ?? 'text',
             'lastVoiceDuration': lastVoiceDuration,
             'unreadCount': unreadCount,
+            'isGroupChat': isGroupChat,
           }],
         }),
       ).timeout(const Duration(seconds: 10));
@@ -309,6 +311,7 @@ class ChatSyncService {
           avatarUrl: conv['avatarUrl'] as String?,
           badge: KoraBadgeType.values[(conv['badge'] as num?)?.toInt() ?? 0],
           isOnline: (conv['isOnline'] as bool?) ?? false,
+          isGroupChat: (conv['isGroupChat'] as bool?) ?? false,
         );
         convCount++;
       }

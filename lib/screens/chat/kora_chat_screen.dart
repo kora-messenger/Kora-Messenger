@@ -26,6 +26,7 @@ import 'call_screen.dart';
 import 'message_action_menu.dart';
 import 'e2ee_verification_screen.dart';
 import 'contact_info_screen.dart';
+import 'group_chat_info_screen.dart';
 import 'reply_preview.dart';
 import 'chat_empty_state.dart';
 import 'translate_sheet.dart';
@@ -53,6 +54,7 @@ class KoraChatScreen extends StatefulWidget {
   final String? avatarAsset;
   final String? avatarUrl;
   final KoraBadgeType badge;
+  final bool isGroupChat;
   final bool isOnline;
   final String? lastSeen;
   final String? recipientEmail;
@@ -64,6 +66,7 @@ class KoraChatScreen extends StatefulWidget {
     this.avatarAsset,
     this.avatarUrl,
     this.badge = KoraBadgeType.none,
+    this.isGroupChat = false,
     this.isOnline = false,
     this.lastSeen,
     this.recipientEmail,
@@ -790,6 +793,28 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
   }
 
   Future<void> _showContactInfo() async {
+    // Show Group Chat Info if this is a group chat
+    if (widget.isGroupChat) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => GroupChatInfoScreen(
+            groupName: widget.name,
+            groupDescription: 'Group description',
+            avatarUrl: widget.avatarUrl,
+            avatarAsset: widget.avatarAsset,
+            participants: [
+              GroupParticipant(name: widget.name, koraId: 'me', isAdmin: true),
+              GroupParticipant(name: 'Member', koraId: 'member1', isAdmin: false),
+            ],
+            createdAt: DateTime.now().subtract(const Duration(days: 1)),
+            chatId: widget.chatId,
+          ),
+        ),
+      );
+      return;
+    }
+
     // Default values from chat data
     String koraId = '';
     String username = '';

@@ -162,6 +162,7 @@ class ChatService {
         status: last != null && last.isMe ? last.status : MessageStatus.none,
         isVoiceLastMessage: isVoice,
         lastVoiceDuration: last?.voiceDuration,
+        isGroupChat: meta['isGroupChat'] as bool? ?? false,
       ));
     }
 

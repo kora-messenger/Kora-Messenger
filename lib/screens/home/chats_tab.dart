@@ -113,6 +113,7 @@ class _ChatsTabState extends State<ChatsTab> {
         avatarUrl: chat.avatarUrl,
         badge: chat.badge,
         isOnline: chat.isOnline,
+        isGroupChat: chat.isGroupChat,
         lastSeen: chat.isOnline ? null : 'last seen recently',
       ),
     );

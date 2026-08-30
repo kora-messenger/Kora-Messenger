@@ -361,6 +361,7 @@ class _NewGroupDetailsScreenState extends State<NewGroupDetailsScreen> {
         isOnline: false,
         lastMessageText: 'Group created',
         lastMessageType: 'system',
+        isGroupChat: true,
       );
     } catch (_) {
       // Best-effort sync — group still works locally.

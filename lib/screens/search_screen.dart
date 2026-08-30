@@ -88,6 +88,7 @@ class _SearchScreenState extends State<SearchScreen> {
     pushSlideUp(
       context,
       KoraChatScreen(
+        isGroupChat: false,
         chatId: chat.id,
         name: chat.name,
         avatarAsset: chat.avatarAsset,

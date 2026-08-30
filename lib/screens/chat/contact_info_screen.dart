@@ -230,6 +230,7 @@ class ContactInfoScreen extends StatelessWidget {
                 pushSlideUp(
                   context,
                   KoraChatScreen(
+        isGroupChat: false,
                     chatId: chatId,
                     name: name,
                     avatarUrl: avatarUrl,

@@ -48,6 +48,7 @@ class ChatPreview {
   final bool isPinned;
   final bool isArchived;
   final bool isOnline;
+  final bool isGroupChat;
   final bool isTyping;
 
   /// True when the last message in this conversation is a voice note.
@@ -78,6 +79,7 @@ class ChatPreview {
     this.isPinned = false,
     this.isArchived = false,
     this.isOnline = false,
+    this.isGroupChat = false,
     this.isTyping = false,
     this.isVoiceLastMessage = false,
     this.lastVoiceDuration,

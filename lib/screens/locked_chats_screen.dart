@@ -47,6 +47,7 @@ class _LockedChatsScreenState extends State<LockedChatsScreen> {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => KoraChatScreen(
+        isGroupChat: false,
           chatId: chat.id,
           name: chat.name,
           avatarAsset: chat.avatarAsset,

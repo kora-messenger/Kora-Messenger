@@ -72,6 +72,7 @@ class ConversationDirectoryService {
     String? recipientEmail,
     KoraBadgeType badge = KoraBadgeType.none,
     bool isOnline = false,
+    bool isGroupChat = false,
   }) async {
     await _ensureLoaded();
     final existing = _entries[chatId] ?? <String, dynamic>{};
@@ -86,6 +87,7 @@ class ConversationDirectoryService {
       'isPinned': existing?['isPinned'] as bool? ?? false,
       'isMuted': existing?['isMuted'] as bool? ?? false,
       'isArchived': existing?['isArchived'] as bool? ?? false,
+      'isGroupChat': isGroupChat || existing?['isGroupChat'] as bool? ?? false,
     };
     await _persist();
     _syncToCloud(chatId, _entries[chatId]!);

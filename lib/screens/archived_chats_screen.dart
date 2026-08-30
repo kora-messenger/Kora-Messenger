@@ -43,6 +43,7 @@ class _ArchivedChatsScreenState extends State<ArchivedChatsScreen> {
     pushSlideUp(
       context,
       KoraChatScreen(
+        isGroupChat: false,
         chatId: chat.id,
         name: chat.name,
         avatarAsset: chat.avatarAsset,

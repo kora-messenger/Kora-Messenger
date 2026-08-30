@@ -430,6 +430,7 @@ class _NewContactScreenState extends State<NewContactScreen> {
                 navigator.push(
                   SlideUpPageRoute(
                     builder: (_) => KoraChatScreen(
+        isGroupChat: false,
                       chatId: phoneNumber.isNotEmpty ? phoneNumber : (identifier.isNotEmpty ? identifier : label),
                       name: label,
                       badge: KoraBadgeType.none,
