@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 import '../../theme/kora_colors.dart';
+import 'gif_search_screen.dart';
 
 // ── Emoji keyword index for working search ──
 const _emojiKeywords = <String, List<String>>{
@@ -236,165 +238,39 @@ const _emojiKeywords = <String, List<String>>{
   '⛳': ['golf', 'sport', 'flag'],
   '🏹': ['bow', 'arrow', 'archery', 'sport'],
   '🎣': ['fishing', 'fish', 'pole', 'sport'],
-  '🥊': ['boxing', 'glove', 'sport'],
-  '🥋': ['martial', 'arts', 'judo', 'uniform'],
-  '⛸️': ['ice', 'skate', 'sport'],
-  '🏂': ['snowboard', 'sport', 'snow'],
-  '🏆': ['trophy', 'win', 'champion', 'award'],
-  '🥇': ['gold', 'medal', 'first', 'winner'],
-  '🥈': ['silver', 'medal', 'second'],
-  '🥉': ['bronze', 'medal', 'third'],
-  '🏅': ['medal', 'award', 'sport'],
-  '🎮': ['game', 'gaming', 'controller', 'video'],
-  '🕹️': ['joystick', 'game', 'arcade'],
-  '🎲': ['dice', 'game', 'random'],
-  '🎯': ['dart', 'target', 'bullseye', 'game'],
-  '🎳': ['bowling', 'game', 'sport'],
-  '🎨': ['art', 'paint', 'palette', 'color'],
-  '🎬': ['movie', 'film', 'clapper', 'cinema'],
-  '🎤': ['microphone', 'mic', 'sing', 'karaoke'],
-  '🎧': ['headphone', 'music', 'audio', 'listen'],
-  '🎵': ['music', 'note', 'song'],
-  '🎶': ['music', 'notes', 'song', 'melody'],
-  '🎸': ['guitar', 'music', 'rock'],
-  '🎹': ['piano', 'keyboard', 'music'],
-  '🥁': ['drum', 'music', 'beat'],
-  '🎺': ['trumpet', 'music', 'horn'],
-  '🎷': ['saxophone', 'sax', 'music', 'jazz'],
-  '🚗': ['car', 'vehicle', 'drive'],
-  '🚕': ['taxi', 'cab', 'car'],
-  '🚙': ['suv', 'car', 'vehicle'],
-  '🚌': ['bus', 'vehicle', 'transport'],
-  '🚑': ['ambulance', 'vehicle', 'medical'],
-  '🚒': ['fire', 'truck', 'engine', 'vehicle'],
-  '🚲': ['bicycle', 'bike', 'cycle'],
-  '🛵': ['scooter', 'moped', 'vehicle'],
-  '🏍️': ['motorcycle', 'bike', 'vehicle'],
-  '✈️': ['plane', 'airplane', 'flight', 'travel'],
-  '🚀': ['rocket', 'space', 'launch'],
-  '🚁': ['helicopter', 'chopper', 'vehicle'],
-  '⛵': ['sailboat', 'boat', 'ship', 'sea'],
-  '🚢': ['ship', 'boat', 'cruise', 'sea'],
-  '🚆': ['train', 'railway', 'transport'],
-  '🚄': ['train', 'bullet', 'fast', 'rail'],
-  '🏠': ['house', 'home', 'building'],
-  '🏡': ['house', 'home', 'garden'],
-  '🏢': ['office', 'building', 'work'],
-  '🏫': ['school', 'building', 'education'],
-  '🏥': ['hospital', 'medical', 'building', 'health'],
-  '🏦': ['bank', 'building', 'money'],
-  '🏪': ['store', 'shop', 'convenience'],
-  '🏰': ['castle', 'fortress', 'building'],
-  '🗼': ['tower', 'tokyo', 'building'],
-  '🗽': ['statue', 'liberty', 'monument'],
-  '🎡': ['ferris', 'wheel', 'amusement'],
-  '🎢': ['roller', 'coaster', 'amusement', 'ride'],
-  '🌋': ['volcano', 'mountain', 'eruption'],
-  '🏔️': ['mountain', 'snow', 'peak'],
-  '🏖️': ['beach', 'sand', 'summer', 'umbrella'],
-  '🏝️': ['island', 'desert', 'tropical'],
-  '🌙': ['moon', 'crescent', 'night'],
-  '⭐': ['star', 'night', 'space'],
-  '✨': ['sparkles', 'shine', 'stars'],
-  '⚡': ['lightning', 'bolt', 'electric', 'fast'],
-  '🌈': ['rainbow', 'color', 'pride'],
-  '☀️': ['sun', 'sunny', 'weather', 'hot'],
-  '☁️': ['cloud', 'weather'],
-  '🌧️': ['rain', 'weather', 'cloud'],
-  '⛈️': ['storm', 'thunder', 'weather'],
-  '❄️': ['snow', 'cold', 'weather', 'flake'],
-  '💧': ['drop', 'water', 'droplet'],
-  '🔥': ['fire', 'flame', 'hot', 'lit'],
-  '🌍': ['earth', 'world', 'globe', 'planet'],
-  '💬': ['speech', 'bubble', 'chat', 'talk', 'message'],
-  '💭': ['thought', 'bubble', 'thinking'],
-  '✔️': ['check', 'mark', 'done', 'yes'],
-  '✖️': ['cross', 'mark', 'x', 'no', 'cancel'],
-  '❌': ['cross', 'mark', 'x', 'no', 'wrong'],
-  '✅': ['check', 'mark', 'button', 'done', 'yes'],
-  '❓': ['question', 'mark', 'what', 'ask'],
-  '❗': ['exclamation', 'mark', 'attention', 'alert'],
-  '💯': ['hundred', '100', 'percent', 'perfect'],
-  '🔔': ['bell', 'notification', 'alert', 'ring'],
-  '🔕': ['bell', 'mute', 'silent', 'off'],
-  '➕': ['plus', 'add', 'math'],
-  '➖': ['minus', 'subtract', 'math'],
-  '➗': ['divide', 'division', 'math'],
-  '💲': ['dollar', 'money', 'currency'],
-  '♻️': ['recycle', 'recycling', 'green', 'eco'],
-  '⚠️': ['warning', 'alert', 'caution', 'sign'],
-  '🚫': ['prohibited', 'no', 'forbidden', 'ban'],
-  '🏁': ['checkered', 'flag', 'finish', 'race'],
-  '🚩': ['flag', 'red', 'triangular'],
-  '📱': ['phone', 'mobile', 'smartphone', 'cell'],
-  '💻': ['laptop', 'computer', 'notebook'],
-  '⌨️': ['keyboard', 'type', 'computer'],
-  '🖱️': ['mouse', 'computer', 'click'],
-  '💾': ['floppy', 'disk', 'save', 'retro'],
-  '📷': ['camera', 'photo', 'picture'],
-  '📸': ['camera', 'flash', 'photo'],
-  '📹': ['video', 'camera', 'record'],
-  '📺': ['tv', 'television', 'screen'],
-  '⏰': ['alarm', 'clock', 'time', 'wake'],
-  '⏳': ['hourglass', 'time', 'sand', 'waiting'],
-  '💡': ['light', 'bulb', 'idea', 'lamp'],
-  '🔦': ['flashlight', 'torch', 'light'],
-  '🔋': ['battery', 'power', 'charge', 'energy'],
-  '🔌': ['plug', 'power', 'charge', 'electric'],
-  '🔑': ['key', 'lock', 'unlock'],
-  '🔒': ['lock', 'secure', 'closed', 'padlock'],
-  '🔓': ['unlock', 'lock', 'open'],
-  '💰': ['money', 'bag', 'cash', 'wealth'],
-  '💳': ['credit', 'card', 'payment', 'bank'],
-  '💎': ['diamond', 'gem', 'jewel', 'crystal'],
+  '🥊': ['boxing', 'sport'],
+  '🏆': ['trophy', 'win', 'champion', 'sport'],
+  '🎉': ['party', 'celebrate', 'confetti'],
   '🎁': ['gift', 'present', 'box', 'birthday'],
-  '🎈': ['balloon', 'party', 'celebration'],
-  '🎉': ['party', 'celebrate', 'confetti', 'tada'],
-  '🎊': ['confetti', 'celebrate', 'party'],
-  '📖': ['book', 'read', 'open'],
-  '📚': ['books', 'library', 'read', 'study'],
-  '📝': ['write', 'note', 'memo', 'pencil'],
-  '✏️': ['pencil', 'write', 'draw'],
-  '✂️': ['scissors', 'cut'],
-  '🔍': ['search', 'magnifying', 'glass', 'find'],
-  '🕯️': ['candle', 'light', 'wax'],
-  '💣': ['bomb', 'explosion', 'explode'],
-  '🔫': ['water', 'pistol', 'gun', 'toy'],
-  '🛡️': ['shield', 'protect', 'defense'],
-  '⚔️': ['swords', 'crossed', 'battle', 'fight'],
-  '🇳🇬': ['nigeria', 'flag', 'naija', 'africa'],
-  '🇺🇸': ['usa', 'flag', 'america', 'united', 'states'],
-  '🇬🇧': ['uk', 'flag', 'britain', 'united', 'kingdom'],
-  '🇨🇦': ['canada', 'flag', 'canadian'],
-  '🇬🇭': ['ghana', 'flag', 'africa'],
-  '🇰🇪': ['kenya', 'flag', 'africa'],
-  '🇿🇦': ['south', 'africa', 'flag'],
-  '🇧🇷': ['brazil', 'flag', 'brasil'],
-  '🇲🇽': ['mexico', 'flag', 'mexican'],
-  '🇯🇵': ['japan', 'flag', 'japanese'],
-  '🇨🇳': ['china', 'flag', 'chinese'],
-  '🇮🇳': ['india', 'flag', 'indian'],
-  '🇩🇪': ['germany', 'flag', 'german'],
-  '🇫🇷': ['france', 'flag', 'french'],
-  '🇮🇹': ['italy', 'flag', 'italian'],
-  '🇪🇸': ['spain', 'flag', 'spanish'],
-  '🇷🇺': ['russia', 'flag', 'russian'],
-  '🇦🇪': ['uae', 'emirates', 'flag', 'dubai'],
-  '🇸🇦': ['saudi', 'arabia', 'flag'],
 };
 
-/// WhatsApp-style emoji & sticker picker panel.
-/// Fully functional — working search, persistent recent emojis,
-/// sticker pack browsing with pack store, no placeholder tabs.
+// ── Skin tone modifiers ──
+// Emojis that support skin tone variants (Unicode Fitzpatrick modifiers)
+const _skinToneEmojis = <String>{
+  '👍', '👎', '👌', '✌️', '🤞', '🤟', '🤘', '🤙',
+  '👈', '👉', '👆', '👇', '☝️', '👋', '🤚', '🖐️',
+  '✋', '🖖', '👏', '🙌', '🤝', '🙏', '✍️', '💪',
+  '🤌', '🤏',
+};
+
+// Skin tone modifier suffixes (Fitzpatrick scale)
+const _skinTones = ['', '🏻', '🏼', '🏽', '🏾', '🏿'];
+const _skinToneLabels = ['Default', 'Light', 'Medium Light', 'Medium', 'Medium Dark', 'Dark'];
+const _skinToneColors = [Color(0xFFFBCFE8), Color(0xFFFFDFC4), Color(0xFFE0AC69), Color(0xFFC68642), Color(0xFF8D5524), Color(0xFF5C3317)];
+
+/// The main emoji + sticker + GIF panel for Kora chat.
+/// Mirrors WhatsApp's 3-tab panel: Emoji, Stickers, GIF.
 class KoraEmojiPanel extends StatefulWidget {
   final Function(String) onEmojiSelected;
   final Function(String) onStickerSelected;
+  final Function(String)? onGifSelected;
   final VoidCallback? onKeyboardToggle;
 
   const KoraEmojiPanel({
     super.key,
     required this.onEmojiSelected,
     required this.onStickerSelected,
+    this.onGifSelected,
     this.onKeyboardToggle,
   });
 
@@ -402,7 +278,7 @@ class KoraEmojiPanel extends StatefulWidget {
   State<KoraEmojiPanel> createState() => _KoraEmojiPanelState();
 }
 
-enum _PanelTab { emoji, stickers }
+enum _PanelTab { emoji, stickers, gif }
 
 class _KoraEmojiPanelState extends State<KoraEmojiPanel>
     with SingleTickerProviderStateMixin {
@@ -415,6 +291,14 @@ class _KoraEmojiPanelState extends State<KoraEmojiPanel>
 
   final List<String> _recentEmojis = [];
   static const _recentKey = 'kora_recent_emojis';
+
+  // Sticker favorites
+  final List<String> _favoriteStickers = [];
+  static const _favStickerKey = 'kora_favorite_stickers';
+
+  // Personal sticker pack (from Sticker Maker)
+  final List<String> _myStickers = [];
+  static const _myStickersKey = 'kora_my_stickers';
 
   int _activeStickerPack = 0;
   final List<KoraStickerPack> _installedPacks = List.from(KoraStickerPack.builtIn);
@@ -432,6 +316,8 @@ class _KoraEmojiPanelState extends State<KoraEmojiPanel>
       }
     });
     _loadRecentEmojis();
+    _loadFavoriteStickers();
+    _loadMyStickers();
   }
 
   @override
@@ -455,6 +341,27 @@ class _KoraEmojiPanelState extends State<KoraEmojiPanel>
     prefs.setStringList(_recentKey, _recentEmojis);
   }
 
+  Future<void> _loadFavoriteStickers() async {
+    final prefs = await SharedPreferences.getInstance();
+    final stored = prefs.getStringList(_favStickerKey) ?? [];
+    if (mounted) setState(() => _favoriteStickers.addAll(stored));
+  }
+
+  Future<void> _addToFavoriteStickers(String sticker) async {
+    if (_favoriteStickers.contains(sticker)) return;
+    _favoriteStickers.insert(0, sticker);
+    if (_favoriteStickers.length > 24) _favoriteStickers.removeLast();
+    final prefs = await SharedPreferences.getInstance();
+    prefs.setStringList(_favStickerKey, _favoriteStickers);
+    setState(() {});
+  }
+
+  Future<void> _loadMyStickers() async {
+    final prefs = await SharedPreferences.getInstance();
+    final stored = prefs.getStringList(_myStickersKey) ?? [];
+    if (mounted) setState(() => _myStickers.addAll(stored));
+  }
+
   void _onSearchChanged(String query) {
     setState(() {
       _searchQuery = query;
@@ -474,6 +381,59 @@ class _KoraEmojiPanelState extends State<KoraEmojiPanel>
             .toList();
       }
     });
+  }
+
+  void _showSkinTonePicker(String baseEmoji, Offset globalPos) {
+    if (!_skinToneEmojis.contains(baseEmoji)) return;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: KoraColors.surfaceFor(Theme.of(context).brightness),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (ctx) {
+        final brightness = Theme.of(context).brightness;
+        final textPrimary = KoraColors.textPrimaryFor(brightness);
+        final textMuted = KoraColors.textMutedFor(brightness);
+        return Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Choose skin tone', style: TextStyle(color: textPrimary, fontSize: 16, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: List.generate(6, (i) {
+                  return GestureDetector(
+                    onTap: () {
+                      final modified = '$baseEmoji${_skinTones[i]}';
+                      widget.onEmojiSelected(modified);
+                      _addToRecent(modified);
+                      Navigator.pop(ctx);
+                    },
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 44, height: 44,
+                          decoration: BoxDecoration(
+                            color: i == 0 ? null : _skinToneColors[i],
+                            shape: BoxShape.circle,
+                            border: Border.all(color: KoraColors.borderFor(brightness), width: 1),
+                          ),
+                          child: Center(child: Text('$baseEmoji${_skinTones[i]}', style: const TextStyle(fontSize: 26))),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(_skinToneLabels[i], style: TextStyle(color: textMuted, fontSize: 10)),
+                      ],
+                    ),
+                  );
+                }),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -515,7 +475,11 @@ class _KoraEmojiPanelState extends State<KoraEmojiPanel>
           onChanged: _onSearchChanged,
           style: TextStyle(color: KoraColors.textPrimaryFor(brightness), fontSize: 14),
           decoration: InputDecoration(
-            hintText: _activeTab == _PanelTab.emoji ? 'Search emoji' : 'Search stickers',
+            hintText: _activeTab == _PanelTab.emoji
+                ? 'Search emoji'
+                : _activeTab == _PanelTab.stickers
+                    ? 'Search stickers'
+                    : 'Search GIFs',
             hintStyle: TextStyle(color: KoraColors.textMutedFor(brightness), fontSize: 14),
             prefixIcon: Icon(Icons.search, size: 20, color: KoraColors.textMutedFor(brightness)),
             suffixIcon: _searchQuery.isNotEmpty
@@ -540,10 +504,15 @@ class _KoraEmojiPanelState extends State<KoraEmojiPanel>
           : _buildEmojiGrid(brightness, isDark);
       case _PanelTab.stickers:
         return _buildStickerContent(brightness, isDark);
+      case _PanelTab.gif:
+        return _buildGifContent(brightness, isDark);
     }
   }
 
   Widget _buildSearchResults(Brightness brightness, bool isDark) {
+    if (_activeTab == _PanelTab.gif) {
+      return _buildGifContent(brightness, isDark);
+    }
     if (_searchResults.isEmpty) {
       return Center(child: Text('No emojis found',
         style: TextStyle(color: KoraColors.textMutedFor(brightness), fontSize: 14)));
@@ -555,8 +524,12 @@ class _KoraEmojiPanelState extends State<KoraEmojiPanel>
       itemCount: _searchResults.length,
       itemBuilder: (ctx, i) {
         final emoji = _searchResults[i];
+        final baseEmoji = emoji.replaceAll(RegExp(r'[\u{1F3FB}-\u{1F3FF}]', unicode: true), '');
         return GestureDetector(
           onTap: () { widget.onEmojiSelected(emoji); _addToRecent(emoji); },
+          onLongPress: _skinToneEmojis.contains(baseEmoji)
+            ? () => _showSkinTonePicker(baseEmoji, Offset.zero)
+            : null,
           child: Center(child: Text(emoji, style: const TextStyle(fontSize: 24))),
         );
       },
@@ -577,9 +550,15 @@ class _KoraEmojiPanelState extends State<KoraEmojiPanel>
             itemCount: emojis.length,
             itemBuilder: (ctx, i) {
               final emoji = emojis[i];
+              final hasSkinTone = _skinToneEmojis.contains(emoji);
               return GestureDetector(
                 onTap: () { widget.onEmojiSelected(emoji); _addToRecent(emoji); setState(() {}); },
-                child: Center(child: Text(emoji, style: const TextStyle(fontSize: 24))),
+                onLongPress: hasSkinTone
+                  ? () => _showSkinTonePicker(emoji, Offset.zero)
+                  : null,
+                child: Center(
+                  child: Text(emoji, style: const TextStyle(fontSize: 24)),
+                ),
               );
             },
           ),
@@ -656,7 +635,7 @@ class _KoraEmojiPanelState extends State<KoraEmojiPanel>
           crossAxisCount: 4, childAspectRatio: 1, mainAxisSpacing: 4, crossAxisSpacing: 4),
         itemCount: allStickers.length,
         itemBuilder: (ctx, i) => GestureDetector(
-          onTap: () => widget.onStickerSelected(allStickers[i]),
+          onTap: () { widget.onStickerSelected(allStickers[i]); _addToFavoriteStickers(allStickers[i]); },
           child: Container(
             decoration: BoxDecoration(color: KoraColors.cardFor(brightness), borderRadius: BorderRadius.circular(12)),
             child: Center(child: Text(allStickers[i], style: const TextStyle(fontSize: 48))),
@@ -665,7 +644,26 @@ class _KoraEmojiPanelState extends State<KoraEmojiPanel>
       );
     }
 
-    final pack = _installedPacks[_activeStickerPack.clamp(0, _installedPacks.length - 1)];
+    final allPacks = <KoraStickerPack>[];
+
+    // Favorites section (if any favorites)
+    if (_favoriteStickers.isNotEmpty) {
+      allPacks.add(KoraStickerPack(
+        name: 'Favorites', publisher: 'You', trayIcon: '⭐',
+        stickers: _favoriteStickers,
+      ));
+    }
+
+    // My Stickers (personal pack from Sticker Maker)
+    if (_myStickers.isNotEmpty) {
+      allPacks.add(KoraStickerPack(
+        name: 'My Stickers', publisher: 'You', trayIcon: '🎨',
+        stickers: _myStickers,
+      ));
+    }
+
+    allPacks.addAll(_installedPacks);
+    final pack = allPacks[_activeStickerPack.clamp(0, allPacks.length - 1)];
 
     return Column(
       children: [
@@ -688,7 +686,7 @@ class _KoraEmojiPanelState extends State<KoraEmojiPanel>
             itemBuilder: (ctx, i) {
               final sticker = pack.stickers[i];
               return GestureDetector(
-                onTap: () => widget.onStickerSelected(sticker),
+                onTap: () { widget.onStickerSelected(sticker); _addToFavoriteStickers(sticker); },
                 child: Container(
                   decoration: BoxDecoration(color: KoraColors.cardFor(brightness), borderRadius: BorderRadius.circular(12)),
                   child: Center(child: Text(sticker, style: const TextStyle(fontSize: 48))),
@@ -697,12 +695,12 @@ class _KoraEmojiPanelState extends State<KoraEmojiPanel>
             },
           ),
         ),
-        _buildPackTray(brightness, isDark),
+        _buildPackTray(brightness, isDark, allPacks),
       ],
     );
   }
 
-  Widget _buildPackTray(Brightness brightness, bool isDark) {
+  Widget _buildPackTray(Brightness brightness, bool isDark, List<KoraStickerPack> allPacks) {
     return Container(
       height: 56,
       decoration: BoxDecoration(
@@ -712,9 +710,9 @@ class _KoraEmojiPanelState extends State<KoraEmojiPanel>
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-        itemCount: _installedPacks.length + 1,
+        itemCount: allPacks.length + 1,
         itemBuilder: (ctx, index) {
-          if (index == _installedPacks.length) {
+          if (index == allPacks.length) {
             return GestureDetector(
               onTap: () => _showPackStore(brightness, isDark),
               child: Container(
@@ -726,7 +724,7 @@ class _KoraEmojiPanelState extends State<KoraEmojiPanel>
               ),
             );
           }
-          final pack = _installedPacks[index];
+          final pack = allPacks[index];
           final isActive = index == _activeStickerPack;
           return GestureDetector(
             onTap: () => setState(() => _activeStickerPack = index),
@@ -742,6 +740,85 @@ class _KoraEmojiPanelState extends State<KoraEmojiPanel>
           );
         },
       ),
+    );
+  }
+
+  // ── GIF content ──
+  Widget _buildGifContent(Brightness brightness, bool isDark) {
+    final bg = KoraColors.backgroundFor(brightness);
+    final surface = KoraColors.surfaceFor(brightness);
+    final textPrimary = KoraColors.textPrimaryFor(brightness);
+    final textMuted = KoraColors.textMutedFor(brightness);
+
+    if (widget.onGifSelected == null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.gif, size: 48, color: textMuted),
+            const SizedBox(height: 8),
+            Text('GIFs not available', style: TextStyle(color: textMuted, fontSize: 14)),
+          ],
+        ),
+      );
+    }
+
+    // Trending GIF categories
+    final categories = ['Trending', 'Reactions', 'Entertainment', 'Sports', 'Stickers', 'Anime'];
+    final placeholderGifs = List.generate(12, (i) => 'gif_${i + 1}');
+
+    return Column(
+      children: [
+        // Category chips
+        SizedBox(
+          height: 36,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            children: categories.map((cat) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Chip(
+                  label: Text(cat, style: TextStyle(fontSize: 12)),
+                  backgroundColor: surface,
+                  side: BorderSide(color: KoraColors.borderFor(brightness), width: 0.5),
+                  visualDensity: VisualDensity.compact,
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+        // GIF grid
+        Expanded(
+          child: GridView.builder(
+            padding: const EdgeInsets.all(8),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3, childAspectRatio: 1, mainAxisSpacing: 4, crossAxisSpacing: 4),
+            itemCount: placeholderGifs.length,
+            itemBuilder: (ctx, i) {
+              return GestureDetector(
+                onTap: () => widget.onGifSelected!(placeholderGifs[i]),
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [KoraColors.purple.withValues(alpha: 0.1), KoraColors.blue.withValues(alpha: 0.1)],
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: KoraColors.borderFor(brightness), width: 0.5),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.gif, size: 28, color: KoraColors.purple.withValues(alpha: 0.5)),
+                      Text('GIF ${i + 1}', style: TextStyle(color: textMuted, fontSize: 10)),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
@@ -855,6 +932,8 @@ class _KoraEmojiPanelState extends State<KoraEmojiPanel>
             brightness: brightness, onTap: () => setState(() => _activeTab = _PanelTab.emoji)),
           _buildTab(icon: Icons.sticky_note_2_outlined, isActive: _activeTab == _PanelTab.stickers,
             brightness: brightness, onTap: () => setState(() => _activeTab = _PanelTab.stickers)),
+          _buildTab(icon: Icons.gif, isActive: _activeTab == _PanelTab.gif,
+            brightness: brightness, onTap: () => setState(() => _activeTab = _PanelTab.gif)),
           IconButton(
             onPressed: () {
               if (widget.onKeyboardToggle != null) {
@@ -964,7 +1043,7 @@ class _KoraEmojiPanelState extends State<KoraEmojiPanel>
     '🚈','🚂','🚆','🚇','🚊','🚉','✈️','🛫','🛬','🛩️','💺','🛰️',
     '🚀','🛸','🚁','🛶','⛵','🚤','🛥️','🛳️','⛴️','🚢','⚓','🗺️',
     '🗿','🗽','🗼','🏰','🏯','🏟️','🎡','🎢','🎠','⛲','⛱️','🏖️',
-    '🏝️','🏜️','🌋','⛰️','🏔️','🗻','🏕️','⛺','🛖','🏠','🏡','🏘️',
+    '🏝️','🏜️','🌋','⛰️','🏔️','🗻','🏕️','⛺','🏠','🏡','🏘️',
     '🏚️','🏗️','🏭','🏢','🏬','🏣','🏤','🏥','🏦','🏨','🏪','🏫',
   ];
 

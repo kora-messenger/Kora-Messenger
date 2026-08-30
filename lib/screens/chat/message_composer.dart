@@ -42,6 +42,7 @@ import 'language_picker_screen.dart';
 class MessageComposer extends StatefulWidget {
   final Function(String) onSend;
   final Function(String)? onSendSticker;
+  final Function(String)? onSendGif;
   final Function(
     String duration, {
     String? filePath,
@@ -60,6 +61,7 @@ class MessageComposer extends StatefulWidget {
     super.key,
     required this.onSend,
     this.onSendSticker,
+    this.onSendGif,
     required this.onSendVoice,
     this.onAttachment,
     this.onAiWriting,
@@ -1192,6 +1194,10 @@ class _MessageComposerState extends State<MessageComposer>
               }
               setState(() => _showEmojiPanel = false);
             },
+            onGifSelected: widget.onSendGif != null ? (gif) {
+              widget.onSendGif!(gif);
+              setState(() => _showEmojiPanel = false);
+            } : null,
           ),
           ],
         ),

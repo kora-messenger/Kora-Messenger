@@ -1,81 +1,34 @@
 import 'package:flutter/material.dart';
 import '../../theme/kora_colors.dart';
+import 'emoji_sticker_panel.dart';
 
+/// EmojiPickerSheet — thin wrapper that shows the full KoraEmojiPanel
+/// in a bottom sheet. Used by screens that only need emoji selection
+/// (not stickers/GIFs).
+///
+/// This replaces the old basic emoji picker with the full-featured
+/// panel including search, skin tones, and recent emojis.
 class EmojiPickerSheet extends StatefulWidget {
-  const EmojiPickerSheet({super.key});
+  final Function(String)? onEmojiSelected;
+
+  const EmojiPickerSheet({super.key, this.onEmojiSelected});
+
   @override
   State<EmojiPickerSheet> createState() => _EmojiPickerSheetState();
 }
 
-class _EmojiPickerSheetState extends State<EmojiPickerSheet>
-    with TickerProviderStateMixin {
-  late TabController _tabController;
-
-  static const _categories = [
-    ('Smileys', '😀😁😂🤣😃😄😅😆😉😊😋😎😍😘🥰😗😙😚🙂🤗🤩🤔🤨😐😑😶🙄😏😣😥😮🤐😯😪😫🥱😴😌😛😜😝🤤😒😓😔😕🙁😖😞😟😤😢😭😦😧😨😩🤯😬😰😱🥵🥶😡😠🤬😈👿💀💩🤡'),
-    ('Animals', '🐶🐱🐭🐹🐰🦊🐻🐼🐨🐯🦁🐮🐷🐽🐸🐵🐔🐧🐦🐤🐣🐥🦆🦅🦉🦇🐺🐗🐴🦄🐝🐛🦋🐌🐞🐜🦟🦗🕷🦂🐢🐍🦎🦖🦕🐙🦑🦐🦞🦀🐡🐠🐟🐬🐳🐋🦈🐊🐅🐆🦓🦍🦧'),
-    ('Food', '🍏🍎🍐🍊🍋🍌🍉🍇🍓🫐🍈🍒🍑🥭🍍🥥🥝🍅🍆🥑🥦🥬🥒🌶🫑🌽🥕🧄🧅🥔🍠🥐🥯🍞🥖🥨🧀🥚🍳🧈🥞🧇🥓🥩🍗🍖🦴🌭🍔🍟🍕🥪🥙🧆🌮🌯🥗🥘🥫🍝🍜🍲🍛🍣🍱🥟🦪🍤🍙🍚🍘🍥🥠'),
-    ('Activities', '⚽🏀🏈⚾🥎🎾🏐🏉🥏🎱🪀🏓🏸🏒🏑🥍🏏🥅⛳🪁🏹🎣🤿🥊🥋🎽🛹🛼🛷⛸🥌🎿⛷🏂🪂🏋️🤼🤸⛹️🤺🤾🏌️🏇🧘🏄🏊🤽🚣🧗🚵🚴🏆🥇🥈🥉🏅🎖🏵🎗🎫🎟🎪🤹🎭🩰🎨🎬🎤🎧🎼🎹🥁'),
-    ('Travel', '🚗🚕🚙🚌🚎🏎🚓🚑🚒🚐🚚🚛🚜🦯🛵🏍🛺🚲🛴🛼🚏🛣🛢🚨🚥🚦🛑⚓⛵🛶🚤🛳⛴🛥🚢✈️🛩🛫🛬🪂💺🚁🚟🚠🚡🛰🚀🛸🛎🧳⌚📱📲💻⌨️🖥🖨🖱🖲🕹🗜💽💾💿📀📼📷📸📹🎥📽🎞📞☎️📟📠📺📻'),
-    ('Objects', '💡🔦🕯🪔🧯🛢💸💵💴💶💷🪙💰💳💎⚖️🪜🧰🪛🔧🔨⚒🛠⛏🪚🔩⚙️🪤🧱⛓🧲🔫💣🧨🪓🔪🗡⚔️🛡🚬⚰️🪦⚱️🏺🔮📿🧿💈⚗️🔭🔬🕳🩹🩺💊💉🩸🧬🦠🧫🧪🌡🧹🧺🧻🚽🚰🚿🛁🛀🧼🪒🧽🪣🧴🛎🔑🗝🚪🪑🛋🛏🛌🧸🖼🪆🪞🪟🛍🛒🎁🎈🎏🎀🪄🪅🎊🎉🎎🏮🎐🧧✉️'),
-    ('Symbols', '♥️♦️♠️♣️🃏🎴🀄🕐🕑🕒🕓🕔🕕🕖🕗🕘🕙🕚🕛🕜🕝🕞🕟🕠🕡🕢🕣🕤🕥🕦🕧🏳️🏴🏴‍☠️🏁🚩🏳️‍🌈🏳️‍⚧️🏴‍☠️©️®️™️〽️ℹ️🔤🔡🔠🅰️🆎🆑🅾️🆔🅿️🆖🆗🆙🆒🆕🆓0️⃣1️⃣2️⃣3️⃣4️⃣5️⃣6️⃣7️⃣8️⃣9️⃣🔟🔢#️⃣*️⃣⏏️▶️⏸️⏯️⏹️⏺️⏭️⏮️⏩⏪⏫⏬◀️🔼🔽➡️⬅️⬆️⬇️↗️↘️↙️↖️↕️↔️↪️↩️⤴️⤵️🔀🔁🔂🔄🔃🎵🎶➕➖➗✖️♾💲💱™️©️®️〰️➰➿🔚🔙🔛🔝🔜✔️☑️🔘🔴🟠🟡🟢🔵🟣⚫️⚪️🟤🔺🔻🔸🔹🔶🔷🔳🔲▪️▫️◾️◽️◼️◻️🟥🟧🟨🟩🟦🟪⬛️⬜️🟫'),
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: _categories.length, vsync: this);
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
+class _EmojiPickerSheetState extends State<EmojiPickerSheet> {
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 280,
-      decoration: BoxDecoration(
-        color: KoraColors.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: Column(
-        children: [
-          TabBar(
-            controller: _tabController,
-            isScrollable: true,
-            
-            labelColor: Colors.white,
-            unselectedLabelColor: KoraColors.textMuted,
-            indicatorColor: KoraColors.purple,
-            tabs: _categories.map((c) => Tab(text: c.$1)).toList(),
-          ),
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: _categories.map((c) {
-                final emojis = c.$2.split('');
-                return GridView.builder(
-                  padding: const EdgeInsets.all(8),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 8,
-                    childAspectRatio: 1,
-                  ),
-                  itemCount: emojis.length,
-                  itemBuilder: (ctx, i) => GestureDetector(
-                    onTap: () => Navigator.pop(context, emojis[i]),
-                    child: Center(
-                      child: Text(emojis[i], style: const TextStyle(fontSize: 24)),
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-        ],
-      ),
+    return KoraEmojiPanel(
+      onEmojiSelected: (emoji) {
+        if (widget.onEmojiSelected != null) {
+          widget.onEmojiSelected!(emoji);
+        } else {
+          Navigator.pop(context, emoji);
+        }
+      },
+      onStickerSelected: (_) {},
     );
   }
 }

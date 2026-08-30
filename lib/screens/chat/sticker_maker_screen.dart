@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../theme/kora_colors.dart';
 
 /// Sticker Maker screen — create custom stickers from photos.
@@ -7,8 +9,8 @@ import '../../theme/kora_colors.dart';
 /// Lets users:
 /// - Select a photo
 /// - Auto-remove background (magic eraser)
-/// - Add text overlay
-/// - Export as WebP sticker
+/// - Add text overlay with color
+/// - Export to personal "My Stickers" pack
 class StickerMakerScreen extends StatefulWidget {
   final String imagePath;
 
@@ -22,6 +24,7 @@ class _StickerMakerScreenState extends State<StickerMakerScreen> {
   bool _bgRemoved = false;
   String? _textOverlay;
   Color _textColor = Colors.white;
+  bool _saved = false;
 
   @override
   Widget build(BuildContext context) {
@@ -37,8 +40,8 @@ class _StickerMakerScreenState extends State<StickerMakerScreen> {
         title: const Text('Sticker Maker', style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w600)),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, {'path': widget.imagePath, 'bgRemoved': _bgRemoved, 'text': _textOverlay}),
-            child: Text('Done', style: TextStyle(color: KoraColors.purple, fontSize: 15, fontWeight: FontWeight.w600)),
+            onPressed: _saveSticker,
+            child: Text(_saved ? 'Saved!' : 'Save', style: TextStyle(color: _saved ? Colors.green : KoraColors.purple, fontSize: 15, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -68,7 +71,7 @@ class _StickerMakerScreenState extends State<StickerMakerScreen> {
                       width: 240, height: 240,
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(12),
-                        background: const LinearGradient(
+                        gradient: const LinearGradient(
                           colors: [Color(0x33CCCCCC), Color(0x33FFFFFF)],
                         ),
                       ),
@@ -177,5 +180,38 @@ class _StickerMakerScreenState extends State<StickerMakerScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _saveSticker() async {
+    // Save sticker to personal "My Stickers" pack
+    final prefs = await SharedPreferences.getInstance();
+    final myStickers = prefs.getStringList('kora_my_stickers') ?? [];
+
+    final stickerData = jsonEncode({
+      'path': widget.imagePath,
+      'bgRemoved': _bgRemoved,
+      'text': _textOverlay,
+      'textColor': _textColor.value,
+      'created': DateTime.now().millisecondsSinceEpoch,
+    });
+    myStickers.insert(0, stickerData);
+    if (myStickers.length > 30) myStickers.removeLast();
+    await prefs.setStringList('kora_my_stickers', myStickers);
+
+    setState(() => _saved = true);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Sticker saved to My Stickers pack'),
+          backgroundColor: KoraColors.purple,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+
+    await Future.delayed(const Duration(milliseconds: 800));
+    if (mounted) Navigator.pop(context, stickerData);
   }
 }
