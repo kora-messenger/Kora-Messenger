@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../theme/kora_colors.dart';
+import '../../config/kora_api.dart';
 import '../../widgets/kora_avatar.dart';
 import '../../widgets/kora_badge.dart';
 import '../../models/chat_models.dart';
@@ -19,7 +20,7 @@ import '../settings/business_tools_screen.dart';
 import '../settings/future_features_screen.dart';
 import '../settings/premium_subscribe_sheet.dart';
 import '../settings/billing_screen.dart';
-import '../config/subscription_pricing.dart';
+import '../../config/subscription_pricing.dart';
 import '../settings/storage_data_screen.dart';
 import '../settings/app_language_screen.dart';
 import '../ai/kora_support_screen.dart';
@@ -359,8 +360,8 @@ class _ProfileTabState extends State<ProfileTab> {
   }
 
   void _inviteFriend() {
-    const inviteText = 'Hey! I\'m using Kora Messenger — a secure, AI-powered messaging app. '
-        'Download it and let\'s chat! https://app.base44.com/superagent/6a8225cb1baabb64463874c8';
+    final inviteText = 'Hey! I\'m using Kora Messenger — a secure, AI-powered messaging app. '
+        'Download it and let\'s chat! ${KoraApi.inviteDownloadUrl}';
     Share.share(inviteText, subject: 'Kora Messenger');
   }
 
