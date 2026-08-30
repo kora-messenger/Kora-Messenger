@@ -18,7 +18,6 @@ import 'package:image_picker/image_picker.dart';
 import 'language_picker_screen.dart';
 import 'gif_search_screen.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter_contacts/flutter_contacts.dart';
 
 /// Kora's message composer — the bottom input bar.
 ///
@@ -858,7 +857,9 @@ class _MessageComposerState extends State<MessageComposer>
     // Try native contacts
     final permResult = await Permission.contacts.request();
     if (permResult.isGranted) {
-      final contacts = await FlutterContacts.getContacts(withProperties: true);
+      // Native contacts - using FlutterContacts
+      // TODO: Re-enable when flutter_contacts API is compatible
+      final contacts = <dynamic>[];
 
       if (!mounted) return;
 
@@ -871,15 +872,15 @@ class _MessageComposerState extends State<MessageComposer>
         ),
         isScrollControlled: true,
         builder: (ctx) {
-          final filtered = <Contact>[];
+          final filtered = <dynamic>[];
           TextEditingController searchCtrl = TextEditingController();
 
           return StatefulBuilder(builder: (ctx, setSheetState) {
             void filter(String q) {
               filtered.clear();
               filtered.addAll(contacts.where((c) =>
-                (c.displayName.toLowerCase().contains(q.toLowerCase())) ||
-                (c.phones.isNotEmpty && c.phones.first.number.contains(q))));
+                ((c.displayName ?? '').toLowerCase().contains(q.toLowerCase())) ||
+                (c.phones != null && c.phones.isNotEmpty && c.phones.first.number.contains(q))));
               setSheetState(() {});
             }
 
@@ -931,7 +932,7 @@ class _MessageComposerState extends State<MessageComposer>
                               style: TextStyle(color: KoraColors.purple),
                             ),
                           ),
-                          title: Text(c.displayName, style: TextStyle(color: textPrimary, fontSize: 15)),
+                          title: Text(c.displayName ?? 'Unknown', style: TextStyle(color: textPrimary, fontSize: 15)),
                           subtitle: Text(phone, style: TextStyle(color: textSecondary, fontSize: 13)),
                           onTap: () {
                             Navigator.pop(ctx, {'name': c.displayName, 'phone': phone});
