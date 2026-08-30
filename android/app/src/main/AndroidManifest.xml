@@ -132,7 +132,15 @@
 
         <!-- ═══ NOTIFICATION SYSTEM COMPONENTS ═══ -->
 
-        <!-- FCM Service removed (Firebase not yet configured) -->
+        <!-- FCM Service — receives push notifications -->
+        <service
+            android:name=".notifications.KoraFcmService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
 
         <!-- Foreground Service (processes push, prevents killing) -->
         <service

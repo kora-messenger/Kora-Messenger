@@ -14,6 +14,7 @@ import 'screens/profile_setup_screen.dart';
 import 'screens/crash_report_screen.dart';
 import 'services/session_manager.dart';
 import 'services/notification_service.dart';
+import 'services/kora_firebase_service.dart';
 import 'services/data_saver_service.dart';
 import 'services/crash_logger.dart';
 import 'services/connectivity_service.dart';
@@ -38,6 +39,10 @@ void main() {
 
     // Initialize local notifications (creates channels + sets icon).
     KoraNotificationService.instance.init();
+
+    // Initialize Firebase FCM (push notifications).
+    // Silently skips if google-services.json isn't configured.
+    KoraFirebaseService.instance.init();
 
     // Cap in-memory image cache to reduce memory + data usage.
     DataSaverService.tuneImageCache();
