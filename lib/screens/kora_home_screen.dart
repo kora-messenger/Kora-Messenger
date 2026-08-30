@@ -7,18 +7,17 @@ import '../services/session_manager.dart';
 import '../services/chat_sync_service.dart';
 import '../services/service_notification_service.dart';
 import 'home/calls_tab.dart';
-import 'home/channels_tab.dart';
 import 'home/chats_tab.dart';
-import 'home/profile_tab.dart';
 import 'home/status_tab.dart';
+import 'home/channels_tab.dart';
+import 'home/profile_tab.dart';
 import '../services/permission_service.dart';
 
-/// Main Kora experience — hosts the bottom navigation and a
-/// horizontally swipeable [PageView] that lets the user scroll
-/// between Chats, Calls, Status, Community, and Profile.
+/// Main Kora experience — hosts the bottom navigation with 4 tabs
+/// matching WhatsApp's 2026 layout:
+///   Chats → Updates (Status + Channels) → Communities → Calls
 ///
-/// Swiping left/right changes the active tab; tapping a nav item
-/// animates the page to that tab. Both stay in sync.
+/// Settings is accessed via the 3-dot menu on the Chats tab (like WhatsApp).
 class KoraHomeScreen extends StatefulWidget {
   final bool isNewUser;
 
@@ -36,12 +35,9 @@ class _KoraHomeScreenState extends State<KoraHomeScreen> {
   void initState() {
     super.initState();
     _pageController = PageController(initialPage: 0);
-    // Ask for essential permissions once on first Home visit.
     KoraPermissionService.requestEssentialOnce();
-    // Start polling for incoming messages (if not already running).
     ChatSyncService.instance.startPolling();
     ServiceNotificationService.instance.init();
-    // Show the new-user welcome popup if this is a first-time visitor.
     if (widget.isNewUser) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _showWelcomePopup();
@@ -59,18 +55,13 @@ class _KoraHomeScreenState extends State<KoraHomeScreen> {
 
   Future<void> _showWelcomePopup() async {
     if (!mounted) return;
-
-    // Per-account flag so the popup only shows once per user.
     final prefs = await SharedPreferences.getInstance();
     final session = await SessionManager.instance.loadSession();
     final email = session?['email'] as String? ?? '';
     final popupKey = 'kora_welcome_popup_shown_$email';
     if (prefs.getBool(popupKey) == true) return;
-
     await prefs.setBool(popupKey, true);
-
     if (!mounted) return;
-
     final userName = (session?['fullName'] as String?) ?? '';
     if (mounted) {
       Navigator.of(context).push(
@@ -84,13 +75,15 @@ class _KoraHomeScreenState extends State<KoraHomeScreen> {
     }
   }
 
-  void _goToProfile() => _goToTab(4);
-  void _goToChannels() => _goToTab(3);
+  void _goToSettings() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const ProfileTab()),
+    );
+  }
 
-  /// Jump to a tab programmatically (used by child tabs that need
-  /// to navigate the user to another section).
-  /// Jump to a tab instantly — used by nav bar taps so they feel
-  /// the same as before the swipe feature was added.
+  void _goToUpdates() => _goToTab(1);
+  void _goToCommunities() => _goToTab(2);
+
   void _goToTab(int index) {
     _pageController.jumpToPage(index);
   }
@@ -103,11 +96,10 @@ class _KoraHomeScreenState extends State<KoraHomeScreen> {
     final textSecondary = KoraColors.textSecondaryFor(brightness);
 
     final pages = [
-      ChatsTab(onProfileTap: _goToProfile, onGoToChannels: _goToChannels),
-      const CallsTab(),
+      ChatsTab(onSettingsTap: _goToSettings, onGoToUpdates: _goToUpdates),
       const StatusTab(),
       const ChannelsTab(),
-      const ProfileTab(),
+      const CallsTab(),
     ];
 
     return Scaffold(
@@ -136,10 +128,9 @@ class _KoraHomeScreenState extends State<KoraHomeScreen> {
             child: Row(
               children: [
                 _navItem(0, Icons.chat_bubble_outline, Icons.chat_bubble, 'Chats', textSecondary),
-                _navItem(1, Icons.call_outlined, Icons.call, 'Calls', textSecondary),
-                _navItem(2, Icons.donut_large_outlined, Icons.donut_large, 'Status', textSecondary),
-                _navItem(3, Icons.groups_outlined, Icons.groups, 'Community', textSecondary),
-                _navItem(4, Icons.person_outline, Icons.person, 'Profile', textSecondary),
+                _navItem(1, Icons.update_outlined, Icons.update, 'Updates', textSecondary),
+                _navItem(2, Icons.groups_outlined, Icons.groups, 'Communities', textSecondary),
+                _navItem(3, Icons.call_outlined, Icons.call, 'Calls', textSecondary),
               ],
             ),
           ),

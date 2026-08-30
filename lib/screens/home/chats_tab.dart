@@ -21,19 +21,22 @@ import '../archived_chats_screen.dart';
 import '../locked_chats_screen.dart';
 import '../starred_messages_screen.dart';
 import 'profile_tab.dart';
+import '../settings/link_device_screen.dart';
+import '../settings/billing_screen.dart';
+import '../chat/broadcast_list_screen.dart';
 
 /// The "Chats" tab — Kora's central conversation list.
 /// Owns the Home header (branding, avatar, search, three-dot menu) and,
 /// when the user long-presses a chat, a WhatsApp-style selection action
 /// bar (pin, delete, mute, archive, more).
 class ChatsTab extends StatefulWidget {
-  final VoidCallback? onProfileTap;
-  final VoidCallback? onGoToChannels;
+  final VoidCallback? onSettingsTap;
+  final VoidCallback? onGoToUpdates;
 
   const ChatsTab({
     super.key,
-    this.onProfileTap,
-    this.onGoToChannels,
+    this.onSettingsTap,
+    this.onGoToUpdates,
   });
 
   @override
@@ -47,8 +50,6 @@ class _ChatsTabState extends State<ChatsTab> {
   bool _showSearch = false;
   final _searchController = TextEditingController();
   String _searchQuery = '';
-  String _userInitials = '';
-  String _userAvatarUrl = '';
 
   // ── Selection mode (long-press a chat) ──────────────────────
   final Set<String> _selectedIds = {};
@@ -59,29 +60,7 @@ class _ChatsTabState extends State<ChatsTab> {
     super.initState();
     // Refresh the chat list whenever polling detects new incoming messages.
     ChatSyncService.instance.onNewMessages = _refresh;
-    _loadUserInitials();
     _initMessages();
-  }
-
-  Future<void> _loadUserInitials() async {
-    final session = await SessionManager.instance.loadSession();
-    final fullName = (session?['fullName'] as String?) ?? '';
-    final avatarUrl = (session?['avatarUrl'] as String?) ?? '';
-    if (mounted) {
-      setState(() {
-        _userAvatarUrl = avatarUrl;
-        if (fullName.isNotEmpty) {
-          final parts = fullName.split(' ');
-          if (parts.length >= 2) {
-            _userInitials = '${parts[0][0]}${parts[1][0]}'.toUpperCase();
-          } else {
-            _userInitials = fullName[0].toUpperCase();
-          }
-        } else {
-          _userInitials = 'K';
-        }
-      });
-    }
   }
 
   Future<void> _initMessages() async {
@@ -611,7 +590,7 @@ class _ChatsTabState extends State<ChatsTab> {
     KoraMenuSheet.show(context, [
       KoraMenuOption(
         icon: Icons.group_add_outlined,
-        label: 'New Group',
+        label: 'New group',
         onTap: () {
           Navigator.of(context).push(
             MaterialPageRoute(builder: (_) => const NewGroupScreen()),
@@ -620,29 +599,23 @@ class _ChatsTabState extends State<ChatsTab> {
       ),
       KoraMenuOption(
         icon: Icons.campaign_outlined,
-        label: 'New Channel',
+        label: 'New channel',
         onTap: () {
-          widget.onGoToChannels?.call();
+          widget.onGoToUpdates?.call();
         },
       ),
       KoraMenuOption(
-        icon: Icons.archive_outlined,
-        label: 'Archived Chats',
-        onTap: () async {
-          await Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const ArchivedChatsScreen()),
+        icon: Icons.phonelink_setup_outlined,
+        label: 'Linked devices',
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const LinkDeviceScreen()),
           );
-          await _refresh();
         },
-      ),
-      KoraMenuOption(
-        icon: Icons.lock_outline,
-        label: 'Locked Chats',
-        onTap: _openLockedChats,
       ),
       KoraMenuOption(
         icon: Icons.star_outline,
-        label: 'Starred Messages',
+        label: 'Starred messages',
         onTap: () {
           Navigator.of(context).push(
             MaterialPageRoute(builder: (_) => const StarredMessagesScreen()),
@@ -650,26 +623,24 @@ class _ChatsTabState extends State<ChatsTab> {
         },
       ),
       KoraMenuOption(
-        icon: Icons.done_all,
-        label: 'Read All',
-        onTap: _readAll,
-      ),
-      KoraMenuOption(
-        icon: Icons.privacy_tip_outlined,
-        label: 'Privacy',
+        icon: Icons.payments_outlined,
+        label: 'Payments',
         onTap: () {
           Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const PrivacyScreen()),
+            MaterialPageRoute(builder: (_) => const BillingScreen()),
           );
         },
+      ),
+      KoraMenuOption(
+        icon: Icons.done_all,
+        label: 'Read all',
+        onTap: _readAll,
       ),
       KoraMenuOption(
         icon: Icons.settings_outlined,
         label: 'Settings',
         onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const ProfileTab()),
-          );
+          widget.onSettingsTap?.call();
         },
       ),
     ]);
@@ -1009,23 +980,6 @@ class _ChatsTabState extends State<ChatsTab> {
             ),
           ),
           const Spacer(),
-          GestureDetector(
-            onTap: widget.onProfileTap,
-            child: Container(
-              width: 34,
-              height: 34,
-              margin: const EdgeInsets.only(right: 4),
-              decoration: BoxDecoration(
-                gradient: KoraColors.brandGradient,
-                shape: BoxShape.circle,
-                border: Border.all(color: textPrimary.withValues(alpha: 0.08), width: 1),
-              ),
-              child: _userAvatarUrl.isNotEmpty
-                  ? ClipOval(child: Image.network(_userAvatarUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) =>
-                      Center(child: Text(_userInitials, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)))))
-                  : Center(child: Text(_userInitials, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700))),
-            ),
-          ),
           IconButton(
             icon: Icon(Icons.search, color: textPrimary, size: 24),
             onPressed: _toggleSearch,
