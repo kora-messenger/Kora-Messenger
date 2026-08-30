@@ -114,6 +114,11 @@ class KoraApi {
 
   /// E2EE key exchange endpoint for public key publish/lookup.
   static const String e2eeKeysEndpoint = '$baseUrl/koraE2eeKeys';
+
+  /// Push notification endpoints — FCM token registration and push delivery.
+  static const String pushRegisterEndpoint = '$baseUrl/koraPushRegister';
+  static const String pushUnregisterEndpoint = '$baseUrl/koraPushUnregister';
+  static const String pushSendEndpoint = '$baseUrl/koraPushSend';
   static const String learnMoreUrl = '$legalBaseUrl/index.html';
 
   /// Link shared when inviting a friend to Kora — swap this for the
