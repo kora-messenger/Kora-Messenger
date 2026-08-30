@@ -789,4 +789,13 @@ class _StatusViewerScreenState extends State<StatusViewerScreen>
   }
 
   // (old share stub removed)
+
+  String _formatTime(DateTime dt) {
+    final now = DateTime.now();
+    final diff = now.difference(dt);
+    if (diff.inMinutes < 1) return 'just now';
+    if (diff.inHours < 1) return '${diff.inMinutes}m ago';
+    if (diff.inDays < 1) return '${diff.inHours}h ago';
+    return '${dt.day}/${dt.month}/${dt.year}';
+  }
 }

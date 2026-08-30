@@ -24,6 +24,8 @@ import 'services/translation_service.dart';
 import 'services/message_service.dart';
 import 'theme/chat_theme_provider.dart';
 import 'package:local_auth/local_auth.dart';
+import 'package:local_auth_android/local_auth_android_types.dart';
+import 'package:local_auth_darwin/local_auth_darwin_types.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -233,6 +235,7 @@ class _SplashScreenState extends State<SplashScreen>
           final canCheck = await localAuth.canCheckBiometrics;
           if (canCheck) {
             authenticated = await localAuth.authenticate(
+              localizedReason: 'Please authenticate to unlock Kora',
               authMessages: const <AuthMessages>[
                 AndroidAuthMessages(
                   signInTitle: 'Unlock Kora',
@@ -302,6 +305,7 @@ class _SplashScreenState extends State<SplashScreen>
           final canCheck = await localAuth.canCheckBiometrics;
           if (canCheck) {
             authenticated = await localAuth.authenticate(
+              localizedReason: 'Please authenticate to unlock Kora',
               authMessages: const <AuthMessages>[
                 AndroidAuthMessages(
                   signInTitle: 'Unlock Kora',

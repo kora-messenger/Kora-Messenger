@@ -822,7 +822,7 @@ class _MessageComposerState extends State<MessageComposer>
               _attachIcon(Icons.insert_drive_file_outlined, 'Document', const Color(0xFF6C63FF), _pickDocument),
               _attachIcon(Icons.photo_library_outlined, 'Gallery', const Color(0xFF4A90D9), () => _pickFromGallery(true)),
               _attachIcon(Icons.camera_alt_outlined, 'Camera', const Color(0xFFE8833E), _openCamera),
-              _attachIcon(Icons.sticky_notes_2_outlined, 'Sticker', const Color(0xFFE84393), _openStickerPanel),
+              _attachIcon(Icons.note_outlined, 'Sticker', const Color(0xFFE84393), _openStickerPanel),
               _attachIcon(Icons.person_outline, 'Contact', const Color(0xFF00B894), _pickContact),
               _attachIcon(Icons.location_on_outlined, 'Location', const Color(0xFF0984E3), _sendCurrentLocation),
               _attachIcon(Icons.gif_box_outlined, 'GIF', const Color(0xFF6C5CE7), _openGifSearch),
@@ -856,7 +856,8 @@ class _MessageComposerState extends State<MessageComposer>
     final textMuted = KoraColors.textMutedFor(brightness);
 
     // Try native contacts
-    if (await FlutterContacts.requestPermission()) {
+    final permResult = await Permission.contacts.request();
+    if (permResult.isGranted) {
       final contacts = await FlutterContacts.getContacts(
         withProperties: true,
         withThumbnail: false,

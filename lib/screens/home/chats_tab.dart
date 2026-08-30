@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../config/subscription_pricing.dart';
 import '../../models/chat_models.dart';
 import '../../services/chat_service.dart';
 import '../../services/conversation_directory.dart';
@@ -636,7 +637,7 @@ class _ChatsTabState extends State<ChatsTab> {
         label: 'Payments',
         onTap: () {
           Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const BillingScreen()),
+            MaterialPageRoute(builder: (_) => const BillingScreen(selectedPlan: SubscriptionPlan.monthly, userEmail: "")),
           );
         },
       ),

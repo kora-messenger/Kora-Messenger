@@ -2195,4 +2195,61 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
   }
 }
 
+class _TypingDots extends StatefulWidget {
+  final Color color;
+  const _TypingDots({required this.color});
+
+  @override
+  State<_TypingDots> createState() => _TypingDotsState();
+}
+
+class _TypingDotsState extends State<_TypingDots> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(3, (i) {
+        return AnimatedBuilder(
+          animation: _controller,
+          builder: (context, child) {
+            final progress = (_controller.value + i * 0.2) % 1.0;
+            final scale = 0.5 + 0.5 * (0.5 - (progress - 0.5).abs() * 2);
+            return Container(
+              margin: const EdgeInsets.symmetric(horizontal: 1),
+              child: Transform.scale(
+                scale: scale,
+                child: Container(
+                  width: 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: widget.color,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      }),
+    );
+  }
+}
+
 /// Kora's call screen — opened when user taps voice/video call.

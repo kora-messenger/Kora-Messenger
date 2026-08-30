@@ -485,7 +485,7 @@ class _DoodleEditorScreenState extends State<DoodleEditorScreen> {
                 children: [
                   Center(child: Image.file(File(widget.imagePath), fit: BoxFit.contain)),
                   CustomPaint(
-                    painter: _DoodlePainter(_paths),
+                    painter: _DoodlePathPainter(_paths),
                     child: const SizedBox.expand(),
                   ),
                 ],
@@ -540,10 +540,10 @@ class _DoodlePath {
   }) : points = [];
 }
 
-class _DoodlePainter extends CustomPainter {
+class _DoodlePathPainter extends CustomPainter {
   final List<_DoodlePath> paths;
 
-  _DoodlePainter(this.paths);
+  _DoodlePathPainter(this.paths);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -563,5 +563,5 @@ class _DoodlePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_DoodlePainter oldDelegate) => true;
+  bool shouldRepaint(_DoodlePathPainter oldDelegate) => true;
 }

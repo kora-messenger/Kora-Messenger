@@ -470,7 +470,8 @@ class MessageBubble extends StatelessWidget {
             builder: (_) => DocumentViewerScreen(
               filePath: message.voiceFilePath ?? '',
               fileName: fileName,
-              fileSizeBytes: message.voiceDuration ?? 0,
+              fileSize: message.voiceDuration ?? 0,
+              fileType: _detectFileType(fileName),
             ),
           ),
         );

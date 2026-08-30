@@ -237,7 +237,7 @@ class _GroupChatInfoScreenState extends State<GroupChatInfoScreen> {
                     color: textPrimary,
                     textMuted: textMuted,
                     border: border,
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const E2eeVerificationScreen())),
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => E2eeVerificationScreen(chatId: widget.chatId ?? "", chatName: widget.groupName ?? ""))),
                   ),
                 ],
               ),

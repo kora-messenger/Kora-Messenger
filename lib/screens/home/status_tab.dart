@@ -177,7 +177,9 @@ class _StatusTabState extends State<StatusTab> {
       context: context,
       backgroundColor: KoraColors.backgroundFor(Theme.of(context).brightness),
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) => const StatusAudienceSelector(),
+      builder: (ctx) => StatusAudienceSelector(
+        onSelected: (audience) => Navigator.of(ctx).pop(audience),
+      ),
     );
     if (audience == null || !mounted) return;
     final result = await Navigator.of(context).push(

@@ -5,21 +5,9 @@ import 'doodle_editor.dart' show DoodleEditorScreen;
 
 /// Kora Media Editor — the full-screen editor that opens when you pick
 /// a photo or video from gallery or camera. Mirrors WhatsApp's editor.
-///
-/// Layout (images):
-/// ┌──────────────────────────────────┐
-/// │  ✕                    HD    ➤     │ ← top bar: cancel, HD toggle, send
-/// │                                   │
-/// │         [ full-screen image ]     │ ← pinch/pan image
-/// │                                   │
-/// │  [caption input bar...........]   │ ← optional caption
-/// ├───────────────────────────────────┤
-/// │  ✂️   😀   Aa   ✏️   🎨          │ ← tool tabs: crop, sticker, text, draw, filter
-│ │  [filter strip when filter active]│
-/// └──────────────────────────────────┘
-///
-/// Layout (videos):
-/// Same but with video preview, trim bar, and playback speed.
+/// Images: top bar (cancel, HD, send), full-screen image, caption bar,
+/// tool tabs (crop, sticker, text, draw, filter).
+/// Videos: same but with video preview, trim bar, and playback speed.
 class KoraMediaEditorScreen extends StatefulWidget {
   final String mediaPath;
   final bool isVideo;

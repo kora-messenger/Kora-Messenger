@@ -737,6 +737,17 @@ class MessageService {
     await _persist(chatId);
   }
 
+  /// Toggle the starred state of a message.
+  Future<void> toggleStar(String chatId, String messageId) async {
+    final messages = _cache[chatId];
+    if (messages == null) return;
+    final idx = messages.indexWhere((m) => m.id == messageId);
+    if (idx == -1) return;
+    final msg = messages[idx];
+    messages[idx] = msg.copyWith(isStarred: !msg.isStarred);
+    await _persist(chatId);
+  }
+
   /// Check whether a message is at the reaction limit for the user's tier.
   /// Returns true if adding another reaction would exceed the limit.
   bool isAtReactionLimit(String chatId, String messageId, {bool isPremium = false}) {

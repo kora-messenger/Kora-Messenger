@@ -741,7 +741,7 @@ class _AndroidAutoScreenState extends State<AndroidAutoScreen> {
               activeColor: KoraColors.purple,
             ),
             SwitchListTile(
-              secondary: Icon(Icons.auto_reply, color: KoraColors.purple),
+              secondary: Icon(Icons.reply, color: KoraColors.purple),
               title: Text('Auto-Reply While Driving', style: TextStyle(color: textPrimary, fontSize: 15)),
               subtitle: Text('Send automatic reply when driving', style: TextStyle(color: textMuted, fontSize: 13)),
               value: _autoReply,

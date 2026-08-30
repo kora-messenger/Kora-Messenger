@@ -258,8 +258,14 @@ class _StorageDataScreenState extends State<StorageDataScreen> {
         selected: {value},
         onSelectionChanged: (set) => onChanged(set.first),
         style: ButtonStyle(
-          selectedBackgroundColor: WidgetStatePropertyAll(KoraColors.purple),
-          selectedForegroundColor: WidgetStatePropertyAll(Colors.white),
+          backgroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) return KoraColors.purple;
+            return null;
+          }),
+          foregroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) return Colors.white;
+            return null;
+          }),
           visualDensity: VisualDensity.compact,
         ),
       ),
