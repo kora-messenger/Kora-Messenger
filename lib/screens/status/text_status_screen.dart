@@ -1,9 +1,11 @@
+import 'dart:io';
 import 'dart:math';
 import 'package:flutter/material.dart';
 
 import '../../theme/kora_colors.dart';
 import '../../models/status_model.dart';
 import '../../services/status_service.dart';
+import 'package:image_picker/image_picker.dart';
 
 /// WhatsApp 2026-style text status composer.
 ///
@@ -28,6 +30,16 @@ class _TextStatusScreenState extends State<TextStatusScreen> {
   int _colorIndex = 0;
   String? _selectedMusic;
   String _selectedMusicArtist = '';
+  String? _backgroundImagePath; // WhatsApp-style: photo as text status background
+  int _fontColorIndex = 0; // Independent text color cycling
+  static const _fontColors = [
+    Colors.white,
+    Colors.black,
+    Colors.yellow,
+    Colors.red,
+    Colors.green,
+    Colors.blue,
+  ];
 
   // WhatsApp's text status color palette
   static const _colors = [
@@ -65,6 +77,13 @@ class _TextStatusScreenState extends State<TextStatusScreen> {
 
   void _cycleColor() {
     setState(() => _colorIndex = (_colorIndex + 1) % _colors.length);
+  }
+
+  void _cycleFontColor() {
+    // WhatsApp-style: cycle text color independently
+    setState(() {
+      _fontColorIndex = (_fontColorIndex + 1) % _fontColors.length;
+    });
   }
 
   void _insertEmoji(String emoji) {
@@ -196,16 +215,29 @@ class _TextStatusScreenState extends State<TextStatusScreen> {
     );
   }
 
+  void _pickBackgroundPhoto() async {
+    final picker = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 80);
+    if (picker != null) {
+      setState(() => _backgroundImagePath = picker.path);
+    }
+  }
+
+  void _removeBackgroundPhoto() {
+    setState(() => _backgroundImagePath = null);
+  }
+
   void _publish() {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
 
     final item = StatusItem(
       id: 'status_${DateTime.now().millisecondsSinceEpoch}',
-      type: StatusType.text,
-      text: text,
+      type: _backgroundImagePath != null ? StatusType.photo : StatusType.text,
+      text: _backgroundImagePath != null ? null : text,
+      mediaPath: _backgroundImagePath,
+      caption: _backgroundImagePath != null ? text : null,
       backgroundColor: _colors[_colorIndex],
-      textColor: Colors.white,
+      textColor: _fontColors[_fontColorIndex],
       fontFamily: _fonts[_fontIndex],
       musicTitle: _selectedMusic,
       createdAt: DateTime.now(),
@@ -255,10 +287,23 @@ class _TextStatusScreenState extends State<TextStatusScreen> {
                     ),
                     onPressed: _cycleFont,
                   ),
-                  // Color palette button
+                  // Color palette button (background)
                   IconButton(
                     icon: const Icon(Icons.palette_outlined, color: Colors.white70),
                     onPressed: _cycleColor,
+                  ),
+                  // Font color button (text color)
+                  IconButton(
+                    icon: Icon(Icons.text_fields, color: _fontColors[_fontColorIndex]),
+                    onPressed: _cycleFontColor,
+                  ),
+                  // Background photo button
+                  IconButton(
+                    icon: Icon(
+                      _backgroundImagePath != null ? Icons.image : Icons.add_photo_alternate_outlined,
+                      color: Colors.white70,
+                    ),
+                    onPressed: _pickBackgroundPhoto,
                   ),
                 ],
               ),
@@ -268,7 +313,14 @@ class _TextStatusScreenState extends State<TextStatusScreen> {
               child: GestureDetector(
                 onTap: () => FocusScope.of(context).requestFocus(),
                 child: Container(
-                  color: Colors.transparent,
+                  decoration: _backgroundImagePath != null
+                      ? BoxDecoration(
+                          image: DecorationImage(
+                            image: FileImage(File(_backgroundImagePath!)),
+                            fit: BoxFit.cover,
+                          ),
+                        )
+                      : BoxDecoration(color: Colors.transparent),
                   alignment: Alignment.center,
                   padding: const EdgeInsets.symmetric(horizontal: 32),
                   child: Column(
@@ -279,7 +331,7 @@ class _TextStatusScreenState extends State<TextStatusScreen> {
                         maxLines: null,
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          color: Colors.white,
+                          color: _fontColors[_fontColorIndex],
                           fontSize: 28,
                           height: 1.4,
                           fontFamily: _fonts[_fontIndex],

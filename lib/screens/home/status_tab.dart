@@ -7,6 +7,7 @@ import '../../services/status_service.dart';
 import '../../models/status_model.dart';
 import '../../widgets/kora_avatar.dart';
 import '../chat/kora_camera_screen.dart';
+import '../chat/kora_media_editor_screen.dart';
 import '../status/text_status_screen.dart';
 import '../status/status_viewer_screen.dart';
 import '../status/status_layout_screen.dart';
@@ -177,10 +178,20 @@ class _StatusTabState extends State<StatusTab> {
     final path = result['path'] as String;
     final isVideo = result['isVideo'] as bool;
 
+    // Open editor before posting (WhatsApp-style)
+    final edited = await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => KoraMediaEditorScreen(mediaPath: path, isVideo: isVideo),
+      ),
+    );
+    if (edited == null || !mounted) return;
+
+    final caption = edited['caption'] as String?;
     final item = StatusItem(
       id: 'status_${DateTime.now().millisecondsSinceEpoch}',
       type: isVideo ? StatusType.video : StatusType.photo,
-      mediaPath: path,
+      mediaPath: edited['path'] as String,
+      caption: caption,
       createdAt: DateTime.now(),
     );
     await StatusService.instance.addStatusItem(item);
@@ -189,19 +200,23 @@ class _StatusTabState extends State<StatusTab> {
 
   void _pickFromGallery() async {
     final picker = ImagePicker();
-    final photo = await picker.pickImage(source: ImageSource.gallery, imageQuality: 100);
-    if (photo != null && mounted) {
-      final item = StatusItem(
-        id: 'status_${DateTime.now().millisecondsSinceEpoch}',
-        type: StatusType.photo,
-        mediaPath: photo.path,
-        createdAt: DateTime.now(),
-      );
-      await StatusService.instance.addStatusItem(item);
+    // WhatsApp-style: pick multiple photos at once (up to 30)
+    final photos = await picker.pickMultiImage(imageQuality: 100, limit: 30);
+    if (photos.isNotEmpty && mounted) {
+      for (final photo in photos) {
+        final item = StatusItem(
+          id: 'status_${DateTime.now().millisecondsSinceEpoch}_${photos.indexOf(photo)}',
+          type: StatusType.photo,
+          mediaPath: photo.path,
+          createdAt: DateTime.now(),
+        );
+        await StatusService.instance.addStatusItem(item);
+      }
       _refresh();
       return;
     }
     if (!mounted) return;
+    // If no multi-photo, try single video
     final video = await picker.pickVideo(source: ImageSource.gallery, maxDuration: const Duration(seconds: 30));
     if (video != null && mounted) {
       final item = StatusItem(

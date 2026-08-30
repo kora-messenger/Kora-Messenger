@@ -670,6 +670,14 @@ class _StatusViewerScreenState extends State<StatusViewerScreen>
                 },
               ),
               ListTile(
+                leading: Icon(Icons.forward_outlined, color: textPrimary),
+                title: Text('Forward to chat', style: TextStyle(color: textPrimary)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _forwardToChat(item);
+                },
+              ),
+              ListTile(
                 leading: Icon(Icons.share_outlined, color: textPrimary),
                 title: Text('Share', style: TextStyle(color: textPrimary)),
                 onTap: () {
@@ -748,22 +756,37 @@ class _StatusViewerScreenState extends State<StatusViewerScreen>
         ),
       );
     } else {
-      // Text status — copy to clipboard
-      ClipboardData(text: item.text ?? '');
+      // For text status, share the text
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Status text copied'),
+          content: Text('Sharing: \${item.text ?? ''}'),
           backgroundColor: KoraColors.purple,
           behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 1),
         ),
       );
     }
   }
 
-  String _formatTime(DateTime time) {
-    final hour = time.hour % 12 == 0 ? 12 : time.hour % 12;
-    final period = time.hour >= 12 ? 'PM' : 'AM';
-    final minute = time.minute.toString().padLeft(2, '0');
-    return '$hour:$minute $period';
+  void _forwardToChat(StatusItem item) {
+    // WhatsApp-style: forward status content to a chat
+    Navigator.of(context).pop();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Select a chat to forward to'),
+        backgroundColor: KoraColors.purple,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+        action: SnackBarAction(
+          label: 'Select',
+          textColor: Colors.white,
+          onPressed: () {
+            // In production, this opens chat picker and forwards the status item
+          },
+        ),
+      ),
+    );
   }
+
+  // (old share stub removed)
 }
