@@ -206,6 +206,42 @@ body {
 }
 .code-input:focus { border-color: var(--purple); box-shadow: 0 0 0 3px rgba(139,92,246,0.12); }
 
+/* Auth dark-mode toggle (cosmetic, per-browser, login screens only) */
+html.auth-dark #loginScreen,
+html.auth-dark #qrScreen,
+html.auth-dark #verificationScreen {
+  background: linear-gradient(160deg, #0F0B1F 0%, #0A1020 100%);
+}
+html.auth-dark .auth-doodles { opacity: 0.35; }
+html.auth-dark .auth-doodles::before { filter: invert(1) brightness(1.4); }
+html.auth-dark .auth-card {
+  background: #14121F; box-shadow: 0 30px 70px rgba(0,0,0,0.5), 0 4px 16px rgba(0,0,0,0.3);
+}
+html.auth-dark .auth-card h1 { color: #F0EEFB; }
+html.auth-dark .auth-card p,
+html.auth-dark .auth-hint,
+html.auth-dark .qr-steps,
+html.auth-dark .qr-info p { color: #9C9AB5; }
+html.auth-dark .qr-info h2 { color: #F0EEFB; }
+html.auth-dark .qr-steps b { color: #F0EEFB; }
+html.auth-dark .input-label { color: #7A78A0; }
+html.auth-dark .input-field,
+html.auth-dark .code-input,
+html.auth-dark .qr-box { background: #1C1A2E; border-color: #2E2B47; color: #F0EEFB; }
+html.auth-dark .input-field::placeholder { color: #6A6884; }
+html.auth-dark .code-input { color: #F0EEFB; }
+html.auth-dark .auth-back { background: #1C1A2E; color: #9C9AB5; }
+html.auth-dark .auth-back:hover { background: #2E2B47; }
+html.auth-dark .qr-expired { background: rgba(20,18,31,0.94); }
+html.auth-dark .qr-expired span { color: #9C9AB5; }
+html.auth-dark .theme-toggle { background: rgba(28,26,46,0.7); color: #C9A8FF; }
+html.auth-dark .theme-toggle:hover { background: rgba(28,26,46,0.95); }
+html.auth-dark .auth-footer-note { color: #9C9AB5; }
+html.auth-dark .stay-checkbox { color: #9C9AB5; }
+html.auth-dark .stay-checkbox input:checked ~ span:last-child { color: #F0EEFB; }
+html.auth-dark .checkmark { background: #1C1A2E; border-color: #2E2B47; }
+html.auth-dark .auth-error { background: rgba(239,68,68,0.12); border-color: rgba(239,68,68,0.25); color: #ff8080; }
+
 /* ══════════════════════════════════════════════════════
    MAIN APP LAYOUT
    ══════════════════════════════════════════════════════ */
