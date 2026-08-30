@@ -414,10 +414,20 @@ class MessageBubble extends StatelessWidget {
             ),
           ),
         ],
-        // Timestamp + status
+        // Timestamp + status + star indicator
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (message.isStarred) ...[
+              Icon(
+                Icons.star,
+                size: 12,
+                color: isMe
+                    ? (sentText.computeLuminance() > 0.5 ? const Color(0xFF667781) : Colors.white.withValues(alpha: 0.65))
+                    : const Color(0xFFF59E0B),
+              ),
+              const SizedBox(width: 3),
+            ],
             Text(
               _formatTime(message.timestamp),
               style: TextStyle(

@@ -25,7 +25,10 @@ import 'message_composer.dart';
 import 'package:file_picker/file_picker.dart';
 import 'call_screen.dart';
 import 'message_action_menu.dart';
+import 'message_info_screen.dart';
+import 'media_gallery_screen.dart';
 import 'e2ee_verification_screen.dart';
+import 'disappearing_messages_screen.dart';
 import 'contact_info_screen.dart';
 import 'group_chat_info_screen.dart';
 import 'reply_preview.dart';
@@ -635,6 +638,24 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
     _refreshMessages();
   }
 
+  void _onStar(String messageId) async {
+    await _messageService.toggleStar(widget.chatId, messageId);
+    _refreshMessages();
+  }
+
+  void _showMessageInfo(KoraMessage message) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => MessageInfoScreen(
+          message: message,
+          chatName: widget.name,
+          isGroup: widget.isGroupChat,
+        ),
+      ),
+    );
+  }
+
   void _onCopy(String text) {
     Clipboard.setData(ClipboardData(text: text));
     if (mounted) {
@@ -742,6 +763,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
       messageType: message.type,
       isPremium: ChatThemeProvider.instance.isPremium,
       currentReactionCount: message.reactions.length,
+      isStarred: message.isStarred,
       onPremiumUpsell: () {
         showModalBottomSheet(
           context: context,
@@ -769,6 +791,8 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
               autoTranslate: true,
             )
           : null,
+      onStar: () => _onStar(message.id),
+      onMessageInfo: message.isMe ? () => _showMessageInfo(message) : null,
       onDelete: () => _onDelete(message.id),
       onReportSpam: !message.isMe ? () => _showReportSpamDialog(message) : null,
     );
@@ -949,6 +973,52 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
       _searchQuery = '';
       _searchResults = [];
     });
+  }
+
+  void _showMediaGallery() {
+    final mediaMessages = _messages.where((m) =>
+        m.type == KoraMessageType.image ||
+        m.type == KoraMessageType.video ||
+        m.type == KoraMessageType.document).toList();
+
+    if (mediaMessages.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No media in this chat yet.'),
+          backgroundColor: KoraColors.purple,
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    final mediaPaths = mediaMessages
+        .where((m) => m.mediaPath != null)
+        .map((m) => m.mediaPath!)
+        .toList();
+
+    if (mediaPaths.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Media files are not cached locally.'),
+          backgroundColor: KoraColors.purple,
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => MediaGalleryScreen(
+          mediaPaths: mediaPaths,
+          chatName: widget.name,
+        ),
+      ),
+    );
   }
 
   void _hideSearch() {
@@ -1719,28 +1789,21 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
               onVideoCall: _isAiChat ? null : () => _openCallScreen(isVideo: true),
               menuOptions: [
                 KoraMenuOption(icon: Icons.person_outline, label: 'Contact info', onTap: () => _showContactInfo()),
-                KoraMenuOption(icon: Icons.lock_outline, label: 'Encryption', onTap: () {
+                KoraMenuOption(icon: Icons.search, label: 'Search', onTap: () => _showChatSearch()),
+                KoraMenuOption(icon: Icons.photo_library_outlined, label: 'Media & files', onTap: () => _showMediaGallery()),
+                KoraMenuOption(icon: Icons.notifications_outlined, label: 'Mute notifications', onTap: () => _showMuteDialog()),
+                KoraMenuOption(icon: Icons.timer_outlined, label: 'Disappearing messages', onTap: () {
                   Navigator.push(context, MaterialPageRoute(
-                    builder: (_) => E2eeVerificationScreen(
-                      chatId: widget.chatId,
-                      chatName: widget.name,
-                      peerPublicKey: '',
-                    ),
+                    builder: (_) => DisappearingMessagesScreen(chatId: widget.chatId),
                   ));
                 }),
-                KoraMenuOption(icon: Icons.search, label: 'Search', onTap: () => _showChatSearch()),
-                KoraMenuOption(icon: Icons.photo_library_outlined, label: 'Media & files', onTap: () {}),
-                KoraMenuOption(icon: Icons.notifications_outlined, label: 'Mute notifications', onTap: () => _showMuteDialog()),
                 KoraMenuOption(icon: Icons.palette_outlined, label: 'Chat theme', onTap: () {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const DefaultChatThemeScreen()));
                 }),
-                KoraMenuOption(icon: Icons.cloud_outlined, label: 'Chat backup', onTap: () {
-  Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatBackupScreen()));
-}),
                 KoraMenuOption(icon: Icons.auto_awesome, label: 'Summarize chat', onTap: () => _showChatSummary()),
                 KoraMenuOption(icon: Icons.access_time, label: 'Catch me up', onTap: () => _showCatchMeUp()),
-                KoraMenuOption(icon: Icons.cleaning_services_outlined, label: 'Clear chat', onTap: () => _showClearChatDialog()),
                 if (!_isAiChat) ...[
+                  KoraMenuOption(icon: Icons.cleaning_services_outlined, label: 'Clear chat', onTap: () => _showClearChatDialog()),
                   KoraMenuOption(icon: Icons.block, label: 'Block', onTap: () => _showBlockDialog(), color: Colors.red),
                   KoraMenuOption(icon: Icons.report_outlined, label: 'Report', onTap: () => _showReportSpamFromMenu(), color: Colors.red),
                 ],
@@ -2062,13 +2125,12 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
 
   Widget _buildTypingIndicator(BuildContext context) {
     final brightness = Theme.of(context).brightness;
-    final textSecondary = KoraColors.textSecondaryFor(brightness);
 
     return Align(
       alignment: Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.only(left: 16, top: 4, bottom: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
           color: KoraColors.cardFor(brightness),
           borderRadius: BorderRadius.circular(18),
@@ -2080,24 +2142,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
             ),
           ],
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              '${widget.name} is typing',
-              style: TextStyle(color: textSecondary, fontSize: 13, fontStyle: FontStyle.italic),
-            ),
-            const SizedBox(width: 8),
-            SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: KoraColors.purple.withValues(alpha: 0.6),
-              ),
-            ),
-          ],
-        ),
+        child: _TypingDots(color: KoraColors.purple.withValues(alpha: 0.6)),
       ),
     );
   }

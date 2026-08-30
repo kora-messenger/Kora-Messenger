@@ -30,12 +30,15 @@ void showKoraMessageActionMenu(
   required KoraMessageType messageType,
   required bool isPremium,
   required int currentReactionCount,
+  required bool isStarred,
   required ValueChanged<String> onReact,
   required VoidCallback onReply,
   required VoidCallback onCopy,
   required VoidCallback onForward,
   required VoidCallback onTranslate,
   required VoidCallback onDelete,
+  required VoidCallback onStar,
+  VoidCallback? onMessageInfo,
   VoidCallback? onReportSpam,
   VoidCallback? onTranscribeVoice,
   VoidCallback? onTranslateVoice,
@@ -51,6 +54,7 @@ void showKoraMessageActionMenu(
       messageType: messageType,
       isPremium: isPremium,
       currentReactionCount: currentReactionCount,
+      isStarred: isStarred,
       onPremiumUpsell: onPremiumUpsell != null
           ? () {
               entry.remove();
@@ -90,6 +94,16 @@ void showKoraMessageActionMenu(
               onTranslateVoice();
             }
           : null,
+      onStar: () {
+        entry.remove();
+        onStar();
+      },
+      onMessageInfo: onMessageInfo != null
+          ? () {
+              entry.remove();
+              onMessageInfo!();
+            }
+          : null,
       onDelete: () {
         entry.remove();
         onDelete();
@@ -112,6 +126,7 @@ class _MessageActionOverlay extends StatelessWidget {
   final KoraMessageType messageType;
   final bool isPremium;
   final int currentReactionCount;
+  final bool isStarred;
   final VoidCallback? onPremiumUpsell;
   final VoidCallback onDismiss;
   final ValueChanged<String> onReact;
@@ -121,6 +136,8 @@ class _MessageActionOverlay extends StatelessWidget {
   final VoidCallback onTranslate;
   final VoidCallback? onTranscribeVoice;
   final VoidCallback? onTranslateVoice;
+  final VoidCallback onStar;
+  final VoidCallback? onMessageInfo;
   final VoidCallback onDelete;
   final VoidCallback? onReportSpam;
 
@@ -130,6 +147,7 @@ class _MessageActionOverlay extends StatelessWidget {
     required this.messageType,
     required this.isPremium,
     required this.currentReactionCount,
+    required this.isStarred,
     this.onPremiumUpsell,
     required this.onDismiss,
     required this.onReact,
@@ -139,6 +157,8 @@ class _MessageActionOverlay extends StatelessWidget {
     required this.onTranslate,
     this.onTranscribeVoice,
     this.onTranslateVoice,
+    required this.onStar,
+    this.onMessageInfo,
     required this.onDelete,
     this.onReportSpam,
   });
@@ -264,6 +284,13 @@ class _MessageActionOverlay extends StatelessWidget {
                   ] else ...[
                     _action(Icons.translate_outlined, 'Translate', onTranslate, textPrimary),
                   ],
+                  _action(
+                    isStarred ? Icons.star : Icons.star_border,
+                    isStarred ? 'Unstar' : 'Star',
+                    onStar, textPrimary,
+                  ),
+                  if (isMe && onMessageInfo != null)
+                    _action(Icons.info_outline, 'Message info', onMessageInfo!, textPrimary),
                   if (!isMe && onReportSpam != null)
                     _action(Icons.report_outlined, 'Report Spam', onReportSpam!, Colors.red),
                   if (isMe)
