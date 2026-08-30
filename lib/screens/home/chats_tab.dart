@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../models/chat_models.dart';
 import '../../services/chat_service.dart';
 import '../../services/conversation_directory.dart';
+import '../../services/session_manager.dart';
 import '../../services/message_service.dart';
 import '../../services/chat_sync_service.dart';
 import '../../theme/kora_colors.dart';
@@ -46,6 +47,8 @@ class _ChatsTabState extends State<ChatsTab> {
   bool _showSearch = false;
   final _searchController = TextEditingController();
   String _searchQuery = '';
+  String _userInitials = '';
+  String _userAvatarUrl = '';
 
   // ── Selection mode (long-press a chat) ──────────────────────
   final Set<String> _selectedIds = {};
@@ -56,7 +59,29 @@ class _ChatsTabState extends State<ChatsTab> {
     super.initState();
     // Refresh the chat list whenever polling detects new incoming messages.
     ChatSyncService.instance.onNewMessages = _refresh;
+    _loadUserInitials();
     _initMessages();
+  }
+
+  Future<void> _loadUserInitials() async {
+    final session = await SessionManager.instance.loadSession();
+    final fullName = (session?['fullName'] as String?) ?? '';
+    final avatarUrl = (session?['avatarUrl'] as String?) ?? '';
+    if (mounted) {
+      setState(() {
+        _userAvatarUrl = avatarUrl;
+        if (fullName.isNotEmpty) {
+          final parts = fullName.split(' ');
+          if (parts.length >= 2) {
+            _userInitials = '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+          } else {
+            _userInitials = fullName[0].toUpperCase();
+          }
+        } else {
+          _userInitials = 'K';
+        }
+      });
+    }
   }
 
   Future<void> _initMessages() async {
@@ -655,9 +680,11 @@ class _ChatsTabState extends State<ChatsTab> {
     final q = _searchQuery.toLowerCase();
     return _chats.where((c) {
       final name = c.name.toLowerCase();
-      // Also search by Kora ID and last message content
       final lastMsg = c.lastMessage.toLowerCase();
-      return name.contains(q) || lastMsg.contains(q);
+      final chatId = c.id.toLowerCase();
+      final email = (c.recipientEmail ?? '').toLowerCase();
+      // Search by name, last message, Kora ID (chat ID), and email
+      return name.contains(q) || lastMsg.contains(q) || chatId.contains(q) || email.contains(q);
     }).toList();
   }
 
@@ -993,16 +1020,10 @@ class _ChatsTabState extends State<ChatsTab> {
                 shape: BoxShape.circle,
                 border: Border.all(color: textPrimary.withValues(alpha: 0.08), width: 1),
               ),
-              child: const Center(
-                child: Text(
-                  'IJ',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
+              child: _userAvatarUrl.isNotEmpty
+                  ? ClipOval(child: Image.network(_userAvatarUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) =>
+                      Center(child: Text(_userInitials, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)))))
+                  : Center(child: Text(_userInitials, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700))),
             ),
           ),
           IconButton(
