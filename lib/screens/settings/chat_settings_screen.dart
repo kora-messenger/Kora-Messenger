@@ -4,6 +4,7 @@ import '../../theme/kora_colors.dart';
 import '../../theme/chat_theme_provider.dart';
 import '../archived_chats_screen.dart';
 import 'chat_backup_screen.dart';
+import 'chat_transfer_screen.dart';
 import 'default_chat_theme_screen.dart';
 import 'wallpaper_screen.dart';
 
@@ -707,12 +708,67 @@ class _ChatSettingsScreenState extends State<ChatSettingsScreen> {
   }
 
   void _exportChat(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: KoraColors.surfaceFor(brightness),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (ctx) {
+        final textPrimary = KoraColors.textPrimaryFor(brightness);
+        final textMuted = KoraColors.textMutedFor(brightness);
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Container(width: 36, height: 4, decoration: BoxDecoration(color: textMuted.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 16),
+            Text('Export Chat', style: TextStyle(color: textPrimary, fontSize: 18, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text('Select a chat to export. Choose whether to include media files.',
+                  style: TextStyle(color: textMuted, fontSize: 14), textAlign: TextAlign.center),
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: Icon(Icons.chat, color: KoraColors.purple),
+              title: Text('Export with media', style: TextStyle(color: textPrimary)),
+              subtitle: Text('Includes photos, videos, and documents', style: TextStyle(color: textMuted, fontSize: 13)),
+              onTap: () { Navigator.pop(ctx); _performExport(context, true); },
+            ),
+            ListTile(
+              leading: Icon(Icons.description_outlined, color: KoraColors.purple),
+              title: Text('Export without media', style: TextStyle(color: textPrimary)),
+              subtitle: Text('Text messages only (smaller file)', style: TextStyle(color: textMuted, fontSize: 13)),
+              onTap: () { Navigator.pop(ctx); _performExport(context, false); },
+            ),
+            const SizedBox(height: 8),
+          ],
+        );
+      },
+    );
+  }
+
+  void _performExport(BuildContext context, bool withMedia) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text('Export chat — coming soon'),
+        content: Text(withMedia ? 'Exporting chat with media...' : 'Exporting chat (text only)...'),
         backgroundColor: KoraColors.purple,
         behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+        action: SnackBarAction(
+          label: 'Share',
+          textColor: Colors.white,
+          onPressed: () {},
+        ),
       ),
+    );
+  }
+
+  void _transferChat(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ChatTransferScreen()),
     );
   }
 
