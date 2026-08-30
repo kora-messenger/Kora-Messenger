@@ -15,6 +15,7 @@ import '../settings/chat_settings_screen.dart';
 import '../settings/notifications_settings_screen.dart';
 import '../settings/about_kora_screen.dart';
 import '../settings/business_tools_screen.dart';
+import '../settings/future_features_screen.dart';
 import '../settings/premium_subscribe_sheet.dart';
 import '../ai/kora_support_screen.dart';
 import '../search_screen.dart';
@@ -303,6 +304,14 @@ class _ProfileTabState extends State<ProfileTab> {
               'About Kora',
               'App version, terms & privacy',
               onTap: _openAbout,
+            ),
+            _navTile(
+              context,
+              icon: Icons.rocket_launch_outlined,
+              iconColor: KoraColors.purple,
+              title: 'Future Features',
+              subtitle: 'AI image gen, AI stickers, Wear OS, Android Auto',
+              screen: const FutureFeaturesScreen(),
             ),
           ],
         ),
