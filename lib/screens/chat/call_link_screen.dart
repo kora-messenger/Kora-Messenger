@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../theme/kora_colors.dart';
 import '../../services/webrtc_call_service.dart';
+import '../../config/kora_api.dart';
 
 /// Call Link screen — create or join a call via a shareable link.
 /// Mirrors WhatsApp's "Call Link" feature.
@@ -27,7 +28,7 @@ class _CallLinkScreenState extends State<CallLinkScreen> {
           callType: _isVideo ? 'video' : 'voice',
       );
       setState(() {
-        _callLink = 'https://kora.chat/call/$link';
+        _callLink = '${KoraApi.callLinkBaseUrl}/call/$link';
         _generating = false;
       });
     } catch (_) {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../theme/kora_colors.dart';
+import '../../config/kora_api.dart';
 
 /// Sticker Store screen — browse and download sticker packs.
 /// Mirrors WhatsApp's Sticker Store feature.
@@ -265,7 +266,7 @@ class _MediaGalleryScreenState extends State<MediaGalleryScreen> {
       children: [
         ListTile(
           leading: Icon(Icons.link, color: KoraColors.purple),
-          title: Text('https://kora.chat', style: TextStyle(color: textPrimary, fontSize: 14)),
+          title: Text(KoraApi.callLinkBaseUrl, style: TextStyle(color: textPrimary, fontSize: 14)),
           subtitle: Text('Kora Messenger — Welcome', style: TextStyle(color: textMuted, fontSize: 13)),
         ),
       ],
