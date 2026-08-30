@@ -13,7 +13,7 @@ import 'kora_voice_locked_bar.dart';
 import 'kora_voice_holding.dart';
 import 'emoji_sticker_panel.dart';
 import 'kora_camera_screen.dart';
-import 'media_editor_screen.dart';
+import 'kora_media_editor_screen.dart';
 import 'package:image_picker/image_picker.dart';
 import 'language_picker_screen.dart';
 
@@ -800,16 +800,22 @@ class _MessageComposerState extends State<MessageComposer>
         ),
         const SizedBox(height: 16),
 
-        // Attachment icons row
+        // Attachment icons row — WhatsApp-style grid
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Wrap(
+            spacing: 0,
+            runSpacing: 12,
+            alignment: WrapAlignment.spaceEvenly,
             children: [
-              _attachIcon(Icons.document_scanner_outlined, 'Document', KoraColors.purple, () => _pickFromGallery(false)),
-              _attachIcon(Icons.photo_library_outlined, 'Gallery', KoraColors.purple, () => _pickFromGallery(true)),
-              _attachIcon(Icons.camera_alt_outlined, 'Camera', KoraColors.purple, _openCamera),
-              _attachIcon(Icons.insert_drive_file_outlined, 'File', KoraColors.purple, () => Navigator.pop(context)),
+              _attachIcon(Icons.insert_drive_file_outlined, 'Document', const Color(0xFF6C63FF), () => Navigator.pop(context)),
+              _attachIcon(Icons.photo_library_outlined, 'Gallery', const Color(0xFF4A90D9), () => _pickFromGallery(true)),
+              _attachIcon(Icons.camera_alt_outlined, 'Camera', const Color(0xFFE8833E), _openCamera),
+              _attachIcon(Icons.sticky_notes_2_outlined, 'Sticker', const Color(0xFFE84393), () => Navigator.pop(context)),
+              _attachIcon(Icons.person_outline, 'Contact', const Color(0xFF00B894), () => Navigator.pop(context)),
+              _attachIcon(Icons.location_on_outlined, 'Location', const Color(0xFF0984E3), () => Navigator.pop(context)),
+              _attachIcon(Icons.gif_box_outlined, 'GIF', const Color(0xFF6C5CE7), () => Navigator.pop(context)),
+              _attachIcon(Icons.video_library_outlined, 'Video', const Color(0xFFD63031), () => _pickFromGallery(false)),
             ],
           ),
         ),
@@ -821,19 +827,22 @@ class _MessageComposerState extends State<MessageComposer>
   Widget _attachIcon(IconData icon, String label, Color color, VoidCallback onTap) {
     return GestureDetector(
       onTap: () { Navigator.pop(context); onTap(); },
-      child: Column(
-        children: [
-          Container(
-            width: 54, height: 54,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
+      child: SizedBox(
+        width: 72,
+        child: Column(
+          children: [
+            Container(
+              width: 50, height: 50,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: color, size: 24),
             ),
-            child: Icon(icon, color: color, size: 26),
-          ),
-          const SizedBox(height: 8),
-          Text(label, style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w600)),
-        ],
+            const SizedBox(height: 6),
+            Text(label, style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w500)),
+          ],
+        ),
       ),
     );
   }
@@ -863,8 +872,10 @@ class _MessageComposerState extends State<MessageComposer>
   void _openEditor(String path, bool isVideo) async {
     final result = await Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => Scaffold(appBar: AppBar(title: const Text('Media Editor')), body: Center(child: Text(isVideo ? 'Video Editor' : 'Image Editor'))),
-    ));
+      MaterialPageRoute(
+        builder: (_) => KoraMediaEditorScreen(mediaPath: path, isVideo: isVideo),
+      ),
+    );
     if (result == null || !mounted) return;
     widget.onSendMedia?.call(
       result['path'] as String,
