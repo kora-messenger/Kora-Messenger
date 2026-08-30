@@ -6,6 +6,7 @@ import '../../models/chat_models.dart';
 import '../../theme/kora_colors.dart';
 import '../../theme/chat_theme_provider.dart';
 import 'voice_message_bubble.dart';
+import 'document_viewer_screen.dart';
 import 'voice_translation_sheet.dart';
 
 /// Kora's message bubble — distinct for sent vs received.
@@ -237,6 +238,18 @@ class MessageBubble extends StatelessWidget {
       return _buildStickerContent(context, isMe, textSecondary);
     }
 
+    if (message.type == KoraMessageType.document) {
+      return _buildDocumentContent(context, isMe, textSecondary);
+    }
+
+    if (message.type == KoraMessageType.contact) {
+      return _buildContactContent(context, isMe, textSecondary);
+    }
+
+    if (message.type == KoraMessageType.location) {
+      return _buildLocationContent(context, isMe, textSecondary);
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -443,6 +456,120 @@ class MessageBubble extends StatelessWidget {
               _buildStatusIcon(message.status, isMe, sentTextColor: sentText),
             ],
           ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDocumentContent(BuildContext context, bool isMe, Color textSecondary) {
+    final fileName = message.text.isNotEmpty ? message.text : 'Document';
+    return GestureDetector(
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => DocumentViewerScreen(
+              filePath: message.voiceFilePath ?? '',
+              fileName: fileName,
+              fileSizeBytes: message.voiceDuration ?? 0,
+            ),
+          ),
+        );
+      },
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 44, height: 44,
+            decoration: BoxDecoration(
+              color: KoraColors.purple.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.description, color: KoraColors.purple, size: 24),
+          ),
+          const SizedBox(width: 12),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(fileName, style: TextStyle(
+                  fontSize: 15, fontWeight: FontWeight.w600,
+                  color: isMe ? Colors.white : KoraColors.textPrimary,
+                ), maxLines: 1, overflow: TextOverflow.ellipsis),
+                const SizedBox(height: 2),
+                Text('Document', style: TextStyle(
+                  fontSize: 12, color: isMe ? Colors.white70 : textSecondary,
+                )),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Icon(Icons.download_outlined, size: 20,
+            color: isMe ? Colors.white70 : textSecondary),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContactContent(BuildContext context, bool isMe, Color textSecondary) {
+    final contactName = message.text.isNotEmpty ? message.text : 'Contact';
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 44, height: 44,
+          decoration: BoxDecoration(
+            color: KoraColors.purple.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: const Icon(Icons.person, color: KoraColors.purple, size: 24),
+        ),
+        const SizedBox(width: 12),
+        Flexible(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(contactName, style: TextStyle(
+                fontSize: 15, fontWeight: FontWeight.w600,
+                color: isMe ? Colors.white : KoraColors.textPrimary,
+              ), maxLines: 1, overflow: TextOverflow.ellipsis),
+              const SizedBox(height: 2),
+              Text('Contact', style: TextStyle(
+                fontSize: 12, color: isMe ? Colors.white70 : textSecondary,
+              )),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLocationContent(BuildContext context, bool isMe, Color textSecondary) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 44, height: 44,
+          decoration: BoxDecoration(
+            color: const Color(0xFF0984E3).withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: const Icon(Icons.location_on, color: Color(0xFF0984E3), size: 24),
+        ),
+        const SizedBox(width: 12),
+        Flexible(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(message.text.isNotEmpty ? message.text : 'Location', style: TextStyle(
+                fontSize: 15, fontWeight: FontWeight.w600,
+                color: isMe ? Colors.white : KoraColors.textPrimary,
+              ), maxLines: 1, overflow: TextOverflow.ellipsis),
+              const SizedBox(height: 2),
+              Text('Location', style: TextStyle(
+                fontSize: 12, color: isMe ? Colors.white70 : textSecondary,
+              )),
+            ],
+          ),
         ),
       ],
     );

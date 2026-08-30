@@ -605,6 +605,15 @@ class _ChatsTabState extends State<ChatsTab> {
         },
       ),
       KoraMenuOption(
+        icon: Icons.broadcast_on_personal_outlined,
+        label: 'New broadcast',
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const BroadcastListScreen()),
+          );
+        },
+      ),
+      KoraMenuOption(
         icon: Icons.phonelink_setup_outlined,
         label: 'Linked devices',
         onTap: () {

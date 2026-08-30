@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../../theme/kora_colors.dart';
+import 'sticker_maker_screen.dart';
+import 'kora_camera_screen.dart';
 import 'gif_search_screen.dart';
 
 // ── Emoji keyword index for working search ──
@@ -714,7 +716,7 @@ class _KoraEmojiPanelState extends State<KoraEmojiPanel>
         itemBuilder: (ctx, index) {
           if (index == allPacks.length) {
             return GestureDetector(
-              onTap: () => _showPackStore(brightness, isDark),
+onTap: () => _showStickerOptions(brightness, isDark),
               child: Container(
                 width: 44, height: 44, margin: const EdgeInsets.symmetric(horizontal: 4),
                 decoration: BoxDecoration(
@@ -819,6 +821,52 @@ class _KoraEmojiPanelState extends State<KoraEmojiPanel>
           ),
         ),
       ],
+    );
+  }
+
+  void _showStickerOptions(Brightness brightness, bool isDark) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: KoraColors.backgroundFor(brightness),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            Container(width: 40, height: 4,
+              decoration: BoxDecoration(color: KoraColors.borderFor(brightness), borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: Icon(Icons.add_photo_alternate_outlined, color: KoraColors.purple),
+              title: Text('Create custom sticker', style: TextStyle(color: KoraColors.textPrimaryFor(brightness))),
+              subtitle: Text('Make a sticker from a photo', style: TextStyle(color: KoraColors.textMutedFor(brightness), fontSize: 12)),
+              onTap: () async {
+                Navigator.pop(ctx);
+                final result = await Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const KoraCameraScreen()),
+                );
+                if (result != null && result is String && mounted) {
+                  if (!mounted) return;
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => StickerMakerScreen(imagePath: result)),
+                  );
+                }
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.storefront_outlined, color: KoraColors.purple),
+              title: Text('Browse sticker store', style: TextStyle(color: KoraColors.textPrimaryFor(brightness))),
+              subtitle: Text('Download animated sticker packs', style: TextStyle(color: KoraColors.textMutedFor(brightness), fontSize: 12)),
+              onTap: () {
+                Navigator.pop(ctx);
+                _showPackStore(brightness, isDark);
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
     );
   }
 

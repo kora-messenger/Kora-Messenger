@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../theme/kora_colors.dart';
@@ -408,4 +409,159 @@ class _DoodlePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _DoodlePainter oldDelegate) => true;
+}
+
+// ─── DoodleEditorScreen (moved from image_editor_screen.dart) ──────────────
+
+class DoodleEditorScreen extends StatefulWidget {
+  final String imagePath;
+
+  const DoodleEditorScreen({super.key, required this.imagePath});
+
+  @override
+  State<DoodleEditorScreen> createState() => _DoodleEditorScreenState();
+}
+
+class _DoodleEditorScreenState extends State<DoodleEditorScreen> {
+  Color _brushColor = Colors.red;
+  double _brushSize = 4;
+  final List<_DoodlePath> _paths = [];
+  final List<_DoodlePath> _undoStack = [];
+
+  static const _colors = [
+    Colors.red, Colors.orange, Colors.yellow, Colors.green,
+    Colors.blue, Colors.purple, Colors.white, Colors.black,
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        leading: IconButton(
+          icon: const Icon(Icons.close, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.undo, color: Colors.white),
+            onPressed: _paths.isNotEmpty
+                ? () => setState(() {
+                    _undoStack.add(_paths.removeLast());
+                  })
+                : null,
+          ),
+          IconButton(
+            icon: const Icon(Icons.redo, color: Colors.white),
+            onPressed: _undoStack.isNotEmpty
+                ? () => setState(() {
+                    _paths.add(_undoStack.removeLast());
+                  })
+                : null,
+          ),
+          IconButton(
+            icon: const Icon(Icons.check, color: KoraColors.purple),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: GestureDetector(
+              onPanUpdate: (details) {
+                setState(() {
+                  if (_paths.isEmpty || _paths.last.isComplete) {
+                    _paths.add(_DoodlePath(color: _brushColor, strokeWidth: _brushSize));
+                  }
+                  _paths.last.points.add(details.localPosition);
+                });
+              },
+              onPanEnd: (_) {
+                if (_paths.isNotEmpty) _paths.last.isComplete = true;
+              },
+              child: Stack(
+                children: [
+                  Center(child: Image.file(File(widget.imagePath), fit: BoxFit.contain)),
+                  CustomPaint(
+                    painter: _DoodlePainter(_paths),
+                    child: const SizedBox.expand(),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // Color picker
+          Container(
+            height: 50,
+            color: Colors.black87,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              itemCount: _colors.length,
+              itemBuilder: (context, index) {
+                final color = _colors[index];
+                final isSelected = _brushColor == color;
+                return GestureDetector(
+                  onTap: () => setState(() => _brushColor = color),
+                  child: Container(
+                    width: 34, height: 34,
+                    margin: const EdgeInsets.only(right: 8),
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: isSelected ? Colors.white : Colors.transparent,
+                        width: 3,
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DoodlePath {
+  final Color color;
+  final double strokeWidth;
+  final List<Offset> points;
+  bool isComplete;
+
+  _DoodlePath({
+    required this.color,
+    required this.strokeWidth,
+    this.isComplete = false,
+  }) : points = [];
+}
+
+class _DoodlePainter extends CustomPainter {
+  final List<_DoodlePath> paths;
+
+  _DoodlePainter(this.paths);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    for (final path in paths) {
+      if (path.points.length < 2) continue;
+      final paint = Paint()
+        ..color = path.color
+        ..strokeWidth = path.strokeWidth
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round
+        ..style = PaintingStyle.stroke;
+
+      for (int i = 0; i < path.points.length - 1; i++) {
+        canvas.drawLine(path.points[i], path.points[i + 1], paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DoodlePainter oldDelegate) => true;
 }

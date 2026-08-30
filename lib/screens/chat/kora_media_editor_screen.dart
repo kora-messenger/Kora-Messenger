@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../theme/kora_colors.dart';
-import 'image_editor_screen.dart' show DoodleEditorScreen;
+import 'doodle_editor.dart' show DoodleEditorScreen;
 
 /// Kora Media Editor — the full-screen editor that opens when you pick
 /// a photo or video from gallery or camera. Mirrors WhatsApp's editor.
