@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 import 'dart:io';
 
 import '../../theme/kora_colors.dart';
 import '../../widgets/kora_avatar.dart';
 import '../new_community_screen.dart';
 import '../community_info_screen.dart';
+import '../community_directory_screen.dart';
+import '../channel_creation_screen.dart';
+import '../channel_invite_screen.dart';
 
 /// "Communities" tab — Kora's WhatsApp-style Communities hub.
 ///
@@ -23,7 +28,61 @@ class ChannelsTab extends StatefulWidget {
 }
 
 class _ChannelsTabState extends State<ChannelsTab> {
+  static const _prefsKey = 'kora_communities';
   final List<_Community> _communities = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCommunities();
+  }
+
+  Future<void> _loadCommunities() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_prefsKey);
+    if (raw != null) {
+      try {
+        final List<dynamic> list = jsonDecode(raw);
+        if (mounted) {
+          setState(() {
+            _communities.clear();
+            for (final item in list) {
+              final m = item as Map<String, dynamic>;
+              _communities.add(_Community(
+                name: m['name'] ?? '',
+                description: m['description'] ?? '',
+                iconPath: m['iconPath'],
+                createdAt: DateTime.tryParse(m['createdAt'] ?? '') ?? DateTime.now(),
+                groups: (m['groups'] as List<dynamic>?)?.map((g) => _Group(
+                  name: g['name'] ?? '',
+                  isAnnouncement: g['isAnnouncement'] ?? false,
+                  lastMessage: g['lastMessage'],
+                  lastTime: g['lastTime'],
+                )).toList() ?? [],
+              ));
+            }
+          });
+        }
+      } catch (_) {}
+    }
+  }
+
+  Future<void> _saveCommunities() async {
+    final prefs = await SharedPreferences.getInstance();
+    final list = _communities.map((c) => {
+      'name': c.name,
+      'description': c.description,
+      'iconPath': c.iconPath,
+      'createdAt': c.createdAt.toIso8601String(),
+      'groups': c.groups.map((g) => {
+        'name': g.name,
+        'isAnnouncement': g.isAnnouncement,
+        'lastMessage': g.lastMessage,
+        'lastTime': g.lastTime,
+      }).toList(),
+    }).toList();
+    await prefs.setString(_prefsKey, jsonEncode(list));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -291,6 +350,7 @@ class _ChannelsTabState extends State<ChannelsTab> {
     );
     if (result != null && result is _Community && mounted) {
       setState(() => _communities.add(result));
+      await _saveCommunities();
     }
   }
 
@@ -305,6 +365,7 @@ class _ChannelsTabState extends State<ChannelsTab> {
           final idx = _communities.indexWhere((c) => c.name == updated.name);
           if (idx >= 0) _communities[idx] = updated;
         });
+        _saveCommunities();
       }
     });
   }
@@ -336,6 +397,26 @@ class _ChannelsTabState extends State<ChannelsTab> {
             leading: Icon(Icons.add, color: textPrimary),
             title: Text('New community', style: TextStyle(color: textPrimary)),
             onTap: () { Navigator.pop(context); _createCommunity(); },
+          ),
+          ListTile(
+            leading: Icon(Icons.travel_explore_outlined, color: textPrimary),
+            title: Text('Discover communities', style: TextStyle(color: textPrimary)),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const CommunityDirectoryScreen()),
+              );
+            },
+          ),
+          ListTile(
+            leading: Icon(Icons.campaign_outlined, color: textPrimary),
+            title: Text('Create channel', style: TextStyle(color: textPrimary)),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const ChannelCreationScreen()),
+              );
+            },
           ),
           ListTile(
             leading: Icon(Icons.settings_outlined, color: textPrimary),

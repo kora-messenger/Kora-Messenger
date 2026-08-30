@@ -125,6 +125,10 @@ class KoraApi {
   static const String callLinkBaseUrl =
       String.fromEnvironment('KORA_CALL_LINK_BASE', defaultValue: 'https://kora.chat');
 
+  /// Base URL for channel invite links — swap to your .com domain when deployed.
+  static const String channelBaseUrl =
+      String.fromEnvironment('KORA_CHANNEL_BASE', defaultValue: 'https://kora.app');
+
   /// Blocking / unblocking / reporting help page — linked from the
   /// "Learn more" text in the Block confirmation dialog.
   static const String blockingInfoUrl = '$legalBaseUrl/blocking-and-reporting.html';

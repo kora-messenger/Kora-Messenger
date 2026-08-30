@@ -2,6 +2,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../theme/kora_colors.dart';
+import 'channel_roles_screen.dart';
+import 'channel_invite_screen.dart';
+import 'channel_roles_screen.dart';
 
 /// Community Info Screen — full community details when tapped.
 ///
@@ -95,6 +98,16 @@ class _CommunityInfoScreenState extends State<CommunityInfoScreen> {
             leading: Icon(Icons.group_add_outlined, color: textPrimary),
             title: Text('Add group', style: TextStyle(color: textPrimary)),
             onTap: () { Navigator.pop(context); _addGroup(); },
+          ),
+          ListTile(
+            leading: Icon(Icons.admin_panel_settings_outlined, color: textPrimary),
+            title: Text('Admins & Roles', style: TextStyle(color: textPrimary)),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => ChannelRolesScreen(channelName: _name)),
+              );
+            },
           ),
           ListTile(
             leading: Icon(Icons.notifications_outlined, color: textPrimary),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme/kora_colors.dart';
+import '../config/kora_api.dart';
 
 /// Channel Invite Screen — manage and share channel invite link.
 /// Mirrors WhatsApp's channel invite/link management.
@@ -33,7 +34,7 @@ class _ChannelInviteScreenState extends State<ChannelInviteScreen> {
   @override
   void initState() {
     super.initState();
-    _inviteLink = 'https://kora.app/channel/${widget.channelId}';
+    _inviteLink = '${KoraApi.channelBaseUrl}/channel/${widget.channelId}';
   }
 
   void _copyLink() {
@@ -50,7 +51,7 @@ class _ChannelInviteScreenState extends State<ChannelInviteScreen> {
 
   void _resetLink() {
     setState(() {
-      _inviteLink = 'https://kora.app/channel/${widget.channelId}/${DateTime.now().millisecondsSinceEpoch.toRadixString(36)}';
+      _inviteLink = '${KoraApi.channelBaseUrl}/channel/${widget.channelId}/${DateTime.now().millisecondsSinceEpoch.toRadixString(36)}';
     });
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
