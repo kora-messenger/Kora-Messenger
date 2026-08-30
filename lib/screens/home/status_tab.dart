@@ -7,6 +7,7 @@ import '../../services/status_service.dart';
 import '../../models/status_model.dart';
 import '../../widgets/kora_avatar.dart';
 import '../chat/kora_camera_screen.dart';
+import '../status/status_audience_selector.dart';
 import '../chat/kora_media_editor_screen.dart';
 import '../status/text_status_screen.dart';
 import '../status/status_viewer_screen.dart';
@@ -171,6 +172,14 @@ class _StatusTabState extends State<StatusTab> {
   }
 
   void _captureFromCamera() async {
+    // Show audience selector first
+    final audience = await showModalBottomSheet(
+      context: context,
+      backgroundColor: KoraColors.backgroundFor(Theme.of(context).brightness),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => const StatusAudienceSelector(),
+    );
+    if (audience == null || !mounted) return;
     final result = await Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const KoraCameraScreen()),
     );

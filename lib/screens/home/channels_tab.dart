@@ -6,6 +6,7 @@ import 'dart:io';
 
 import '../../theme/kora_colors.dart';
 import '../../widgets/kora_avatar.dart';
+import '../../widgets/channel_reactions_bar.dart';
 import '../new_community_screen.dart';
 import '../community_info_screen.dart';
 import '../community_directory_screen.dart';

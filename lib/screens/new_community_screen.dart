@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../theme/kora_colors.dart';
+import 'community_preview_screen.dart';
 
 /// New Community screen — setup community profile, name, and description.
 ///
@@ -53,7 +54,17 @@ class _NewCommunityScreenState extends State<NewCommunityScreen> {
       ),
     ).then((communityData) {
       if (communityData != null && mounted) {
-        Navigator.pop(context, communityData);
+        // Show community preview before finishing
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => CommunityPreviewScreen(
+              communityName: communityData['name'] ?? name,
+              communityDescription: communityData['description'] ?? desc,
+            ),
+          ),
+        ).then((_) {
+          Navigator.pop(context, communityData);
+        });
       }
     });
   }
