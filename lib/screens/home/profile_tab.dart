@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../theme/kora_colors.dart';
 import '../../widgets/kora_avatar.dart';
 import '../../widgets/kora_badge.dart';
@@ -17,6 +18,8 @@ import '../settings/about_kora_screen.dart';
 import '../settings/business_tools_screen.dart';
 import '../settings/future_features_screen.dart';
 import '../settings/premium_subscribe_sheet.dart';
+import '../settings/storage_data_screen.dart';
+import '../settings/app_language_screen.dart';
 import '../ai/kora_support_screen.dart';
 import '../search_screen.dart';
 import '../contacts/qr_code_screen.dart';
@@ -231,6 +234,14 @@ class _ProfileTabState extends State<ProfileTab> {
             _accountTile(context),
             _navTile(
               context,
+              icon: Icons.privacy_tip_outlined,
+              iconColor: KoraColors.purple,
+              title: 'Privacy',
+              subtitle: 'Last seen, read receipts, blocked contacts, app lock',
+              screen: const PrivacyScreen(),
+            ),
+            _navTile(
+              context,
               icon: Icons.chat_bubble_outline,
               title: 'Chats',
               subtitle: 'Display, archived chats, history, media, backup',
@@ -246,11 +257,19 @@ class _ProfileTabState extends State<ProfileTab> {
             ),
             _navTile(
               context,
-              icon: Icons.privacy_tip_outlined,
+              icon: Icons.storage_outlined,
               iconColor: KoraColors.purple,
-              title: 'Privacy',
-              subtitle: 'Last seen, read receipts, blocked contacts',
-              screen: const PrivacyScreen(),
+              title: 'Storage and data',
+              subtitle: 'Manage storage, network usage, auto-download',
+              screen: const StorageDataScreen(),
+            ),
+            _navTile(
+              context,
+              icon: Icons.language_outlined,
+              iconColor: KoraColors.purple,
+              title: 'App language',
+              subtitle: 'Language for Kora Messenger',
+              screen: const AppLanguageScreen(),
             ),
             _navTile(
               context,
@@ -262,7 +281,7 @@ class _ProfileTabState extends State<ProfileTab> {
             ),
             const SizedBox(height: 20),
 
-            // ── TRANSLATION & MEDIA section (moved ABOVE Kora section) ──
+            // ── TRANSLATION & MEDIA section ──
             _sectionLabel('TRANSLATION & MEDIA', textMuted),
             _navTile(
               context,
@@ -282,7 +301,7 @@ class _ProfileTabState extends State<ProfileTab> {
             ),
             const SizedBox(height: 20),
 
-            // ── KORA section (moved BELOW Translation & Media) ──
+            // ── KORA section ──
             _sectionLabel('KORA', textMuted),
             _tile(
               context,
@@ -313,8 +332,31 @@ class _ProfileTabState extends State<ProfileTab> {
               subtitle: 'AI image gen, AI stickers, Wear OS, Android Auto',
               screen: const FutureFeaturesScreen(),
             ),
+            const SizedBox(height: 20),
+
+            // ── Invite a friend ──
+            _tile(
+              context,
+              Icons.person_add_outlined,
+              'Invite a friend',
+              'Share Kora Messenger with your contacts',
+              onTap: _inviteFriend,
+            ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _inviteFriend() {
+    const inviteText = 'Hey! I\'m using Kora Messenger — a secure, AI-powered messaging app. '
+        'Download it and let\'s chat! https://app.base44.com/superagent/6a8225cb1baabb64463874c8';
+    // Copy to clipboard for sharing
+    Clipboard.setData(const ClipboardData(text: inviteText));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Invite link copied to clipboard'),
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }
