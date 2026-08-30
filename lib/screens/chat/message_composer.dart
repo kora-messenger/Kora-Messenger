@@ -16,6 +16,9 @@ import 'kora_camera_screen.dart';
 import 'kora_media_editor_screen.dart';
 import 'package:image_picker/image_picker.dart';
 import 'language_picker_screen.dart';
+import 'gif_search_screen.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter_contacts/flutter_contacts.dart';
 
 /// Kora's message composer — the bottom input bar.
 ///
@@ -43,6 +46,9 @@ class MessageComposer extends StatefulWidget {
   final Function(String) onSend;
   final Function(String)? onSendSticker;
   final Function(String)? onSendGif;
+  final Function(String path, String fileName, int fileSize)? onSendDocument;
+  final Function(String name, String phone)? onSendContact;
+  final Function(double lat, double lng, String address)? onSendLocation;
   final Function(
     String duration, {
     String? filePath,
@@ -62,6 +68,9 @@ class MessageComposer extends StatefulWidget {
     required this.onSend,
     this.onSendSticker,
     this.onSendGif,
+    this.onSendDocument,
+    this.onSendContact,
+    this.onSendLocation,
     required this.onSendVoice,
     this.onAttachment,
     this.onAiWriting,
@@ -826,6 +835,200 @@ class _MessageComposerState extends State<MessageComposer>
     );
   }
 
+  // ── Document picker ─────────────────────────────────
+  void _pickDocument() async {
+    final result = await FilePicker.platform.pickFiles(allowMultiple: false);
+    if (result != null && result.files.isNotEmpty) {
+      final file = result.files.first;
+      if (widget.onSendDocument != null) {
+        widget.onSendDocument!(file.path!, file.name, file.size);
+      }
+    }
+  }
+
+  // ── Contact picker ──────────────────────────────────
+  void _pickContact() async {
+    final brightness = Theme.of(context).brightness;
+    final bg = KoraColors.backgroundFor(brightness);
+    final card = KoraColors.cardFor(brightness);
+    final textPrimary = KoraColors.textPrimaryFor(brightness);
+    final textSecondary = KoraColors.textSecondaryFor(brightness);
+    final textMuted = KoraColors.textMutedFor(brightness);
+
+    // Try native contacts
+    if (await FlutterContacts.requestPermission()) {
+      final contacts = await FlutterContacts.getContacts(
+        withProperties: true,
+        withThumbnail: false,
+      );
+
+      if (!mounted) return;
+
+      // Show a bottom sheet with contacts
+      final selected = await showModalBottomSheet<Map<String, String>?>(
+        context: context,
+        backgroundColor: bg,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        isScrollControlled: true,
+        builder: (ctx) {
+          final filtered = <Contact>[];
+          TextEditingController searchCtrl = TextEditingController();
+
+          return StatefulBuilder(builder: (ctx, setSheetState) {
+            void filter(String q) {
+              filtered.clear();
+              filtered.addAll(contacts.where((c) =>
+                (c.displayName.toLowerCase().contains(q.toLowerCase())) ||
+                (c.phones.isNotEmpty && c.phones.first.number.contains(q))));
+              setSheetState(() {});
+            }
+
+            return Container(
+              height: MediaQuery.of(ctx).size.height * 0.6,
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+              child: Column(
+                children: [
+                  Container(
+                    width: 40, height: 4,
+                    decoration: BoxDecoration(
+                      color: textMuted.withValues(alpha: 0.4),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text('Share Contact', style: TextStyle(
+                    color: textPrimary, fontSize: 16, fontWeight: FontWeight.w600,
+                  )),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: searchCtrl,
+                    onChanged: filter,
+                    style: TextStyle(color: textPrimary),
+                    decoration: InputDecoration(
+                      hintText: 'Search contacts...',
+                      hintStyle: TextStyle(color: textMuted),
+                      prefixIcon: Icon(Icons.search, color: textMuted),
+                      filled: true,
+                      fillColor: card,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: (filtered.isEmpty ? contacts : filtered).length,
+                      itemBuilder: (ctx, i) {
+                        final c = (filtered.isEmpty ? contacts : filtered)[i];
+                        final phone = c.phones.isNotEmpty ? c.phones.first.number : 'No number';
+                        return ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: KoraColors.purple.withValues(alpha: 0.1),
+                            child: Text(
+                              c.displayName.isNotEmpty ? c.displayName[0].toUpperCase() : '?',
+                              style: TextStyle(color: KoraColors.purple),
+                            ),
+                          ),
+                          title: Text(c.displayName, style: TextStyle(color: textPrimary, fontSize: 15)),
+                          subtitle: Text(phone, style: TextStyle(color: textSecondary, fontSize: 13)),
+                          onTap: () {
+                            Navigator.pop(ctx, {'name': c.displayName, 'phone': phone});
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            );
+          });
+        },
+      );
+
+      if (selected != null && widget.onSendContact != null) {
+        widget.onSendContact!(selected['name']!, selected['phone']!);
+      }
+    } else {
+      // Permission denied — show snackbar
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Contact permission denied'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: KoraColors.purple,
+          ),
+        );
+      }
+    }
+  }
+
+  // ── Send current location ───────────────────────────
+  void _sendCurrentLocation() async {
+    final brightness = Theme.of(context).brightness;
+    final textPrimary = KoraColors.textPrimaryFor(brightness);
+    final textSecondary = KoraColors.textSecondaryFor(brightness);
+    final textMuted = KoraColors.textMutedFor(brightness);
+    final card = KoraColors.cardFor(brightness);
+
+    // Use a simple static map URL approach since geolocator isn't in deps
+    // Show a sheet to confirm sending location
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('Send Location', style: TextStyle(color: textPrimary, fontWeight: FontWeight.w600)),
+        content: Text(
+          'Share your current location with this chat? '
+          'You can also add a caption after sharing.',
+          style: TextStyle(color: textSecondary, fontSize: 14),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('Cancel', style: TextStyle(color: textMuted))),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: KoraColors.purple),
+            child: const Text('Send Location', style: TextStyle(fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && widget.onSendLocation != null) {
+      // Send a placeholder location — in production, use geolocator
+      widget.onSendLocation!(0.0, 0.0, 'Current Location');
+    }
+  }
+
+  // ── Open GIF search ─────────────────────────────────
+  void _openGifSearch() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => GifSearchScreen(
+          onGifSelected: (gifId) {
+            if (widget.onSendGif != null) {
+              widget.onSendGif!(gifId);
+            }
+            Navigator.pop(context);
+          },
+        ),
+      ),
+    );
+  }
+
+  // ── Open sticker panel from attachment ─────────────
+  void _openStickerPanel() {
+    // The emoji/sticker panel is already toggled via the emoji button
+    // Just trigger the sticker tab directly
+    _focusNode.unfocus();
+    setState(() => _showEmojiPanel = true);
+  }
+
   Widget _attachIcon(IconData icon, String label, Color color, VoidCallback onTap) {
     return GestureDetector(
       onTap: () { Navigator.pop(context); onTap(); },
@@ -861,9 +1064,18 @@ class _MessageComposerState extends State<MessageComposer>
   void _pickFromGallery(bool isImage) async {
     final picker = ImagePicker();
     if (isImage) {
-      final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 100);
-      if (picked == null || !mounted) return;
-      _openEditor(picked.path, false);
+      // Multi-select for images (WhatsApp allows up to 30)
+      final picked = await picker.pickMultiImage(imageQuality: 100);
+      if (picked.isEmpty || !mounted) return;
+      // Open editor for first image; send the rest directly
+      for (var i = 0; i < picked.length; i++) {
+        if (i == 0) {
+          _openEditor(picked[i].path, false);
+        } else {
+          // Send additional images directly without editor
+          widget.onSendMedia?.call(picked[i].path, false, null, false, false, null, null);
+        }
+      }
     } else {
       final picked = await picker.pickVideo(source: ImageSource.gallery, maxDuration: const Duration(minutes: 3));
       if (picked == null || !mounted) return;

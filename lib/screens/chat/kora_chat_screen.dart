@@ -22,6 +22,7 @@ import '../../widgets/kora_menu_sheet.dart';
 import 'chat_header.dart';
 import 'message_bubble.dart';
 import 'message_composer.dart';
+import 'package:file_picker/file_picker.dart';
 import 'call_screen.dart';
 import 'message_action_menu.dart';
 import 'e2ee_verification_screen.dart';
@@ -338,6 +339,70 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
       replyToText: _replyTarget?.text,
       replyToName: _replyTarget != null ? (_replyTarget!.isMe ? 'You' : widget.name) : null,
       replyToType: _replyTarget?.type,
+      recipientEmail: widget.recipientEmail,
+      recipientName: widget.name,
+    );
+    ChatSoundService.instance.playOutgoing();
+    setState(() {
+      _messages = List.from(_messageService.getMessages(widget.chatId));
+      _replyTarget = null;
+    });
+    _scrollToBottom();
+  }
+
+  // ── Send document ────────────────────────────────────
+  void _sendDocument(String path, String fileName, int fileSize) async {
+    final sizeStr = fileSize > 1024 * 1024
+        ? '${(fileSize / (1024 * 1024)).toStringAsFixed(1)} MB'
+        : '${(fileSize / 1024).toStringAsFixed(0)} KB';
+
+    await _messageService.sendMessage(
+      widget.chatId,
+      '📎 $fileName ($sizeStr)',
+      type: KoraMessageType.document,
+      replyToId: _replyTarget?.id,
+      replyToText: _replyTarget?.text,
+      replyToName: _replyTarget != null ? (_replyTarget!.isMe ? 'You' : widget.name) : null,
+      recipientEmail: widget.recipientEmail,
+      recipientName: widget.name,
+    );
+    ChatSoundService.instance.playOutgoing();
+    setState(() {
+      _messages = List.from(_messageService.getMessages(widget.chatId));
+      _replyTarget = null;
+    });
+    _scrollToBottom();
+  }
+
+  // ── Send contact (vCard) ─────────────────────────────
+  void _sendContact(String name, String phone) async {
+    await _messageService.sendMessage(
+      widget.chatId,
+      '👤 $name\n$phone',
+      type: KoraMessageType.contact,
+      replyToId: _replyTarget?.id,
+      replyToText: _replyTarget?.text,
+      replyToName: _replyTarget != null ? (_replyTarget!.isMe ? 'You' : widget.name) : null,
+      recipientEmail: widget.recipientEmail,
+      recipientName: widget.name,
+    );
+    ChatSoundService.instance.playOutgoing();
+    setState(() {
+      _messages = List.from(_messageService.getMessages(widget.chatId));
+      _replyTarget = null;
+    });
+    _scrollToBottom();
+  }
+
+  // ── Send location ────────────────────────────────────
+  void _sendLocation(double lat, double lng, String address) async {
+    await _messageService.sendMessage(
+      widget.chatId,
+      '📍 $address',
+      type: KoraMessageType.location,
+      replyToId: _replyTarget?.id,
+      replyToText: _replyTarget?.text,
+      replyToName: _replyTarget != null ? (_replyTarget!.isMe ? 'You' : widget.name) : null,
       recipientEmail: widget.recipientEmail,
       recipientName: widget.name,
     );
@@ -1832,6 +1897,9 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
                         onSendVoice: _sendVoice,
                         onMicTap: () => AudioPlaybackService.instance.stop(),
                         onSendMedia: _sendMedia,
+                        onSendDocument: _sendDocument,
+                        onSendContact: _sendContact,
+                        onSendLocation: _sendLocation,
                       ),
               ),
           ],

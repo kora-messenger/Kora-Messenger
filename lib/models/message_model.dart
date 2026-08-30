@@ -10,6 +10,9 @@ enum KoraMessageType {
   file,
   sticker, // sticker messages (large emoji rendered as stickers)
   system, // date separators, inline notices
+  document, // document/file attachments
+  contact, // shared contact (vCard)
+  location, // shared location
   action, // messages with an action button (e.g. "Subscribe to Kora Premium")
   issueList, // support AI showing a list of common issues to pick from
 }
@@ -428,6 +431,12 @@ class KoraMessage {
       case KoraMessageType.action:
       case KoraMessageType.issueList:
         return 0;
+      case KoraMessageType.document:
+        return 100000;
+      case KoraMessageType.contact:
+        return 512;
+      case KoraMessageType.location:
+        return 256;
       case KoraMessageType.text:
         return utf8.encode(text).length + 32; // text bytes + metadata overhead
     }
