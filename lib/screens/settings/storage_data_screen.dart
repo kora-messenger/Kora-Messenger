@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../theme/kora_colors.dart';
+import 'manage_storage_screen.dart';
+import 'network_usage_screen.dart';
 
 /// Storage and data settings — mirrors WhatsApp's Settings > Storage and data.
 ///
@@ -98,15 +100,8 @@ class _StorageDataScreenState extends State<StorageDataScreen> {
                           subtitle: Text('Review and delete media to free up space',
                               style: TextStyle(color: textSecondary, fontSize: 13)),
                           trailing: Icon(Icons.chevron_right, color: textMuted),
-                          onTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: const Text('Storage manager coming soon'),
-                                behavior: SnackBarBehavior.floating,
-                                backgroundColor: KoraColors.purple,
-                              ),
-                            );
-                          },
+                          onTap: () => Navigator.push(context,
+                            MaterialPageRoute(builder: (_) => const ManageStorageScreen())),
                         ),
                         Divider(height: 1, indent: 56, color: border),
                         ListTile(
@@ -115,15 +110,8 @@ class _StorageDataScreenState extends State<StorageDataScreen> {
                           subtitle: Text('See how much data Kora uses',
                               style: TextStyle(color: textSecondary, fontSize: 13)),
                           trailing: Icon(Icons.chevron_right, color: textMuted),
-                          onTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: const Text('Network usage coming soon'),
-                                behavior: SnackBarBehavior.floating,
-                                backgroundColor: KoraColors.purple,
-                              ),
-                            );
-                          },
+                          onTap: () => Navigator.push(context,
+                            MaterialPageRoute(builder: (_) => const NetworkUsageScreen())),
                         ),
                       ],
                     ),
