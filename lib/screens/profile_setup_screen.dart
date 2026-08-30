@@ -8,6 +8,7 @@ import '../theme/kora_colors.dart';
 import '../theme/chat_theme_provider.dart';
 import '../widgets/kora_button.dart';
 import '../widgets/kora_input.dart';
+import 'chat/emoji_picker_sheet.dart';
 import '../services/auth_service.dart';
 import '../config/kora_api.dart';
 import '../services/session_manager.dart';
@@ -72,6 +73,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       _usernameStatus = UsernameStatus.available;
       _usernameMessage = 'Available';
     }
+
+    // Default bio — mirrors WhatsApp's "Hey there! I am using WhatsApp."
+    _bioController.text = 'Hey there! I am using Kora.';
   }
 
   @override
@@ -397,6 +401,38 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                 prefixIcon: Padding(
                   padding: const EdgeInsets.only(left: 14, right: 10),
                   child: Icon(Icons.person_outline, color: _textMuted, size: 22),
+                ),
+                suffixIcon: Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: GestureDetector(
+                    onTap: () {
+                      showModalBottomSheet(
+                        context: context,
+                        backgroundColor: _bg,
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                        ),
+                        isScrollControlled: true,
+                        builder: (_) => SizedBox(
+                          height: MediaQuery.of(context).size.height * 0.5,
+                          child: EmojiPickerSheet(
+                            onEmojiSelected: (emoji) {
+                              final currentText = _nameController.text;
+                              final selection = _nameController.selection;
+                              final newText = currentText.substring(0, selection.start) +
+                                  emoji +
+                                  currentText.substring(selection.end);
+                              _nameController.text = newText;
+                              _nameController.selection = TextSelection.collapsed(
+                                offset: selection.start + emoji.length,
+                              );
+                            },
+                          ),
+                        ),
+                      );
+                    },
+                    child: Icon(Icons.emoji_emotions_outlined, color: _textMuted, size: 22),
+                  ),
                 ),
               ),
               const SizedBox(height: 20),

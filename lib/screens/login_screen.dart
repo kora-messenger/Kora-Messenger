@@ -300,8 +300,6 @@ class _LogInScreenState extends State<LogInScreen> {
             ChatSyncService.instance.setSenderName(
               (session?['fullName'] as String?) ?? '',
             );
-            await ChatSyncService.instance.restoreFromCloud();
-            ChatSyncService.instance.startPolling();
           }
         }
         final prefs = await SharedPreferences.getInstance();
@@ -313,11 +311,21 @@ class _LogInScreenState extends State<LogInScreen> {
 
         TextInput.finishAutofillContext();
 
+        // Show chat restore overlay for returning users, then navigate
         if (user.profileCompleted) {
-          Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (_) => const KoraHomeScreen()),
-            (route) => false,
-          );
+          // Show restoring overlay while syncing chats in background
+          if (mounted) {
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (_) => const KoraHomeScreen()),
+              (route) => false,
+            );
+            // Restore chats after navigation — overlay shows on home screen
+            if (session != null && session['email'] != null) {
+              ChatSyncService.instance.restoreFromCloud().then((_) {
+                ChatSyncService.instance.startPolling();
+              });
+            }
+          }
         } else {
           Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute(
@@ -325,6 +333,9 @@ class _LogInScreenState extends State<LogInScreen> {
             ),
             (route) => false,
           );
+          if (session != null && session['email'] != null) {
+            ChatSyncService.instance.startPolling();
+          }
         }
       } else {
         setState(() {

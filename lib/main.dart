@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'theme/kora_colors.dart';
 import 'config/kora_api.dart';
@@ -17,10 +18,13 @@ import 'services/data_saver_service.dart';
 import 'services/crash_logger.dart';
 import 'services/connectivity_service.dart';
 import 'services/status_service.dart';
+import 'services/chat_sync_service.dart';
 import 'services/offline_voice_sync.dart';
 import 'services/translation_service.dart';
 import 'services/message_service.dart';
 import 'theme/chat_theme_provider.dart';
+import 'package:local_auth/local_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   runZonedGuarded<Future<void>>(() async {
@@ -152,7 +156,7 @@ class ShootingStarPainter extends CustomPainter {
 /// - Session with profileCompleted → KoraHomeScreen
 /// - Session without profileCompleted → ProfileSetupScreen
 ///
-/// The splash screen displays for exactly 5 seconds before routing.
+/// The splash screen displays briefly (~1.2s) before routing — logo animation only.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -167,14 +171,14 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void initState() {
     super.initState();
-    // 5-second animation — one complete orbit of the shooting star
+    // Brief 1.2s animation — just enough for the logo + star orbit
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 5),
+      duration: const Duration(milliseconds: 1200),
     )..forward();
 
-    // Start the boot/routing process after the splash duration
-    Timer(const Duration(seconds: 5), _boot);
+    // Start boot almost immediately — don't block on animation
+    Timer(const Duration(milliseconds: 1200), _boot);
   }
 
   @override
@@ -216,6 +220,46 @@ class _SplashScreenState extends State<SplashScreen>
     final session = await SessionManager.instance.loadSession();
     if (!mounted) return;
 
+    // ── App Lock: check biometric after crash dialog too ──
+    if (session != null) {
+      final prefs = await SharedPreferences.getInstance();
+      final appLockEnabled = prefs.getBool('app_lock_enabled') ??
+          prefs.getBool('kora_privacy_app_lock') ?? false;
+
+      if (appLockEnabled) {
+        final localAuth = LocalAuthentication();
+        bool authenticated = false;
+        try {
+          final canCheck = await localAuth.canCheckBiometrics;
+          if (canCheck) {
+            authenticated = await localAuth.authenticate(
+              authMessages: const <AuthMessages>[
+                AndroidAuthMessages(
+                  signInTitle: 'Unlock Kora',
+                  biometricHint: '',
+                ),
+                IOSAuthMessages(
+                  cancelButton: 'Cancel',
+                ),
+              ],
+              options: const AuthenticationOptions(
+                stickyAuth: true,
+                biometricOnly: false,
+              ),
+            );
+          }
+        } catch (_) {
+          authenticated = true;
+        }
+
+        if (!mounted) return;
+        if (!authenticated) {
+          SystemNavigator.pop();
+          return;
+        }
+      }
+    }
+
     if (session == null) {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => const WelcomeScreen()),
@@ -243,6 +287,50 @@ class _SplashScreenState extends State<SplashScreen>
     final session = await SessionManager.instance.loadSession();
 
     if (!mounted) return;
+
+    // ── App Lock: if enabled and user has a session, prompt biometric ──
+    if (session != null) {
+      final prefs = await SharedPreferences.getInstance();
+      final appLockEnabled = prefs.getBool('app_lock_enabled') ??
+          prefs.getBool('kora_privacy_app_lock') ?? false;
+
+      if (appLockEnabled) {
+        final localAuth = LocalAuthentication();
+        bool authenticated = false;
+
+        try {
+          final canCheck = await localAuth.canCheckBiometrics;
+          if (canCheck) {
+            authenticated = await localAuth.authenticate(
+              authMessages: const <AuthMessages>[
+                AndroidAuthMessages(
+                  signInTitle: 'Unlock Kora',
+                  biometricHint: '',
+                ),
+                IOSAuthMessages(
+                  cancelButton: 'Cancel',
+                ),
+              ],
+              options: const AuthenticationOptions(
+                stickyAuth: true,
+                biometricOnly: false,
+              ),
+            );
+          }
+        } catch (_) {
+          // If biometric fails, fall through to app
+          authenticated = true;
+        }
+
+        if (!mounted) return;
+
+        if (!authenticated) {
+          // User cancelled biometric — exit the app
+          SystemNavigator.pop();
+          return;
+        }
+      }
+    }
 
     if (session == null) {
       Navigator.of(context).pushReplacement(
@@ -298,6 +386,17 @@ class _SplashScreenState extends State<SplashScreen>
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const KoraHomeScreen()),
         );
+        // Background chat restore — non-blocking, runs after home loads
+        final userEmail = session['email']?.toString() ?? '';
+        if (userEmail.isNotEmpty) {
+          ChatSyncService.instance.setUserEmail(userEmail);
+          ChatSyncService.instance.setSenderName(
+            session['fullName']?.toString() ?? '',
+          );
+          ChatSyncService.instance.restoreFromCloud().then((_) {
+            ChatSyncService.instance.startPolling();
+          });
+        }
       } else {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
