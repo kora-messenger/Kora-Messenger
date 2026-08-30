@@ -60,7 +60,6 @@ class ChatService {
     final chats = await _buildChats(_ChatListFilter.main);
     cachedChats = chats;
     return chats;
-    return _buildChats(_ChatListFilter.main);
   }
 
   /// Returns chats the user has archived, most recent first. Locked

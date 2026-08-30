@@ -29,7 +29,144 @@ class _CommunityPreviewScreenState extends State<CommunityPreviewScreen> {
   ];
 
   void _addGroup() {
-    // TODO: Open group creation flow
+    final nameController = TextEditingController();
+    final descController = TextEditingController();
+
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogContext) {
+        final brightness = Theme.of(dialogContext).brightness;
+        final textPrimary = KoraColors.textPrimaryFor(brightness);
+        final textMuted = KoraColors.textMutedFor(brightness);
+        final card = KoraColors.cardFor(brightness);
+        final border = KoraColors.borderFor(brightness);
+
+        return Dialog(
+          backgroundColor: card,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'New Group',
+                  style: TextStyle(
+                    color: textPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Add a group to ${widget.communityName}',
+                  style: TextStyle(color: textMuted, fontSize: 13),
+                ),
+                const SizedBox(height: 20),
+                // Group name field
+                TextField(
+                  controller: nameController,
+                  autofocus: true,
+                  maxLength: 100,
+                  style: TextStyle(color: textPrimary, fontSize: 15),
+                  decoration: InputDecoration(
+                    counterText: '',
+                    hintText: 'Group name',
+                    hintStyle: TextStyle(color: textMuted, fontSize: 15),
+                    filled: true,
+                    fillColor: card,
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: border, width: 0.5),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: KoraColors.purple, width: 1.5),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                // Description field
+                TextField(
+                  controller: descController,
+                  maxLines: 2,
+                  maxLength: 3000,
+                  style: TextStyle(color: textPrimary, fontSize: 14),
+                  decoration: InputDecoration(
+                    counterText: '',
+                    hintText: 'Description (optional)',
+                    hintStyle: TextStyle(color: textMuted, fontSize: 14),
+                    filled: true,
+                    fillColor: card,
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: border, width: 0.5),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: KoraColors.purple, width: 1.5),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                // Actions
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      child: Text(
+                        'Cancel',
+                        style: TextStyle(color: textMuted, fontSize: 15),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: () {
+                        final name = nameController.text.trim();
+                        if (name.isEmpty) return;
+                        setState(() {
+                          _groups.add({
+                            'name': name,
+                            'description': descController.text.trim().isNotEmpty
+                                ? descController.text.trim()
+                                : 'New group',
+                            'createdAt': DateTime.now().toString().substring(0, 16),
+                          });
+                        });
+                        Navigator.pop(dialogContext);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('"$name" added to ${widget.communityName}'),
+                            backgroundColor: KoraColors.purple,
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                        decoration: BoxDecoration(
+                          gradient: KoraColors.brandGradient,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Text(
+                          'Add',
+                          style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   void _openMenu() {

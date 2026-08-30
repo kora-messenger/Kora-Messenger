@@ -8,6 +8,7 @@ import 'kora_home_screen.dart';
 import 'chat/emoji_picker_sheet.dart';
 import 'chat/disappearing_messages_screen.dart';
 import 'group/group_permissions_screen.dart';
+import '../services/chat_sync_service.dart';
 
 /// Group-details screen — shown after selecting members on the New
 /// Group screen. Lets the user name the group, add a group photo,
@@ -350,8 +351,20 @@ class _NewGroupDetailsScreenState extends State<NewGroupDetailsScreen> {
     // more people can be added to the group afterward.
     setState(() => _creating = true);
 
-    // TODO: persist the group once the Group entity/backend exists.
-    await Future.delayed(const Duration(milliseconds: 400));
+    // Persist the group as a conversation via ChatSyncService.
+    final chatId = 'group_${DateTime.now().millisecondsSinceEpoch}';
+    try {
+      await ChatSyncService.instance.syncConversation(
+        chatId: chatId,
+        name: name,
+        avatarAsset: _groupPhoto?.path,
+        isOnline: false,
+        lastMessageText: 'Group created',
+        lastMessageType: 'system',
+      );
+    } catch (_) {
+      // Best-effort sync — group still works locally.
+    }
 
     if (!mounted) return;
 
