@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -236,7 +237,7 @@ class _GroupChatInfoScreenState extends State<GroupChatInfoScreen> {
                     color: textPrimary,
                     textMuted: textMuted,
                     border: border,
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const E2EeVerificationScreen())),
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const E2eeVerificationScreen())),
                   ),
                 ],
               ),
@@ -388,7 +389,7 @@ class _GroupChatInfoScreenState extends State<GroupChatInfoScreen> {
     );
   }
 
-  Widget _divider(Color border) => Padding(padding: const EdgeInsets.only(left: 60), child: Divider(height: 1, color: border.withOpacity(0.3)));
+  Widget _divider(Color border) => Padding(padding: const EdgeInsets.only(left: 60), child: Divider(height: 1, color: border.withValues(alpha: 0.3)));
 
   String _formatDate(DateTime date) {
     final months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
