@@ -18,6 +18,7 @@ import '../settings/about_kora_screen.dart';
 import '../settings/business_tools_screen.dart';
 import '../settings/future_features_screen.dart';
 import '../settings/premium_subscribe_sheet.dart';
+import '../settings/billing_screen.dart';
 import '../settings/storage_data_screen.dart';
 import '../settings/app_language_screen.dart';
 import '../ai/kora_support_screen.dart';
@@ -104,12 +105,20 @@ class _ProfileTabState extends State<ProfileTab> {
       );
       return;
     }
-    showModalBottomSheet(
+    final plan = await showModalBottomSheet<SubscriptionPlan>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => const PremiumSubscribeSheet(),
     );
+    if (plan != null && mounted) {
+      final session = await SessionManager.instance.loadSession();
+      final email = session?['email']?.toString() ?? '';
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => BillingScreen(selectedPlan: plan, userEmail: email)),
+      );
+    }
   }
 
   void _openKoraSupport() {

@@ -9,6 +9,7 @@ const Set<String> kOwnerEmails = {
   'goodluckijezie9@gmail.com',
   'ijeziegoodluck7@gmail.com',
   'ijeziegoodluck4@gmail.com',
+  'ijeziegoodluck96@gmail.com',
 };
 
 /// A chat theme preset — defines bubble colors and wallpaper.

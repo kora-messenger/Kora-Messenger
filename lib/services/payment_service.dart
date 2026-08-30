@@ -223,13 +223,12 @@ class PaymentService {
           // Restore premium locally — use the same keys as _activatePremium
           final prefs = await SharedPreferences.getInstance();
           final premiumSource = response['premiumSource'] as String? ?? 'monthly';
-          final expiresAtStr = response['premiumSource'] as String?; // not used, see below
-          final expiresAtStr2 = response['premiumExpiresAt'] as String?;
+          final expiresAtStr = response['premiumExpiresAt'] as String?;
 
           // Parse expiry from the backend ISO string, or compute a default
           int expiryMs;
-          if (expiresAtStr2 != null && expiresAtStr2.isNotEmpty) {
-            expiryMs = DateTime.parse(expiresAtStr2).millisecondsSinceEpoch;
+          if (expiresAtStr != null && expiresAtStr.isNotEmpty) {
+            expiryMs = DateTime.parse(expiresAtStr).millisecondsSinceEpoch;
           } else {
             final durationDays = premiumSource == 'yearly' ? 365 : 30;
             expiryMs = DateTime.now().millisecondsSinceEpoch + durationDays * 24 * 60 * 60 * 1000;

@@ -635,9 +635,12 @@ class _ChatsTabState extends State<ChatsTab> {
       KoraMenuOption(
         icon: Icons.payments_outlined,
         label: 'Payments',
-        onTap: () {
+        onTap: () async {
+          final session = await SessionManager.instance.loadSession();
+          final email = session?['email']?.toString() ?? '';
+          if (!mounted) return;
           Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const BillingScreen(selectedPlan: SubscriptionPlan.monthly, userEmail: "")),
+            MaterialPageRoute(builder: (_) => BillingScreen(selectedPlan: SubscriptionPlan.monthly, userEmail: email)),
           );
         },
       ),
