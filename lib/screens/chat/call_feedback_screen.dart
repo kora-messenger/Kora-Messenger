@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../theme/kora_colors.dart';
@@ -53,7 +54,7 @@ class _CallFeedbackScreenState extends State<CallFeedbackScreen> {
     };
     // Store in a list of feedback entries
     final existing = prefs.getStringList('kora_call_feedback') ?? [];
-    existing.add(feedback.toString());
+    existing.add(jsonEncode(feedback));
     await prefs.setStringList('kora_call_feedback', existing);
 
     if (mounted) Navigator.pop(context);

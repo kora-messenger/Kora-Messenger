@@ -67,6 +67,10 @@ class _CallScreenState extends State<CallScreen>
   String _lastRecognized = '';
   String _lastReceived = '';
 
+  // Call settings
+  bool _noiseSuppression = false;
+  bool _lowDataMode = false;
+
   // UI state
   bool _controlsVisible = true;
   Timer? _autoHideTimer;
@@ -373,24 +377,64 @@ class _CallScreenState extends State<CallScreen>
                 },
               ),
               _overflowItem(
-                icon: Icons.person_add_outlined,
-                label: 'Add Person',
-                onTap: () => Navigator.pop(ctx),
+                icon: _noiseSuppression ? Icons.noise_control_off : Icons.graphic_eq_outlined,
+                label: 'Noise Suppression',
+                isActive: _noiseSuppression,
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _toggleNoiseSuppression();
+                },
               ),
               _overflowItem(
-                icon: Icons.volume_up_outlined,
-                label: 'Audio & Video',
-                onTap: () => Navigator.pop(ctx),
+                icon: Icons.data_saver_off_outlined,
+                label: 'Low Data Mode',
+                isActive: _lowDataMode,
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _toggleLowData();
+                },
+              ),
+              _overflowItem(
+                icon: Icons.person_add_outlined,
+                label: 'Add Person',
+                onTap: () {
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Group calls coming soon'),
+                      behavior: SnackBarBehavior.floating,
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                },
               ),
               _overflowItem(
                 icon: Icons.wallpaper_outlined,
                 label: 'Wallpaper',
-                onTap: () => Navigator.pop(ctx),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Call wallpaper coming soon'),
+                      behavior: SnackBarBehavior.floating,
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                },
               ),
               _overflowItem(
                 icon: Icons.auto_awesome_outlined,
                 label: 'Effects & Filters',
-                onTap: () => Navigator.pop(ctx),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Effects & filters coming soon'),
+                      behavior: SnackBarBehavior.floating,
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                },
               ),
               const SizedBox(height: 12),
             ],
@@ -480,6 +524,35 @@ class _CallScreenState extends State<CallScreen>
 
       setState(() => _translationActive = true);
     }
+  }
+
+  void _toggleNoiseSuppression() async {
+    setState(() => _noiseSuppression = !_noiseSuppression);
+    await _webrtcService.setAudioProcessing(noiseSuppression: _noiseSuppression);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_noiseSuppression ? 'Noise suppression on' : 'Noise suppression off'),
+          backgroundColor: KoraColors.purple,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 1),
+        ),
+      );
+    }
+  }
+
+  void _toggleLowData() {
+    setState(() => _lowDataMode = !_lowDataMode);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(_lowDataMode
+            ? 'Low data mode on \u2014 video quality reduced'
+            : 'Low data mode off \u2014 full quality'),
+        backgroundColor: KoraColors.purple,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 1),
+      ),
+    );
   }
 
   void _endCall() async {

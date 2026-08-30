@@ -168,15 +168,22 @@ class _KeypadScreenState extends State<KeypadScreen> {
               ),
             ),
             const SizedBox(height: 28),
-            // Green Call Button
+            // Call Button (Kora brand gradient)
             GestureDetector(
               onTap: _makeCall,
               child: Container(
                 width: 68,
                 height: 68,
-                decoration: const BoxDecoration(
-                  color: KoraColors.waGreen,
+                decoration: BoxDecoration(
+                  gradient: KoraColors.brandGradient,
                   shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: KoraColors.purple.withValues(alpha: 0.35),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
                 ),
                 child: const Icon(
                   Icons.call,

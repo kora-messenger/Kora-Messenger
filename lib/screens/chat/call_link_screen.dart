@@ -326,8 +326,7 @@ class _CallWaitingRoomScreenState extends State<CallWaitingRoomScreen> {
   }
 }
 
-/// Simple wrapper to transition from waiting room to actual call screen.
-/// In production, this would use the full CallScreen.
+/// Transition from waiting room to the actual CallScreen.
 class _WaitingRoomToCall extends StatelessWidget {
   final String callLink;
   final bool isVideo;
@@ -339,36 +338,13 @@ class _WaitingRoomToCall extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final brightness = Theme.of(context).brightness;
-    return Scaffold(
-      backgroundColor: KoraColors.backgroundFor(brightness),
-      appBar: AppBar(
-        backgroundColor: KoraColors.backgroundFor(brightness),
-        title: Text('Group Call',
-            style: TextStyle(color: KoraColors.textPrimaryFor(brightness))),
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: KoraColors.textPrimaryFor(brightness)),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(isVideo ? Icons.videocam : Icons.call,
-                size: 64, color: KoraColors.purple),
-            const SizedBox(height: 16),
-            Text('You are in the call',
-                style: TextStyle(
-                    color: KoraColors.textPrimaryFor(brightness),
-                    fontSize: 16, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 8),
-            Text('Call link: $callLink',
-                style: TextStyle(
-                    color: KoraColors.textMutedFor(brightness), fontSize: 12)),
-          ],
-        ),
-      ),
+    // Extract a readable name from the call link token
+    final token = callLink.split('/call/').last;
+    final callName = 'Call \u2022 ${token.length > 8 ? token.substring(0, 8) : token}';
+    return CallScreen(
+      contactName: callName,
+      isVideoCall: isVideo,
+      isOutgoing: true,
     );
   }
 }
