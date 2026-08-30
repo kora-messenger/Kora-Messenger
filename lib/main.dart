@@ -239,16 +239,11 @@ class _SplashScreenState extends State<SplashScreen>
               authMessages: const <AuthMessages>[
                 AndroidAuthMessages(
                   signInTitle: 'Unlock Kora',
-                  biometricHint: '',
                 ),
                 IOSAuthMessages(
                   cancelButton: 'Cancel',
                 ),
               ],
-              options: const AuthenticationOptions(
-                stickyAuth: true,
-                biometricOnly: false,
-              ),
             );
           }
         } catch (_) {
@@ -309,16 +304,11 @@ class _SplashScreenState extends State<SplashScreen>
               authMessages: const <AuthMessages>[
                 AndroidAuthMessages(
                   signInTitle: 'Unlock Kora',
-                  biometricHint: '',
                 ),
                 IOSAuthMessages(
                   cancelButton: 'Cancel',
                 ),
               ],
-              options: const AuthenticationOptions(
-                stickyAuth: true,
-                biometricOnly: false,
-              ),
             );
           }
         } catch (_) {

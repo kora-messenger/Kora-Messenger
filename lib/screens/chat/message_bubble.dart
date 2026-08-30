@@ -470,7 +470,7 @@ class MessageBubble extends StatelessWidget {
             builder: (_) => DocumentViewerScreen(
               filePath: message.voiceFilePath ?? '',
               fileName: fileName,
-              fileSize: message.voiceDuration ?? 0,
+              fileSize: 0,
               fileType: _detectFileType(fileName),
             ),
           ),
@@ -1290,5 +1290,26 @@ class MessageBubble extends StatelessWidget {
     final minute = time.minute.toString().padLeft(2, '0');
     return '$hour:$minute $period';
   }
+  String _detectFileType(String fileName) {
+    final ext = fileName.split('.').last.toLowerCase();
+    switch (ext) {
+      case 'pdf':
+        return 'pdf';
+      case 'doc':
+      case 'docx':
+        return 'doc';
+      case 'txt':
+        return 'txt';
+      case 'xls':
+      case 'xlsx':
+        return 'xls';
+      case 'ppt':
+      case 'pptx':
+        return 'ppt';
+      default:
+        return 'file';
+    }
+  }
+
 }
 

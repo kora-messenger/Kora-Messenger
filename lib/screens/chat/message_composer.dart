@@ -858,10 +858,7 @@ class _MessageComposerState extends State<MessageComposer>
     // Try native contacts
     final permResult = await Permission.contacts.request();
     if (permResult.isGranted) {
-      final contacts = await FlutterContacts.getContacts(
-        withProperties: true,
-        withThumbnail: false,
-      );
+      final contacts = await FlutterContacts.getContacts(withProperties: true);
 
       if (!mounted) return;
 
