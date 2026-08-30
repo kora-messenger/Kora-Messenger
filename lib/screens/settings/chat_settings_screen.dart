@@ -4,7 +4,6 @@ import '../../theme/kora_colors.dart';
 import '../../theme/chat_theme_provider.dart';
 import '../archived_chats_screen.dart';
 import 'chat_backup_screen.dart';
-import 'chat_lock_screen.dart';
 import 'default_chat_theme_screen.dart';
 import 'wallpaper_screen.dart';
 
@@ -23,7 +22,6 @@ class _ChatSettingsScreenState extends State<ChatSettingsScreen> {
   bool _keepArchived = true;
   bool _mediaVisibility = true;
   bool _enterIsSend = false;
-  bool _securityNotifs = true;
   bool _showCallHistory = true;
   bool _isLoading = true;
   String _themeMode = 'system';
@@ -55,7 +53,6 @@ class _ChatSettingsScreenState extends State<ChatSettingsScreen> {
         _keepArchived = prefs.getBool('keep_chats_archived') ?? true;
         _mediaVisibility = prefs.getBool('media_visibility') ?? true;
         _enterIsSend = prefs.getBool('enter_is_send') ?? false;
-        _securityNotifs = prefs.getBool('sec_notif_suspiciousActivity') ?? true;
         _showCallHistory = prefs.getBool('show_call_history') ?? true;
         _themeMode = prefs.getString('theme_mode') ?? 'system';
         _mediaQuality = prefs.getString('media_upload_quality') ?? 'auto';
@@ -174,6 +171,16 @@ class _ChatSettingsScreenState extends State<ChatSettingsScreen> {
                 _sectionLabel('CHAT HISTORY', textMuted),
                 _navTile(
                   context,
+                  icon: Icons.qr_code_scanner_rounded,
+                  title: 'Transfer chat',
+                  card: card,
+                  textPrimary: textPrimary,
+                  textMuted: textMuted,
+                  border: border,
+                  onTap: () => _transferChat(context),
+                ),
+                _navTile(
+                  context,
                   icon: Icons.ios_share_rounded,
                   title: 'Export chat',
                   card: card,
@@ -258,34 +265,8 @@ class _ChatSettingsScreenState extends State<ChatSettingsScreen> {
                   ),
                   onTap: () => _showQualityPicker(context, card, textPrimary, textSecondary, textMuted, border),
                 ),
-                _navTile(
-                  context,
-                  icon: Icons.lock_outline_rounded,
-                  title: 'Chat lock',
-                  card: card,
-                  textPrimary: textPrimary,
-                  textMuted: textMuted,
-                  border: border,
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const ChatLockScreen()),
-                  ),
-                ),
-                _toggleTile(
-                  icon: Icons.security_outlined,
-                  title: 'Show security notifications',
-                  subtitle: "Get notified when a contact's security code changes",
-                  value: _securityNotifs,
-                  card: card,
-                  textPrimary: textPrimary,
-                  textSecondary: textSecondary,
-                  textMuted: textMuted,
-                  border: border,
-                  onChanged: (v) {
-                    setState(() => _securityNotifs = v);
-                    _setPref('sec_notif_suspiciousActivity', v);
-                  },
-                ),
+
+
 
                 const SizedBox(height: 24),
 
