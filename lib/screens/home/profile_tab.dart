@@ -14,6 +14,7 @@ import '../settings/edit_profile_screen.dart';
 import '../settings/chat_settings_screen.dart';
 import '../settings/notifications_settings_screen.dart';
 import '../settings/about_kora_screen.dart';
+import '../settings/business_tools_screen.dart';
 import '../settings/premium_subscribe_sheet.dart';
 import '../ai/kora_support_screen.dart';
 import '../search_screen.dart';
@@ -249,6 +250,14 @@ class _ProfileTabState extends State<ProfileTab> {
               title: 'Privacy',
               subtitle: 'Last seen, read receipts, blocked contacts',
               screen: const PrivacyScreen(),
+            ),
+            _navTile(
+              context,
+              icon: Icons.store_outlined,
+              iconColor: KoraColors.purple,
+              title: 'Business Tools',
+              subtitle: 'Catalog, quick replies, labels, orders',
+              screen: const BusinessToolsScreen(),
             ),
             const SizedBox(height: 20),
 
