@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "000000000000",
-    "project_id": "kora-messenger-placeholder",
-    "storage_bucket": "kora-messenger-placeholder.appspot.com"
+    "project_number": "852974520736",
+    "project_id": "kora-messenger-1c9fc",
+    "storage_bucket": "kora-messenger-1c9fc.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:000000000000:android:0000000000000000000000",
+        "mobilesdk_app_id": "1:852974520736:android:24648de4828565f6bc7cc5",
         "android_client_info": {
           "package_name": "com.kora.messenger"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyPlaceholder-Key-Replace-With-Real-Key"
+          "current_key": "AIzaSyDF1Hm4vnKyQt2t3RD3htaX1GHEErHqdEg"
         }
       ],
       "services": {
