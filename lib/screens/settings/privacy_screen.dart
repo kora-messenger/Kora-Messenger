@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../theme/kora_colors.dart';
@@ -10,6 +11,8 @@ import 'kora_contacts_screen.dart';
 import 'app_lock_screen.dart';
 import 'chat_lock_screen.dart';
 import 'privacy_checkup_screen.dart';
+import 'privacy_dashboard_screen.dart';
+import '../status/status_privacy_screen.dart';
 
 /// Privacy settings screen — controls who can see your personal info,
 /// read receipts, disappearing messages, app lock, and advanced privacy.
@@ -29,7 +32,7 @@ extension PrivacyVisibilityLabel on PrivacyVisibility {
       case PrivacyVisibility.everyone:
         return 'Everyone';
       case PrivacyVisibility.myContacts:
-        return 'My Contacts';
+        return 'My contacts';
       case PrivacyVisibility.nobody:
         return 'Nobody';
     }
@@ -48,6 +51,7 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
   // ── Toggles ──────────────────────────────────────────
   bool _readReceipts = true;
   bool _silenceUnknownCallers = false;
+  bool _suspiciousLinkDetection = true;
   bool _allowCameraEffects = false;
   bool _protectIpInCalls = true;
   bool _disableLinkPreviews = false;
@@ -56,6 +60,7 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
   String _defaultMessageTimer = 'Off';
   bool _appLockEnabled = false;
   bool _chatLockEnabled = false;
+  int _blockedCount = 0;
   int? _deviceCount;
 
   static const _prefsPrefix = 'kora_privacy_';
@@ -83,6 +88,21 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
 
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+
+    final rawBlocked = prefs.getString('kora_blocked_accounts_json');
+    int blockedCount = 0;
+    if (rawBlocked != null) {
+      try {
+        final List<dynamic> parsed = jsonDecode(rawBlocked);
+        blockedCount = parsed.length;
+      } catch (_) {
+        blockedCount = 1;
+      }
+    } else {
+      blockedCount = 1;
+    }
+
     setState(() {
       _lastSeen = _loadVisibility(prefs, 'last_seen');
       _profilePhoto = _loadVisibility(prefs, 'profile_photo');
@@ -92,12 +112,14 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
       _groups = _loadVisibility(prefs, 'groups');
       _readReceipts = prefs.getBool('${_prefsPrefix}read_receipts') ?? true;
       _silenceUnknownCallers = prefs.getBool('${_prefsPrefix}silence_unknown_callers') ?? false;
+      _suspiciousLinkDetection = prefs.getBool('${_prefsPrefix}suspicious_link_detection') ?? true;
       _allowCameraEffects = prefs.getBool('${_prefsPrefix}camera_effects') ?? false;
       _protectIpInCalls = prefs.getBool('${_prefsPrefix}protect_ip') ?? true;
       _disableLinkPreviews = prefs.getBool('${_prefsPrefix}disable_link_previews') ?? false;
       _defaultMessageTimer = prefs.getString('${_prefsPrefix}msg_timer') ?? 'Off';
-      _appLockEnabled = prefs.getBool('${_prefsPrefix}app_lock') ?? false;
-      _chatLockEnabled = prefs.getBool('${_prefsPrefix}chat_lock') ?? false;
+      _appLockEnabled = prefs.getBool('app_lock_enabled') ?? prefs.getBool('${_prefsPrefix}app_lock') ?? false;
+      _chatLockEnabled = prefs.getBool('chat_lock_enabled') ?? prefs.getBool('${_prefsPrefix}chat_lock') ?? false;
+      _blockedCount = blockedCount;
     });
   }
 
@@ -277,8 +299,6 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
     final textPrimary = KoraColors.textPrimaryFor(brightness);
     final textSecondary = KoraColors.textSecondaryFor(brightness);
     final textMuted = KoraColors.textMutedFor(brightness);
-    final card = KoraColors.cardFor(brightness);
-    final border = KoraColors.borderFor(brightness);
 
     return Scaffold(
       backgroundColor: bg,
@@ -298,7 +318,18 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
           children: [
-            // ── Privacy checkup banner ──────────────────────
+            // ── Privacy Dashboard Tile ──────────────────────
+            _dashboardNavTile(
+              title: 'Privacy dashboard',
+              subtitle: 'Security status overview & quick privacy controls',
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const PrivacyDashboardScreen()),
+              ).then((_) => _loadSettings()),
+            ),
+            const SizedBox(height: 14),
+
+            // ── Privacy Checkup Banner ──────────────────────
             _privacyCheckupCard(textPrimary, textSecondary),
             const SizedBox(height: 20),
 
@@ -334,40 +365,14 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
                 _saveVisibility('about', v);
               },
             ),
-            _navTile(
-              icon: Icons.link_rounded,
-              title: 'Links',
-              subtitle: _links.label,
-              current: _links,
-              onSelected: (v) {
-                setState(() => _links = v);
-                _saveVisibility('links', v);
-              },
-            ),
-            _navTile(
+            _simpleNavTile(
               icon: Icons.circle_outlined,
               title: 'Status',
               subtitle: _status.label,
-              current: _status,
-              onSelected: (v) {
-                setState(() => _status = v);
-                _saveVisibility('status', v);
-              },
-            ),
-
-            const SizedBox(height: 18),
-
-            // ── Read receipts ──────────────────────────────
-            _switchTile(
-              icon: Icons.done_all_rounded,
-              title: 'Read receipts',
-              subtitle: 'If you turn off read receipts, you won\'t send or receive them. Read receipts are always sent for group chats.',
-              value: _readReceipts,
-              onChanged: (v) {
-                setState(() => _readReceipts = v);
-                _saveBool('read_receipts', v);
-              },
-              isLongSubtitle: true,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const StatusPrivacyScreen()),
+              ).then((_) => _loadSettings()),
             ),
 
             const SizedBox(height: 18),
@@ -383,8 +388,8 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
 
             const SizedBox(height: 18),
 
-            // ── Groups & Calls ─────────────────────────────
-            _sectionLabel('Groups & Calls', textMuted),
+            // ── GROUPS & BROADCASTS ───────────────────────
+            _sectionLabel('Groups & broadcasts', textMuted),
             _navTile(
               icon: Icons.group_add_outlined,
               title: 'Groups',
@@ -395,12 +400,11 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
                 _saveVisibility('groups', v);
               },
             ),
-            _simpleNavTile(
-              icon: Icons.location_on_outlined,
-              title: 'Live location',
-              subtitle: 'None',
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LiveLocationScreen())),
-            ),
+
+            const SizedBox(height: 18),
+
+            // ── CALLS ─────────────────────────────────────
+            _sectionLabel('Calls', textMuted),
             _switchTile(
               icon: Icons.phone_in_talk_outlined,
               title: 'Silence unknown callers',
@@ -415,66 +419,94 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
 
             const SizedBox(height: 18),
 
-            // ── Contacts ────────────────────────────────────
-            _sectionLabel('Contacts', textMuted),
-            _simpleNavTile(
-              icon: Icons.block_rounded,
-              title: 'Blocked accounts',
-              subtitle: 'None',
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BlockedAccountsScreen())),
-            ),
-            _simpleNavTile(
-              icon: Icons.people_outline_rounded,
-              title: 'Kora contacts',
-              subtitle: 'Manage your contacts on Kora',
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const KoraContactsScreen())),
-            ),
-
-            const SizedBox(height: 18),
-
-            // ── Security ──────────────────────────────────
-            _sectionLabel('Security', textMuted),
-            _deviceNavTile(
-              icon: Icons.devices_other_rounded,
-              title: 'Devices',
-              count: _deviceCount,
-              subtitle: 'Review the list of devices where you are logged in to your Kora account.',
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const DevicesScreen()),
-              ).then((_) => _loadDeviceCount()),
-            ),
-            _simpleNavTile(
-              icon: Icons.lock_outline_rounded,
-              title: 'App lock',
-              subtitle: _appLockEnabled ? 'Enabled' : 'Disabled',
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AppLockScreen())),
+            // ── MESSAGES ──────────────────────────────────
+            _sectionLabel('Messages', textMuted),
+            _switchTile(
+              icon: Icons.done_all_rounded,
+              title: 'Read receipts',
+              subtitle: 'If you turn off read receipts, you won\'t send or receive them. Read receipts are always sent for group chats.',
+              value: _readReceipts,
+              onChanged: (v) {
+                setState(() => _readReceipts = v);
+                _saveBool('read_receipts', v);
+              },
+              isLongSubtitle: true,
             ),
             _simpleNavTile(
               icon: Icons.chat_bubble_outline_rounded,
               title: 'Chat lock',
               subtitle: _chatLockEnabled ? 'Enabled' : 'Disabled',
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatLockScreen())),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ChatLockScreen()),
+              ).then((_) => _loadSettings()),
             ),
-
-            const SizedBox(height: 18),
-
-            // ── Camera effects ─────────────────────────────
             _switchTile(
-              icon: Icons.camera_alt_outlined,
-              title: 'Allow camera effects',
-              subtitle: 'Use effects in video calls. Learn more',
-              value: _allowCameraEffects,
+              icon: Icons.link_off_outlined,
+              title: 'Suspicious link detection',
+              subtitle: 'Warn about suspicious or dangerous links in received messages.',
+              value: _suspiciousLinkDetection,
               onChanged: (v) {
-                setState(() => _allowCameraEffects = v);
-                _saveBool('camera_effects', v);
+                setState(() => _suspiciousLinkDetection = v);
+                _saveBool('suspicious_link_detection', v);
               },
               isLongSubtitle: false,
             ),
 
             const SizedBox(height: 18),
 
-            // ── Advanced ───────────────────────────────────
+            // ── MORE PRIVACY SETTINGS ─────────────────────
+            _sectionLabel('More privacy settings', textMuted),
+            _simpleNavTile(
+              icon: Icons.lock_outline_rounded,
+              title: 'App lock',
+              subtitle: _appLockEnabled ? 'Enabled' : 'Disabled',
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AppLockScreen()),
+              ).then((_) => _loadSettings()),
+            ),
+            _simpleNavTile(
+              icon: Icons.block_rounded,
+              title: 'Blocked accounts',
+              subtitle: _blockedCount == 0 ? 'None' : '$_blockedCount account${_blockedCount == 1 ? '' : 's'}',
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const BlockedAccountsScreen()),
+              ).then((_) => _loadSettings()),
+            ),
+            _simpleNavTile(
+              icon: Icons.location_on_outlined,
+              title: 'Live location',
+              subtitle: 'None',
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const LiveLocationScreen()),
+              ),
+            ),
+            _simpleNavTile(
+              icon: Icons.people_outline_rounded,
+              title: 'Kora contacts',
+              subtitle: 'Manage your contacts on Kora',
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const KoraContactsScreen()),
+              ),
+            ),
+            _deviceNavTile(
+              icon: Icons.devices_other_rounded,
+              title: 'Devices',
+              count: _deviceCount,
+              subtitle: 'Review the list of devices where you are logged in.',
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const DevicesScreen()),
+              ).then((_) => _loadDeviceCount()),
+            ),
+
+            const SizedBox(height: 18),
+
+            // ── ADVANCED ──────────────────────────────────
             _sectionLabel('Advanced', textMuted),
             _switchTile(
               icon: Icons.security_outlined,
@@ -498,6 +530,17 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
               },
               isLongSubtitle: false,
             ),
+            _switchTile(
+              icon: Icons.camera_alt_outlined,
+              title: 'Allow camera effects',
+              subtitle: 'Use effects in video calls.',
+              value: _allowCameraEffects,
+              onChanged: (v) {
+                setState(() => _allowCameraEffects = v);
+                _saveBool('camera_effects', v);
+              },
+              isLongSubtitle: false,
+            ),
 
             const SizedBox(height: 20),
 
@@ -512,7 +555,7 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.info_outline, color: KoraColors.purple, size: 18),
+                  const Icon(Icons.info_outline, color: KoraColors.purple, size: 18),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
@@ -527,11 +570,70 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
         ),
       ),
     );
-
-    // ── Helper widgets defined below build() ──────────────
   }
 
   // ── Widgets ─────────────────────────────────────────────
+
+  Widget _dashboardNavTile({
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    final brightness = Theme.of(context).brightness;
+    final textPrimary = KoraColors.textPrimaryFor(brightness);
+    final textSecondary = KoraColors.textSecondaryFor(brightness);
+    final card = KoraColors.cardFor(brightness);
+    final border = KoraColors.borderFor(brightness);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: card,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: border, width: 0.8),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  gradient: KoraColors.brandGradient,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.shield_outlined, color: Colors.white, size: 22),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        color: textPrimary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(color: textSecondary, fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, color: textSecondary, size: 22),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _privacyCheckupCard(Color textPrimary, Color textSecondary) {
     return Container(
@@ -543,10 +645,10 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
-              const Icon(Icons.shield_outlined, color: Colors.white, size: 22),
-              const SizedBox(width: 10),
+              Icon(Icons.shield_outlined, color: Colors.white, size: 22),
+              SizedBox(width: 10),
               Text(
                 'Privacy checkup',
                 style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700),
@@ -562,7 +664,10 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
           Align(
             alignment: Alignment.centerRight,
             child: TextButton(
-              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PrivacyCheckupScreen())),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const PrivacyCheckupScreen()),
+              ).then((_) => _loadSettings()),
               style: TextButton.styleFrom(
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -579,8 +684,6 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
     );
   }
 
-  /// A navigation tile with a count badge (e.g. "Devices  4"), matching
-  /// Telegram's Devices row: title + count on one line, description below.
   Widget _deviceNavTile({
     required IconData icon,
     required String title,
@@ -653,7 +756,6 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
     );
   }
 
-  /// A tile that opens a visibility picker (Everyone / My Contacts / Nobody).
   Widget _navTile({
     required IconData icon,
     required String title,
@@ -704,7 +806,6 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
     );
   }
 
-  /// A simple navigation tile (no visibility picker, just tap → action).
   Widget _simpleNavTile({
     required IconData icon,
     required String title,
@@ -749,7 +850,6 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
     );
   }
 
-  /// A switch tile for boolean settings.
   Widget _switchTile({
     required IconData icon,
     required String title,
@@ -804,7 +904,6 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
     );
   }
 
-  /// Shared card wrapper.
   Widget _cardWrapper({
     required Color card,
     required Color border,
@@ -821,17 +920,6 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
           ),
         ),
         child: child,
-      ),
-    );
-  }
-
-  void _showComingSoon(String feature) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$feature — coming soon'),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: KoraColors.purple,
-        duration: const Duration(seconds: 2),
       ),
     );
   }

@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../theme/kora_colors.dart';
 
-/// QR Transfer screen — dedicated QR scanner for chat transfer.
-/// Mirrors WhatsApp's QR transfer flow.
-///
-/// This is the scanner view shown when receiving chats on a new phone.
-/// Shows a camera viewfinder with a QR scanning frame.
+/// QR Transfer screen — camera scanner for chat transfer pairing.
+/// Matches WhatsApp's QR code scanner interface for chat transfer.
 class QrTransferScreen extends StatefulWidget {
   final ValueChanged<String>? onScanned;
 
@@ -15,9 +12,60 @@ class QrTransferScreen extends StatefulWidget {
   State<QrTransferScreen> createState() => _QrTransferScreenState();
 }
 
-class _QrTransferScreenState extends State<QrTransferScreen> {
-  bool _scanning = false;
+class _QrTransferScreenState extends State<QrTransferScreen>
+    with SingleTickerProviderStateMixin {
+  bool _scanning = true;
   bool _found = false;
+  bool _flashOn = false;
+  late AnimationController _animController;
+  late Animation<double> _scanAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat(reverse: true);
+
+    _scanAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animController, curve: Curves.easeInOut),
+    );
+
+    // Auto-scan simulation
+    _startScanTimer();
+  }
+
+  void _startScanTimer() async {
+    await Future.delayed(const Duration(seconds: 3));
+    if (mounted && _scanning && !_found) {
+      _onCodeDetected();
+    }
+  }
+
+  void _onCodeDetected() async {
+    setState(() {
+      _scanning = false;
+      _found = true;
+    });
+    _animController.stop();
+
+    await Future.delayed(const Duration(seconds: 1));
+
+    if (mounted) {
+      final token = 'kora_transfer_token_${DateTime.now().millisecondsSinceEpoch}';
+      if (widget.onScanned != null) {
+        widget.onScanned!(token);
+      }
+      Navigator.pop(context, token);
+    }
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,19 +73,39 @@ class _QrTransferScreenState extends State<QrTransferScreen> {
       backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.black,
-        title: const Text('Scan QR Code',
-            style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w600)),
+        elevation: 0,
+        title: const Text(
+          'Scan QR Code',
+          style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
+        ),
         leading: IconButton(
           icon: const Icon(Icons.close, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          IconButton(
+            icon: Icon(
+              _flashOn ? Icons.flash_on : Icons.flash_off,
+              color: _flashOn ? Colors.yellow : Colors.white,
+            ),
+            onPressed: () => setState(() => _flashOn = !_flashOn),
+          ),
+        ],
       ),
       body: Stack(
         children: [
-          // Camera viewfinder background
-          Container(color: Colors.black87),
+          // Viewfinder simulation
+          Container(
+            color: Colors.black,
+            child: Center(
+              child: Opacity(
+                opacity: _flashOn ? 0.3 : 0.1,
+                child: const Icon(Icons.camera_alt, size: 160, color: Colors.white),
+              ),
+            ),
+          ),
 
-          // Scanning frame
+          // Central scanning box
           Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -45,100 +113,137 @@ class _QrTransferScreenState extends State<QrTransferScreen> {
                 Stack(
                   alignment: Alignment.center,
                   children: [
+                    // Scanner box border
                     Container(
-                      width: 250, height: 250,
+                      width: 260,
+                      height: 260,
                       decoration: BoxDecoration(
-                        border: Border.all(color: _found ? Colors.green : KoraColors.purple, width: 3),
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: _found
+                              ? Colors.green
+                              : KoraColors.purple.withValues(alpha: 0.8),
+                          width: 3,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: (_found ? Colors.green : KoraColors.purple)
+                                .withValues(alpha: 0.3),
+                            blurRadius: 15,
+                            spreadRadius: 2,
+                          ),
+                        ],
                       ),
                     ),
-                    if (!_scanning)
-                      Icon(Icons.qr_code_scanner, size: 80, color: Colors.white.withValues(alpha: 0.3)),
+
+                    // Scanning laser line
                     if (_scanning && !_found)
                       SizedBox(
-                        width: 250, height: 250,
-                        child: LayoutBuilder(
-                          builder: (context, constraints) {
-                            return TweenAnimationBuilder<double>(
-                              tween: Tween(begin: 0, end: 1),
-                              duration: const Duration(seconds: 2),
-                              builder: (context, value, child) {
-                                return Stack(
-                                  children: [
-                                    Positioned(
-                                      left: 0, right: 0,
-                                      top: value * 230,
-                                      child: Container(
-                                        height: 2,
-                                        margin: const EdgeInsets.symmetric(horizontal: 12),
-                                        decoration: BoxDecoration(
-                                          gradient: LinearGradient(colors: [
-                                            Colors.transparent,
-                                            KoraColors.purple,
-                                            Colors.transparent,
-                                          ]),
-                                        ),
+                        width: 240,
+                        height: 240,
+                        child: AnimatedBuilder(
+                          animation: _scanAnimation,
+                          builder: (context, child) {
+                            return Stack(
+                              children: [
+                                Positioned(
+                                  top: _scanAnimation.value * 220,
+                                  left: 0,
+                                  right: 0,
+                                  child: Container(
+                                    height: 3,
+                                    decoration: BoxDecoration(
+                                      gradient: const LinearGradient(
+                                        colors: [
+                                          Colors.transparent,
+                                          KoraColors.purple,
+                                          KoraColors.blue,
+                                          Colors.transparent,
+                                        ],
                                       ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: KoraColors.purple.withValues(alpha: 0.8),
+                                          blurRadius: 8,
+                                          spreadRadius: 2,
+                                        ),
+                                      ],
                                     ),
-                                  ],
-                                );
-                              },
+                                  ),
+                                ),
+                              ],
                             );
                           },
                         ),
                       ),
+
+                    // Found checkmark
                     if (_found)
-                      const Icon(Icons.check_circle, size: 64, color: Colors.green),
+                      Container(
+                        width: 80,
+                        height: 80,
+                        decoration: const BoxDecoration(
+                          color: Colors.green,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.check, size: 50, color: Colors.white),
+                      ),
                   ],
                 ),
-                const SizedBox(height: 24),
-                if (!_found) ...[
-                  Text(
-                    _scanning ? 'Scanning...' : 'Point your camera at the QR code\non your old device',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white70, fontSize: 14, height: 1.4),
-                  ),
-                  const SizedBox(height: 24),
-                  if (!_scanning)
-                    ElevatedButton(
-                      onPressed: _startScan,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: KoraColors.purple, foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+
+                const SizedBox(height: 32),
+
+                // Status text
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  child: Column(
+                    children: [
+                      Text(
+                        _found
+                            ? 'Pairing confirmed!'
+                            : 'Scan the QR code shown on your old phone',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: _found ? Colors.green : Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                      child: const Text('Start Scan', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-                    ),
-                ] else ...[
-                  Text('QR Code Found!',
-                      style: TextStyle(color: Colors.green, fontSize: 18, fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 8),
-                  Text('Connecting to device...',
-                      style: TextStyle(color: Colors.white70, fontSize: 14)),
-                  const SizedBox(height: 16),
-                  CircularProgressIndicator(color: KoraColors.purple),
-                ],
+                      const SizedBox(height: 8),
+                      Text(
+                        _found
+                            ? 'Connecting devices and transferring chats...'
+                            : 'Point your camera at the screen to start transfer',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.white70, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
 
-          // Bottom info bar
+          // Bottom tip bar
           Positioned(
-            bottom: 24, left: 24, right: 24,
+            bottom: 32,
+            left: 24,
+            right: 24,
             child: Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: Colors.black54,
-                borderRadius: BorderRadius.circular(12),
+                color: const Color(0xFF1E1E2E).withValues(alpha: 0.9),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: KoraColors.purple.withValues(alpha: 0.3)),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.wifi, color: KoraColors.purple, size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
+                  const Icon(Icons.wifi, color: KoraColors.purple, size: 20),
+                  const SizedBox(width: 12),
+                  const Expanded(
                     child: Text(
-                      'Keep both devices on the same Wi-Fi network',
-                      style: TextStyle(color: Colors.white70, fontSize: 13),
+                      'Both phones must be connected to the same Wi-Fi network',
+                      style: TextStyle(color: Colors.white, fontSize: 12, height: 1.3),
                     ),
                   ),
                 ],
@@ -148,17 +253,5 @@ class _QrTransferScreenState extends State<QrTransferScreen> {
         ],
       ),
     );
-  }
-
-  void _startScan() async {
-    setState(() => _scanning = true);
-    // Simulate finding QR code after 3 seconds
-    await Future.delayed(const Duration(seconds: 3));
-    setState(() => _found = true);
-    await Future.delayed(const Duration(seconds: 2));
-    if (widget.onScanned != null) {
-      widget.onScanned!('kora_transfer_token_${DateTime.now().millisecondsSinceEpoch}');
-    }
-    if (mounted) Navigator.pop(context);
   }
 }
