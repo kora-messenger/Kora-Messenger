@@ -281,7 +281,7 @@ class _GroupChatInfoScreenState extends State<GroupChatInfoScreen> {
                     leading: Container(
                       width: 44, height: 44,
                       decoration: BoxDecoration(
-                        color: KoraColors.purple.withOpacity(0.1),
+                        color: KoraColors.purple.withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(Icons.person_add_outlined, color: KoraColors.purple, size: 22),
@@ -295,7 +295,7 @@ class _GroupChatInfoScreenState extends State<GroupChatInfoScreen> {
                     leading: Container(
                       width: 44, height: 44,
                       decoration: BoxDecoration(
-                        color: KoraColors.purple.withOpacity(0.1),
+                        color: KoraColors.purple.withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(Icons.link, color: KoraColors.purple, size: 22),

@@ -732,7 +732,7 @@ class _KoraEmojiPanelState extends State<KoraEmojiPanel>
               width: 44, height: 44, margin: const EdgeInsets.symmetric(horizontal: 4),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(10),
-                color: isActive ? KoraColors.purple.withOpacity(0.15) : KoraColors.cardFor(brightness),
+                color: isActive ? KoraColors.purple.withValues(alpha: 0.15) : KoraColors.cardFor(brightness),
                 border: isActive ? Border.all(color: KoraColors.purple, width: 2) : null,
               ),
               child: Center(child: Text(pack.trayIcon, style: const TextStyle(fontSize: 26))),

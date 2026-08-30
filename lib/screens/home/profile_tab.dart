@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../theme/kora_colors.dart';
 import '../../widgets/kora_avatar.dart';
 import '../../widgets/kora_badge.dart';
@@ -351,14 +351,7 @@ class _ProfileTabState extends State<ProfileTab> {
   void _inviteFriend() {
     const inviteText = 'Hey! I\'m using Kora Messenger — a secure, AI-powered messaging app. '
         'Download it and let\'s chat! https://app.base44.com/superagent/6a8225cb1baabb64463874c8';
-    // Copy to clipboard for sharing
-    Clipboard.setData(const ClipboardData(text: inviteText));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Invite link copied to clipboard'),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    Share.share(inviteText, subject: 'Kora Messenger');
   }
 
   Widget _sectionLabel(String label, Color color) {

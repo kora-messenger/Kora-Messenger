@@ -141,7 +141,7 @@ class _AiImageGenScreenState extends State<AiImageGenScreen> {
             margin: const EdgeInsets.all(12),
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              gradient: LinearGradient(colors: [KoraColors.purple.withOpacity(0.1), KoraColors.blue.withOpacity(0.1)]),
+              gradient: LinearGradient(colors: [KoraColors.purple.withValues(alpha: 0.1), KoraColors.blue.withValues(alpha: 0.1)]),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(children: [
@@ -206,7 +206,7 @@ class _AiImageGenScreenState extends State<AiImageGenScreen> {
           Expanded(
             child: _history.isEmpty
               ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  Icon(Icons.image_outlined, size: 48, color: textMuted.withOpacity(0.3)),
+                  Icon(Icons.image_outlined, size: 48, color: textMuted.withValues(alpha: 0.3)),
                   const SizedBox(height: 8),
                   Text('No images yet', style: TextStyle(color: textMuted, fontSize: 14)),
                 ]))
@@ -218,14 +218,14 @@ class _AiImageGenScreenState extends State<AiImageGenScreen> {
                     final img = _history[i];
                     return Container(
                       decoration: BoxDecoration(
-                        gradient: LinearGradient(colors: [KoraColors.purple.withOpacity(0.15), KoraColors.blue.withOpacity(0.15)]),
+                        gradient: LinearGradient(colors: [KoraColors.purple.withValues(alpha: 0.15), KoraColors.blue.withValues(alpha: 0.15)]),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: KoraColors.borderFor(brightness), width: 0.5),
                       ),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.auto_awesome, size: 32, color: KoraColors.purple.withOpacity(0.5)),
+                          Icon(Icons.auto_awesome, size: 32, color: KoraColors.purple.withValues(alpha: 0.5)),
                           const SizedBox(height: 4),
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -322,7 +322,7 @@ class _AiStickersScreenState extends State<AiStickersScreen> {
             margin: const EdgeInsets.all(12),
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              gradient: LinearGradient(colors: [KoraColors.purple.withOpacity(0.1), KoraColors.blue.withOpacity(0.1)]),
+              gradient: LinearGradient(colors: [KoraColors.purple.withValues(alpha: 0.1), KoraColors.blue.withValues(alpha: 0.1)]),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(children: [
@@ -362,7 +362,7 @@ class _AiStickersScreenState extends State<AiStickersScreen> {
           Expanded(
             child: _generated.isEmpty
               ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  Icon(Icons.emoji_emotions_outlined, size: 48, color: textMuted.withOpacity(0.3)),
+                  Icon(Icons.emoji_emotions_outlined, size: 48, color: textMuted.withValues(alpha: 0.3)),
                   const SizedBox(height: 8),
                   Text('No AI stickers yet', style: TextStyle(color: textMuted, fontSize: 14)),
                 ]))
@@ -375,14 +375,14 @@ class _AiStickersScreenState extends State<AiStickersScreen> {
                       onLongPress: () => _saveToMyStickers(_generated[i]),
                       child: Container(
                         decoration: BoxDecoration(
-                          gradient: LinearGradient(colors: [KoraColors.purple.withOpacity(0.15), KoraColors.blue.withOpacity(0.15)]),
+                          gradient: LinearGradient(colors: [KoraColors.purple.withValues(alpha: 0.15), KoraColors.blue.withValues(alpha: 0.15)]),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: KoraColors.borderFor(brightness), width: 0.5),
                         ),
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.auto_awesome, size: 28, color: KoraColors.purple.withOpacity(0.5)),
+                            Icon(Icons.auto_awesome, size: 28, color: KoraColors.purple.withValues(alpha: 0.5)),
                             const SizedBox(height: 4),
                             Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -449,7 +449,7 @@ class _OnDeviceAiScreenState extends State<OnDeviceAiScreen> {
             margin: const EdgeInsets.all(12),
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              gradient: LinearGradient(colors: [KoraColors.purple.withOpacity(0.1), KoraColors.blue.withOpacity(0.1)]),
+              gradient: LinearGradient(colors: [KoraColors.purple.withValues(alpha: 0.1), KoraColors.blue.withValues(alpha: 0.1)]),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(children: [
@@ -536,7 +536,7 @@ class _OnDeviceAiScreenState extends State<OnDeviceAiScreen> {
       subtitle: Text(subtitle, style: TextStyle(color: textMuted, fontSize: 13)),
       value: value,
       onChanged: onChanged,
-      activeTrackColor: KoraColors.purple.withOpacity(0.3),
+      activeTrackColor: KoraColors.purple.withValues(alpha: 0.3),
       activeColor: KoraColors.purple,
     );
   }
@@ -621,7 +621,7 @@ class _WearOsScreenState extends State<WearOsScreen> {
               subtitle: Text('Dicticate replies from your watch', style: TextStyle(color: textMuted, fontSize: 13)),
               value: _voiceReply,
               onChanged: (v) => setState(() => _voiceReply = v),
-              activeTrackColor: KoraColors.purple.withOpacity(0.3),
+              activeTrackColor: KoraColors.purple.withValues(alpha: 0.3),
               activeColor: KoraColors.purple,
             ),
             SwitchListTile(
@@ -630,7 +630,7 @@ class _WearOsScreenState extends State<WearOsScreen> {
               subtitle: Text('Show canned reply suggestions', style: TextStyle(color: textMuted, fontSize: 13)),
               value: _quickReplies,
               onChanged: (v) => setState(() => _quickReplies = v),
-              activeTrackColor: KoraColors.purple.withOpacity(0.3),
+              activeTrackColor: KoraColors.purple.withValues(alpha: 0.3),
               activeColor: KoraColors.purple,
             ),
             SwitchListTile(
@@ -639,7 +639,7 @@ class _WearOsScreenState extends State<WearOsScreen> {
               subtitle: Text('Only show notifications, no replies', style: TextStyle(color: textMuted, fontSize: 13)),
               value: _notificationsOnly,
               onChanged: (v) => setState(() => _notificationsOnly = v),
-              activeTrackColor: KoraColors.purple.withOpacity(0.3),
+              activeTrackColor: KoraColors.purple.withValues(alpha: 0.3),
               activeColor: KoraColors.purple,
             ),
             const SizedBox(height: 12),
@@ -702,7 +702,7 @@ class _AndroidAutoScreenState extends State<AndroidAutoScreen> {
             margin: const EdgeInsets.all(12),
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              gradient: LinearGradient(colors: [KoraColors.purple.withOpacity(0.1), KoraColors.blue.withOpacity(0.1)]),
+              gradient: LinearGradient(colors: [KoraColors.purple.withValues(alpha: 0.1), KoraColors.blue.withValues(alpha: 0.1)]),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(children: [
@@ -717,7 +717,7 @@ class _AndroidAutoScreenState extends State<AndroidAutoScreen> {
             subtitle: Text('Show Kora in Android Auto', style: TextStyle(color: textMuted, fontSize: 13)),
             value: _autoEnabled,
             onChanged: (v) => setState(() => _autoEnabled = v),
-            activeTrackColor: KoraColors.purple.withOpacity(0.3),
+            activeTrackColor: KoraColors.purple.withValues(alpha: 0.3),
             activeColor: KoraColors.purple,
           ),
           if (_autoEnabled) ...[
@@ -728,7 +728,7 @@ class _AndroidAutoScreenState extends State<AndroidAutoScreen> {
               subtitle: Text('Only use voice commands while driving', style: TextStyle(color: textMuted, fontSize: 13)),
               value: _voiceOnly,
               onChanged: (v) => setState(() => _voiceOnly = v),
-              activeTrackColor: KoraColors.purple.withOpacity(0.3),
+              activeTrackColor: KoraColors.purple.withValues(alpha: 0.3),
               activeColor: KoraColors.purple,
             ),
             SwitchListTile(
@@ -737,7 +737,7 @@ class _AndroidAutoScreenState extends State<AndroidAutoScreen> {
               subtitle: Text('Read incoming messages via TTS', style: TextStyle(color: textMuted, fontSize: 13)),
               value: _readAloud,
               onChanged: (v) => setState(() => _readAloud = v),
-              activeTrackColor: KoraColors.purple.withOpacity(0.3),
+              activeTrackColor: KoraColors.purple.withValues(alpha: 0.3),
               activeColor: KoraColors.purple,
             ),
             SwitchListTile(
@@ -746,7 +746,7 @@ class _AndroidAutoScreenState extends State<AndroidAutoScreen> {
               subtitle: Text('Send automatic reply when driving', style: TextStyle(color: textMuted, fontSize: 13)),
               value: _autoReply,
               onChanged: (v) => setState(() => _autoReply = v),
-              activeTrackColor: KoraColors.purple.withOpacity(0.3),
+              activeTrackColor: KoraColors.purple.withValues(alpha: 0.3),
               activeColor: KoraColors.purple,
             ),
             if (_autoReply)
@@ -828,7 +828,7 @@ class _InteropScreenState extends State<InteropScreen> {
             margin: const EdgeInsets.all(12),
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              gradient: LinearGradient(colors: [KoraColors.purple.withOpacity(0.1), KoraColors.blue.withOpacity(0.1)]),
+              gradient: LinearGradient(colors: [KoraColors.purple.withValues(alpha: 0.1), KoraColors.blue.withValues(alpha: 0.1)]),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(children: [
@@ -843,7 +843,7 @@ class _InteropScreenState extends State<InteropScreen> {
             subtitle: Text('Allow messages from other apps', style: TextStyle(color: textMuted, fontSize: 13)),
             value: _interopEnabled,
             onChanged: (v) => setState(() => _interopEnabled = v),
-            activeTrackColor: KoraColors.purple.withOpacity(0.3),
+            activeTrackColor: KoraColors.purple.withValues(alpha: 0.3),
             activeColor: KoraColors.purple,
           ),
           if (_interopEnabled) ...[
@@ -925,7 +925,7 @@ class _ManagedAccountsScreenState extends State<ManagedAccountsScreen> {
             margin: const EdgeInsets.only(bottom: 12),
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              gradient: LinearGradient(colors: [KoraColors.purple.withOpacity(0.1), KoraColors.blue.withOpacity(0.1)]),
+              gradient: LinearGradient(colors: [KoraColors.purple.withValues(alpha: 0.1), KoraColors.blue.withValues(alpha: 0.1)]),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(children: [
@@ -945,7 +945,7 @@ class _ManagedAccountsScreenState extends State<ManagedAccountsScreen> {
             child: Row(
               children: [
                 CircleAvatar(
-                  backgroundColor: KoraColors.purple.withOpacity(0.15),
+                  backgroundColor: KoraColors.purple.withValues(alpha: 0.15),
                   child: Text(user.name[0], style: TextStyle(color: KoraColors.purple, fontWeight: FontWeight.w600)),
                 ),
                 const SizedBox(width: 12),
@@ -964,7 +964,7 @@ class _ManagedAccountsScreenState extends State<ManagedAccountsScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: user.role == 'Owner' ? KoraColors.purple : KoraColors.purple.withOpacity(0.15),
+                        color: user.role == 'Owner' ? KoraColors.purple : KoraColors.purple.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(user.role, style: TextStyle(color: user.role == 'Owner' ? Colors.white : KoraColors.purple, fontSize: 11, fontWeight: FontWeight.w600)),
@@ -1142,7 +1142,7 @@ class _ChannelCreationScreenState extends State<ChannelCreationScreen> {
             subtitle: Text('Approve new followers before they can see posts', style: TextStyle(color: textMuted, fontSize: 13)),
             value: _requireApproval,
             onChanged: (v) => setState(() => _requireApproval = v),
-            activeTrackColor: KoraColors.purple.withOpacity(0.3),
+            activeTrackColor: KoraColors.purple.withValues(alpha: 0.3),
             activeColor: KoraColors.purple,
           ),
           const SizedBox(height: 24),

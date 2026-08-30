@@ -380,12 +380,6 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
               subtitle: _defaultMessageTimer,
               onTap: _showTimerPicker,
             ),
-            _simpleNavTile(
-              icon: Icons.timer_outlined,
-              title: 'Default timer for new chats',
-              subtitle: _defaultMessageTimer,
-              onTap: _showTimerPicker,
-            ),
 
             const SizedBox(height: 18),
 

@@ -107,7 +107,7 @@ class _GroupPermissionsScreenState extends State<GroupPermissionsScreen> {
                 SwitchListTile(
                   value: _editGroupInfo,
                   activeColor: KoraColors.purple,
-                  activeTrackColor: KoraColors.purple.withOpacity(0.3),
+                  activeTrackColor: KoraColors.purple.withValues(alpha: 0.3),
                   title: Text('Edit group info', style: TextStyle(color: textPrimary, fontSize: 15)),
                   subtitle: Text('Allow all participants to edit', style: TextStyle(color: textMuted, fontSize: 13)),
                   onChanged: (v) { setState(() => _editGroupInfo = v); _save('edit_info', v); },
@@ -116,7 +116,7 @@ class _GroupPermissionsScreenState extends State<GroupPermissionsScreen> {
                 SwitchListTile(
                   value: _addMembers,
                   activeColor: KoraColors.purple,
-                  activeTrackColor: KoraColors.purple.withOpacity(0.3),
+                  activeTrackColor: KoraColors.purple.withValues(alpha: 0.3),
                   title: Text('Add members', style: TextStyle(color: textPrimary, fontSize: 15)),
                   subtitle: Text('Allow all participants to add', style: TextStyle(color: textMuted, fontSize: 13)),
                   onChanged: (v) { setState(() => _addMembers = v); _save('add_members', v); },
@@ -125,7 +125,7 @@ class _GroupPermissionsScreenState extends State<GroupPermissionsScreen> {
                 SwitchListTile(
                   value: _editDescription,
                   activeColor: KoraColors.purple,
-                  activeTrackColor: KoraColors.purple.withOpacity(0.3),
+                  activeTrackColor: KoraColors.purple.withValues(alpha: 0.3),
                   title: Text('Add group description', style: TextStyle(color: textPrimary, fontSize: 15)),
                   subtitle: Text('Allow all participants to edit description', style: TextStyle(color: textMuted, fontSize: 13)),
                   onChanged: (v) { setState(() => _editDescription = v); _save('edit_desc', v); },
@@ -145,7 +145,7 @@ class _GroupPermissionsScreenState extends State<GroupPermissionsScreen> {
                 SwitchListTile(
                   value: _approveNewParticipants,
                   activeColor: KoraColors.purple,
-                  activeTrackColor: KoraColors.purple.withOpacity(0.3),
+                  activeTrackColor: KoraColors.purple.withValues(alpha: 0.3),
                   title: Text('Approve new participants', style: TextStyle(color: textPrimary, fontSize: 15)),
                   subtitle: Text('Require admin approval to join', style: TextStyle(color: textMuted, fontSize: 13)),
                   onChanged: (v) { setState(() => _approveNewParticipants = v); _save('approve_new', v); },
@@ -154,7 +154,7 @@ class _GroupPermissionsScreenState extends State<GroupPermissionsScreen> {
                 SwitchListTile(
                   value: _sendPolls,
                   activeColor: KoraColors.purple,
-                  activeTrackColor: KoraColors.purple.withOpacity(0.3),
+                  activeTrackColor: KoraColors.purple.withValues(alpha: 0.3),
                   title: Text('Send polls', style: TextStyle(color: textPrimary, fontSize: 15)),
                   subtitle: Text('Allow all participants to create polls', style: TextStyle(color: textMuted, fontSize: 13)),
                   onChanged: (v) { setState(() => _sendPolls = v); _save('send_polls', v); },
@@ -175,5 +175,5 @@ class _GroupPermissionsScreenState extends State<GroupPermissionsScreen> {
     );
   }
 
-  Widget _divider(Color border) => Padding(padding: const EdgeInsets.only(left: 16), child: Divider(height: 1, color: border.withOpacity(0.3)));
+  Widget _divider(Color border) => Padding(padding: const EdgeInsets.only(left: 16), child: Divider(height: 1, color: border.withValues(alpha: 0.3)));
 }
