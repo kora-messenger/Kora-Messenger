@@ -13,18 +13,34 @@ class StickerStoreScreen extends StatefulWidget {
 
 class _StickerStoreScreenState extends State<StickerStoreScreen> {
   final List<StickerPack> _packs = [
-    StickerPack(id: 'kora_classic', name: 'Kora Classic', creator: 'Kora',
-      stickers: ['😊', '😂', '❤️', '👍', '🎉', '🔥', '😎', '😭', '🙏', '💯'],
-      isInstalled: true),
-    StickerPack(id: 'cute_animals', name: 'Cute Animals', creator: 'Kora Studio',
-      stickers: ['🐱', '🐶', '🐰', '🐼', '🦊', '🐨', '🐯', '🦁', '🐸', '🐵'],
-      isInstalled: false),
-    StickerPack(id: 'food_love', name: 'Food Love', creator: 'Kora Studio',
-      stickers: ['🍕', '🍔', '🌮', '🍣', '🍩', '🍦', '☕', '🍓', '🥑', '🍳'],
-      isInstalled: false),
-    StickerPack(id: 'reactions', name: 'Reactions', creator: 'Kora',
-      stickers: ['👀', '🤔', '😏', '🙄', '😮', '😱', '🤯', '🥳', '🤝', '💪'],
-      isInstalled: false),
+    StickerPack(
+      id: 'kora_classic',
+      name: 'Kora Classic',
+      creator: 'Kora',
+      stickers: List.generate(10, (i) => 'sticker_pack_kora_classic_$i.webp'),
+      isInstalled: true,
+    ),
+    StickerPack(
+      id: 'cute_animals',
+      name: 'Cute Animals',
+      creator: 'Kora Studio',
+      stickers: List.generate(10, (i) => 'sticker_pack_cute_animals_$i.webp'),
+      isInstalled: false,
+    ),
+    StickerPack(
+      id: 'food_love',
+      name: 'Food Love',
+      creator: 'Kora Studio',
+      stickers: List.generate(10, (i) => 'sticker_pack_food_love_$i.webp'),
+      isInstalled: false,
+    ),
+    StickerPack(
+      id: 'reactions',
+      name: 'Reactions',
+      creator: 'Kora',
+      stickers: List.generate(10, (i) => 'sticker_pack_reactions_$i.webp'),
+      isInstalled: false,
+    ),
   ];
 
   @override
@@ -64,11 +80,13 @@ class _StickerStoreScreenState extends State<StickerStoreScreen> {
                 Container(
                   width: 64, height: 64,
                   decoration: BoxDecoration(
-                    color: KoraColors.purple.withValues(alpha: 0.1),
+                    gradient: LinearGradient(
+                      colors: [KoraColors.purple.withValues(alpha: 0.15), KoraColors.blue.withValues(alpha: 0.1)],
+                    ),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Center(
-                    child: Text(pack.stickers.first, style: const TextStyle(fontSize: 28)),
+                    child: Icon(Icons.emoji_emotions_outlined, size: 32, color: KoraColors.purple),
                   ),
                 ),
                 const SizedBox(width: 12),

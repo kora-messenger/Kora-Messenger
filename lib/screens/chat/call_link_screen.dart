@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../theme/kora_colors.dart';
 import '../../services/webrtc_call_service.dart';
 import '../../config/kora_api.dart';
@@ -38,11 +39,13 @@ class _CallLinkScreenState extends State<CallLinkScreen> {
 
   void _copyLink() {
     if (_callLink == null) return;
-    // Copy to clipboard — would use clipboard package
+    Clipboard.setData(ClipboardData(text: _callLink!));
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Text('Call link copied'),
         backgroundColor: KoraColors.purple,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
       ),
     );
   }

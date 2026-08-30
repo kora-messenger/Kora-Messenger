@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../theme/kora_colors.dart';
 
@@ -102,8 +103,8 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
             child: Center(
               child: ColorFiltered(
                 colorFilter: _filters[_selectedFilter].$2,
-                child: Image.asset(
-                  widget.imagePath,
+                child: Image.file(
+                  File(widget.imagePath),
                   fit: BoxFit.contain,
                 ),
               ),
@@ -141,7 +142,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
                             borderRadius: BorderRadius.circular(6),
                             child: ColorFiltered(
                               colorFilter: filter.$2,
-                              child: Image.asset(widget.imagePath,
+                              child: Image.file(File(widget.imagePath),
                                   fit: BoxFit.cover, width: 64, height: 64),
                             ),
                           ),
@@ -234,6 +235,14 @@ class _DoodleEditorScreenState extends State<DoodleEditorScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.undo, color: Colors.white),
+            onPressed: _paths.isNotEmpty
+                ? () => setState(() {
+                    _undoStack.add(_paths.removeLast());
+                  })
+                : null,
+          ),
+          IconButton(
+            icon: const Icon(Icons.redo, color: Colors.white),
             onPressed: _undoStack.isNotEmpty
                 ? () => setState(() {
                     _paths.add(_undoStack.removeLast());
@@ -263,7 +272,7 @@ class _DoodleEditorScreenState extends State<DoodleEditorScreen> {
               },
               child: Stack(
                 children: [
-                  Center(child: Image.asset(widget.imagePath, fit: BoxFit.contain)),
+                  Center(child: Image.file(File(widget.imagePath), fit: BoxFit.contain)),
                   CustomPaint(
                     painter: _DoodlePainter(_paths),
                     child: const SizedBox.expand(),

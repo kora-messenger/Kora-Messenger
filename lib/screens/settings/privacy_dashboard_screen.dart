@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import '../../theme/kora_colors.dart';
 
@@ -334,10 +335,15 @@ class SafetyNumbersScreen extends StatelessWidget {
     final textPrimary = KoraColors.textPrimaryFor(brightness);
     final textMuted = KoraColors.textMutedFor(brightness);
 
-    // Generate a fake 60-digit safety number
-    final safetyNumber = List.generate(12, (_) =>
-        (List.generate(5, (_) => (DateTime.now().millisecond % 10).toString()).join()))
-        .join(' ');
+    // Generate a deterministic 60-digit safety number from contact name.
+    // In production, this would be a SHA-256 hash of both users' public keys.
+    final contactHash = contactName.codeUnits.fold(0, (a, b) => a * 31 + b);
+    final random = Random(contactHash.abs());
+    final groups = List.generate(
+      12,
+      (_) => List.generate(5, (_) => random.nextInt(10).toString()).join(),
+    );
+    final safetyNumber = groups.join(' ');
 
     return Scaffold(
       backgroundColor: bg,
