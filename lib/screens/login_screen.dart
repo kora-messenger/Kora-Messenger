@@ -21,6 +21,7 @@ import 'signup_screen.dart';
 import 'backup_pin_login_screen.dart';
 import 'passkey_login_screen.dart';
 import '../services/device_manager.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// Kora Login screen — deep black surface, purple gradient accents.
 /// User enters email + password to log in. New devices trigger verification.
@@ -500,6 +501,56 @@ class _LogInScreenState extends State<LogInScreen> {
                     child: const Text(
                       'Create Account',
                       style: TextStyle(color: KoraColors.purple, fontSize: 14, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              // Legal links
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  GestureDetector(
+                    onTap: () async {
+                      final uri = Uri.parse(KoraApi.termsOfServiceUrl);
+                      await launchUrl(uri, mode: LaunchMode.externalApplication);
+                    },
+                    child: const Text(
+                      'Terms',
+                      style: TextStyle(color: KoraColors.purple, fontSize: 12, fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                  const Text(' · ', style: TextStyle(color: Color(0xFFA0A0B8), fontSize: 12)),
+                  GestureDetector(
+                    onTap: () async {
+                      final uri = Uri.parse(KoraApi.privacyPolicyUrl);
+                      await launchUrl(uri, mode: LaunchMode.externalApplication);
+                    },
+                    child: const Text(
+                      'Privacy',
+                      style: TextStyle(color: KoraColors.purple, fontSize: 12, fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                  const Text(' · ', style: TextStyle(color: Color(0xFFA0A0B8), fontSize: 12)),
+                  GestureDetector(
+                    onTap: () async {
+                      final uri = Uri.parse(KoraApi.gdprPrivacyPolicyUrl);
+                      await launchUrl(uri, mode: LaunchMode.externalApplication);
+                    },
+                    child: const Text(
+                      'GDPR (EU)',
+                      style: TextStyle(color: KoraColors.purple, fontSize: 12, fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                  const Text(' · ', style: TextStyle(color: Color(0xFFA0A0B8), fontSize: 12)),
+                  GestureDetector(
+                    onTap: () async {
+                      final uri = Uri.parse(KoraApi.e2eePolicyUrl);
+                      await launchUrl(uri, mode: LaunchMode.externalApplication);
+                    },
+                    child: const Text(
+                      'E2EE',
+                      style: TextStyle(color: KoraColors.purple, fontSize: 12, fontWeight: FontWeight.w500),
                     ),
                   ),
                 ],

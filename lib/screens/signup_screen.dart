@@ -544,6 +544,21 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                   ),
                 ),
+                const Text(
+                  '. EU users: see our ',
+                  style: TextStyle(color: Color(0xFFA0A0B8), fontSize: 13),
+                ),
+                GestureDetector(
+                  onTap: () => _launchLegalUrl(KoraApi.gdprPrivacyPolicyUrl),
+                  child: const Text(
+                    'GDPR Privacy Policy',
+                    style: TextStyle(
+                      color: KoraColors.purple,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
               ],
             ),
           ),

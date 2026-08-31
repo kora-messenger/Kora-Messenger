@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/services.dart';
 import '../../services/account_deletion_service.dart';
+import '../../config/kora_api.dart';
+import '../../theme/kora_colors.dart';
 
 /// Delete Account screen — permanently wipes the user's account,
 /// phone registration, and Voice Vector Matrix from the server.
@@ -172,6 +175,28 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
                     backgroundColor: Colors.red.shade600,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
                     elevation: 2,
+                  ),
+                  // Account Deletion Policy link
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: Center(
+                      child: GestureDetector(
+                        onTap: () async {
+                          final uri = Uri.parse(KoraApi.accountDeletionPolicyUrl);
+                          await launchUrl(uri, mode: LaunchMode.externalApplication);
+                        },
+                        child: Text(
+                          'Read our Account Deletion Policy',
+                          style: TextStyle(
+                            color: Theme.of(context).brightness == Brightness.dark
+                                ? KoraColors.purple
+                                : KoraColors.purple,
+                            fontSize: 13,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
                   onPressed: _canDelete() ? _deleteAccount : null,
                   child: _isLoading

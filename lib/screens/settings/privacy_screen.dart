@@ -13,6 +13,7 @@ import 'chat_lock_screen.dart';
 import 'privacy_checkup_screen.dart';
 import 'privacy_dashboard_screen.dart';
 import '../status/status_privacy_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// Privacy settings screen — controls who can see your personal info,
 /// read receipts, disappearing messages, app lock, and advanced privacy.
@@ -898,8 +899,43 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
               activeTrackColor: KoraColors.purple,
               onChanged: onChanged,
             ),
-          ],
+                      // Legal links
+            const SizedBox(height: 24),
+            Padding(
+              padding: const EdgeInsets.only(left: 4, bottom: 4),
+              child: Text('LEGAL',
+                style: TextStyle(color: textMuted, fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.5),
+              ),
+            ),
+            _buildLegalLink(context, 'Privacy Policy', KoraApi.privacyPolicyUrl),
+            _buildLegalLink(context, 'GDPR Privacy Policy (EU)', KoraApi.gdprPrivacyPolicyUrl),
+            _buildLegalLink(context, 'End-to-End Encryption', KoraApi.e2eePolicyUrl),
+            _buildLegalLink(context, 'Blocking & Reporting', KoraApi.blockingAndReportingUrl),
+            _buildLegalLink(context, 'Account Deletion Policy', KoraApi.accountDeletionPolicyUrl),
+            ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildLegalLink(BuildContext context, String title, String url) {
+    final brightness = Theme.of(context).brightness;
+    final textPrimary = KoraColors.textPrimaryFor(brightness);
+    final textSecondary = KoraColors.textSecondaryFor(brightness);
+    final card = KoraColors.cardFor(brightness);
+    final border = KoraColors.borderFor(brightness);
+
+    return _cardWrapper(
+      card: card,
+      border: border,
+      child: ListTile(
+        leading: Icon(Icons.description_outlined, size: 22, color: KoraColors.purple),
+        title: Text(title, style: TextStyle(color: textPrimary, fontSize: 15, fontWeight: FontWeight.w500)),
+        trailing: Icon(Icons.open_in_new, size: 16, color: textSecondary),
+        onTap: () async {
+          final uri = Uri.parse(url);
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        },
       ),
     );
   }

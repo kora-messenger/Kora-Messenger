@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../theme/kora_colors.dart';
+import '../../config/kora_api.dart';
 
 /// Report screen — report a message or user to moderation.
 /// Includes reason categories and optional "also block" option.
@@ -155,6 +157,25 @@ class _ReportScreenState extends State<ReportScreen> {
                     activeColor: KoraColors.purple,
                   ),
                 ],
+              ),
+            ),
+          ),
+
+          // Blocking & Reporting Policy link
+          const SizedBox(height: 16),
+          Center(
+            child: GestureDetector(
+              onTap: () async {
+                final uri = Uri.parse(KoraApi.blockingAndReportingUrl);
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              },
+              child: Text(
+                'Read our Blocking & Reporting Policy',
+                style: TextStyle(
+                  color: KoraColors.purple,
+                  fontSize: 13,
+                  decoration: TextDecoration.underline,
+                ),
               ),
             ),
           ),

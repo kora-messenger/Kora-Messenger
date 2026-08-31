@@ -2,6 +2,8 @@ import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../config/kora_api.dart';
 import '../../theme/kora_colors.dart';
 
 /// WhatsApp 2026-style in-app camera for Kora Messenger.
@@ -577,6 +579,34 @@ class _KoraCameraScreenState extends State<KoraCameraScreen>
         decoration: BoxDecoration(
           color: _mode == _CameraMode.video ? Colors.red : Colors.white,
           shape: BoxShape.circle,
+        ),
+      ),
+    );
+  }
+
+  /// Face & Hands Effects privacy notice — shown briefly on first camera open.
+  Widget _buildEffectsPrivacyBadge(BuildContext context) {
+    return Positioned(
+      top: 60,
+      left: 0,
+      right: 0,
+      child: Center(
+        child: GestureDetector(
+          onTap: () async {
+            final uri = Uri.parse(KoraApi.faceHandsEffectsUrl);
+            await launchUrl(uri, mode: LaunchMode.externalApplication);
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.black54,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Text(
+              'Face & hand effects are processed on-device only. Learn more →',
+              style: TextStyle(color: Colors.white70, fontSize: 11),
+            ),
+          ),
         ),
       ),
     );

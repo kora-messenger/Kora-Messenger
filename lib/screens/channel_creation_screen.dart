@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/kora_colors.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../config/kora_api.dart';
 
 /// Channel Creation Screen — create a new broadcast channel.
 /// Mirrors WhatsApp's channel creation flow.
@@ -266,6 +268,23 @@ class _ChannelCreationScreenState extends State<ChannelCreationScreen> {
           value: _followersCanShare,
           onChanged: (v) => setState(() => _followersCanShare = v),
           activeColor: KoraColors.purple,
+        ),
+        const SizedBox(height: 12),
+        Center(
+          child: GestureDetector(
+            onTap: () async {
+              final uri = Uri.parse(KoraApi.channelsGuidelinesUrl);
+              await launchUrl(uri, mode: LaunchMode.externalApplication);
+            },
+            child: Text(
+              'Read our Channels Guidelines',
+              style: TextStyle(
+                color: KoraColors.purple,
+                fontSize: 13,
+                decoration: TextDecoration.underline,
+              ),
+            ),
+          ),
         ),
       ],
     );
