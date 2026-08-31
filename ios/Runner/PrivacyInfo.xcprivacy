@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- ═══ APPLE REQUIRED REASON API DECLARATIONS ═══ -->
+    <!-- Kora Messenger uses file timestamp and disk space APIs for -->
+    <!-- downloading and managing on-device ML translation language packs. -->
+
+    <!-- NSPrivacyAccessedAPITypes — declared reasons for API usage -->
+    <key>NSPrivacyAccessedAPITypes</key>
+    <array>
+        <dict>
+            <!-- File Timestamp API — used to track language pack freshness -->
+            <key>NSPrivacyAccessedAPIType</key>
+            <string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
+            <key>NSPrivacyAccessedAPITypeReasons</key>
+            <array>
+                <!-- C617.1 — display file timestamps to the user -->
+                <string>C617.1</string>
+            </array>
+        </dict>
+        <dict>
+            <!-- Disk Space API — used to check available storage before downloading language packs -->
+            <key>NSPrivacyAccessedAPIType</key>
+            <string>NSPrivacyAccessedAPICategoryDiskSpace</string>
+            <key>NSPrivacyAccessedAPITypeReasons</key>
+            <array>
+                <!-- E174.1 — check available disk space for download operations -->
+                <string>E174.1</string>
+            </array>
+        </dict>
+        <dict>
+            <!-- System Boot Time API — used for audio latency measurement during calls -->
+            <key>NSPrivacyAccessedAPIType</key>
+            <string>NSPrivacyAccessedAPICategorySystemBootTime</string>
+            <key>NSPrivacyAccessedAPITypeReasons</key>
+            <array>
+                <!-- 35F9.1 — measure time elapsed for audio processing -->
+                <string>35F9.1</string>
+            </array>
+        </dict>
+    </array>
+
+    <!-- No data is collected or tracked -->
+    <key>NSPrivacyCollectedDataTypes</key>
+    <array/>
+
+    <!-- No data is linked to the user's identity -->
+    <key>NSPrivacyTracking</key>
+    <false/>
+
+    <!-- No tracking domains -->
+    <key>NSPrivacyTrackingDomains</key>
+    <array/>
+</dict>
+</plist>

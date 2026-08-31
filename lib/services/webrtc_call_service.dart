@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:http/http.dart' as http;
 import '../config/kora_api.dart';
+import '../models/voice_vector.dart';
+import 'voice_vector_store.dart';
 
 /// Real WebRTC call service for Kora Messenger.
 ///
@@ -41,6 +43,10 @@ class WebRTCCallService {
 
   // Translation & Signaling data channel
   RTCDataChannel? _dataChannel;
+
+  // Remote peer's voice vector for voice-style matching during translation
+  VoiceVector? _remoteVoiceVector;
+  VoiceVector? get remoteVoiceVector => _remoteVoiceVector;
 
   // Audio constraints state
   bool _noiseSuppressionEnabled = true;
@@ -88,6 +94,40 @@ class WebRTCCallService {
   bool get isLowDataMode => _lowDataModeEnabled;
   bool get isScreenSharing => _isScreenSharing;
   String get currentAudioRoute => _currentAudioRoute;
+
+  /// Fetch and cache the remote peer's voice vector at call start.
+  /// Used by LiveTranslationService for voice-style matching.
+  Future<void> fetchRemoteVoiceVector(String remoteEmail) async {
+    try {
+      _remoteVoiceVector = await VoiceVectorStore.instance.fetchVoiceVector(remoteEmail);
+    } catch (e) {
+      debugPrint('[WebRTC] fetchVoiceVector error: $e');
+    }
+  }
+
+  /// Start the Android foreground service to keep translation alive during calls.
+  Future<void> _startCallForegroundService(String callerName) async {
+    try {
+      const platform = MethodChannel('com.kora.messenger/call_service');
+      await platform.invokeMethod('startTranslationService', {
+        'callId': _currentCallId ?? 'active_call',
+        'callerName': callerName,
+      });
+    } catch (e) {
+      debugPrint('[WebRTC] foreground service start error: $e');
+    }
+  }
+
+  /// Stop the Android foreground service when call ends.
+  Future<void> _stopCallForegroundService() async {
+    try {
+      const platform = MethodChannel('com.kora.messenger/call_service');
+      await platform.invokeMethod('stopTranslationService');
+    } catch (e) {
+      debugPrint('[WebRTC] foreground service stop error: $e');
+    }
+  }
+
 
   /// Initialize local media stream (microphone + optional camera) with constraints.
   Future<void> initLocalMedia({bool video = false}) async {

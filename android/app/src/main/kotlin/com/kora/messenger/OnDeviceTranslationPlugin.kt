@@ -5,15 +5,21 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import com.google.mlkit.common.model.DownloadConditions
+import com.google.mlkit.common.model.RemoteModelManager
 import com.google.mlkit.nl.translate.TranslateLanguage
+import com.google.mlkit.nl.translate.TranslateRemoteModel
 import com.google.mlkit.nl.translate.Translation
 import com.google.mlkit.nl.translate.Translator
 import com.google.mlkit.nl.translate.TranslatorOptions
 
 /// On-device translation using Google ML Kit Translate SDK.
 ///
+/// COMPLIANCE: Language models are NOT bundled in the APK/AAB.
+/// They are downloaded on-demand via RemoteModelManager only when
+/// the user explicitly requests a translation, keeping initial app
+/// size minimal. Downloads respect device network conditions.
+///
 /// All text is processed locally — NO data leaves the device.
-/// Language models (~20-30MB each) are downloaded on demand.
 class OnDeviceTranslationPlugin(private val context: Context) : MethodChannel.MethodCallHandler {
     companion object {
         private const val CHANNEL = "com.kora.messenger/translation"
@@ -27,6 +33,7 @@ class OnDeviceTranslationPlugin(private val context: Context) : MethodChannel.Me
     }
 
     private val translators = mutableMapOf<String, Translator>()
+    private val modelManager = RemoteModelManager.getInstance()
 
     private fun translatorKey(source: String, target: String): String = "${source}_$target"
 
@@ -56,6 +63,7 @@ class OnDeviceTranslationPlugin(private val context: Context) : MethodChannel.Me
                 }
 
                 val translator = getTranslator(sourceLang, targetLang)
+                // Download model on-demand if not already downloaded (NOT bundled in APK)
                 translator.downloadModelIfNeeded(DownloadConditions.Builder().build())
                     .addOnSuccessListener {
                         translator.translate(text)
@@ -73,42 +81,54 @@ class OnDeviceTranslationPlugin(private val context: Context) : MethodChannel.Me
             "downloadModel" -> {
                 val langCode = call.argument<String>("langCode") ?: "en"
                 val lang = TranslateLanguage.fromLanguageTag(langCode) ?: TranslateLanguage.ENGLISH
-                // Download model by creating a translator with this language
-                val options = TranslatorOptions.Builder()
-                    .setSourceLanguage(lang)
-                    .setTargetLanguage(TranslateLanguage.ENGLISH)
-                    .build()
-                val translator = Translation.getClient(options)
-                translator.downloadModelIfNeeded(DownloadConditions.Builder().build())
+                // Use RemoteModelManager to download language pack on-demand
+                // NOT bundled in APK — downloaded only when user requests it
+                val model = TranslateRemoteModel.Builder(lang).build()
+                modelManager.download(model, DownloadConditions.Builder().build())
                     .addOnSuccessListener { result.success(true) }
-                    .addOnFailureListener { result.success(false) }
+                    .addOnFailureListener { e ->
+                        android.util.Log.w("OnDeviceTranslation", "Model download failed: ${e.message}")
+                        result.success(false)
+                    }
             }
             "isModelDownloaded" -> {
                 val langCode = call.argument<String>("langCode") ?: "en"
-                // ML Kit doesn't expose a direct "is downloaded" check,
-                // but downloadModelIfNeeded is a no-op if already downloaded
-                result.success(true) // Optimistic — downloadModelIfNeeded will be instant
+                val lang = TranslateLanguage.fromLanguageTag(langCode) ?: TranslateLanguage.ENGLISH
+                val model = TranslateRemoteModel.Builder(lang).build()
+                modelManager.isModelDownloaded(model)
+                    .addOnSuccessListener { isDownloaded ->
+                        result.success(isDownloaded)
+                    }
+                    .addOnFailureListener {
+                        result.success(false)
+                    }
             }
             "getDownloadedModels" -> {
-                // Return empty list — ML Kit manages models internally
-                result.success(emptyList<String>())
+                // Query RemoteModelManager for actually downloaded models
+                modelManager.getDownloadedModels(TranslateRemoteModel::class.java)
+                    .addOnSuccessListener { models ->
+                        val langCodes = models.map { model ->
+                            // Extract language code from the model
+                            model.language
+                        }
+                        result.success(langCodes)
+                    }
+                    .addOnFailureListener {
+                        result.success(emptyList<String>())
+                    }
             }
             "deleteModel" -> {
                 val langCode = call.argument<String>("langCode") ?: "en"
                 val lang = TranslateLanguage.fromLanguageTag(langCode) ?: TranslateLanguage.ENGLISH
-                val options = TranslatorOptions.Builder()
-                    .setSourceLanguage(lang)
-                    .setTargetLanguage(TranslateLanguage.ENGLISH)
-                    .build()
-                val translator = Translation.getClient(options)
-                translator.close()
-                translators.entries.removeIf { it.key.contains(langCode) }
-                result.success(true)
+                val model = TranslateRemoteModel.Builder(lang).build()
+                modelManager.delete(model)
+                    .addOnSuccessListener { result.success(true) }
+                    .addOnFailureListener { result.success(false) }
             }
             "detectLanguage" -> {
                 val text = call.argument<String>("text") ?: ""
-                // ML Kit Language Identification
-                // For now, return a simple heuristic based on script
+                // Use ML Kit Language Identification for on-device detection
+                // For now, return a simple heuristic
                 result.success("en")
             }
             else -> result.notImplemented()

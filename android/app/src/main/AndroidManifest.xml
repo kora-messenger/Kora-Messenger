@@ -148,6 +148,17 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
+        <!-- Live Call Translation Service — runs during active calls
+             with microphone + phone call foreground service types.
+             Android 14+ (API 34) requires explicit type declaration.
+             Lifecycle is bound to KoraCallNotification (visible notification)
+             so the OS does not terminate translation mid-call. -->
+        <service
+            android:name=".LiveCallTranslationService"
+            android:exported="false"
+            android:foregroundServiceType="microphone|phoneCall"
+            android:stopWithTask="false" />
+
         <!-- Direct Reply Receiver (quick reply from notification) -->
         <receiver
             android:name=".notifications.KoraDirectReplyReceiver"

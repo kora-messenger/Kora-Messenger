@@ -20,27 +20,27 @@ import 'package:shared_preferences/shared_preferences.dart';
 class KoraPermissionService {
   static const _kEssentialAsked = 'kora_essential_permissions_asked';
 
-  /// Requests all essential permissions once per install — right
-  /// after the user reaches Home for the first time. Safe to call
-  /// every time; it no-ops after the first run.
+  /// JUST-IN-TIME PERMISSIONS (App Store compliance):
+  ///
+  /// Permissions are NOT requested on app launch. Each permission is
+  /// requested only when the user explicitly initiates the corresponding
+  /// action:
+  ///   - Microphone → user starts a voice note recording or initiates a call
+  ///   - Camera → user opens camera (profile photo, QR scan, video call)
+  ///   - Gallery → user picks an image from gallery
+  ///   - Location → user shares live location
+  ///   - Contacts → user opens "Find friends"
+  ///   - Notifications → user receives first message (or can enable in settings)
+  ///
+  /// This ensures permission prompts are contextual and explainable to
+  /// Apple/Google review teams — no bulk permission request on launch.
+  ///
+  /// [requestEssentialOnce] is kept for backward compatibility but is now
+  /// a no-op — permissions are deferred to just-in-time requests.
   static Future<void> requestEssentialOnce() async {
-    final prefs = await SharedPreferences.getInstance();
-    final alreadyAsked = prefs.getBool(_kEssentialAsked) ?? false;
-    if (alreadyAsked) return;
-
-    // Request all permissions Kora needs
-    await [
-      Permission.notification,
-      Permission.microphone,
-      Permission.camera,
-      Permission.photos,
-      Permission.storage,       // Android <13 — for saving media
-      Permission.location,      // For sharing location in chats
-      Permission.contacts,      // For finding friends on Kora
-      Permission.phone,         // For call state handling
-    ].request();
-
-    await prefs.setBool(_kEssentialAsked, true);
+    // Just-in-time: do NOT request any permissions on app launch.
+    // Each permission is requested when the user initiates the action.
+    // This is required for App Store / Play Store compliance.
   }
 
   /// Microphone — required before recording a voice message or
