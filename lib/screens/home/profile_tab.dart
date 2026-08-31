@@ -323,6 +323,16 @@ class _ProfileTabState extends State<ProfileTab> {
             ),
             _tile(
               context,
+              Icons.help_outline_rounded,
+              'Help Center',
+              'Support, FAQ, bug reports & feedback',
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const HelpCenterScreen()),
+              ),
+            ),
+            _tile(
+              context,
               Icons.support_agent_outlined,
               'Kora Support',
               'Get help from the Kora team',

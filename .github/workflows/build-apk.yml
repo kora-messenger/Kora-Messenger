@@ -1,4 +1,4 @@
-name: Build Kora Messenger APK
+name: Build Kora Messenger APK & AAB
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   build:
-    name: Build APK
+    name: Build APK & AAB
     runs-on: ubuntu-latest
 
     steps:
@@ -40,11 +40,24 @@ jobs:
             --dart-define=KORA_BACKEND_URL=${{ secrets.KORA_BACKEND_URL }} \
             --dart-define=KORA_AI_AUTH_TOKEN=${{ secrets.KORA_AI_AUTH_TOKEN }}
 
+      - name: Build AAB (for Google Play Beta)
+        run: |
+          flutter build appbundle --release \
+            --dart-define=KORA_BACKEND_URL=${{ secrets.KORA_BACKEND_URL }} \
+            --dart-define=KORA_AI_AUTH_TOKEN=${{ secrets.KORA_AI_AUTH_TOKEN }}
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v7
         with:
           name: kora-messenger-apk
           path: build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 30
+
+      - name: Upload AAB artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: kora-messenger-aab
+          path: build/app/outputs/bundle/release/app-release.aab
           retention-days: 30
 
       - name: Rename APK for release
