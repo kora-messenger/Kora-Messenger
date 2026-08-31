@@ -208,6 +208,8 @@ class MessageBubble extends StatelessWidget {
       case KoraMessageType.image:
       case KoraMessageType.video:
         return const EdgeInsets.all(4);
+      case KoraMessageType.videoNote:
+        return const EdgeInsets.all(2);
       case KoraMessageType.sticker:
         return const EdgeInsets.all(6);
       default:
@@ -248,6 +250,10 @@ class MessageBubble extends StatelessWidget {
 
     if (message.type == KoraMessageType.location) {
       return _buildLocationContent(context, isMe, textSecondary);
+    }
+
+    if (message.type == KoraMessageType.videoNote) {
+      return _buildVideoNoteContent(context, isMe, textSecondary);
     }
 
     return Column(
@@ -1007,6 +1013,75 @@ class MessageBubble extends StatelessWidget {
     return RichText(
       text: TextSpan(children: spans),
       softWrap: true,
+    );
+  }
+
+  // ── Video note (WhatsApp-style circular video message) ──
+  Widget _buildVideoNoteContent(BuildContext context, bool isMe, Color textSecondary) {
+    const size = 190.0;
+    final mins = ((message.mediaDuration ?? 0) ~/ 60).toString();
+    final secs = ((message.mediaDuration ?? 0) % 60).toString().padLeft(2, '0');
+    return Column(
+      crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: size,
+          height: size,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              ClipOval(
+                child: Container(
+                  width: size,
+                  height: size,
+                  color: Colors.black,
+                  child: message.mediaThumbnailPath != null
+                      ? Image.file(File(message.mediaThumbnailPath!), fit: BoxFit.cover)
+                      : (message.mediaPath != null
+                          ? Container(color: const Color(0xFF1A1A24))
+                          : Container(color: const Color(0xFF1A1A24))),
+                ),
+              ),
+              Container(
+                width: size,
+                height: size,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.fromBorderSide(
+                      BorderSide(color: Colors.white24, width: 1.5)),
+                ),
+              ),
+              Container(
+                width: 48, height: 48,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.black.withValues(alpha: 0.35),
+                ),
+                child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 30),
+              ),
+              Positioned(
+                bottom: 10,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text('$mins:$secs',
+                      style: const TextStyle(
+                          color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 3),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: _buildMediaTimestampRow(isMe, isMe ? Colors.white : textSecondary, textSecondary),
+        ),
+      ],
     );
   }
 

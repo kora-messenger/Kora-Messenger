@@ -6,6 +6,7 @@ enum KoraMessageType {
   text,
   image,
   video,
+  videoNote, // WhatsApp-style circular video message
   voice,
   file,
   sticker, // sticker messages (large emoji rendered as stickers)

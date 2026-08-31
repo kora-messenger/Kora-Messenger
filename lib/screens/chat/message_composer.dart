@@ -13,6 +13,7 @@ import 'kora_voice_locked_bar.dart';
 import 'kora_voice_holding.dart';
 import 'emoji_sticker_panel.dart';
 import 'kora_camera_screen.dart';
+import 'kora_video_note_screen.dart';
 import 'kora_media_editor_screen.dart';
 import 'package:image_picker/image_picker.dart';
 import 'language_picker_screen.dart';
@@ -60,6 +61,7 @@ class MessageComposer extends StatefulWidget {
   final Function(String)? onAiWriting;
   final VoidCallback? onMicTap; // notify parent to pause any playing voice note
   final Function(String path, bool isVideo, String? caption, bool isViewOnce, bool isHD, double? width, double? height)? onSendMedia;
+  final Function(String path, int durationSeconds)? onSendVideoNote;
   final bool isGroupChat;
 
   const MessageComposer({
@@ -75,6 +77,7 @@ class MessageComposer extends StatefulWidget {
     this.onAiWriting,
     this.onMicTap,
     this.onSendMedia,
+    this.onSendVideoNote,
     this.isGroupChat = false,
   });
 
@@ -1060,6 +1063,20 @@ class _MessageComposerState extends State<MessageComposer>
     _openEditor(result['path'] as String, result['isVideo'] as bool);
   }
 
+  /// Long-press the camera icon: WhatsApp-style circular video note.
+  void _openVideoNoteRecorder() async {
+    HapticFeedback.mediumImpact();
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const KoraVideoNoteScreen()),
+    );
+    if (result == null || !mounted) return;
+    widget.onSendVideoNote?.call(
+      result['path'] as String,
+      result['duration'] as int,
+    );
+  }
+
   void _pickFromGallery(bool isImage) async {
     final picker = ImagePicker();
     if (isImage) {
@@ -1258,13 +1275,15 @@ class _MessageComposerState extends State<MessageComposer>
                               ),
                             ),
                           ),
-                          IconButton(
-                            icon: Icon(Icons.camera_alt_outlined,
-                                color: textMuted, size: 22),
-                            onPressed: _openCamera,
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(
-                                minWidth: 36, minHeight: 36),
+                          GestureDetector(
+                            onTap: _openCamera,
+                            onLongPress: _openVideoNoteRecorder,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 7),
+                              child: Icon(Icons.camera_alt_outlined,
+                                  color: textMuted, size: 22),
+                            ),
                           ),
                           IconButton(
                             icon: Icon(Icons.attach_file,

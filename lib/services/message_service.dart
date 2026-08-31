@@ -258,6 +258,7 @@ class MessageService {
     double? width,
     double? height,
     int? duration,
+    bool isVideoNote = false,
     String? replyToId,
     String? replyToText,
     String? replyToName,
@@ -275,7 +276,9 @@ class MessageService {
       text: caption ?? '',
       timestamp: DateTime.now(),
       isMe: true,
-      type: isVideo ? KoraMessageType.video : KoraMessageType.image,
+      type: isVideoNote
+          ? KoraMessageType.videoNote
+          : (isVideo ? KoraMessageType.video : KoraMessageType.image),
       status: isOnline ? MessageStatus.sent : MessageStatus.unsent,
       mediaPath: mediaPath,
       mediaCaption: caption,

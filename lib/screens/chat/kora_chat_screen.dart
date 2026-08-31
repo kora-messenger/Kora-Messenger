@@ -353,6 +353,29 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
     _scrollToBottom();
   }
 
+  // ── Send video note (WhatsApp-style circular video message) ──
+  void _sendVideoNote(String path, int durationSeconds) async {
+    await _messageService.sendMediaMessage(
+      widget.chatId,
+      mediaPath: path,
+      isVideo: true,
+      isVideoNote: true,
+      duration: durationSeconds,
+      replyToId: _replyTarget?.id,
+      replyToText: _replyTarget?.text,
+      replyToName: _replyTarget != null ? (_replyTarget!.isMe ? 'You' : widget.name) : null,
+      replyToType: _replyTarget?.type,
+      recipientEmail: widget.recipientEmail,
+      recipientName: widget.name,
+    );
+    ChatSoundService.instance.playOutgoing();
+    setState(() {
+      _messages = List.from(_messageService.getMessages(widget.chatId));
+      _replyTarget = null;
+    });
+    _scrollToBottom();
+  }
+
   // ── Send document ────────────────────────────────────
   void _sendDocument(String path, String fileName, int fileSize) async {
     final sizeStr = fileSize > 1024 * 1024
@@ -1960,6 +1983,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
                         onSendVoice: _sendVoice,
                         onMicTap: () => AudioPlaybackService.instance.stop(),
                         onSendMedia: _sendMedia,
+                        onSendVideoNote: _sendVideoNote,
                         onSendDocument: _sendDocument,
                         onSendContact: _sendContact,
                         onSendLocation: _sendLocation,
