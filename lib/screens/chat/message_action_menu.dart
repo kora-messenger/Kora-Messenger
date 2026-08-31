@@ -275,10 +275,9 @@ class _MessageActionOverlay extends StatelessWidget {
                   _action(Icons.emoji_emotions_outlined, 'React', () {}, textPrimary),
                   if (!_isVoice && !_isVideoNote)
                     _action(Icons.copy_outlined, 'Copy', onCopy, textPrimary),
-                  // WhatsApp deliberately doesn't allow forwarding video
-                  // notes — they're designed to feel ephemeral, like
-                  // voice notes, and stay in their original chat.
-                  if (!_isVideoNote)
+                  // WhatsApp only allows the SENDER to forward their own
+                  // video notes — recipients cannot forward received ones.
+                  if (!(_isVideoNote && !isMe))
                     _action(Icons.forward_outlined, 'Forward', onForward, textPrimary),
                   // Voice-specific actions
                   if (_isVoice) ...[
