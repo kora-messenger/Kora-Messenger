@@ -246,6 +246,36 @@ img{max-width:100%;display:block}
   .footer-grid{grid-template-columns:1fr 1fr}
   .footer-bottom{flex-direction:column;gap:14px;text-align:center}
 }
+
+/* ═══ CALLS ILLUSTRATION ═══ */
+@keyframes floatCard{0%,100%{transform:translateY(0) rotate(-1.5deg)}50%{transform:translateY(-12px) rotate(-1.5deg)}}
+@keyframes floatPip{0%,100%{transform:translateY(0) rotate(2deg)}50%{transform:translateY(-8px) rotate(2deg)}}
+@keyframes badgePop{0%{opacity:0;transform:scale(0) rotate(-20deg)}60%{transform:scale(1.15) rotate(4deg)}100%{opacity:1;transform:scale(1) rotate(0)}}
+@keyframes pipSlideIn{from{opacity:0;transform:translate(24px,24px) scale(.85)}to{opacity:1;transform:translate(0,0) scale(1)}}
+.calls{background:var(--paper);padding:110px 24px;overflow:hidden}
+.calls-inner{max-width:1140px;margin:0 auto;display:grid;grid-template-columns:1fr 1.05fr;gap:70px;align-items:center}
+.call-visual{position:relative;display:flex;justify-content:center;align-items:center;min-height:420px}
+.call-main{width:270px;height:340px;border-radius:34px;border:3px solid var(--text);background:linear-gradient(150deg,#F3E9D8,#EADFC9);position:relative;overflow:hidden;box-shadow:0 30px 60px rgba(10,10,20,.12);animation:floatCard 6s ease-in-out infinite;z-index:1}
+.call-main svg{width:100%;height:100%;display:block}
+.call-badge{position:absolute;top:-18px;left:-18px;width:74px;height:74px;border-radius:50%;background:#B9C6F7;border:3px solid var(--text);display:flex;align-items:center;justify-content:center;z-index:3;animation:badgePop .6s cubic-bezier(.34,1.56,.64,1) .2s backwards}
+.call-badge::before{content:'';position:absolute;inset:-8px;border-radius:50%;border:2px solid rgba(124,58,237,.35);animation:pulseRing 2.2s ease-out infinite}
+.call-badge svg{width:28px;height:28px;fill:var(--text);position:relative;z-index:1}
+.call-pip{position:absolute;bottom:-30px;right:-36px;width:150px;height:190px;border-radius:26px;border:3px solid var(--text);overflow:hidden;box-shadow:0 20px 44px rgba(10,10,20,.16);z-index:2;animation:pipSlideIn .7s cubic-bezier(.16,1,.3,1) .35s backwards, floatPip 5s ease-in-out 1s infinite}
+.call-pip svg{width:100%;height:100%;display:block}
+.calls-text{max-width:480px}
+.calls-text .section-tag{background:rgba(37,99,235,.08);border-color:rgba(37,99,235,.14);color:var(--b)}
+.calls-text h2{font-size:clamp(30px,3.8vw,46px);font-weight:900;line-height:1.08;letter-spacing:-1.2px;margin-bottom:16px}
+.calls-text h2 .grad{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.calls-text>p{font-size:16px;color:var(--mut);line-height:1.6;margin-bottom:28px}
+.calls-chips{display:flex;flex-wrap:wrap;gap:10px}
+.calls-chip{display:inline-flex;align-items:center;gap:7px;padding:9px 16px;background:var(--card);border:1px solid var(--bd);border-radius:100px;font-size:13px;font-weight:600;color:var(--sub);box-shadow:var(--shs)}
+.calls-chip svg{width:15px;height:15px;fill:var(--p)}
+@media(max-width:900px){
+  .calls-inner{grid-template-columns:1fr;gap:56px;text-align:center}
+  .call-visual{order:-1}
+  .calls-chips{justify-content:center}
+}
+
 </style>
 </head>
 <body>
@@ -255,6 +285,7 @@ img{max-width:100%;display:block}
   <div class="nav-inner">
     <a href="#" class="nav-brand"><img src="assets/kora_icon.png" alt="Kora"> <span>Kora Messenger</span></a>
     <div class="nav-links">
+      <a href="#calls">Calls</a>
       <a href="#features">Features</a>
       <a href="#security">Security</a>
       <a href="#download">Download</a>
@@ -263,6 +294,7 @@ img{max-width:100%;display:block}
     <button class="nav-toggle" id="navToggle" aria-label="Menu">☰</button>
   </div>
   <div class="mobile-nav" id="mobileNav">
+    <a href="#calls">Calls</a>
     <a href="#features">Features</a>
     <a href="#security">Security</a>
     <a href="#download">Download</a>
@@ -321,6 +353,63 @@ img{max-width:100%;display:block}
             <div class="ph-mic"><svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5-3c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg></div>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ CALLS ═══ -->
+<section class="calls" id="calls">
+  <div class="calls-inner">
+    <div class="call-visual reveal">
+      <div class="call-main">
+        <svg viewBox="0 0 270 340" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="skinA" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#C99A6B"/><stop offset="1" stop-color="#A97A4F"/></linearGradient>
+            <linearGradient id="topA" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7C3AED"/><stop offset="1" stop-color="#2563EB"/></linearGradient>
+          </defs>
+          <rect width="270" height="340" fill="#F3E9D8"/>
+          <rect width="270" height="340" fill="url(#topA)" opacity=".06"/>
+          <ellipse cx="135" cy="150" rx="58" ry="64" fill="url(#skinA)"/>
+          <path d="M77 128 Q70 90 100 76 Q120 62 150 72 Q180 82 186 116 Q190 132 182 142 Q178 118 160 106 Q170 130 160 138 Q155 108 130 100 Q108 96 96 112 Q90 122 92 136 Q80 132 77 128Z" fill="#2A1B12"/>
+          <circle cx="112" cy="152" r="5" fill="#241610"/>
+          <circle cx="158" cy="152" r="5" fill="#241610"/>
+          <path d="M128 166 Q135 172 142 166" stroke="#5C3D28" stroke-width="2" fill="none" stroke-linecap="round"/>
+          <path d="M118 186 Q135 196 152 186" stroke="#8A2F4E" stroke-width="4" fill="none" stroke-linecap="round"/>
+          <path d="M60 340 Q60 240 135 234 Q210 240 210 340Z" fill="#E4A63A"/>
+          <path d="M60 340 Q60 240 135 234 Q210 240 210 340Z" fill="url(#topA)" opacity=".18"/>
+          <circle cx="105" cy="260" r="20" fill="#C9832E" opacity=".7"/>
+          <circle cx="165" cy="285" r="16" fill="#C9832E" opacity=".7"/>
+          <circle cx="135" cy="310" r="14" fill="#C9832E" opacity=".7"/>
+        </svg>
+      </div>
+      <div class="call-badge"><svg viewBox="0 0 24 24"><path d="M17 10.5V7a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h12a1 1 0 001-1v-3.5l4 4v-11l-4 4z"/></svg></div>
+      <div class="call-pip">
+        <svg viewBox="0 0 150 190" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="skinB" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#D9B08C"/><stop offset="1" stop-color="#B8865E"/></linearGradient>
+          </defs>
+          <rect width="150" height="190" fill="#2B2E38"/>
+          <rect width="150" height="190" fill="url(#topA)" opacity=".1"/>
+          <ellipse cx="75" cy="82" rx="34" ry="38" fill="url(#skinB)"/>
+          <path d="M42 66 Q40 40 62 32 Q75 24 92 32 Q112 40 112 64 Q112 74 106 80 Q104 58 88 50 Q94 66 88 72 Q84 52 66 48 Q50 46 44 60 Q40 64 42 66Z" fill="#2A1810"/>
+          <path d="M38 78 Q30 110 34 140" stroke="#2A1810" stroke-width="10" fill="none" stroke-linecap="round"/>
+          <path d="M112 78 Q120 110 116 140" stroke="#2A1810" stroke-width="10" fill="none" stroke-linecap="round"/>
+          <circle cx="63" cy="84" r="3" fill="#241610"/>
+          <circle cx="89" cy="84" r="3" fill="#241610"/>
+          <path d="M68 100 Q75 106 82 100" stroke="#8A2F4E" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+          <path d="M20 190 Q20 148 75 144 Q130 148 130 190Z" fill="#1F2937"/>
+        </svg>
+      </div>
+    </div>
+    <div class="calls-text reveal">
+      <span class="section-tag">Voice &amp; Video</span>
+      <h2>Calls that feel like <span class="grad">you're in the room</span></h2>
+      <p>Crystal-clear voice and video calls, one-on-one or in a group — encrypted end-to-end, every time. Kora keeps the connection smooth even when your signal isn't.</p>
+      <div class="calls-chips">
+        <span class="calls-chip"><svg viewBox="0 0 24 24"><path d="M17 10.5V7a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h12a1 1 0 001-1v-3.5l4 4v-11l-4 4z"/></svg> HD Video</span>
+        <span class="calls-chip"><svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5-3c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg> Crystal Voice</span>
+        <span class="calls-chip"><svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg> Group Calls</span>
       </div>
     </div>
   </div>
