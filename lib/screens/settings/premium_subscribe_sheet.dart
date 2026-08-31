@@ -523,6 +523,12 @@ class _PremiumSubscribeSheetState extends State<PremiumSubscribeSheet> {
       case 'E2EE Disclosure':
         url = KoraApi.e2eePolicyUrl;
         break;
+      case 'Premium Terms':
+        url = KoraApi.premiumTermsUrl;
+        break;
+      case 'GDPR':
+        url = KoraApi.gdprPrivacyPolicyUrl;
+        break;
       case 'canceled':
         url = KoraApi.learnMoreUrl;
         break;

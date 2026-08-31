@@ -111,6 +111,15 @@ class KoraApi {
   static const String communityGuidelinesUrl = '$legalBaseUrl/community-guidelines.html';
   static const String aiPolicyUrl = '$legalBaseUrl/ai-policy.html';
   static const String e2eePolicyUrl = '$legalBaseUrl/e2ee-policy.html';
+  static const String eulaUrl = '$legalBaseUrl/eula.html';
+  static const String cookiePolicyUrl = '$legalBaseUrl/cookie-policy.html';
+  static const String premiumTermsUrl = '$legalBaseUrl/premium-terms.html';
+  static const String accountDeletionPolicyUrl = '$legalBaseUrl/account-deletion-policy.html';
+  static const String blockingAndReportingUrl = '$legalBaseUrl/blocking-and-reporting.html';
+  static const String gdprPrivacyPolicyUrl = '$legalBaseUrl/gdpr-privacy-policy.html';
+  static const String supplementalTermsUrl = '$legalBaseUrl/supplemental-terms.html';
+  static const String channelsGuidelinesUrl = '$legalBaseUrl/channels-guidelines.html';
+  static const String faceHandsEffectsUrl = '$legalBaseUrl/face-hands-effects-privacy.html';
 
   /// E2EE key exchange endpoint for public key publish/lookup.
   static const String e2eeKeysEndpoint = '$baseUrl/koraE2eeKeys';
@@ -136,7 +145,7 @@ class KoraApi {
 
   /// Blocking / unblocking / reporting help page — linked from the
   /// "Learn more" text in the Block confirmation dialog.
-  static const String blockingInfoUrl = '$legalBaseUrl/blocking-and-reporting.html';
+  static const String blockingInfoUrl = blockingAndReportingUrl;
 
   /// Generic POST to the auth endpoint
   static Future<Map<String, dynamic>> post(Map<String, dynamic> body) async {
