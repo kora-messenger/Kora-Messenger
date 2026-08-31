@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/kora_colors.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../config/kora_api.dart';
+import '../config/kora_api.dart';
 
 /// Channel Creation Screen — create a new broadcast channel.
 /// Mirrors WhatsApp's channel creation flow.

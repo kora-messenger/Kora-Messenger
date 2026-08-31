@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
@@ -181,7 +182,6 @@ class VoiceCloningTts {
   /// Apply DSP pitch-shift and formant modification to TTS audio.
   Future<String> _applyDsp(String ttsPath, VoiceVector vector) async {
     try {
-      final outputPath = ttsPath.replaceAll(RegExp(r'\.[^.]+$'), '')}_dsp.wav';
       final result = await RealtimeDspService.instance.processTtsOutput(ttsPath, vector);
       return result;
     } catch (e) {
