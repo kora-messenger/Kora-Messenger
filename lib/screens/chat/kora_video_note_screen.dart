@@ -5,18 +5,33 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import '../../theme/kora_colors.dart';
 
+/// Bridges the ORIGINAL press-and-hold gesture on the composer's camera
+/// icon into this screen — WhatsApp's recording starts the instant you
+/// press, and sliding up to lock is the SAME continuous finger-hold
+/// carried through into the full-screen recorder (the finger never has
+/// to lift between opening the screen and locking). The composer creates
+/// one of these on long-press-start and forwards its move/end events;
+/// this screen registers listeners in initState.
+class VideoNoteGesture {
+  void Function(double dy)? onDragUpdate;
+  void Function()? onFingerReleased;
+}
+
 /// WhatsApp-style "Video Note" recorder — a circular video message.
 ///
-/// Front camera by default. Press-and-hold the record button to capture
-/// (or tap once to start/stop — both are supported here since Flutter's
-/// long-press-drag doesn't map perfectly to the raw pointer gestures
-/// used by the voice recorder). Swipe the record button up to lock into
-/// hands-free recording. Max duration 60 seconds, matching WhatsApp.
+/// Recording starts the MOMENT this screen opens (no second tap) —
+/// matches WhatsApp: press-and-hold the camera icon starts recording
+/// immediately. Trash / Stop / Send are all live simultaneously while
+/// recording — you can cancel or send at any point, not just after a
+/// separate stop step. Slide up (via [gesture], the same continuous
+/// press that opened this screen) to lock into hands-free recording —
+/// a lock badge appears once locked. Max duration 60 seconds.
 ///
 /// Returns `{'path': String, 'duration': int}` via Navigator.pop, or
 /// null if cancelled/discarded.
 class KoraVideoNoteScreen extends StatefulWidget {
-  const KoraVideoNoteScreen({super.key});
+  final VideoNoteGesture? gesture;
+  const KoraVideoNoteScreen({super.key, this.gesture});
 
   @override
   State<KoraVideoNoteScreen> createState() => _KoraVideoNoteScreenState();
@@ -44,6 +59,18 @@ class _KoraVideoNoteScreenState extends State<KoraVideoNoteScreen>
   void initState() {
     super.initState();
     _initCameras();
+    // Register onto the bridge from the ORIGINAL composer press so
+    // "slide up to lock" and "finger released" keep working across
+    // the route push, without needing a second press on this screen.
+    widget.gesture?.onDragUpdate = (dy) {
+      _dragDy = dy;
+      if (_dragDy < -60 && !_dragLocking && mounted) {
+        setState(() {
+          _dragLocking = true;
+          if (_state == _NoteState.recording) _state = _NoteState.locked;
+        });
+      }
+    };
   }
 
   Future<void> _initCameras() async {
@@ -59,6 +86,12 @@ class _KoraVideoNoteScreenState extends State<KoraVideoNoteScreen>
       debugPrint('Video note camera init error: $e');
     } finally {
       if (mounted) setState(() => _isInitializing = false);
+      // WhatsApp starts recording the instant the screen opens — the
+      // press-and-hold gesture that opened this screen IS the record
+      // trigger, there's no separate "tap to start" step.
+      if (_controller != null && _controller!.value.isInitialized) {
+        _startRecording();
+      }
     }
   }
 
@@ -123,26 +156,56 @@ class _KoraVideoNoteScreenState extends State<KoraVideoNoteScreen>
     }
   }
 
-  void _discard() {
-    if (_recordedPath != null) {
+  Future<void> _discard() async {
+    // WhatsApp lets you tap Trash at ANY point — mid-recording, locked,
+    // or in preview — to cancel instantly.
+    if (_state == _NoteState.recording || _state == _NoteState.locked) {
+      _timer?.cancel();
+      try {
+        final file = await _controller!.stopVideoRecording();
+        await File(file.path).delete().catchError((_) => File(file.path));
+      } catch (e) {
+        debugPrint('Video note discard-while-recording error: $e');
+      }
+    } else if (_recordedPath != null) {
       File(_recordedPath!).delete().catchError((_) => File(_recordedPath!));
     }
     _recordedPath = null;
+    if (!mounted) return;
     setState(() {
       _state = _NoteState.idle;
       _seconds = 0;
       _dragLocking = false;
       _dragDy = 0;
     });
+    Navigator.pop(context);
   }
 
-  void _send() {
-    if (_recordedPath == null) return;
+  Future<void> _send() async {
+    if (_state == _NoteState.recording || _state == _NoteState.locked) {
+      // Tapping Send while still recording stops AND sends in one tap —
+      // matches WhatsApp: Trash/Stop/Send are all live during recording.
+      _timer?.cancel();
+      try {
+        final file = await _controller!.stopVideoRecording();
+        final dir = await getTemporaryDirectory();
+        final dest =
+            '${dir.path}/kora_video_note_${DateTime.now().millisecondsSinceEpoch}.mp4';
+        await File(file.path).copy(dest);
+        _recordedPath = dest;
+      } catch (e) {
+        debugPrint('Video note stop-and-send error: $e');
+        return;
+      }
+    }
+    if (_recordedPath == null || !mounted) return;
     Navigator.pop(context, {'path': _recordedPath, 'duration': _seconds});
   }
 
   @override
   void dispose() {
+    widget.gesture?.onDragUpdate = null;
+    widget.gesture?.onFingerReleased = null;
     _timer?.cancel();
     _controller?.dispose();
     super.dispose();
@@ -252,7 +315,7 @@ class _KoraVideoNoteScreenState extends State<KoraVideoNoteScreen>
                 ),
               ),
             ),
-            // Lock hint
+            // Lock hint — fades out once locked
             if (_state == _NoteState.recording)
               Positioned(
                 bottom: 190,
@@ -272,7 +335,27 @@ class _KoraVideoNoteScreenState extends State<KoraVideoNoteScreen>
                   ),
                 ),
               ),
-            // Bottom controls
+            // Lock badge — small padlock over the circle once locked
+            // into hands-free recording, matching WhatsApp exactly.
+            if (_state == _NoteState.locked)
+              Positioned(
+                bottom: 190,
+                right: MediaQuery.of(context).size.width / 2 - (size / 2) - 4,
+                child: Container(
+                  width: 34,
+                  height: 34,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white,
+                  ),
+                  child: const Icon(Icons.lock_rounded, color: Color(0xFF0A0A14), size: 18),
+                ),
+              ),
+            // Bottom controls — WhatsApp keeps Trash, Stop, and Send all
+            // live simultaneously the moment recording starts (verified
+            // against a real WhatsApp Business screen recording): you
+            // can cancel or send at any point, not just after a
+            // separate stop step.
             Positioned(
               left: 0,
               right: 0,
@@ -280,38 +363,19 @@ class _KoraVideoNoteScreenState extends State<KoraVideoNoteScreen>
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  // Delete
+                  // Delete — live during recording, locked, AND preview
                   _circleButton(
                     icon: Icons.delete_outline_rounded,
-                    onTap: _state == _NoteState.preview
-                        ? _discard
-                        : (isBusy ? null : null),
-                    enabled: _state == _NoteState.preview,
+                    onTap: _discard,
+                    enabled: _state != _NoteState.idle,
                     bg: Colors.white.withValues(alpha: 0.08),
                   ),
-                  // Record / stop
+                  // Stop (center) — only meaningful while actively
+                  // recording; tap just freezes into a preview so you
+                  // can review before Send/Trash. Slide up to lock.
                   if (_state != _NoteState.preview)
                     GestureDetector(
-                      onLongPressStart: (_) => _startRecording(),
-                      onLongPressMoveUpdate: (d) {
-                        _dragDy = d.offsetFromOrigin.dy;
-                        if (_dragDy < -60 && !_dragLocking) {
-                          setState(() {
-                            _dragLocking = true;
-                            _state = _NoteState.locked;
-                          });
-                        }
-                      },
-                      onLongPressEnd: (_) {
-                        if (!_dragLocking) _stopRecording();
-                      },
-                      onTap: () {
-                        if (_state == _NoteState.idle) {
-                          _startRecording();
-                        } else if (isBusy) {
-                          _stopRecording();
-                        }
-                      },
+                      onTap: isBusy ? _stopRecording : null,
                       child: Container(
                         width: 72,
                         height: 72,
@@ -324,22 +388,14 @@ class _KoraVideoNoteScreenState extends State<KoraVideoNoteScreen>
                         ),
                         child: isBusy
                             ? const Icon(Icons.stop_rounded, color: Colors.white, size: 28)
-                            : Center(
-                                child: Container(
-                                  width: 56,
-                                  height: 56,
-                                  decoration: const BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: Color(0xFFEF4444),
-                                  ),
-                                ),
-                              ),
+                            : const SizedBox.shrink(),
                       ),
                     )
                   else
                     const SizedBox(width: 72, height: 72),
-                  // Send / flip camera
-                  _state == _NoteState.preview
+                  // Send — live during recording/locked (stops + sends
+                  // in one tap) and in preview (sends the reviewed clip)
+                  _state == _NoteState.preview || isBusy
                       ? _circleButton(
                           icon: Icons.send_rounded,
                           onTap: _send,

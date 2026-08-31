@@ -1063,13 +1063,23 @@ class _MessageComposerState extends State<MessageComposer>
     _openEditor(result['path'] as String, result['isVideo'] as bool);
   }
 
-  /// Long-press the camera icon: WhatsApp-style circular video note.
+  // Bridges the ORIGINAL press-and-hold on the camera icon into the
+  // recorder screen — WhatsApp's "slide up to lock" is the SAME
+  // continuous finger-hold carried through into the full-screen
+  // recorder, the finger never lifts between opening it and locking.
+  VideoNoteGesture? _videoNoteGesture;
+
+  /// Press-and-hold the camera icon: WhatsApp-style circular video
+  /// note. Recording starts the instant the screen opens.
   void _openVideoNoteRecorder() async {
     HapticFeedback.mediumImpact();
+    final gesture = VideoNoteGesture();
+    _videoNoteGesture = gesture;
     final result = await Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const KoraVideoNoteScreen()),
+      MaterialPageRoute(builder: (_) => KoraVideoNoteScreen(gesture: gesture)),
     );
+    _videoNoteGesture = null;
     if (result == null || !mounted) return;
     widget.onSendVideoNote?.call(
       result['path'] as String,
@@ -1277,7 +1287,12 @@ class _MessageComposerState extends State<MessageComposer>
                           ),
                           GestureDetector(
                             onTap: _openCamera,
-                            onLongPress: _openVideoNoteRecorder,
+                            onLongPressStart: (_) => _openVideoNoteRecorder(),
+                            onLongPressMoveUpdate: (d) => _videoNoteGesture
+                                ?.onDragUpdate
+                                ?.call(d.offsetFromOrigin.dy),
+                            onLongPressEnd: (_) =>
+                                _videoNoteGesture?.onFingerReleased?.call(),
                             child: Padding(
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 6, vertical: 7),
