@@ -1,0 +1,23 @@
+{
+  "images" : [
+    {
+      "filename" : "kora_support_avatar.webp",
+      "idiom" : "universal",
+      "scale" : "1x"
+    },
+    {
+      "filename" : "kora_support_avatar@2x.webp",
+      "idiom" : "universal",
+      "scale" : "2x"
+    },
+    {
+      "filename" : "kora_support_avatar@3x.webp",
+      "idiom" : "universal",
+      "scale" : "3x"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}

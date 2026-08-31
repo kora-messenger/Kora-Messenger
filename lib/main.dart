@@ -453,7 +453,7 @@ class _SplashScreenState extends State<SplashScreen>
                     ),
                     child: ClipRect(
                       child: Image.asset(
-                        'assets/images/kora_logo_lockup.png',
+                        'assets/images/kora_logo_lockup.webp',
                         fit: BoxFit.cover,
                       ),
                     ),

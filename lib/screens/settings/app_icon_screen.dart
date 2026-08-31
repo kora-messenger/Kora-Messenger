@@ -30,17 +30,17 @@ class KoraIconDef {
 const List<KoraIconDef> kKoraIconDefs = [
   KoraIconDef(
     name: 'Default',
-    assetPath: 'assets/icons/icon_default_circle.png',
+    assetPath: 'assets/icons/icon_default_circle.webp',
     isPremiumIcon: false,
     isCircle: true,
   ),
   KoraIconDef(
     name: 'Aurora Circle',
-    assetPath: 'assets/icons/icon_aurora_circle.png',
+    assetPath: 'assets/icons/icon_aurora_circle.webp',
   ),
   KoraIconDef(
     name: 'Gold Elite',
-    assetPath: 'assets/icons/icon_gold_elite.png',
+    assetPath: 'assets/icons/icon_gold_elite.webp',
   ),
 ];
 

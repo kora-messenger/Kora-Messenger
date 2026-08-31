@@ -65,7 +65,7 @@ class KoraBadge extends StatelessWidget {
               ),
               Row(
                 children: [
-                  Image.asset('assets/badges/official_badge.png', width: 28, height: 28),
+                  Image.asset('assets/badges/official_badge.webp', width: 28, height: 28),
                   const SizedBox(width: 12),
                   Text(
                     'Official Kora Account',
@@ -90,8 +90,8 @@ class KoraBadge extends StatelessWidget {
     if (type == KoraBadgeType.none) return const SizedBox.shrink();
 
     final assetPath = type == KoraBadgeType.officialPurple
-        ? 'assets/badges/official_badge.png'
-        : 'assets/badges/premium_badge.png';
+        ? 'assets/badges/official_badge.webp'
+        : 'assets/badges/premium_badge.webp';
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,

@@ -309,14 +309,14 @@ class _QrCodeScreenState extends State<QrCodeScreen>
       if (boundary == null) return;
 
       final image = await boundary.toImage(pixelRatio: 3.0);
-      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.webp);
       if (byteData == null) return;
 
       final bytes = Uint8List.view(byteData.buffer);
       final tempDir = await getTemporaryDirectory();
       final fullName = _session?['fullName']?.toString() ?? 'Kora User';
       final safeName = fullName.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
-      final file = File('${tempDir.path}/kora_qr_$safeName.png');
+      final file = File('${tempDir.path}/kora_qr_$safeName.webp');
       await file.writeAsBytes(bytes);
 
       await Share.shareXFiles(
@@ -500,7 +500,7 @@ class _QrCodeScreenState extends State<QrCodeScreen>
                                 dataModuleShape: QrDataModuleShape.square,
                                 color: KoraColors.deepNavy,
                               ),
-                              embeddedImage: const AssetImage('assets/icon/kora_icon.png'),
+                              embeddedImage: const AssetImage('assets/icon/kora_icon.webp'),
                               embeddedImageStyle: const QrEmbeddedImageStyle(
                                 size: Size(46, 46),
                               ),

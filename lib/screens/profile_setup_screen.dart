@@ -284,8 +284,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           body: jsonEncode({
             'action': 'uploadAvatar',
             'imageBase64': base64Image,
-            'fileName': 'avatar_$userId.${_photo!.path.endsWith('.png') ? 'png' : 'jpg'}',
-            'fileType': _photo!.path.endsWith('.png') ? 'image/png' : 'image/jpeg',
+            'fileName': 'avatar_$userId.${_photo!.path.endsWith('.webp') ? 'png' : 'jpg'}',
+            'fileType': _photo!.path.endsWith('.webp') ? 'image/png' : 'image/jpeg',
           }),
         ).timeout(const Duration(seconds: 60));
         final uploadData = jsonDecode(uploadResp.body);

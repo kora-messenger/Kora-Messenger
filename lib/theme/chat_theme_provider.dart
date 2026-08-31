@@ -103,7 +103,7 @@ const List<ChatThemePreset> kDefaultChatThemes = [
 /// The default wallpaper asset — a warm cream doodle pattern matching
 /// the classic WhatsApp look. Used automatically when the active chat
 /// theme is "Default".
-const String kDefaultWallpaperAsset = 'assets/wallpapers/kora_default_pro.png';
+const String kDefaultWallpaperAsset = 'assets/wallpapers/kora_default_pro.webp';
 
 /// 20 app theme colors (Premium feature).
 const List<Color> kAppThemeColors = [

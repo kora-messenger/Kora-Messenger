@@ -59,14 +59,14 @@ class _DefaultChatThemeScreenState extends State<DefaultChatThemeScreen> {
     ),
     const _ThemeCard(
       id: 'cosmic_swirl',
-      wallpaperAsset: 'assets/wallpapers/cosmic_swirl.jpg',
+      wallpaperAsset: 'assets/wallpapers/cosmic_swirl.webp',
       sentBubble: Color(0xFF4F46E5),
       receivedBubble: Colors.white,
     ),
     const _ThemeCard.ai(),
     const _ThemeCard(
       id: 'rose_petals',
-      wallpaperAsset: 'assets/wallpapers/rose_petals.jpg',
+      wallpaperAsset: 'assets/wallpapers/rose_petals.webp',
       sentBubble: Color(0xFFA855F7),
       receivedBubble: Colors.white,
     ),
@@ -78,7 +78,7 @@ class _DefaultChatThemeScreenState extends State<DefaultChatThemeScreen> {
     ),
     const _ThemeCard(
       id: 'terracotta_shapes',
-      wallpaperAsset: 'assets/wallpapers/terracotta_shapes.jpg',
+      wallpaperAsset: 'assets/wallpapers/terracotta_shapes.webp',
       sentBubble: Color(0xFFDC2626),
       receivedBubble: Colors.white,
     ),
@@ -90,7 +90,7 @@ class _DefaultChatThemeScreenState extends State<DefaultChatThemeScreen> {
     ),
     const _ThemeCard(
       id: 'blue_pink_waves',
-      wallpaperAsset: 'assets/wallpapers/blue_pink_waves.jpg',
+      wallpaperAsset: 'assets/wallpapers/blue_pink_waves.webp',
       sentBubble: Color(0xFF0D9488),
       receivedBubble: Colors.white,
     ),

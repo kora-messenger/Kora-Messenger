@@ -145,7 +145,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(22),
                         child: Image.asset(
-                          'assets/images/kora_logo_lockup.png',
+                          'assets/images/kora_logo_lockup.webp',
                           fit: BoxFit.cover,
                         ),
                       ),
@@ -191,7 +191,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                     child: Opacity(
                       opacity: 0.9,
                       child: Image.asset(
-                        'assets/images/world_map_glow.png',
+                        'assets/images/world_map_glow.webp',
                         width: screenWidth,
                         fit: BoxFit.contain,
                       ),
