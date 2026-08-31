@@ -21,6 +21,18 @@ class AccountDeletionService {
 
   /// Permanently delete the user's account and all associated data.
   ///
+  /// Kora uses email-based registration (email, full name, username, password).
+  /// Phone numbers are optional and not used for account verification.
+  ///
+  /// Upon deletion, the following are wiped from the server:
+  /// 1. KoraUser account record (email, name, username, password hash)
+  /// 2. All Conversation records and ChatMessage records
+  /// 3. Voice Vector Matrix from cloud storage (math-only voice profile)
+  /// 4. FCM push notification tokens and device registrations
+  /// 5. TrustedDevice records and Passkey records
+  /// 6. VerificationCode records
+  /// 7. CallSignal records
+  ///
   /// [userEmail] — the account email
   /// [userKoraId] — the Kora ID
   /// [confirmPassword] — user must re-enter password for confirmation
@@ -46,7 +58,13 @@ class AccountDeletionService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         if (data['success'] == true) {
-          // Clear local voice vector
+          // Delete Voice Vector Matrix from cloud storage
+          try {
+            await VoiceVectorStore.instance.deleteVoiceVector(userEmail);
+          } catch (e) {
+            debugPrint('[AccountDeletion] VoiceVector delete error: $e');
+          }
+          // Clear local data
           await _clearLocalData();
           return (true, null);
         } else {

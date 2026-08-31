@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>End-to-End Encryption Disclosure & Security Notice — Kora Messenger</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.7;color:#1a1a2e;background:#f8f9fa;max-width:800px;margin:0 auto;padding:40px 24px}
+h1{font-size:1.8rem;margin-bottom:8px;background:linear-gradient(135deg,#6C63FF,#4A90D9);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+h2{font-size:1.3rem;margin:32px 0 12px;color:#2d2d44}
+.updated{color:#888;font-size:.85rem;margin-bottom:32px}
+p{margin-bottom:16px;color:#333}
+ul{margin:0 0 16px 20px}
+li{margin-bottom:8px}
+.section{background:#fff;border-radius:12px;padding:24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.highlight{border-left:3px solid #6C63FF;padding-left:16px;margin:16px 0;color:#555}
+code{background:#f0f0f5;padding:2px 6px;border-radius:4px;font-family:'SF Mono',monospace;font-size:.9em}
+.footer{text-align:center;margin-top:40px;padding-top:24px;border-top:1px solid #e0e0e0;color:#888;font-size:.85rem}
+a{color:#6C63FF;text-decoration:none}
+</style>
+</head>
+<body>
+<h1>End-to-End Encryption (E2EE) Disclosure & Security Notice</h1>
+<p class="updated">Last Updated: August 31, 2026</p>
+
+<div class="section">
+<p>Kora Messenger uses industry-standard end-to-end encryption (E2EE) to ensure that your private conversations remain truly private. This disclosure explains how our encryption works, what it protects, and its limitations.</p>
+</div>
+
+<h2>1. How Kora's Encryption Works</h2>
+<div class="section">
+<p>Every text message, voice note, and media file you send through Kora Messenger is encrypted on your device before it ever touches the internet. The decryption keys exist only on your phone and your recipient's phone. Our servers act as a blind relay — they route encrypted packets but cannot read, modify, or log their contents.</p>
+<ul>
+<li><strong>Key Exchange:</strong> Kora uses the X3DH (Extended Triple Diffie-Hellman) key agreement protocol for initial session establishment, combined with the Double Ratchet algorithm for forward secrecy.</li>
+<li><strong>Message Encryption:</strong> All messages are encrypted using AES-256-GCM authenticated encryption.</li>
+<li><strong>Forward Secrecy:</strong> Each message uses a unique key. Even if one key is compromised, previous messages remain secure.</li>
+<li><strong>Identity Keys:</strong> Each user has a persistent identity key pair. Public keys are shared via our server; private keys never leave your device.</li>
+</ul>
+</div>
+
+<h2>2. What E2EE Protects</h2>
+<div class="section">
+<p>End-to-end encryption ensures that the following data is protected from interception:</p>
+<ul>
+<li>Text messages and their metadata (timestamps, reactions)</li>
+<li>Voice notes and voice-to-text transcription audio</li>
+<li>Photos, videos, and documents shared in chats</li>
+<li>Live call audio and video streams (via DTLS-SRTP)</li>
+<li>Translation text processed during live calls (transmitted via encrypted data channels)</li>
+</ul>
+<p class="highlight">Not even Kora's engineers, server administrators, or infrastructure providers can decrypt your conversations. If compelled by legal process, we can only provide encrypted ciphertext that is meaningless without your device's private keys.</p>
+</div>
+
+<h2>3. Safety Numbers & Fingerprint Verification</h2>
+<div class="section">
+<p>To protect against man-in-the-middle attacks, Kora provides a <strong>Safety Number</strong> (also known as a security code or fingerprint) for every one-on-one conversation. This is a cryptographic hash of both participants' public identity keys.</p>
+<ul>
+<li>Both you and your contact see the <em>same</em> 60-digit safety number in your chat's Encryption screen.</li>
+<li>To verify security, compare the number in person or through a separate trusted channel (e.g., a phone call).</li>
+<li>If the numbers match, your conversation is secure and no one is intercepting it.</li>
+<li>If the numbers <em>don't</em> match, your connection may be compromised. Re-establish encryption by restarting the chat or contacting the person through a verified channel.</li>
+</ul>
+<p>You can access Safety Numbers by opening a chat → tapping the contact name → Encryption → Verify Security Code.</p>
+</div>
+
+<h2>4. What E2EE Does NOT Protect Against</h2>
+<div class="section">
+<p>While E2EE is powerful, it has boundaries. E2EE does <strong>not</strong> protect against:</p>
+<ul>
+<li><strong>Device compromise:</strong> If malware is installed on your phone, it can read messages after they're decrypted locally.</li>
+<li><strong>Physical access:</strong> Someone with your unlocked phone can read your messages.</li>
+<li><strong>Cloud backups (if enabled):</strong> Encrypted backups are only as secure as your backup password.</li>
+<li><strong>Social engineering:</strong> If someone tricks you into sending them messages, encryption cannot prevent you from willingly sharing information.</li>
+<li><strong>Metadata visibility:</strong> Kora's servers can see <em>when</em> and <em>between whom</em> messages are sent, but not the content.</li>
+</ul>
+</div>
+
+<h2>5. Voice Vector Matrix Security</h2>
+<div class="section">
+<p>The Voice Vector Matrix is a mathematical representation of your voice's acoustic characteristics (pitch, formant frequencies, jitter, shimmer). It contains <strong>no spoken words or audio recordings</strong>. This vector is:</p>
+<ul>
+<li>Generated entirely on your device using local DSP processing</li>
+<li>Encrypted before upload to our server</li>
+<li>Accessible only by your authorized contacts for voice-style synthesis</li>
+<li>Permanently deleted when you delete your account</li>
+</ul>
+<p class="highlight">The Voice Vector cannot be used to reconstruct your voice, identify you biometrically, or impersonate you. It is a one-way mathematical fingerprint, not a voice recording.</p>
+</div>
+
+<h2>6. On-Device Translation Privacy</h2>
+<div class="section">
+<p>All translation features in Kora Messenger operate under a strict privacy-first architecture:</p>
+<ul>
+<li><strong>Text Translation:</strong> Uses Google ML Kit (Android) and Apple Translation API (iOS) running entirely on your device. Language packs are downloaded on-demand and stored locally. Translation text never leaves your phone.</li>
+<li><strong>Live Call Translation:</strong> Speech-to-text, translation, and text-to-speech all run locally. WebRTC data channels transmit only translated <em>text</em>, not raw audio.</li>
+<li><strong>Voice-Style Synthesis (ZDR):</strong> When a contact hears a translated message in your voice style, the synthesis happens in volatile server memory (RAM) using Zero Data Retention (ZDR) protocols. The text and Voice Vector are wiped instantly after audio generation. No data is written to disk, logged, or used for AI training.</li>
+</ul>
+</div>
+
+<h2>7. Premium Subscription & Security</h2>
+<div class="section">
+<p>Kora's end-to-end encryption applies equally to <strong>all users</strong>, regardless of subscription tier. Premium subscribers receive additional features (custom themes, app icons, HD media sharing, etc.) but the core security architecture — E2EE, on-device translation, and safety number verification — is available to everyone. Security is never a premium feature.</p>
+</div>
+
+<h2>8. Reporting Security Issues</h2>
+<div class="section">
+<p>If you believe you've found a security vulnerability in Kora Messenger, please contact us immediately at <a href="mailto:security@koramessenger.com">security@koramessenger.com</a>. We take all security reports seriously and will investigate promptly.</p>
+</div>
+
+<div class="footer">
+<p>© 2026 Kora Messenger. All rights reserved.</p>
+<p>Questions? Contact <a href="mailto:privacy@koramessenger.com">privacy@koramessenger.com</a></p>
+</div>
+</body>
+</html>

@@ -245,6 +245,35 @@ class _E2eeVerificationScreenState extends State<E2eeVerificationScreen> {
               style: TextStyle(color: KoraColors.purple, fontSize: 14),
             ),
           ),
+          const SizedBox(height: 12),
+          // QR Code visual fingerprint
+          Container(
+            width: 160,
+            height: 160,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: KoraColors.purple.withValues(alpha: 0.2),
+                width: 1,
+              ),
+            ),
+            child: CustomPaint(
+              painter: _FingerprintPainter(
+                _safetyNumber!,
+                KoraColors.purple,
+              ),
+              size: const Size(160, 160),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Scan QR code to verify',
+            style: TextStyle(
+              color: textSecondary,
+              fontSize: 12,
+            ),
+          ),
         ],
       ),
     );
@@ -287,5 +316,79 @@ class _E2eeVerificationScreenState extends State<E2eeVerificationScreen> {
         ],
       ),
     );
+  }
+}
+
+
+/// Paints a visual cryptographic fingerprint as a grid of squares
+/// derived from the safety number hash. Mirrors Signal/WhatsApp's
+/// QR code + visual fingerprint approach.
+class _FingerprintPainter extends CustomPainter {
+  final String safetyNumber;
+  final Color accentColor;
+
+  _FingerprintPainter(this.safetyNumber, this.accentColor);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cleanNumber = safetyNumber.replaceAll(' ', '');
+    
+    // Generate a deterministic 12x12 grid from the safety number
+    final grid = List.generate(12, (row) {
+      return List.generate(6, (col) {
+        final idx = (row * 6 + col) % cleanNumber.length;
+        final charCode = cleanNumber.codeUnitAt(idx);
+        return (charCode + row + col) % 2 == 0;
+      });
+    });
+
+    final cellSize = size.width / 12;
+    final paint = Paint()
+      ..color = accentColor
+      ..style = PaintingStyle.fill;
+
+    final bgPaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), bgPaint);
+
+    // Draw symmetric fingerprint grid (left 6 cols mirrored to right 6)
+    for (int row = 0; row < 12; row++) {
+      for (int col = 0; col < 6; col++) {
+        if (grid[row][col]) {
+          final x = col * cellSize;
+          final y = row * cellSize;
+          canvas.drawRect(
+            Rect.fromLTWH(x, y, cellSize, cellSize),
+            paint,
+          );
+          // Mirror to right side for symmetry
+          canvas.drawRect(
+            Rect.fromLTWH(
+              (11 - col) * cellSize,
+              y,
+              cellSize,
+              cellSize,
+            ),
+            paint,
+          );
+        }
+      }
+    }
+
+    // Draw border
+    final borderPaint = Paint()
+      ..color = accentColor.withValues(alpha: 0.3)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    canvas.drawRect(
+      Rect.fromLTWH(0, 0, size.width, size.height),
+      borderPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _FingerprintPainter oldDelegate) {
+    return oldDelegate.safetyNumber != safetyNumber;
   }
 }

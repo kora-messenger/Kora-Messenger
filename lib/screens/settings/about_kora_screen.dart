@@ -171,6 +171,28 @@ class AboutKoraScreen extends StatelessWidget {
             border: border,
             onTap: () => _launchUrl(KoraApi.e2eePolicyUrl),
           ),
+          _linkTile(
+            context,
+            icon: Icons.description_outlined,
+            title: 'EULA',
+            card: card,
+            textPrimary: textPrimary,
+            textSecondary: textSecondary,
+            textMuted: textMuted,
+            border: border,
+            onTap: () => _launchUrl(KoraApi.eulaUrl),
+          ),
+          _linkTile(
+            context,
+            icon: Icons.cookie_outlined,
+            title: 'Cookie & Local Storage Policy',
+            card: card,
+            textPrimary: textPrimary,
+            textSecondary: textSecondary,
+            textMuted: textMuted,
+            border: border,
+            onTap: () => _launchUrl(KoraApi.cookiePolicyUrl),
+          ),
           const SizedBox(height: 20),
 
           // Credits

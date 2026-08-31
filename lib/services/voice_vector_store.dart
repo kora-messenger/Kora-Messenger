@@ -91,6 +91,21 @@ class VoiceVectorStore {
     return (await getMyVoiceVector()) != null;
   }
 
+  /// Permanently delete the user's Voice Vector from cloud storage.
+  /// Called during account deletion.
+  Future<void> deleteVoiceVector(String userEmail) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('\${KoraApi.baseUrl}/koraVoiceVector'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': userEmail}),
+      ).timeout(const Duration(seconds: 10));
+      debugPrint('[VoiceVectorStore] delete status: \${response.statusCode}');
+    } catch (e) {
+      debugPrint('[VoiceVectorStore] delete error: $e');
+    }
+  }
+
   void clearCache() {
     _cache.clear();
   }

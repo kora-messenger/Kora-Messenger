@@ -517,6 +517,12 @@ class _PremiumSubscribeSheetState extends State<PremiumSubscribeSheet> {
       case 'Privacy Policy':
         url = KoraApi.privacyPolicyUrl;
         break;
+      case 'EULA':
+        url = KoraApi.eulaUrl;
+        break;
+      case 'E2EE Disclosure':
+        url = KoraApi.e2eePolicyUrl;
+        break;
       case 'canceled':
         url = KoraApi.learnMoreUrl;
         break;

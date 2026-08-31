@@ -180,7 +180,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     } else if (confirmPassword != password) {
       error = 'Passwords do not match';
     } else if (!_agreedToTerms) {
-      error = 'Please agree to the Terms of Service and Privacy Policy';
+      error = 'Please agree to the Terms, Privacy Policy, EULA, and E2EE Disclosure';
     }
 
     if (error != null) {
@@ -500,13 +500,43 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   ),
                 ),
                 const Text(
-                  ' and ',
+                  ', ',
                   style: TextStyle(color: Color(0xFFA0A0B8), fontSize: 14),
                 ),
                 GestureDetector(
                   onTap: () => _launchLegalUrl(KoraApi.privacyPolicyUrl),
                   child: const Text(
                     'Privacy Policy',
+                    style: TextStyle(
+                      color: KoraColors.purple,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const Text(
+                  ', ',
+                  style: TextStyle(color: Color(0xFFA0A0B8), fontSize: 14),
+                ),
+                GestureDetector(
+                  onTap: () => _launchLegalUrl(KoraApi.eulaUrl),
+                  child: const Text(
+                    'EULA',
+                    style: TextStyle(
+                      color: KoraColors.purple,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const Text(
+                  ', and ',
+                  style: TextStyle(color: Color(0xFFA0A0B8), fontSize: 14),
+                ),
+                GestureDetector(
+                  onTap: () => _launchLegalUrl(KoraApi.e2eePolicyUrl),
+                  child: const Text(
+                    'E2EE Disclosure',
                     style: TextStyle(
                       color: KoraColors.purple,
                       fontSize: 14,
