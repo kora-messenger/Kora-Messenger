@@ -304,6 +304,41 @@ section{position:relative;z-index:1}
   .say-visual{order:-1}
   .sec-chat-demo{position:relative;bottom:auto;right:auto;margin:32px auto 0;width:230px}
 }
+
+@keyframes gentleFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+.feature-card .feature-visual svg{animation:gentleFloat 3s ease-in-out infinite}
+.feature-card:nth-child(2) .feature-visual svg{animation-delay:.5s}
+.feature-card:nth-child(3) .feature-visual svg{animation-delay:1s}
+.feature-card:nth-child(4) .feature-visual svg{animation-delay:1.5s}
+.feature-card:nth-child(5) .feature-visual svg{animation-delay:2s}
+.feature-card:nth-child(6) .feature-visual svg{animation-delay:2.5s}
+/* Gradient text shimmer on hero h1 */
+.hero h1 .grad{background-size:200% auto;animation:gradientShift 4s ease-in-out infinite}
+/* Phone subtle tilt */
+.phone-wrap{transform:perspective(1200px) rotateY(-5deg) rotateX(2deg);transition:transform .6s}
+.phone-wrap:hover{transform:perspective(1200px) rotateY(0) rotateX(0)}
+/* Say card subtle tilt + hover */
+.say-card{transform:perspective(1000px) rotateY(-3deg) rotateX(2deg);transition:transform .5s}
+.say-card:hover{transform:perspective(1000px) rotateY(0) rotateX(0) scale(1.02)}
+/* Lock orb hover scale */
+.lock-orb{transition:transform .5s}
+.split-visual:hover .lock-orb{transform:scale(1.05)}
+/* Smooth section transitions */
+.section,.say-section,.security-section,.download-section{scroll-margin-top:80px}
+/* Download badge stagger */
+.download-badge:nth-child(1){animation:fadeUp .5s ease-out .1s backwards}
+.download-badge:nth-child(2){animation:fadeUp .5s ease-out .2s backwards}
+.download-badge:nth-child(3){animation:fadeUp .5s ease-out .3s backwards}
+.download-badge:nth-child(4){animation:fadeUp .5s ease-out .4s backwards}
+/* Feature card hover glow */
+.feature-card:hover{box-shadow:0 24px 60px rgba(124,58,237,.12)}
+/* Sec chat demo hover */
+.sec-chat-demo{transition:transform .4s,box-shadow .4s}
+.sec-chat-demo:hover{transform:translateY(-4px);box-shadow:0 32px 70px rgba(10,10,30,.14)}
+/* Nav brand hover */
+.nav-brand{transition:opacity .2s}
+.nav-brand:hover{opacity:.85}
+
 </style>
 </head>
 <body>
@@ -460,6 +495,14 @@ section{position:relative;z-index:1}
       <span class="section-tag">Rich Messaging</span>
       <h2>Say <span class="grad">Anything</span></h2>
       <p>Share text, voice messages, photos, videos, GIFs and files for free. Kora uses your phone's data connection so you can avoid SMS and MMS fees — and every voice note gets an instant on-device translation if you need it.</p>
+      <div style="margin-top:28px;display:flex;flex-wrap:wrap;gap:10px">
+        <span style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:var(--grad-s);border:1px solid var(--bd);border-radius:100px;font-size:13px;font-weight:600;color:var(--p)">💬 Text</span>
+        <span style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:var(--grad-s);border:1px solid var(--bd);border-radius:100px;font-size:13px;font-weight:600;color:var(--p)">🎤 Voice</span>
+        <span style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:var(--grad-s);border:1px solid var(--bd);border-radius:100px;font-size:13px;font-weight:600;color:var(--p)">📸 Photos</span>
+        <span style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:var(--grad-s);border:1px solid var(--bd);border-radius:100px;font-size:13px;font-weight:600;color:var(--p)">🎥 Video</span>
+        <span style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:var(--grad-s);border:1px solid var(--bd);border-radius:100px;font-size:13px;font-weight:600;color:var(--p)">📄 Files</span>
+        <span style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:var(--grad-s);border:1px solid var(--bd);border-radius:100px;font-size:13px;font-weight:600;color:var(--p)">✨ GIFs</span>
+      </div>
     </div>
   </div>
 </section>
@@ -636,12 +679,52 @@ section{position:relative;z-index:1}
   </div>
 </section>
 
+
+<!-- ═══ WHY KORA ═══ -->
+<section class="section" style="text-align:center;max-width:800px">
+  <div class="section-header reveal" style="margin-bottom:40px">
+    <span class="section-tag">Why Kora</span>
+    <h2>Privacy without <span class="grad">compromise</span></h2>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:24px;text-align:left">
+    <div class="reveal" style="padding:28px;background:var(--card);border:1px solid var(--bd);border-radius:var(--r);box-shadow:var(--shs)">
+      <div style="width:44px;height:44px;border-radius:12px;background:var(--grad-s);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;margin-bottom:16px">
+        <svg viewBox="0 0 24 24" style="width:22px;height:22px;fill:var(--p)"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
+      </div>
+      <h3 style="font-size:17px;font-weight:700;margin-bottom:8px">No ads, no tracking</h3>
+      <p style="font-size:14px;color:var(--mut);line-height:1.6">We don't sell your data. We don't show you ads. Your conversations are yours alone.</p>
+    </div>
+    <div class="reveal" style="padding:28px;background:var(--card);border:1px solid var(--bd);border-radius:var(--r);box-shadow:var(--shs)">
+      <div style="width:44px;height:44px;border-radius:12px;background:var(--grad-s);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;margin-bottom:16px">
+        <svg viewBox="0 0 24 24" style="width:22px;height:22px;fill:var(--p)"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+      </div>
+      <h3 style="font-size:17px;font-weight:700;margin-bottom:8px">Free AI for everyone</h3>
+      <p style="font-size:14px;color:var(--mut);line-height:1.6">Kora AI helps you write, translate, and summarize — built in, completely free, no premium paywall.</p>
+    </div>
+    <div class="reveal" style="padding:28px;background:var(--card);border:1px solid var(--bd);border-radius:var(--r);box-shadow:var(--shs)">
+      <div style="width:44px;height:44px;border-radius:12px;background:var(--grad-s);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;margin-bottom:16px">
+        <svg viewBox="0 0 24 24" style="width:22px;height:22px;fill:var(--p)"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9V6z"/></svg>
+      </div>
+      <h3 style="font-size:17px;font-weight:700;margin-bottom:8px">End-to-end encrypted</h3>
+      <p style="font-size:14px;color:var(--mut);line-height:1.6">Every message, call, and file is encrypted on your device. Not even Kora can read them.</p>
+    </div>
+    <div class="reveal" style="padding:28px;background:var(--card);border:1px solid var(--bd);border-radius:var(--r);box-shadow:var(--shs)">
+      <div style="width:44px;height:44px;border-radius:12px;background:var(--grad-s);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;margin-bottom:16px">
+        <svg viewBox="0 0 24 24" style="width:22px;height:22px;fill:var(--p)"><path d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z"/></svg>
+      </div>
+      <h3 style="font-size:17px;font-weight:700;margin-bottom:8px">Cross-platform</h3>
+      <p style="font-size:14px;color:var(--mut);line-height:1.6">Android, iOS, and web — your conversations sync seamlessly across every device you own.</p>
+    </div>
+  </div>
+</section>
+
 <!-- ═══ DOWNLOAD ═══ -->
 <section class="download-section" id="download">
   <div class="mesh-blob d1"></div>
   <div class="download-card reveal">
     <h2>Get started with <span class="grad">Kora</span></h2>
     <p>Download on your phone or open Kora Web right in your browser — no install required.</p>
+    <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:24px;font-size:14px;color:var(--mut)"><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 8px rgba(34,197,94,.5)"></span> v1.0 — Latest build</span><span style="opacity:.3">•</span><span>~12 MB download</span></div>
     <div class="download-badges">
       <a href="https://play.google.com/store/apps/details?id=com.kora.messenger" target="_blank" rel="noopener" class="download-badge">
         <svg viewBox="0 0 24 24"><path d="M3.609 1.814L13.792 12 3.61 22.186a.996.996 0 0 1-.61-.92V2.734a1 1 0 0 1 .609-.92zm10.89 10.893l2.302 2.302-10.937 6.333 8.635-8.635zm3.199-3.199l2.807 1.626a1 1 0 0 1 0 1.732l-2.808 1.626-2.299-2.299 2.3-2.685zm-3.199-3.199L5.155 1.06l10.937 6.333-2.302 2.916z"/></svg>
