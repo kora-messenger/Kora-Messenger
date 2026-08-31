@@ -1290,7 +1290,7 @@ class _MessageComposerState extends State<MessageComposer>
                             onLongPressStart: (_) => _openVideoNoteRecorder(),
                             onLongPressMoveUpdate: (d) => _videoNoteGesture
                                 ?.onDragUpdate
-                                ?.call(d.offsetFromOrigin.dy),
+                                ?.call(d.offsetFromOrigin.dx, d.offsetFromOrigin.dy),
                             onLongPressEnd: (_) =>
                                 _videoNoteGesture?.onFingerReleased?.call(),
                             child: Padding(
