@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../models/translation_models.dart';
 import '../config/kora_api.dart';
+import 'on_device_translator.dart';
 
 /// Central translation service for Kora Messenger.
 ///
@@ -245,77 +246,39 @@ class TranslationService {
   /// Google Translate → MyMemory → OpenRouter free LLM.
   Future<TranslationResult> translate(
     String text,
-    String targetCode, {
-    String? sourceCode,
+    String targetLanguageCode, {
+    String? sourceLanguageCode,
   }) async {
-    if (text.trim().isEmpty) {
-      final targetLang = languageByCode(targetCode) ?? _allLanguages.first;
-      return TranslationResult(
-        originalText: text,
-        translatedText: text,
-        detectedLanguageCode: sourceCode ?? 'en',
-        detectedLanguageName: languageByCode(sourceCode ?? 'en')?.name ?? 'English',
-        targetLanguageCode: targetCode,
-        targetLanguageName: targetLang.name,
-        translatedAt: DateTime.now(),
-      );
-    }
+    await init();
 
-    final detectedCode = sourceCode ?? await detectLanguage(text) ?? 'en';
-    final targetLang = languageByCode(targetCode) ?? _allLanguages.first;
-    final detectedLang = languageByCode(detectedCode) ?? _allLanguages.first;
+    final source = sourceLanguageCode ?? 'auto';
 
+    // Use on-device translation — NO cloud API calls
+    String translatedText;
     try {
-      final response = await http
-          .post(
-            Uri.parse(KoraApi.translateEndpoint),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({
-              'text': text,
-              'targetLang': targetCode,
-              'sourceLang': detectedCode,
-            }),
-          )
-          .timeout(const Duration(seconds: 15));
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        if (data['success'] == true && data['translatedText'] != null) {
-          return TranslationResult(
-            originalText: text,
-            translatedText: data['translatedText'] as String,
-            detectedLanguageCode: detectedCode,
-            detectedLanguageName: detectedLang.name,
-            targetLanguageCode: targetCode,
-            targetLanguageName: targetLang.name,
-            translatedAt: DateTime.now(),
-          );
-        }
+      if (source == 'auto' || source.isEmpty) {
+        // Auto-detect source language on-device
+        final detected = await OnDeviceTranslator.instance.detectLanguage(text);
+        translatedText = await OnDeviceTranslator.instance.translate(
+          text, detected, targetLanguageCode,
+        );
+      } else {
+        translatedText = await OnDeviceTranslator.instance.translate(
+          text, source, targetLanguageCode,
+        );
       }
-      // Fallback
-      return TranslationResult(
-        originalText: text,
-        translatedText: text,
-        detectedLanguageCode: detectedCode,
-        detectedLanguageName: detectedLang.name,
-        targetLanguageCode: targetCode,
-        targetLanguageName: targetLang.name,
-        translatedAt: DateTime.now(),
-      );
     } catch (e) {
-      // Fallback on network error
-      return TranslationResult(
-        originalText: text,
-        translatedText: text,
-        detectedLanguageCode: detectedCode,
-        detectedLanguageName: detectedLang.name,
-        targetLanguageCode: targetCode,
-        targetLanguageName: targetLang.name,
-        translatedAt: DateTime.now(),
-      );
+      debugPrint('[TranslationService] on-device translate error: $e');
+      translatedText = text; // Fallback to original text
     }
-  }
 
+    return TranslationResult(
+      translatedText: translatedText,
+      sourceLanguageCode: source,
+      targetLanguageCode: targetLanguageCode,
+      isFromCache: false,
+    );
+  }
   // ── GPT Streaming Translation (models AI Phone's gptTrans/stream) ──
   /// Streams translation chunks as they arrive from the GPT backend.
   ///
@@ -489,5 +452,20 @@ class TranslationService {
 
   void dispose() {
     _settingsController.close();
+  }
+
+  /// Download a language model for on-device translation.
+  Future<bool> downloadLanguageModel(String langCode) async {
+    return OnDeviceTranslator.instance.ensureModelDownloaded(langCode);
+  }
+
+  /// Check if a language model is downloaded for on-device translation.
+  Future<bool> isModelDownloaded(String langCode) async {
+    return OnDeviceTranslator.instance.isModelDownloaded(langCode);
+  }
+
+  /// Get list of downloaded language models.
+  Future<List<String>> downloadedLanguageModels() async {
+    return OnDeviceTranslator.instance.downloadedLanguages();
   }
 }

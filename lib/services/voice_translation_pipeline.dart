@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'voice_management_service.dart';
+import 'voice_cloning_tts.dart';
+import '../models/voice_vector.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../models/translation_models.dart';
@@ -95,6 +97,7 @@ class VoiceTranslationPipeline {
   Future<VoiceTranslationOutcome> translateAndSynthesize({
     required String transcript,
     required String targetLanguageCode,
+    VoiceVector? senderVoiceVector,
   }) async {
     // Step a: Verify non-empty transcript
     if (transcript.trim().isEmpty) {
@@ -127,6 +130,24 @@ class VoiceTranslationPipeline {
 
     // Step e & f & g: Text-to-Speech synthesis
     try {
+      // If we have the sender's voice vector, use voice cloning TTS
+      if (senderVoiceVector != null) {
+        try {
+          final audioPath = await VoiceCloningTts.instance.synthesize(
+            text: translatedText,
+            voiceVector: senderVoiceVector,
+            languageCode: targetLanguageCode,
+          );
+          return VoiceTranslationOutcome.ok(
+            translatedText: translatedText,
+            audioFilePath: audioPath,
+          );
+        } catch (e) {
+          debugPrint('[VoiceTranslationPipeline] Voice cloning failed, falling back to TTS: $e');
+        }
+      }
+
+      // Fallback: standard TTS
       final FlutterTts tts = FlutterTts();
       final tempDir = await getTemporaryDirectory();
       final fileName =

@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
+import 'on_device_translator.dart';
+import 'realtime_dsp_service.dart';
+import 'voice_vector_store.dart';
+import '../models/voice_vector.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:flutter_tts/flutter_tts.dart';
-import '../config/kora_api.dart';
 import 'voice_management_service.dart';
 
 /// Live voice-to-voice translation service for Kora calls.
@@ -38,6 +40,9 @@ class LiveTranslationService {
   String _sourceLanguage = 'en';
   String _targetLanguage = 'en';
   bool _autoDetectLanguage = true; // AI Phone's LanguageIdMode
+
+  VoiceVector? remoteVoiceVector;
+  String? remoteUserEmail;
 
   // Streaming state
   String _accumulatedText = '';
@@ -216,100 +221,66 @@ class LiveTranslationService {
   /// Uses streaming GPT translation for final results (lower latency).
   /// Uses batch translation for partial results (quick preview).
   Future<void> _translateAndSend(String text, {required bool isPartial}) async {
+    if (!_isActive || text.trim().isEmpty) return;
     _transactionId++;
 
     try {
-      if (isPartial) {
-        // Quick batch translation for partial results (preview)
-        final response = await http
-            .post(
-              Uri.parse(KoraApi.gptTransEndpoint),
-              headers: {'Content-Type': 'application/json'},
-              body: jsonEncode({
-                'text': text,
-                'targetLang': _targetLanguage,
-                'sourceLang': _autoDetectLanguage ? '' : _sourceLanguage,
-                'stream': false,
-              }),
-            )
-            .timeout(const Duration(seconds: 5));
-
-        if (response.statusCode == 200) {
-          final data = jsonDecode(response.body) as Map<String, dynamic>;
-          if (data['success'] == true && data['translatedText'] != null) {
-            final translated = data['translatedText'] as String;
-            // Update detected language if auto-detect
-            if (_autoDetectLanguage && data['detectedLanguage'] != null) {
-              _sourceLanguage = data['detectedLanguage'] as String;
-            }
-            // For partial results, only update the caption (don't send via WebRTC yet)
-            onTranslationSent?.call(translated);
-          }
-        }
+      // On-device translation — NO cloud API calls
+      String translated;
+      if (_autoDetectLanguage) {
+        final detected = await OnDeviceTranslator.instance.detectLanguage(text);
+        _sourceLanguage = detected;
+        translated = await OnDeviceTranslator.instance.translate(text, detected, _targetLanguage);
       } else {
-        // Final result — use streaming translation for lower latency
-        final request = http.Request(
-          'POST',
-          Uri.parse(KoraApi.gptTransEndpoint),
-        )
-          ..headers['Content-Type'] = 'application/json'
-          ..headers['Accept'] = 'text/event-stream'
-          ..body = jsonEncode({
-            'text': text,
-            'targetLang': _targetLanguage,
-            'sourceLang': _autoDetectLanguage ? '' : _sourceLanguage,
-            'stream': true,
-            'transactionId': '$_transactionId',
-          });
+        translated = await OnDeviceTranslator.instance.translate(text, _sourceLanguage, _targetLanguage);
+      }
 
-        final client = http.Client();
-        final response = await client.send(request);
+      if (translated.isEmpty) return;
 
-        if (response.statusCode == 200) {
-          final fullText = StringBuffer();
-          await for (final chunk in response.stream.transform(utf8.decoder)) {
-            for (final line in chunk.split('\n')) {
-              if (line.startsWith('data: ')) {
-                try {
-                  final data = jsonDecode(line.substring(6)) as Map<String, dynamic>;
-                  if (data['type'] == 'delta' && data['text'] != null) {
-                    fullText.write(data['text']);
-                    // Stream partial translation to UI
-                    onTranslationSent?.call(fullText.toString());
-                  } else if (data['type'] == 'done' && data['translatedText'] != null) {
-                    final translated = data['translatedText'] as String;
-                    // Update detected language if auto-detect
-                    if (_autoDetectLanguage && data['detectedLanguage'] != null) {
-                      _sourceLanguage = data['detectedLanguage'] as String;
-                    }
-                    // Send the final translation via WebRTC data channel
-                    onSendTranslatedText?.call(translated);
-                    onTranslationSent?.call(translated);
-                  }
-                } catch (e) {}
-              }
-            }
-          }
-          client.close();
-        } else {
-          // Fall back to batch
-          await _batchTranslateAndSend(text);
-        }
+      // Update caption
+      onTranslationSent?.call(translated);
+
+      // Send translated text via WebRTC data channel
+      onSendTranslatedText?.call(translated);
+
+      // Speak the translation via local TTS
+      if (!isPartial) {
+        await _speakTranslated(translated);
       }
     } catch (e) {
-      if (!isPartial) {
-        // Only error on final results
-        onError?.call('Translation failed: $e');
-        await _batchTranslateAndSend(text);
+      debugPrint('[LiveTranslation] translate error: $e');
+      onError?.call(e.toString());
+    }
+  }
+
+  /// Speak translated text via TTS, then apply DSP voice modification.
+  Future<void> _speakTranslated(String translatedText) async {
+    _isSpeaking = true;
+    onSpoken?.call(translatedText);
+
+    try {
+      // If we have the remote user's voice vector, apply DSP after TTS
+      if (remoteVoiceVector != null) {
+        // Generate TTS audio file
+        // Then process through DSP with the remote voice vector
+        await RealtimeDspService.instance.applyVoiceVector(remoteVoiceVector!);
       }
-      debugPrint('Translation error: $e');
+
+      // Speak via FlutterTts
+      await _tts.speak(translatedText);
+    } catch (e) {
+      debugPrint('[LiveTranslation] speak error: $e');
     }
 
-    // Resume listening
-    if (_isActive && !_isSpeaking && !isPartial) {
-      Future.delayed(const Duration(milliseconds: 200), () {
-        if (_isActive) _startListening();
-      });
+    // _isSpeaking will be set to false by TTS completion handler
+  }
+
+  /// Set the remote user's voice vector for voice-style matching.
+  Future<void> setRemoteVoiceVector(String userEmail) async {
+    remoteUserEmail = userEmail;
+    remoteVoiceVector = await VoiceVectorStore.instance.fetchVoiceVector(userEmail);
+    if (remoteVoiceVector != null) {
+      await RealtimeDspService.instance.applyVoiceVector(remoteVoiceVector!);
     }
   }
 

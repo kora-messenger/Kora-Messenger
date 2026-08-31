@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter_tts/flutter_tts.dart';
+import '../models/voice_vector.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/voice_model.dart';
 
@@ -246,5 +247,41 @@ class VoiceManagementService {
       return jsonDecode(json) as Map<String, dynamic>;
     }
     return {};
+  }
+
+  /// Create a KoraVoice from a VoiceVector (mathematical voice profile).
+  KoraVoice createVoiceFromVector(VoiceVector vector) {
+    final gender = vector.estimatedGender == 'male'
+        ? VoiceGender.male
+        : vector.estimatedGender == 'female'
+            ? VoiceGender.female
+            : VoiceGender.neutral;
+
+    final pitch = (vector.meanPitch / 120.0).clamp(0.5, 2.0);
+
+    final voice = KoraVoice(
+      id: 'vector_${DateTime.now().millisecondsSinceEpoch}',
+      name: 'Voice Profile',
+      description: 'Created from voice vector (pitch: ${vector.meanPitch.toStringAsFixed(1)}Hz)',
+      type: VoiceType.cloned,
+      language: 'en',
+      gender: gender,
+      pitch: pitch,
+      rate: 1.0,
+      createdAt: DateTime.now(),
+      displayIcon: gender == VoiceGender.male ? '👨' : (gender == VoiceGender.female ? '👩' : '🎤'),
+    );
+
+    _customVoices.add(voice);
+    _saveVoices();
+    return voice;
+  }
+
+  /// Apply a VoiceVector's parameters directly to a FlutterTts instance.
+  Future<void> applyVoiceVectorToTts(VoiceVector vector, FlutterTts tts) async {
+    final pitch = (vector.meanPitch / 120.0).clamp(0.5, 2.0);
+    await tts.setPitch(pitch);
+    await tts.setSpeechRate(1.0);
+    await tts.setVolume(1.0);
   }
 }
