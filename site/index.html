@@ -315,11 +315,15 @@ section{position:relative;z-index:1}
 /* Gradient text shimmer on hero h1 */
 .hero h1 .grad{background-size:200% auto;animation:gradientShift 4s ease-in-out infinite}
 /* Phone subtle tilt */
-.phone-wrap{transform:perspective(1200px) rotateY(-5deg) rotateX(2deg);transition:transform .6s}
-.phone-wrap:hover{transform:perspective(1200px) rotateY(0) rotateX(0)}
+@media (hover:hover) and (pointer:fine){
+  .phone-wrap{transform:perspective(1200px) rotateY(-5deg) rotateX(2deg);transition:transform .6s}
+  .phone-wrap:hover{transform:perspective(1200px) rotateY(0) rotateX(0)}
+}
 /* Say card subtle tilt + hover */
-.say-card{transform:perspective(1000px) rotateY(-3deg) rotateX(2deg);transition:transform .5s}
-.say-card:hover{transform:perspective(1000px) rotateY(0) rotateX(0) scale(1.02)}
+@media (hover:hover) and (pointer:fine){
+  .say-card{transform:perspective(1000px) rotateY(-3deg) rotateX(2deg);transition:transform .5s}
+  .say-card:hover{transform:perspective(1000px) rotateY(0) rotateX(0) scale(1.02)}
+}
 /* Lock orb hover scale */
 .lock-orb{transition:transform .5s}
 .split-visual:hover .lock-orb{transform:scale(1.05)}
