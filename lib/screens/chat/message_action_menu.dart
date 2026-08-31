@@ -164,6 +164,7 @@ class _MessageActionOverlay extends StatelessWidget {
   });
 
   bool get _isVoice => messageType == KoraMessageType.voice;
+  bool get _isVideoNote => messageType == KoraMessageType.videoNote;
 
   @override
   Widget build(BuildContext context) {
@@ -272,9 +273,13 @@ class _MessageActionOverlay extends StatelessWidget {
                   // Actions
                   _action(Icons.reply, 'Reply', onReply, textPrimary),
                   _action(Icons.emoji_emotions_outlined, 'React', () {}, textPrimary),
-                  if (!_isVoice)
+                  if (!_isVoice && !_isVideoNote)
                     _action(Icons.copy_outlined, 'Copy', onCopy, textPrimary),
-                  _action(Icons.forward_outlined, 'Forward', onForward, textPrimary),
+                  // WhatsApp deliberately doesn't allow forwarding video
+                  // notes — they're designed to feel ephemeral, like
+                  // voice notes, and stay in their original chat.
+                  if (!_isVideoNote)
+                    _action(Icons.forward_outlined, 'Forward', onForward, textPrimary),
                   // Voice-specific actions
                   if (_isVoice) ...[
                     if (onTranscribeVoice != null)

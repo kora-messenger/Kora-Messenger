@@ -6,6 +6,7 @@ import '../../models/chat_models.dart';
 import '../../theme/kora_colors.dart';
 import '../../theme/chat_theme_provider.dart';
 import 'voice_message_bubble.dart';
+import 'video_note_bubble.dart';
 import 'document_viewer_screen.dart';
 import 'voice_translation_sheet.dart';
 
@@ -1017,72 +1018,10 @@ class MessageBubble extends StatelessWidget {
   }
 
   // ── Video note (WhatsApp-style circular video message) ──
+  // Autoplay-muted-loop-3x preview + tap-for-sound-lightbox, matching
+  // WhatsApp's real behavior exactly. See video_note_bubble.dart.
   Widget _buildVideoNoteContent(BuildContext context, bool isMe, Color textSecondary) {
-    const size = 190.0;
-    final mins = ((message.mediaDuration ?? 0) ~/ 60).toString();
-    final secs = ((message.mediaDuration ?? 0) % 60).toString().padLeft(2, '0');
-    return Column(
-      crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SizedBox(
-          width: size,
-          height: size,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              ClipOval(
-                child: Container(
-                  width: size,
-                  height: size,
-                  color: Colors.black,
-                  child: message.mediaThumbnailPath != null
-                      ? Image.file(File(message.mediaThumbnailPath!), fit: BoxFit.cover)
-                      : (message.mediaPath != null
-                          ? Container(color: const Color(0xFF1A1A24))
-                          : Container(color: const Color(0xFF1A1A24))),
-                ),
-              ),
-              Container(
-                width: size,
-                height: size,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.fromBorderSide(
-                      BorderSide(color: Colors.white24, width: 1.5)),
-                ),
-              ),
-              Container(
-                width: 48, height: 48,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.black.withValues(alpha: 0.35),
-                ),
-                child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 30),
-              ),
-              Positioned(
-                bottom: 10,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: Colors.black54,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text('$mins:$secs',
-                      style: const TextStyle(
-                          color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 3),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-          child: _buildMediaTimestampRow(isMe, isMe ? Colors.white : textSecondary, textSecondary),
-        ),
-      ],
-    );
+    return VideoNoteBubble(message: message);
   }
 
   // ── Media content (image/video) ──
