@@ -904,7 +904,7 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
             Padding(
               padding: const EdgeInsets.only(left: 4, bottom: 4),
               child: Text('LEGAL',
-                style: TextStyle(color: textMuted, fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.5),
+                style: TextStyle(color: textSecondary, fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.5),
               ),
             ),
             _buildLegalLink(context, 'Privacy Policy', KoraApi.privacyPolicyUrl),

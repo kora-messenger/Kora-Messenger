@@ -176,28 +176,6 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
                     elevation: 2,
                   ),
-                  // Account Deletion Policy link
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    child: Center(
-                      child: GestureDetector(
-                        onTap: () async {
-                          final uri = Uri.parse(KoraApi.accountDeletionPolicyUrl);
-                          await launchUrl(uri, mode: LaunchMode.externalApplication);
-                        },
-                        child: Text(
-                          'Read our Account Deletion Policy',
-                          style: TextStyle(
-                            color: Theme.of(context).brightness == Brightness.dark
-                                ? KoraColors.purple
-                                : KoraColors.purple,
-                            fontSize: 13,
-                            decoration: TextDecoration.underline,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
                   onPressed: _canDelete() ? _deleteAccount : null,
                   child: _isLoading
                       ? const SizedBox(
@@ -208,6 +186,26 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
                           'Delete Account Permanently',
                           style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white),
                         ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Account Deletion Policy link
+              Center(
+                child: GestureDetector(
+                  onTap: () async {
+                    final uri = Uri.parse(KoraApi.accountDeletionPolicyUrl);
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  },
+                  child: Text(
+                    'Read our Account Deletion Policy',
+                    style: TextStyle(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? KoraColors.purple
+                          : KoraColors.purple,
+                      fontSize: 13,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(height: 12),

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -272,11 +273,16 @@ class TranslationService {
       translatedText = text; // Fallback to original text
     }
 
+    final sourceLang = languageByCode(source) ?? _allLanguages.first;
+    final targetLang = languageByCode(targetLanguageCode) ?? _allLanguages.first;
     return TranslationResult(
+      originalText: text,
       translatedText: translatedText,
-      sourceLanguageCode: source,
+      detectedLanguageCode: source,
+      detectedLanguageName: sourceLang.name,
       targetLanguageCode: targetLanguageCode,
-      isFromCache: false,
+      targetLanguageName: targetLang.name,
+      translatedAt: DateTime.now(),
     );
   }
   // ── GPT Streaming Translation (models AI Phone's gptTrans/stream) ──
@@ -333,7 +339,7 @@ class TranslationService {
 
       if (response.statusCode != 200) {
         // Fall back to batch translation
-        final batchResult = await translate(text, targetCode, sourceCode: sourceCode);
+        final batchResult = await translate(text, targetCode, sourceLanguageCode: sourceCode);
         onDone?.call(batchResult.translatedText);
         return batchResult;
       }
@@ -383,13 +389,13 @@ class TranslationService {
       }
 
       // Fall back to batch
-      final batchResult = await translate(text, targetCode, sourceCode: sourceCode);
+      final batchResult = await translate(text, targetCode, sourceLanguageCode: sourceCode);
       onDone?.call(batchResult.translatedText);
       return batchResult;
     } catch (e) {
       onError?.call('Stream translation failed: $e');
       // Fall back to batch
-      final batchResult = await translate(text, targetCode, sourceCode: sourceCode);
+      final batchResult = await translate(text, targetCode, sourceLanguageCode: sourceCode);
       onDone?.call(batchResult.translatedText);
       return batchResult;
     }
@@ -438,7 +444,7 @@ class TranslationService {
     String targetCode,
   ) async {
     final detectedCode = await detectLanguage(transcript) ?? 'en';
-    final translation = await translate(transcript, targetCode, sourceCode: detectedCode);
+    final translation = await translate(transcript, targetCode, sourceLanguageCode: detectedCode);
     return VoiceTranslationResult(
       transcript: transcript,
       detectedLanguageCode: detectedCode,

@@ -85,7 +85,7 @@ class VoiceVectorExtractor {
     var elapsed = 0;
 
     final completer = Completer<VoiceVector>();
-    final timer = Timer.periodic(const Duration(milliseconds: updateInterval), (t) async {
+    final timer = Timer.periodic(Duration(milliseconds: updateInterval), (t) async {
       elapsed += updateInterval;
       onProgress?.call(elapsed / totalMs);
 

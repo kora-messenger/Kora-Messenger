@@ -430,9 +430,11 @@ class _LockedChatsScreenState extends State<LockedChatsScreen> {
   @override
   Widget build(BuildContext context) {
     if (!_authenticated) {
-      return const Scaffold(
-        backgroundColor: KoraColors.darkBackground,
-        body: Center(child: CircularProgressIndicator(color: KoraColors.purple)),
+      return Scaffold(
+        backgroundColor: Theme.of(context).brightness == Brightness.dark
+            ? const Color(0xFF0B0B0F)
+            : Colors.white,
+        body: const Center(child: CircularProgressIndicator(color: KoraColors.purple)),
       );
     }
 
@@ -449,7 +451,7 @@ class _LockedChatsScreenState extends State<LockedChatsScreen> {
         elevation: 0,
         title: _isSelecting
             ? Text(
-                '${_selectedIds.length}\,
+                '${_selectedIds.length} selected',
                 style: TextStyle(color: textPrimary, fontSize: 20, fontWeight: FontWeight.w700),
               )
             : Text(
