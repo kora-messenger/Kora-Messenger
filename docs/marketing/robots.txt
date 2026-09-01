@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Sitemap: https://koramessenger.com/sitemap.xml
+
+# Block sensitive paths
+Disallow: /api/
+Disallow: /admin/
+Disallow: /.git/
