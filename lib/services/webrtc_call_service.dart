@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import '../config/kora_api.dart';
 import '../models/voice_vector.dart';
 import 'voice_vector_store.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 /// Real WebRTC call service for Kora Messenger.
 ///
@@ -109,6 +110,7 @@ class WebRTCCallService {
   Future<void> _startCallForegroundService(String callerName) async {
     try {
       const platform = MethodChannel('com.kora.messenger/call_service');
+      if (kIsWeb) return;
       await platform.invokeMethod('startTranslationService', {
         'callId': _currentCallId ?? 'active_call',
         'callerName': callerName,
@@ -122,6 +124,7 @@ class WebRTCCallService {
   Future<void> _stopCallForegroundService() async {
     try {
       const platform = MethodChannel('com.kora.messenger/call_service');
+      if (kIsWeb) return;
       await platform.invokeMethod('stopTranslationService');
     } catch (e) {
       debugPrint('[WebRTC] foreground service stop error: $e');
@@ -220,6 +223,7 @@ class WebRTCCallService {
   Future<void> setAudioRoute(String route) async {
     _currentAudioRoute = route;
     try {
+      if (kIsWeb) return;
       await _audioRouteChannel.invokeMethod('setAudioRoute', {'route': route});
     } catch (e) {
       debugPrint('Native audio route failed, using WebRTC fallback: $e');
@@ -285,6 +289,7 @@ class WebRTCCallService {
         _screenStream = await navigator.mediaDevices.getDisplayMedia(mediaConstraints);
       } catch (e) {
         debugPrint('getDisplayMedia failed, attempting native channel: $e');
+        if (kIsWeb) return;
         await _screenShareChannel.invokeMethod('startScreenShare');
         _screenStream = await navigator.mediaDevices.getDisplayMedia(mediaConstraints);
       }
@@ -343,6 +348,7 @@ class WebRTCCallService {
       }
 
       try {
+        if (kIsWeb) return;
         await _screenShareChannel.invokeMethod('stopScreenShare');
       } catch (_) {}
 
@@ -357,6 +363,7 @@ class WebRTCCallService {
   /// Triggers native Android Picture-in-Picture mode.
   Future<bool> enterPipMode() async {
     try {
+      if (kIsWeb) return;
       final bool success = await _pipChannel.invokeMethod('enterPip');
       return success;
     } catch (e) {

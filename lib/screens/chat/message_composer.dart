@@ -1001,8 +1001,55 @@ class _MessageComposerState extends State<MessageComposer>
     );
 
     if (confirmed == true && widget.onSendLocation != null) {
-      // Send a placeholder location — in production, use geolocator
-      widget.onSendLocation!(0.0, 0.0, 'Current Location');
+      await _sendRealLocation();
+    }
+  }
+
+  // ── Send real GPS location ──────────────────────────
+  Future<void> _sendRealLocation() async {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Row(children: [
+          SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)),
+          SizedBox(width: 12),
+          Text('Getting your location…'),
+        ]),
+        backgroundColor: KoraColors.purple,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 10),
+      ),
+    );
+
+    try {
+      // Request permission via the platform channel
+      // Use Flutter's built-in geolocation through MethodChannel
+      const platform = MethodChannel('kora.location');
+      final result = await platform.invokeMethod<Map>('getCurrentLocation', {
+        'highAccuracy': true,
+        'timeoutMs': 10000,
+      });
+
+      if (result != null && result['latitude'] != null && result['longitude'] != null) {
+        final lat = (result['latitude'] as num).toDouble();
+        final lng = (result['longitude'] as num).toDouble();
+        if (mounted) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          widget.onSendLocation!(lat, lng, result['address'] as String? ?? 'Current Location');
+        }
+      }
+    } catch (e) {
+      // Fallback: try geolocator package if available, otherwise show error
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not get location. Please check permissions.'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 

@@ -256,7 +256,7 @@ class _GroupChatInfoScreenState extends State<GroupChatInfoScreen> {
                     title: Text('Media, links, and docs', style: TextStyle(color: textPrimary, fontSize: 15)),
                     subtitle: Text('No media yet', style: TextStyle(color: textMuted, fontSize: 13)),
                     trailing: Icon(Icons.chevron_right, color: textMuted, size: 20),
-                    onTap: () {},
+                    onTap: () { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Coming soon"), behavior: SnackBarBehavior.floating)); },
                   ),
                 ],
               ),

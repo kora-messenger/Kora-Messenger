@@ -101,8 +101,36 @@ class PollMessage {
     return opt?.voterIds.contains(userId) ?? false;
   }
 
-  void castVote(String optionId, String userId) {}
-  void removeVote(String optionId, String userId) {}
+  PollMessage castVote(String optionId, String userId) {
+    // If single-answer poll, remove any existing vote first
+    List<PollOption> newOptions = options.map((o) {
+      List<String> voters = List<String>.from(o.voterIds);
+      if (o.id == optionId && !voters.contains(userId)) {
+        voters.add(userId);
+      } else if (!allowMultipleAnswers && voters.contains(userId)) {
+        voters.remove(userId);
+      }
+      return o.copyWith(
+        voterIds: voters,
+        voteCount: voters.length,
+      );
+    }).toList();
+    return copyWith(options: newOptions);
+  }
+
+  PollMessage removeVote(String optionId, String userId) {
+    List<PollOption> newOptions = options.map((o) {
+      List<String> voters = List<String>.from(o.voterIds);
+      if (o.id == optionId && voters.contains(userId)) {
+        voters.remove(userId);
+      }
+      return o.copyWith(
+        voterIds: voters,
+        voteCount: voters.length,
+      );
+    }).toList();
+    return copyWith(options: newOptions);
+  }
 
   int get totalVoters {
     final allVoters = <String>{};

@@ -434,20 +434,8 @@ class _GroupCallParticipantsSheetState extends State<GroupCallParticipantsSheet>
   }
 
   Widget _buildAddContactView() {
-    // Standard mock list if empty so the UI always has contacts to add
-    final fallbackContacts = <Map<String, Object?>>[
-      {'name': 'Sarah Miller', 'username': '@sarah_m', 'koraId': 'sarah_01'},
-      {'name': 'David Chen', 'username': '@davidc', 'koraId': 'david_02'},
-      {'name': 'Amara Okafor', 'username': '@amara_k', 'koraId': 'amara_03'},
-      {'name': 'Marcus Vance', 'username': '@marcus_v', 'koraId': 'marcus_04'},
-      {'name': 'Elena Rostova', 'username': '@elena_r', 'koraId': 'elena_05'},
-      {'name': 'Kojo Mensah', 'username': '@kojo_m', 'koraId': 'kojo_06'},
-      {'name': 'Zoe Sterling', 'username': '@zoe_s', 'koraId': 'zoe_07'},
-    ];
-
-    final sourceContacts = _availableContacts.isNotEmpty
-        ? _availableContacts
-        : fallbackContacts;
+    // Use only real contacts loaded from ContactsService
+    final sourceContacts = _availableContacts;
 
     // Filter contacts not currently in call
     final currentNames = _participantsList.map((p) => p.name.toLowerCase()).toSet();
@@ -460,6 +448,19 @@ class _GroupCallParticipantsSheetState extends State<GroupCallParticipantsSheet>
       }
       return true;
     }).toList();
+
+    if (sourceContacts.isEmpty && _searchQuery.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.contacts, size: 48, color: KoraColors.purple.withValues(alpha: 0.3)),
+            const SizedBox(height: 12),
+            Text('No contacts available to add', style: TextStyle(color: KoraColors.textMutedFor(Theme.of(context).brightness), fontSize: 14)),
+          ],
+        ),
+      );
+    }
 
     return Column(
       children: [

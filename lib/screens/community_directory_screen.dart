@@ -199,7 +199,7 @@ class _CommunityDirectoryScreenState extends State<CommunityDirectoryScreen> {
               onPressed: () => setState(() => c.isJoined = true),
               child: const Text('Join', style: TextStyle(color: KoraColors.purple, fontWeight: FontWeight.w600)),
             ),
-      onTap: () {},
+      onTap: () { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Community details coming soon"), behavior: SnackBarBehavior.floating)); },
     );
   }
 

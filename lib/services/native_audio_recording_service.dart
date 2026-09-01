@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 /// Native audio recording service for Kora Messenger voice notes.
 ///
@@ -69,6 +70,11 @@ class NativeAudioRecordingService {
     if (_isRecording) return _currentPath ?? '';
 
     try {
+    if (kIsWeb) {
+      // Web fallback: skip native channel call
+      return;
+    }
+
       final result = await _methodChannel.invokeMethod<String>('startRecording');
 
       if (result != null && result.isNotEmpty) {
@@ -92,6 +98,11 @@ class NativeAudioRecordingService {
     _stopAmplitudeListener();
 
     try {
+    if (kIsWeb) {
+      // Web fallback: skip native channel call
+      return;
+    }
+
       final path = await _methodChannel.invokeMethod<String>('stopRecording');
       _isRecording = false;
       _isPaused = false;
@@ -108,6 +119,11 @@ class NativeAudioRecordingService {
   Future<void> pauseRecording() async {
     if (!_isRecording || _isPaused) return;
     try {
+    if (kIsWeb) {
+      // Web fallback: skip native channel call
+      return;
+    }
+
       await _methodChannel.invokeMethod('pauseRecording');
       _isPaused = true;
     } catch (_) {}
@@ -116,6 +132,11 @@ class NativeAudioRecordingService {
   Future<void> resumeRecording() async {
     if (!_isRecording || !_isPaused) return;
     try {
+    if (kIsWeb) {
+      // Web fallback: skip native channel call
+      return;
+    }
+
       await _methodChannel.invokeMethod('resumeRecording');
       _isPaused = false;
     } catch (_) {}
@@ -126,6 +147,11 @@ class NativeAudioRecordingService {
     _stopAmplitudeListener();
     if (_isRecording) {
       try {
+    if (kIsWeb) {
+      // Web fallback: skip native channel call
+      return;
+    }
+
         await _methodChannel.invokeMethod('cancelRecording');
       } catch (_) {}
     }

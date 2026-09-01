@@ -36,15 +36,9 @@ class _BlockedAccountsScreenState extends State<BlockedAccountsScreen> {
         return;
       } catch (_) {}
     }
-    // Default initial mock if empty
+    // No blocked accounts found - show empty state
     setState(() {
-      _blockedList = [
-        {
-          'name': 'Spam Caller',
-          'koraId': 'kora_spam_99',
-          'blockedAt': DateTime.now().subtract(const Duration(days: 5)).toIso8601String(),
-        }
-      ];
+      _blockedList = [];
       _isLoading = false;
     });
   }

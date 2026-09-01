@@ -99,7 +99,7 @@ class CommunityDirectoryScreen extends StatelessWidget {
                 style: TextStyle(color: textMuted, fontSize: 14)),
             const SizedBox(height: 24),
             ElevatedButton.icon(
-              onPressed: () {},
+              onPressed: () { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Feature coming soon"), behavior: SnackBarBehavior.floating)); },
               icon: const Icon(Icons.add, size: 18),
               label: const Text('New Community'),
               style: ElevatedButton.styleFrom(

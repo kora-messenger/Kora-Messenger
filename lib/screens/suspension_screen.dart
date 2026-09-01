@@ -403,7 +403,7 @@ class _SuspensionScreenState extends State<SuspensionScreen> {
 
                 // Community guidelines link
                 TextButton(
-                  onPressed: () {},
+                  onPressed: () { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Appeal submitted. We will review it."), behavior: SnackBarBehavior.floating)); },
                   child: Text(
                     'Read Community Guidelines',
                     style: TextStyle(

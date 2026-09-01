@@ -15,7 +15,7 @@ class KoraApi {
   /// if the define is missing (it'll just fail network calls gracefully).
   static const String baseUrl = String.fromEnvironment(
     'KORA_BACKEND_URL',
-    defaultValue: 'https://placeholder.invalid/functions',
+    defaultValue: 'https://solas-463874c8.base44.app/functions',
   );
 
   /// Auth endpoint (handles signup, login, verification, password reset, profile)

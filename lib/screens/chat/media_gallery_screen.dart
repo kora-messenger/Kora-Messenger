@@ -87,7 +87,7 @@ class _MediaGalleryScreenState extends State<MediaGalleryScreen> {
                             style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
                             maxLines: 1, overflow: TextOverflow.ellipsis),
                       ),
-                      IconButton(icon: const Icon(Icons.share, color: Colors.white), onPressed: () {}),
+                      IconButton(icon: const Icon(Icons.share, color: Colors.white), onPressed: () { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Share coming soon"), behavior: SnackBarBehavior.floating)); }),
                       IconButton(icon: const Icon(Icons.more_vert, color: Colors.white), onPressed: () {}),
                     ],
                   ),

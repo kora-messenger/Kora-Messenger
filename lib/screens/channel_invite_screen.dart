@@ -160,7 +160,7 @@ class _ChannelInviteScreenState extends State<ChannelInviteScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: () {},
+                    onPressed: () { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Invite link copied"), behavior: SnackBarBehavior.floating)); },
                     icon: const Icon(Icons.share, size: 18),
                     label: const Text('Share'),
                     style: ElevatedButton.styleFrom(

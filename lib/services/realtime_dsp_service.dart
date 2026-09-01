@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import '../models/voice_vector.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 /// Low-latency real-time audio DSP service for modifying TTS output
 /// to match a target voice vector using native DSP processing.
@@ -28,6 +29,7 @@ class RealtimeDspService {
   Future<void> applyVoiceVector(VoiceVector vector) async {
     _currentVoiceVector = vector;
     try {
+      if (kIsWeb) return;
       await _channel.invokeMethod('applyVoiceVector', vector.toJson());
     } on PlatformException catch (e) {
       debugPrint('[RealtimeDsp] applyVoiceVector error: ${e.message}');
@@ -38,6 +40,7 @@ class RealtimeDspService {
   Future<String?> processAudioFile(String inputPath, String outputPath, {VoiceVector? vector}) async {
     try {
       final v = vector ?? _currentVoiceVector;
+      if (kIsWeb) return;
       final result = await _channel.invokeMethod<String>('processAudioFile', {
         'inputPath': inputPath,
         'outputPath': outputPath,
@@ -53,6 +56,7 @@ class RealtimeDspService {
   /// Begin real-time audio processing pipeline.
   Future<void> startRealtimeProcessing() async {
     try {
+      if (kIsWeb) return;
       await _channel.invokeMethod('startRealtimeProcessing');
       _isProcessing = true;
     } on PlatformException catch (e) {
@@ -63,6 +67,7 @@ class RealtimeDspService {
   /// Stop real-time audio processing.
   Future<void> stopRealtimeProcessing() async {
     try {
+      if (kIsWeb) return;
       await _channel.invokeMethod('stopRealtimeProcessing');
       _isProcessing = false;
     } on PlatformException catch (e) {
@@ -77,6 +82,7 @@ class RealtimeDspService {
     final outputPath = '${ttsAudioPath.replaceAll(RegExp(r'\.[^.]+$'), '')}_dsp.wav';
     try {
       await applyVoiceVector(targetVoice);
+      if (kIsWeb) return;
       final result = await _channel.invokeMethod<String>('processTtsOutput', {
         'ttsAudioPath': ttsAudioPath,
         'outputPath': outputPath,

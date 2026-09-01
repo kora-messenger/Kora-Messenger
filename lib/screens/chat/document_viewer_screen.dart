@@ -71,7 +71,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
         actions: [
           IconButton(
             icon: Icon(Icons.share, color: textPrimary),
-            onPressed: () {},
+            onPressed: () => Navigator.pop(context),
           ),
           IconButton(
             icon: Icon(Icons.more_vert, color: textPrimary),

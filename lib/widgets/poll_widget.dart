@@ -41,9 +41,9 @@ class _PollWidgetState extends State<PollWidget> {
   void _toggleVote(String optionId) {
     final hasVoted = _poll.hasVoted(optionId, widget.currentUserId);
     if (hasVoted) {
-      _poll.removeVote(optionId, widget.currentUserId);
+      _poll = _poll.removeVote(optionId, widget.currentUserId);
     } else {
-      _poll.castVote(optionId, widget.currentUserId);
+      _poll = _poll.castVote(optionId, widget.currentUserId);
     }
     widget.onVote(_poll);
     setState(() {});

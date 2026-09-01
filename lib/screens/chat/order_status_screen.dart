@@ -66,7 +66,7 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
         const SizedBox(height: 24),
         Padding(padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(children: [
-            Expanded(child: ElevatedButton.icon(onPressed: () {},
+            Expanded(child: ElevatedButton.icon(onPressed: () { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Order tracking coming soon"), behavior: SnackBarBehavior.floating)); },
               icon: const Icon(Icons.open_in_new, color: Colors.white),
               label: const Text('Track on map', style: TextStyle(color: Colors.white)),
               style: ElevatedButton.styleFrom(backgroundColor: KoraColors.purple, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)))),

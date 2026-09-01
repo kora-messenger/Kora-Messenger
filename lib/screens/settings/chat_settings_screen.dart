@@ -759,7 +759,7 @@ class _ChatSettingsScreenState extends State<ChatSettingsScreen> {
         action: SnackBarAction(
           label: 'Share',
           textColor: Colors.white,
-          onPressed: () {},
+          onPressed: () => Navigator.pop(context),
         ),
       ),
     );

@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
 import '../models/voice_vector.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 /// Extracts a VoiceVector from recorded audio using on-device DSP.
 ///
@@ -38,6 +39,7 @@ class VoiceVectorExtractor {
   /// Extract a VoiceVector from an existing audio file.
   Future<VoiceVector> extractFromAudio(String audioFilePath) async {
     try {
+      if (kIsWeb) return;
       final result = await _channel.invokeMethod<Map>('extractFromAudio', {
         'audioPath': audioFilePath,
       });

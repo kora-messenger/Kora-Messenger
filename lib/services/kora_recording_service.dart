@@ -89,6 +89,11 @@ class KoraRecordingService {
     _stopAmplitudePolling();
 
     try {
+    if (kIsWeb) {
+      // Web fallback: skip native channel call
+      return;
+    }
+
       final path = await _channel.invokeMethod<String>('stop');
       _isRecording = false;
       _isPaused = false;
@@ -106,6 +111,11 @@ class KoraRecordingService {
   Future<void> pauseRecording() async {
     if (!_isRecording || _isPaused) return;
     try {
+    if (kIsWeb) {
+      // Web fallback: skip native channel call
+      return;
+    }
+
       await _channel.invokeMethod('pause');
       _isPaused = true;
     } catch (_) {}
@@ -114,6 +124,11 @@ class KoraRecordingService {
   Future<void> resumeRecording() async {
     if (!_isRecording || !_isPaused) return;
     try {
+    if (kIsWeb) {
+      // Web fallback: skip native channel call
+      return;
+    }
+
       await _channel.invokeMethod('resume');
       _isPaused = false;
     } catch (_) {}
@@ -124,6 +139,11 @@ class KoraRecordingService {
     _stopAmplitudePolling();
     if (_isRecording) {
       try {
+    if (kIsWeb) {
+      // Web fallback: skip native channel call
+      return;
+    }
+
         await _channel.invokeMethod('cancel');
       } catch (_) {}
     }

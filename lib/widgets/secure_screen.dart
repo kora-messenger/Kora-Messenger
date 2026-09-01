@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 /// Wraps a screen to prevent screenshots and screen recording on
 /// Android via FLAG_SECURE. On iOS it prevents screen recording
@@ -35,6 +36,11 @@ class _SecureScreenState extends State<SecureScreen> {
 
   Future<void> _enableSecure() async {
     try {
+    if (kIsWeb) {
+      // Web fallback: skip native channel call
+      return;
+    }
+
       await _channel.invokeMethod('enableSecure');
     } catch (_) {
       // Silently fail on non-Android platforms or if not available
@@ -43,6 +49,11 @@ class _SecureScreenState extends State<SecureScreen> {
 
   Future<void> _disableSecure() async {
     try {
+    if (kIsWeb) {
+      // Web fallback: skip native channel call
+      return;
+    }
+
       await _channel.invokeMethod('disableSecure');
     } catch (_) {
       // Silently fail

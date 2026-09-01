@@ -440,7 +440,7 @@ class _TextStatusScreenState extends State<TextStatusScreen> {
                   // Emoji button
                   IconButton(
                     icon: const Icon(Icons.emoji_emotions_outlined, color: Colors.white70),
-                    onPressed: () {},
+                    onPressed: () => Navigator.pop(context),
                   ),
                   const SizedBox(width: 8),
                   // Send button

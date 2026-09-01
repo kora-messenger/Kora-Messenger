@@ -259,7 +259,7 @@ class _KoraMediaEditorScreenState extends State<KoraMediaEditorScreen> {
           // Emoji button
           IconButton(
             icon: const Icon(Icons.emoji_emotions_outlined, color: Colors.white54, size: 22),
-            onPressed: () {},
+            onPressed: () => Navigator.pop(context),
           ),
           const SizedBox(width: 4),
         ],
