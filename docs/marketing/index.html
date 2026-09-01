@@ -1,0 +1,1597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kora Messenger — Private. Secure. Beautiful.</title>
+    <meta name="description" content="Kora Messenger is a modern, end-to-end encrypted messaging app with voice translation, AI assistant, and WhatsApp-level features. Download for Android & iOS.">
+    <meta name="theme-color" content="#6C63FF">
+    
+    <!-- Open Graph -->
+    <meta property="og:title" content="Kora Messenger — Private. Secure. Beautiful.">
+    <meta property="og:description" content="End-to-end encrypted messaging with AI voice translation, group calls, and more.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://koramessenger.com">
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --purple: #6C63FF;
+            --blue: #4A90D9;
+            --navy: #0A0E27;
+            --black: #060818;
+            --gradient: linear-gradient(135deg, #6C63FF 0%, #4A90D9 100%);
+            --gradient-soft: linear-gradient(135deg, rgba(108, 99, 255, 0.08) 0%, rgba(74, 144, 217, 0.08) 100%);
+            --glass: rgba(255, 255, 255, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.3);
+            --text-primary: #0A0E27;
+            --text-secondary: #4A5070;
+            --text-muted: #8892B0;
+            --white: #FFFFFF;
+            --shadow-sm: 0 2px 12px rgba(10, 14, 39, 0.06);
+            --shadow-md: 0 8px 32px rgba(10, 14, 39, 0.08);
+            --shadow-lg: 0 24px 64px rgba(10, 14, 39, 0.12);
+            --shadow-glow: 0 0 80px rgba(108, 99, 255, 0.15);
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #FAFBFF;
+            color: var(--text-primary);
+            overflow-x: hidden;
+            line-height: 1.6;
+        }
+
+        h1, h2, h3, h4 {
+            font-family: 'Space Grotesk', 'Inter', sans-serif;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            line-height: 1.1;
+        }
+
+        a {
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        /* ═══ NAVBAR ═══ */
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            padding: 16px 0;
+            background: rgba(250, 251, 255, 0.85);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border-bottom: 1px solid rgba(108, 99, 255, 0.08);
+            transition: all 0.3s ease;
+        }
+
+        .navbar .container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 700;
+            font-size: 22px;
+            color: var(--text-primary);
+        }
+
+        .logo-icon {
+            width: 36px;
+            height: 36px;
+            background: var(--gradient);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 16px rgba(108, 99, 255, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .logo-icon svg {
+            width: 20px;
+            height: 20px;
+            fill: white;
+        }
+
+        .logo-icon::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.3) 50%, transparent 70%);
+            animation: shimmer 3s ease-in-out infinite;
+        }
+
+        @keyframes shimmer {
+            0%, 100% { transform: translateX(-100%) translateY(-100%); }
+            50% { transform: translateX(100%) translateY(100%); }
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 32px;
+        }
+
+        .nav-links a {
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            transition: color 0.2s;
+        }
+
+        .nav-links a:hover {
+            color: var(--purple);
+        }
+
+        .nav-cta {
+            background: var(--gradient);
+            color: white !important;
+            padding: 10px 24px;
+            border-radius: 100px;
+            font-weight: 600 !important;
+            font-size: 14px !important;
+            box-shadow: 0 4px 16px rgba(108, 99, 255, 0.25);
+            transition: all 0.3s;
+        }
+
+        .nav-cta:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(108, 99, 255, 0.35);
+        }
+
+        .mobile-menu-btn {
+            display: none;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px;
+        }
+
+        .mobile-menu-btn span {
+            display: block;
+            width: 24px;
+            height: 2px;
+            background: var(--text-primary);
+            margin: 4px 0;
+            border-radius: 2px;
+            transition: 0.3s;
+        }
+
+        /* ═══ HERO ═══ */
+        .hero {
+            padding: 140px 0 80px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 0;
+        }
+
+        .hero-bg::before {
+            content: '';
+            position: absolute;
+            top: -20%;
+            right: -10%;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(108, 99, 255, 0.15) 0%, transparent 70%);
+            border-radius: 50%;
+            animation: float 8s ease-in-out infinite;
+        }
+
+        .hero-bg::after {
+            content: '';
+            position: absolute;
+            bottom: -20%;
+            left: -10%;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(74, 144, 217, 0.12) 0%, transparent 70%);
+            border-radius: 50%;
+            animation: float 10s ease-in-out infinite reverse;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(30px, -30px) scale(1.05); }
+        }
+
+        .hero .container {
+            position: relative;
+            z-index: 1;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 60px;
+            align-items: center;
+        }
+
+        .hero-content {
+            opacity: 0;
+            animation: fadeInUp 0.8s ease forwards;
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--glass);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            padding: 8px 16px;
+            border-radius: 100px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--purple);
+            margin-bottom: 24px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .hero-badge .pulse {
+            width: 8px;
+            height: 8px;
+            background: var(--purple);
+            border-radius: 50%;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.3); }
+        }
+
+        .hero h1 {
+            font-size: 56px;
+            font-weight: 800;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #0A0E27 0%, #6C63FF 50%, #4A90D9 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero p {
+            font-size: 19px;
+            color: var(--text-secondary);
+            margin-bottom: 36px;
+            max-width: 500px;
+        }
+
+        .hero-buttons {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .btn-primary {
+            background: var(--gradient);
+            color: white;
+            padding: 16px 32px;
+            border-radius: 16px;
+            font-weight: 600;
+            font-size: 16px;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 8px 32px rgba(108, 99, 255, 0.3);
+            transition: all 0.3s;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 16px 48px rgba(108, 99, 255, 0.4);
+        }
+
+        .btn-secondary {
+            background: var(--glass);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            color: var(--text-primary);
+            padding: 16px 32px;
+            border-radius: 16px;
+            font-weight: 600;
+            font-size: 16px;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: var(--shadow-sm);
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-md);
+            border-color: var(--purple);
+        }
+
+        .hero-stats {
+            display: flex;
+            gap: 40px;
+            margin-top: 48px;
+            padding-top: 32px;
+            border-top: 1px solid rgba(108, 99, 255, 0.1);
+        }
+
+        .stat {
+            text-align: left;
+        }
+
+        .stat-number {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 32px;
+            font-weight: 700;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .stat-label {
+            font-size: 13px;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        /* ═══ HERO PHONE MOCKUP ═══ */
+        .hero-visual {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            animation: fadeInUp 0.8s ease 0.2s forwards;
+        }
+
+        .phone-mockup {
+            width: 320px;
+            height: 650px;
+            background: var(--navy);
+            border-radius: 48px;
+            padding: 12px;
+            box-shadow: var(--shadow-lg), var(--shadow-glow);
+            position: relative;
+            border: 3px solid rgba(108, 99, 255, 0.2);
+        }
+
+        .phone-screen {
+            width: 100%;
+            height: 100%;
+            background: #0A0E27;
+            border-radius: 36px;
+            overflow: hidden;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .phone-notch {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 120px;
+            height: 28px;
+            background: var(--navy);
+            border-radius: 0 0 20px 20px;
+            z-index: 10;
+        }
+
+        .phone-header {
+            padding: 40px 20px 16px;
+            background: linear-gradient(135deg, #6C63FF 0%, #4A90D9 100%);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .phone-header-avatar {
+            width: 36px;
+            height: 36px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 50%;
+            backdrop-filter: blur(10px);
+        }
+
+        .phone-header-info {
+            flex: 1;
+        }
+
+        .phone-header-name {
+            color: white;
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .phone-header-status {
+            color: rgba(255,255,255,0.7);
+            font-size: 11px;
+        }
+
+        .phone-header-icons {
+            display: flex;
+            gap: 16px;
+        }
+
+        .phone-header-icons span {
+            color: white;
+            font-size: 18px;
+        }
+
+        .phone-body {
+            flex: 1;
+            padding: 20px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            background: #0A0E27;
+            overflow: hidden;
+        }
+
+        .phone-msg {
+            max-width: 75%;
+            padding: 10px 14px;
+            border-radius: 18px 18px 18px 4px;
+            font-size: 13px;
+            line-height: 1.5;
+            animation: msgSlide 0.6s ease forwards;
+            opacity: 0;
+        }
+
+        .phone-msg.received {
+            background: rgba(255,255,255,0.08);
+            color: white;
+            align-self: flex-start;
+            border-radius: 18px 18px 18px 4px;
+        }
+
+        .phone-msg.sent {
+            background: var(--gradient);
+            color: white;
+            align-self: flex-end;
+            border-radius: 18px 18px 4px 18px;
+        }
+
+        .phone-msg:nth-child(1) { animation-delay: 0.3s; }
+        .phone-msg:nth-child(2) { animation-delay: 0.6s; }
+        .phone-msg:nth-child(3) { animation-delay: 0.9s; }
+        .phone-msg:nth-child(4) { animation-delay: 1.2s; }
+        .phone-msg:nth-child(5) { animation-delay: 1.5s; }
+
+        @keyframes msgSlide {
+            from { opacity: 0; transform: translateY(15px) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .phone-typing {
+            display: flex;
+            gap: 4px;
+            padding: 12px 16px;
+            align-self: flex-start;
+            background: rgba(255,255,255,0.08);
+            border-radius: 18px 18px 18px 4px;
+            animation: msgSlide 0.6s ease 1.8s forwards;
+            opacity: 0;
+        }
+
+        .phone-typing span {
+            width: 8px;
+            height: 8px;
+            background: rgba(255,255,255,0.4);
+            border-radius: 50%;
+            animation: typing 1.4s ease-in-out infinite;
+        }
+
+        .phone-typing span:nth-child(2) { animation-delay: 0.2s; }
+        .phone-typing span:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes typing {
+            0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
+            30% { opacity: 1; transform: translateY(-4px); }
+        }
+
+        .phone-input {
+            padding: 12px 16px;
+            background: rgba(255,255,255,0.05);
+            margin: 12px 16px;
+            border-radius: 24px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .phone-input-text {
+            flex: 1;
+            height: 8px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+        }
+
+        .phone-input-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--gradient);
+            border-radius: 50%;
+        }
+
+        .phone-floating-badge {
+            position: absolute;
+            background: var(--glass);
+            backdrop-filter: blur(20px) saturate(180%);
+            border: 1px solid var(--glass-border);
+            padding: 12px 16px;
+            border-radius: 16px;
+            box-shadow: var(--shadow-md);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+            animation: floatBadge 4s ease-in-out infinite;
+        }
+
+        .phone-floating-badge.top-right {
+            top: 60px;
+            right: -30px;
+        }
+
+        .phone-floating-badge.bottom-left {
+            bottom: 120px;
+            left: -40px;
+            animation-delay: 2s;
+        }
+
+        .phone-floating-badge .badge-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        .badge-icon.purple { background: rgba(108, 99, 255, 0.15); color: var(--purple); }
+        .badge-icon.blue { background: rgba(74, 144, 217, 0.15); color: var(--blue); }
+
+        @keyframes floatBadge {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        /* ═══ FEATURES SECTION ═══ */
+        .features {
+            padding: 100px 0;
+        }
+
+        .section-header {
+            text-align: center;
+            max-width: 640px;
+            margin: 0 auto 64px;
+        }
+
+        .section-label {
+            display: inline-block;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 12px;
+        }
+
+        .section-header h2 {
+            font-size: 42px;
+            margin-bottom: 16px;
+        }
+
+        .section-header p {
+            font-size: 18px;
+            color: var(--text-secondary);
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 32px;
+        }
+
+        .feature-card {
+            background: var(--glass);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border: 1px solid var(--glass-border);
+            border-radius: 28px;
+            padding: 40px;
+            box-shadow: var(--shadow-sm);
+            transition: all 0.4s ease;
+            position: relative;
+            overflow: hidden;
+            opacity: 0;
+            transform: translateY(40px);
+        }
+
+        .feature-card.visible {
+            opacity: 1;
+            transform: translateY(0);
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-8px);
+            box-shadow: var(--shadow-lg);
+            border-color: rgba(108, 99, 255, 0.2);
+        }
+
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--gradient);
+            opacity: 0;
+            transition: opacity 0.4s;
+        }
+
+        .feature-card:hover::before {
+            opacity: 1;
+        }
+
+        .feature-illustration {
+            width: 80px;
+            height: 80px;
+            border-radius: 24px;
+            background: var(--gradient-soft);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 24px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feature-illustration svg {
+            width: 36px;
+            height: 36px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .feature-illustration::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at 30% 30%, rgba(108, 99, 255, 0.1), transparent 70%);
+            animation: pulseGlow 3s ease-in-out infinite;
+        }
+
+        @keyframes pulseGlow {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
+        .feature-card h3 {
+            font-size: 22px;
+            margin-bottom: 12px;
+        }
+
+        .feature-card p {
+            font-size: 15px;
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+
+        .feature-card .feature-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 20px;
+        }
+
+        .feature-tag {
+            font-size: 12px;
+            font-weight: 600;
+            padding: 6px 12px;
+            border-radius: 100px;
+            background: rgba(108, 99, 255, 0.08);
+            color: var(--purple);
+        }
+
+        /* ═══ ANIMATED SHOWCASE ═══ */
+        .showcase {
+            padding: 80px 0 100px;
+            position: relative;
+        }
+
+        .showcase .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 80px;
+            align-items: center;
+        }
+
+        .showcase-content h2 {
+            font-size: 38px;
+            margin-bottom: 20px;
+        }
+
+        .showcase-content p {
+            font-size: 17px;
+            color: var(--text-secondary);
+            margin-bottom: 28px;
+        }
+
+        .showcase-list {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .showcase-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            opacity: 0;
+            transform: translateX(-20px);
+        }
+
+        .showcase-item.visible {
+            opacity: 1;
+            transform: translateX(0);
+            transition: opacity 0.5s ease, transform 0.5s ease;
+        }
+
+        .showcase-check {
+            width: 28px;
+            height: 28px;
+            border-radius: 10px;
+            background: var(--gradient);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            box-shadow: 0 4px 12px rgba(108, 99, 255, 0.25);
+        }
+
+        .showcase-check svg {
+            width: 16px;
+            height: 16px;
+            fill: white;
+        }
+
+        .showcase-item h4 {
+            font-size: 17px;
+            margin-bottom: 4px;
+        }
+
+        .showcase-item p {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin: 0;
+        }
+
+        /* ═══ ENCRYPTION VISUAL ═══ */
+        .encryption-visual {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 400px;
+        }
+
+        .encrypt-circle {
+            position: relative;
+            width: 280px;
+            height: 280px;
+        }
+
+        .encrypt-ring {
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            border: 2px dashed rgba(108, 99, 255, 0.2);
+            animation: rotate 20s linear infinite;
+        }
+
+        .encrypt-ring:nth-child(2) {
+            inset: 30px;
+            border-color: rgba(74, 144, 217, 0.2);
+            animation-duration: 15s;
+            animation-direction: reverse;
+        }
+
+        .encrypt-ring:nth-child(3) {
+            inset: 60px;
+            border-color: rgba(108, 99, 255, 0.15);
+            animation-duration: 10s;
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .encrypt-core {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 120px;
+            height: 120px;
+            background: var(--gradient);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 60px rgba(108, 99, 255, 0.3);
+            animation: pulseCore 3s ease-in-out infinite;
+        }
+
+        @keyframes pulseCore {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 0 60px rgba(108, 99, 255, 0.3); }
+            50% { transform: translate(-50%, -50%) scale(1.08); box-shadow: 0 0 80px rgba(108, 99, 255, 0.5); }
+        }
+
+        .encrypt-core svg {
+            width: 50px;
+            height: 50px;
+            fill: white;
+        }
+
+        .encrypt-particle {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background: var(--gradient);
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            animation: orbit 4s linear infinite;
+        }
+
+        .encrypt-particle:nth-child(5) { animation-duration: 4s; animation-delay: 0s; }
+        .encrypt-particle:nth-child(6) { animation-duration: 6s; animation-delay: -2s; }
+        .encrypt-particle:nth-child(7) { animation-duration: 5s; animation-delay: -1s; }
+
+        @keyframes orbit {
+            from { transform: translate(-50%, -50%) rotate(0deg) translateX(100px) rotate(0deg); }
+            to { transform: translate(-50%, -50%) rotate(360deg) translateX(100px) rotate(-360deg); }
+        }
+
+        /* ═══ DOWNLOAD SECTION ═══ */
+        .download {
+            padding: 100px 0;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .download-bg {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 800px;
+            height: 800px;
+            background: radial-gradient(circle, rgba(108, 99, 255, 0.08) 0%, transparent 60%);
+            border-radius: 50%;
+            z-index: 0;
+        }
+
+        .download .container {
+            position: relative;
+            z-index: 1;
+        }
+
+        .download h2 {
+            font-size: 44px;
+            margin-bottom: 16px;
+        }
+
+        .download p {
+            font-size: 18px;
+            color: var(--text-secondary);
+            margin-bottom: 40px;
+            max-width: 500px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .download-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .download-btn {
+            background: var(--navy);
+            color: white;
+            padding: 16px 28px;
+            border-radius: 16px;
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 600;
+            font-size: 16px;
+            transition: all 0.3s;
+            box-shadow: var(--shadow-md);
+            border: none;
+            cursor: pointer;
+        }
+
+        .download-btn:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .download-btn svg {
+            width: 28px;
+            height: 28px;
+            fill: white;
+        }
+
+        .download-btn-text {
+            text-align: left;
+        }
+
+        .download-btn-text small {
+            display: block;
+            font-size: 11px;
+            font-weight: 400;
+            opacity: 0.7;
+        }
+
+        .download-btn-text strong {
+            font-size: 17px;
+            font-weight: 700;
+        }
+
+        .download-coming-soon {
+            margin-top: 32px;
+            font-size: 14px;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        /* ═══ FOOTER ═══ */
+        .footer {
+            background: var(--navy);
+            color: rgba(255,255,255,0.7);
+            padding: 80px 0 40px;
+        }
+
+        .footer-top {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 60px;
+            margin-bottom: 60px;
+        }
+
+        .footer-brand h3 {
+            color: white;
+            font-size: 24px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .footer-brand p {
+            font-size: 15px;
+            max-width: 320px;
+            line-height: 1.7;
+            margin-bottom: 24px;
+        }
+
+        .footer-social {
+            display: flex;
+            gap: 12px;
+        }
+
+        .footer-social a {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            background: rgba(255,255,255,0.08);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+
+        .footer-social a:hover {
+            background: var(--gradient);
+            transform: translateY(-2px);
+        }
+
+        .footer-social svg {
+            width: 18px;
+            height: 18px;
+            fill: white;
+        }
+
+        .footer-col h4 {
+            color: white;
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .footer-col ul {
+            list-style: none;
+        }
+
+        .footer-col li {
+            margin-bottom: 12px;
+        }
+
+        .footer-col a {
+            font-size: 14px;
+            transition: color 0.2s;
+        }
+
+        .footer-col a:hover {
+            color: white;
+        }
+
+        .footer-bottom {
+            padding-top: 32px;
+            border-top: 1px solid rgba(255,255,255,0.08);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+        }
+
+        .footer-bottom a {
+            color: rgba(255,255,255,0.5);
+            transition: color 0.2s;
+        }
+
+        .footer-bottom a:hover {
+            color: white;
+        }
+
+        /* ═══ RESPONSIVE ═══ */
+        @media (max-width: 900px) {
+            .hero .container {
+                grid-template-columns: 1fr;
+                text-align: center;
+            }
+
+            .hero-content {
+                order: 2;
+            }
+
+            .hero-visual {
+                order: 1;
+                margin-bottom: 40px;
+            }
+
+            .hero h1 {
+                font-size: 38px;
+            }
+
+            .hero p {
+                margin: 0 auto 36px;
+            }
+
+            .hero-buttons, .hero-stats {
+                justify-content: center;
+            }
+
+            .hero-stats {
+                flex-wrap: wrap;
+            }
+
+            .feature-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .showcase .container {
+                grid-template-columns: 1fr;
+                gap: 40px;
+            }
+
+            .footer-top {
+                grid-template-columns: 1fr 1fr;
+                gap: 40px;
+            }
+
+            .nav-links {
+                display: none;
+            }
+
+            .mobile-menu-btn {
+                display: block;
+            }
+
+            .section-header h2 {
+                font-size: 32px;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .footer-top {
+                grid-template-columns: 1fr;
+            }
+
+            .footer-bottom {
+                flex-direction: column;
+                gap: 12px;
+                text-align: center;
+            }
+
+            .phone-mockup {
+                width: 280px;
+                height: 570px;
+            }
+
+            .phone-floating-badge {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ═══ NAVBAR ═══ -->
+    <nav class="navbar">
+        <div class="container">
+            <a href="#" class="logo">
+                <div class="logo-icon">
+                    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12c0 1.54.36 3 .97 4.29L2 22l5.71-.97C9 21.64 10.46 22 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm0 18c-1.3 0-2.58-.28-3.76-.82l-.27-.13-3.4.58.58-3.4-.13-.27C3.28 14.78 3 13.5 3 12c0-4.96 4.04-9 9-9s9 4.04 9 9-4.04 9-9 9z"/></svg>
+                </div>
+                Kora
+            </a>
+            <div class="nav-links">
+                <a href="#features">Features</a>
+                <a href="#privacy">Privacy</a>
+                <a href="#download">Download</a>
+                <a href="https://github.com/kora-messenger/Kora-Messenger" target="_blank">GitHub</a>
+                <a href="#download" class="nav-cta">Get Kora</a>
+            </div>
+            <button class="mobile-menu-btn" onclick="document.querySelector('.nav-links').classList.toggle('show')">
+                <span></span><span></span><span></span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- ═══ HERO ═══ -->
+    <section class="hero">
+        <div class="hero-bg"></div>
+        <div class="container">
+            <div class="hero-content">
+                <div class="hero-badge">
+                    <span class="pulse"></span>
+                    Now with AI Voice Translation
+                </div>
+                <h1>Private. Secure.<br>Beautifully Connected.</h1>
+                <p>Kora Messenger brings end-to-end encrypted messaging, real-time voice translation, and AI-powered conversations — all in one beautifully crafted app.</p>
+                <div class="hero-buttons">
+                    <a href="#download" class="btn-primary">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                        Download Kora
+                    </a>
+                    <a href="#features" class="btn-secondary">
+                        Explore Features
+                    </a>
+                </div>
+                <div class="hero-stats">
+                    <div class="stat">
+                        <div class="stat-number">76+</div>
+                        <div class="stat-label">WhatsApp Features</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-number">E2EE</div>
+                        <div class="stat-label">End-to-End Encrypted</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-number">Free</div>
+                        <div class="stat-label">AI Assistant</div>
+                    </div>
+                </div>
+            </div>
+            <div class="hero-visual">
+                <div class="phone-mockup">
+                    <div class="phone-notch"></div>
+                    <div class="phone-screen">
+                        <div class="phone-header">
+                            <div class="phone-header-avatar"></div>
+                            <div class="phone-header-info">
+                                <div class="phone-header-name">Sarah</div>
+                                <div class="phone-header-status">online</div>
+                            </div>
+                            <div class="phone-header-icons">
+                                <span>📹</span>
+                                <span>📞</span>
+                            </div>
+                        </div>
+                        <div class="phone-body">
+                            <div class="phone-msg received">Hey! Did you try the new voice translation? 🎙️</div>
+                            <div class="phone-msg sent">Yes! It translated my Yoruba to English instantly 🔥</div>
+                            <div class="phone-msg received">That's incredible. What about the AI assistant?</div>
+                            <div class="phone-msg sent">Free for everyone. No premium paywall 💜</div>
+                            <div class="phone-typing">
+                                <span></span><span></span><span></span>
+                            </div>
+                        </div>
+                        <div class="phone-input">
+                            <div class="phone-input-text" style="flex:1"></div>
+                            <div class="phone-input-icon"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="phone-floating-badge top-right">
+                    <div class="badge-icon purple">🔒</div>
+                    <div>End-to-End<br>Encrypted</div>
+                </div>
+                <div class="phone-floating-badge bottom-left">
+                    <div class="badge-icon blue">🌐</div>
+                    <div>Live Voice<br>Translation</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══ FEATURES ═══ -->
+    <section class="features" id="features">
+        <div class="container">
+            <div class="section-header">
+                <div class="section-label">Everything you need</div>
+                <h2>Built for the way you connect</h2>
+                <p>Every feature you love from WhatsApp, reimagined with privacy, AI, and beautiful design at the core.</p>
+            </div>
+            <div class="feature-grid">
+
+                <!-- Feature 1: E2EE -->
+                <div class="feature-card" data-animate>
+                    <div class="feature-illustration">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><path d="M12 2L4 7v6c0 5.25 3.4 9.74 8 11 4.6-1.26 8-5.75 8-11V7l-8-5z"/><path d="M9 12l2 2 4-4" stroke="#4A90D9"/></svg>
+                    </div>
+                    <h3>End-to-End Encryption</h3>
+                    <p>Every message, call, photo, and document is secured with end-to-end encryption. Not even we can read your conversations.</p>
+                    <div class="feature-tags">
+                        <span class="feature-tag">Messages</span>
+                        <span class="feature-tag">Calls</span>
+                        <span class="feature-tag">Media</span>
+                    </div>
+                </div>
+
+                <!-- Feature 2: AI Voice Translation -->
+                <div class="feature-card" data-animate>
+                    <div class="feature-illustration">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2" stroke="#4A90D9"/><line x1="12" y1="19" x2="12" y2="23" stroke="#4A90D9"/></svg>
+                    </div>
+                    <h3>AI Voice Translation</h3>
+                    <p>Speak any language. Kora translates your voice notes in real-time using on-device AI — no cloud, no privacy compromise.</p>
+                    <div class="feature-tags">
+                        <span class="feature-tag">On-Device AI</span>
+                        <span class="feature-tag">100+ Languages</span>
+                        <span class="feature-tag">Real-Time</span>
+                    </div>
+                </div>
+
+                <!-- Feature 3: Group Calls -->
+                <div class="feature-card" data-animate>
+                    <div class="feature-illustration">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v8c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-9l-4 4z" stroke="#4A90D9"/></svg>
+                    </div>
+                    <h3>HD Group Calls</h3>
+                    <p>Crystal-clear voice and video calls with up to 32 participants. Noise suppression, screen sharing, and Picture-in-Picture built in.</p>
+                    <div class="feature-tags">
+                        <span class="feature-tag">Up to 32 People</span>
+                        <span class="feature-tag">HD Video</span>
+                        <span class="feature-tag">Screen Share</span>
+                    </div>
+                </div>
+
+                <!-- Feature 4: Kora AI -->
+                <div class="feature-card" data-animate>
+                    <div class="feature-illustration">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><circle cx="12" cy="12" r="3" /><path d="M12 1v6m0 10v6m11-11h-6M7 12H1m17.07-7.07l-4.24 4.24M9.17 14.83l-4.24 4.24m12.14 0l-4.24-4.24M9.17 9.17L4.93 4.93" stroke="#4A90D9"/></svg>
+                    </div>
+                    <h3>Kora AI Assistant</h3>
+                    <p>Your free AI companion in every chat. Ask questions, get summaries, search the web, and generate images — all without leaving the conversation.</p>
+                    <div class="feature-tags">
+                        <span class="feature-tag">Free for All</span>
+                        <span class="feature-tag">Web Search</span>
+                        <span class="feature-tag">Image Gen</span>
+                    </div>
+                </div>
+
+                <!-- Feature 5: Communities -->
+                <div class="feature-card" data-animate>
+                    <div class="feature-illustration">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><path d="M17 20h5v-2a4 4 0 0 0-3-3.87M9 20H4v-2a4 4 0 0 1 3-3.87m6-1.13a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" stroke="#4A90D9"/></svg>
+                    </div>
+                    <h3>Communities & Channels</h3>
+                    <p>Bring people together with organized communities, announcement channels, and group management tools that scale.</p>
+                    <div class="feature-tags">
+                        <span class="feature-tag">Communities</span>
+                        <span class="feature-tag">Channels</span>
+                        <span class="feature-tag">Admin Tools</span>
+                    </div>
+                </div>
+
+                <!-- Feature 6: Privacy Dashboard -->
+                <div class="feature-card" data-animate>
+                    <div class="feature-illustration">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3" /><path d="M9 12l2 2 4-4" stroke="#4A90D9"/></svg>
+                    </div>
+                    <h3>Privacy Dashboard</h3>
+                    <p>Full control over who sees your info. Fingerprint lock, biometric vaults, anti-screenshot protection, and silencing unknown callers.</p>
+                    <div class="feature-tags">
+                        <span class="feature-tag">Biometric Lock</span>
+                        <span class="feature-tag">Anti-Screenshot</span>
+                        <span class="feature-tag">Burn-on-Read</span>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══ ENCRYPTION SHOWCASE ═══ -->
+    <section class="showcase" id="privacy">
+        <div class="container">
+            <div class="showcase-content">
+                <div class="section-label" style="margin-bottom: 12px;">Your privacy, protected</div>
+                <h2>Encryption that never sleeps</h2>
+                <p>Every layer of Kora is built with privacy as a foundation, not an afterthought. Your data stays yours — encrypted, private, and under your control.</p>
+                <div class="showcase-list">
+                    <div class="showcase-item" data-animate>
+                        <div class="showcase-check">
+                            <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                        </div>
+                        <div>
+                            <h4>Signal Protocol Encryption</h4>
+                            <p>Industry-standard E2EE for all messages and calls. Nobody — not even Kora — can read your content.</p>
+                        </div>
+                    </div>
+                    <div class="showcase-item" data-animate>
+                        <div class="showcase-check">
+                            <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                        </div>
+                        <div>
+                            <h4>On-Device AI Processing</h4>
+                            <p>Voice translation and AI features run locally on your device. Your voice never leaves your phone.</p>
+                        </div>
+                    </div>
+                    <div class="showcase-item" data-animate>
+                        <div class="showcase-check">
+                            <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                        </div>
+                        <div>
+                            <h4>Biometric Chat Vaults</h4>
+                            <p>Lock sensitive chats behind fingerprint or Face ID. Secret code access for extra privacy.</p>
+                        </div>
+                    </div>
+                    <div class="showcase-item" data-animate>
+                        <div class="showcase-check">
+                            <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                        </div>
+                        <div>
+                            <h4>No Data Selling. Ever.</h4>
+                            <p>We don't sell your data. We don't show ads. Your conversations are yours alone — permanently.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="encryption-visual">
+                <div class="encrypt-circle">
+                    <div class="encrypt-ring"></div>
+                    <div class="encrypt-ring"></div>
+                    <div class="encrypt-ring"></div>
+                    <div class="encrypt-particle"></div>
+                    <div class="encrypt-particle"></div>
+                    <div class="encrypt-particle"></div>
+                    <div class="encrypt-core">
+                        <svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══ DOWNLOAD ═══ -->
+    <section class="download" id="download">
+        <div class="download-bg"></div>
+        <div class="container">
+            <div class="section-label" style="margin-bottom: 12px;">Get Kora Messenger</div>
+            <h2>Start your private<br>conversations today</h2>
+            <p>Download Kora Messenger for free. No ads, no data selling, no compromise.</p>
+            <div class="download-buttons">
+                <a href="https://github.com/kora-messenger/Kora-Messenger/releases" class="download-btn" target="_blank">
+                    <svg viewBox="0 0 24 24"><path d="M17.523 15.341a1.04 1.04 0 1 0 0-2.08 1.04 1.04 0 0 0 0 2.08m-11.046 0a1.04 1.04 0 1 0 0-2.08 1.04 1.04 0 0 0 0 2.08m11.408-5.628l2.068-3.579a.43.43 0 0 0-.742-.428l-2.092 3.626a12.8 12.8 0 0 0-10.838 0L4.19 5.706a.43.43 0 1 0-.742.428l2.068 3.579A12.2 12.2 0 0 0 0 17.5h24c0-3.038-1.712-5.69-4.115-7.787"/></svg>
+                    <div class="download-btn-text">
+                        <small>Download for</small>
+                        <strong>Android</strong>
+                    </div>
+                </a>
+                <a href="#" class="download-btn" onclick="alert('iOS coming soon! Kora Messenger will be available on the App Store soon.')">
+                    <svg viewBox="0 0 24 24"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.1 16.93 2.68 12.45 4.36 9.4c.84-1.52 2.34-2.48 3.97-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.4-1.38 2.71M11.71 5.6c.68-.84 1.81-1.42 2.83-1.48.12 1.1-.32 2.22-1.01 3.02-.69.8-1.78 1.42-2.86 1.34-.14-1.07.42-2.18 1.04-2.88"/></svg>
+                    <div class="download-btn-text">
+                        <small>Download for</small>
+                        <strong>iOS</strong>
+                    </div>
+                </a>
+            </div>
+            <div class="download-coming-soon">
+                <span>✦</span> iOS App Store coming soon — Android APK available now
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══ FOOTER ═══ -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-top">
+                <div class="footer-brand">
+                    <h3>
+                        <div class="logo-icon" style="width: 32px; height: 32px;">
+                            <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12c0 1.54.36 3 .97 4.29L2 22l5.71-.97C9 21.64 10.46 22 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2z"/></svg>
+                        </div>
+                        Kora Messenger
+                    </h3>
+                    <p>Private, secure, and beautifully designed messaging. Built by Nexora Technologies.</p>
+                    <div class="footer-social">
+                        <a href="https://github.com/kora-messenger/Kora-Messenger" target="_blank">
+                            <svg viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+                        </a>
+                        <a href="#">
+                            <svg viewBox="0 0 24 24"><path d="M22.46 6c-.77.35-1.6.58-2.46.69.88-.53 1.56-1.37 1.88-2.38-.83.5-1.75.85-2.72 1.05C18.37 4.5 17.26 4 16 4c-2.35 0-4.27 1.92-4.27 4.29 0 .34.04.67.11.98C8.28 9.09 5.11 7.38 3 4.79c-.37.63-.58 1.37-.58 2.15 0 1.49.75 2.81 1.91 3.56-.71 0-1.37-.2-1.95-.5v.03c0 2.08 1.48 3.84 3.44 4.21a4.22 4.22 0 0 1-1.93.07 4.28 4.28 0 0 0 4 2.98 8.521 8.521 0 0 1-5.33 1.84c-.34 0-.68-.02-1.02-.06C3.44 20.29 5.7 21 8.12 21 16 21 20.33 14.46 20.33 8.79c0-.19 0-.37-.01-.56.84-.6 1.56-1.36 2.14-2.23z"/></svg>
+                        </a>
+                        <a href="#">
+                            <svg viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.406-11.845a1.44 1.44 0 1 0 0 2.881 1.44 1.44 0 0 0 0-2.881z"/></svg>
+                        </a>
+                    </div>
+                </div>
+                <div class="footer-col">
+                    <h4>Product</h4>
+                    <ul>
+                        <li><a href="#features">Features</a></li>
+                        <li><a href="#privacy">Privacy</a></li>
+                        <li><a href="#download">Download</a></li>
+                        <li><a href="https://github.com/kora-messenger/Kora-Messenger/releases" target="_blank">Releases</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4>Company</h4>
+                    <ul>
+                        <li><a href="#">About Nexora</a></li>
+                        <li><a href="#">Blog</a></li>
+                        <li><a href="#">Careers</a></li>
+                        <li><a href="#">Contact</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4>Legal</h4>
+                    <ul>
+                        <li><a href="/privacy-policy">Privacy Policy</a></li>
+                        <li><a href="#">Terms of Service</a></li>
+                        <li><a href="#">Cookie Policy</a></li>
+                        <li><a href="#">Data Safety</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <div>© 2026 Nexora Technologies. All rights reserved.</div>
+                <div>
+                    <a href="#">koramessenger.com</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- ═══ SCROLL ANIMATIONS ═══ -->
+    <script>
+        // Intersection Observer for scroll-triggered animations
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach((entry, index) => {
+                if (entry.isIntersecting) {
+                    setTimeout(() => {
+                        entry.target.classList.add('visible');
+                    }, index * 80);
+                }
+            });
+        }, {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        });
+
+        document.querySelectorAll('[data-animate]').forEach(el => observer.observe(el));
+
+        // Navbar scroll effect
+        const navbar = document.querySelector('.navbar');
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 20) {
+                navbar.style.boxShadow = '0 4px 24px rgba(10, 14, 39, 0.06)';
+                navbar.style.background = 'rgba(250, 251, 255, 0.95)';
+            } else {
+                navbar.style.boxShadow = 'none';
+                navbar.style.background = 'rgba(250, 251, 255, 0.85)';
+            }
+        });
+
+        // Mobile menu
+        document.querySelector('.mobile-menu-btn').addEventListener('click', function() {
+            const links = document.querySelector('.nav-links');
+            if (links.style.display === 'flex') {
+                links.style.display = 'none';
+            } else {
+                links.style.display = 'flex';
+                links.style.flexDirection = 'column';
+                links.style.position = 'absolute';
+                links.style.top = '100%';
+                links.style.left = '0';
+                links.style.right = '0';
+                links.style.background = 'white';
+                links.style.padding = '20px 24px';
+                links.style.boxShadow = '0 8px 32px rgba(0,0,0,0.08)';
+                links.style.gap = '16px';
+            }
+        });
+    </script>
+</body>
+</html>
