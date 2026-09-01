@@ -62,3 +62,9 @@
     java.lang.Object writeReplace();
     java.lang.Object readResolve();
 }
+
+# ── Play Core (deferred components loading) ──
+# Flutter references Play Core classes for Play Store feature splits.
+# These classes may not be present at compile time but R8 should not fail.
+-dontwarn com.google.android.play.core.**
+-keep class com.google.android.play.core.** { *; }
