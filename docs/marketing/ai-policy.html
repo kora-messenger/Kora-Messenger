@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Policy — Kora Messenger</title>
+    <meta name="description" content="Kora Messenger AI Policy — how Kora AI works, data handling, guardrails, limitations, and privacy.">
+    <meta name="theme-color" content="#6C63FF">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --purple: #6C63FF; --blue: #4A90D9; --navy: #0A0E27; --gradient: linear-gradient(135deg, #6C63FF 0%, #4A90D9 100%); --gradient-soft: linear-gradient(135deg, rgba(108, 99, 255, 0.08) 0%, rgba(74, 144, 217, 0.08) 100%); --glass: rgba(255, 255, 255, 0.7); --glass-border: rgba(255, 255, 255, 0.3); --text-primary: #0A0E27; --text-secondary: #4A5070; --text-muted: #8892B0; --shadow-sm: 0 2px 12px rgba(10, 14, 39, 0.06); }
+        html { scroll-behavior: smooth; } body { font-family: 'Inter', sans-serif; background: #FAFBFF; color: var(--text-primary); line-height: 1.7; overflow-x: hidden; }
+        h1, h2, h3, h4 { font-family: 'Space Grotesk', sans-serif; font-weight: 700; letter-spacing: -0.02em; }
+        a { text-decoration: none; color: var(--purple); } .container { max-width: 900px; margin: 0 auto; padding: 0 24px; }
+        .navbar { position: fixed; top: 0; left: 0; right: 0; z-index: 1000; padding: 16px 0; background: rgba(250, 251, 255, 0.85); backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%); border-bottom: 1px solid rgba(108, 99, 255, 0.08); }
+        .navbar .container { display: flex; align-items: center; justify-content: space-between; }
+        .logo { display: flex; align-items: center; gap: 10px; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 22px; color: var(--text-primary); }
+        .logo-icon { width: 36px; height: 36px; background: var(--gradient); border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 16px rgba(108, 99, 255, 0.3); }
+        .logo-icon svg { width: 20px; height: 20px; fill: white; }
+        .nav-back { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: var(--text-secondary); padding: 10px 20px; border-radius: 100px; background: var(--glass); backdrop-filter: blur(12px); border: 1px solid var(--glass-border); transition: all 0.3s; }
+        .nav-back:hover { color: var(--purple); border-color: var(--purple); }
+        .pp-hero { padding: 140px 0 60px; text-align: center; position: relative; overflow: hidden; }
+        .pp-hero::before { content: ''; position: absolute; top: -30%; left: 50%; transform: translateX(-50%); width: 700px; height: 700px; background: radial-gradient(circle, rgba(108, 99, 255, 0.08) 0%, transparent 60%); border-radius: 50%; z-index: 0; }
+        .pp-hero .container { position: relative; z-index: 1; }
+        .pp-hero-badge { display: inline-flex; align-items: center; gap: 8px; background: var(--glass); backdrop-filter: blur(12px); border: 1px solid var(--glass-border); padding: 8px 16px; border-radius: 100px; font-size: 13px; font-weight: 600; color: var(--purple); margin-bottom: 24px; box-shadow: var(--shadow-sm); }
+        .pp-hero h1 { font-size: 48px; margin-bottom: 16px; background: linear-gradient(135deg, #0A0E27 0%, #6C63FF 50%, #4A90D9 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .pp-hero p { font-size: 18px; color: var(--text-secondary); max-width: 540px; margin: 0 auto; }
+        .pp-last-updated { margin-top: 24px; font-size: 14px; color: var(--text-muted); display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 100px; background: rgba(108, 99, 255, 0.05); }
+        .pp-content { padding: 40px 0 100px; } .pp-layout { display: grid; grid-template-columns: 220px 1fr; gap: 48px; }
+        .pp-toc { position: sticky; top: 100px; align-self: start; background: var(--glass); backdrop-filter: blur(20px) saturate(180%); border: 1px solid var(--glass-border); border-radius: 20px; padding: 24px; box-shadow: var(--shadow-sm); }
+        .pp-toc h4 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 16px; }
+        .pp-toc ul { list-style: none; } .pp-toc li { margin-bottom: 8px; }
+        .pp-toc a { font-size: 14px; font-weight: 500; color: var(--text-secondary); display: block; padding: 6px 12px; border-radius: 10px; transition: all 0.2s; border-left: 2px solid transparent; }
+        .pp-toc a:hover { color: var(--purple); background: rgba(108, 99, 255, 0.06); border-left-color: var(--purple); }
+        .pp-toc a.active { color: var(--purple); background: rgba(108, 99, 255, 0.08); border-left-color: var(--purple); }
+        .pp-section { background: var(--glass); backdrop-filter: blur(20px) saturate(180%); border: 1px solid var(--glass-border); border-radius: 24px; padding: 36px; margin-bottom: 24px; box-shadow: var(--shadow-sm); scroll-margin-top: 100px; opacity: 0; transform: translateY(20px); transition: opacity 0.5s ease, transform 0.5s ease; }
+        .pp-section.visible { opacity: 1; transform: translateY(0); }
+        .pp-section-header { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
+        .pp-section-icon { width: 44px; height: 44px; border-radius: 14px; background: var(--gradient-soft); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .pp-section-icon svg { width: 22px; height: 22px; } .pp-section h2 { font-size: 22px; }
+        .pp-section p { font-size: 15px; color: var(--text-secondary); margin-bottom: 16px; } .pp-section p:last-child { margin-bottom: 0; }
+        .pp-section ul { margin: 12px 0 16px 20px; } .pp-section li { font-size: 15px; color: var(--text-secondary); margin-bottom: 8px; }
+        .pp-section strong { color: var(--text-primary); font-weight: 600; }
+        .pp-callout { background: linear-gradient(135deg, rgba(108, 99, 255, 0.06) 0%, rgba(74, 144, 217, 0.06) 100%); border: 1px solid rgba(108, 99, 255, 0.12); border-radius: 16px; padding: 20px; margin: 20px 0; display: flex; align-items: flex-start; gap: 14px; }
+        .pp-callout-icon { width: 36px; height: 36px; border-radius: 12px; background: var(--gradient); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .pp-callout-icon svg { width: 18px; height: 18px; fill: white; }
+        .pp-callout p { margin: 0; font-size: 14px; color: var(--text-primary); } .pp-callout p strong { color: var(--purple); }
+        .pp-callout.warn { background: linear-gradient(135deg, rgba(234, 179, 8, 0.06) 0%, rgba(202, 138, 4, 0.06) 100%); border-color: rgba(234, 179, 8, 0.15); }
+        .pp-callout.warn .pp-callout-icon { background: linear-gradient(135deg, #EAB308 0%, #CA8A04 100%); }
+        .pp-table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+        .pp-table th { text-align: left; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); padding: 12px 16px; border-bottom: 2px solid rgba(108, 99, 255, 0.1); }
+        .pp-table td { padding: 14px 16px; font-size: 14px; color: var(--text-secondary); border-bottom: 1px solid rgba(108, 99, 255, 0.06); }
+        .pp-chip { display: inline-block; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 100px; background: rgba(108, 99, 255, 0.08); color: var(--purple); margin-right: 6px; }
+        .pp-chip.green { background: rgba(34, 197, 94, 0.08); color: #16a34a; }
+        .footer { background: var(--navy); color: rgba(255,255,255,0.7); padding: 48px 0 32px; }
+        .footer .container { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; }
+        .footer-brand { display: flex; align-items: center; gap: 10px; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 18px; color: white; }
+        .footer-brand .logo-icon { width: 28px; height: 28px; } .footer-brand .logo-icon svg { width: 16px; height: 16px; }
+        .footer-links { display: flex; gap: 24px; flex-wrap: wrap; } .footer-links a { font-size: 14px; color: rgba(255,255,255,0.5); transition: color 0.2s; } .footer-links a:hover { color: white; }
+        .footer-copy { font-size: 13px; color: rgba(255,255,255,0.4); width: 100%; text-align: center; margin-top: 24px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.08); }
+        @media (max-width: 768px) { .pp-layout { grid-template-columns: 1fr; } .pp-toc { display: none; } .pp-hero h1 { font-size: 34px; } .pp-section { padding: 24px; } .footer .container { flex-direction: column; text-align: center; } }
+    </style>
+</head>
+<body>
+    <nav class="navbar"><div class="container">
+        <a href="index.html" class="logo"><div class="logo-icon"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12c0 1.54.36 3 .97 4.29L2 22l5.71-.97C9 21.64 10.46 22 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2z"/></svg></div>Kora</a>
+        <a href="index.html" class="nav-back"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>Back to Home</a>
+    </div></nav>
+
+    <section class="pp-hero"><div class="container">
+        <div class="pp-hero-badge"><span style="width:8px;height:8px;background:var(--purple);border-radius:50%;animation:pulse 2s infinite;"></span>AI Policy</div>
+        <h1>Kora AI Policy</h1>
+        <p>How Kora AI works, what it does with your data, its guardrails, limitations, and your privacy.</p>
+        <div class="pp-last-updated"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>Last updated: September 1, 2026</div>
+    </div></section>
+
+    <section class="pp-content"><div class="container"><div class="pp-layout">
+        <div class="pp-toc"><h4>Contents</h4><ul>
+            <li><a href="#what-is-ai">What is Kora AI</a></li>
+            <li><a href="#features">AI Features</a></li>
+            <li><a href="#data-handling">Data Handling</a></li>
+            <li><a href="#on-device">On-Device Processing</a></li>
+            <li><a href="#guardrails">Guardrails</a></li>
+            <li><a href="#limitations">Limitations</a></li>
+            <li><a href="#voice-translation">Voice Translation</a></li>
+            <li><a href="#image-gen">AI Image Generation</a></li>
+            <li><a href="#web-search">AI Web Search</a></li>
+            <li><a href="#your-control">Your Control</a></li>
+            <li><a href="#transparency">Transparency</a></li>
+            <li><a href="#contact">Contact</a></li>
+        </ul></div>
+        <div>
+            <div class="pp-section" id="what-is-ai" data-animate>
+                <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 10v6m11-11h-6M7 12H1"/></svg></div><h2>What is Kora AI</h2></div>
+                <p>Kora AI is an AI assistant built into Kora Messenger. It's available in every chat and helps with translations, web searches, image generation, and general questions. Kora AI is <strong>free for all users</strong> — no premium subscription required.</p>
+                <div class="pp-callout"><div class="pp-callout-icon"><svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/></svg></div><p><strong>Free forever.</strong> We will never put Kora AI behind a paywall. AI assistance is a core feature, not a premium upsell.</p></div>
+            </div>
+            <div class="pp-section" id="features" data-animate>
+                <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 9h6v6H9z"/></svg></div><h2>AI Features</h2></div>
+                <table class="pp-table">
+                    <tr><th>Feature</th><th>What It Does</th><th>Where Processing Happens</th></tr>
+                    <tr><td><strong>Voice Translation</strong></td><td>Translates voice notes to text in 100+ languages in real-time</td><td><span class="pp-chip green">On-Device</span></td></tr>
+                    <tr><td><strong>Text Translation</strong></td><td>Translates messages between languages</td><td><span class="pp-chip green">On-Device</span></td></tr>
+                    <tr><td><strong>AI Assistant Chat</strong></td><td>Ask questions, get summaries, compose messages</td><td><span class="pp-chip">Cloud (streaming)</span></td></tr>
+                    <tr><td><strong>Web Search</strong></td><td>Search the web for real-time information</td><td><span class="pp-chip">Cloud</span></td></tr>
+                    <tr><td><strong>Image Generation</strong></td><td>Generate images from text descriptions</td><td><span class="pp-chip">Cloud</span></td></tr>
+                    <tr><td><strong>Voice Synthesis</strong></td><td>Convert translated text back to speech</td><td><span class="pp-chip green">On-Device</span></td></tr>
+                </table>
+            </div>
+            <div class="pp-section" id="data-handling" data-animate>
+                <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div><h2>Data Handling</h2></div>
+                <ul>
+                    <li><strong>Voice data</strong> — Processed on your device. Your voice never leaves your phone for translation or synthesis.</li>
+                    <li><strong>Chat messages</strong> — When you ask Kora AI a question, only your specific query is sent for processing. Your other messages are not shared.</li>
+                    <li><strong>No training on your data</strong> — We do not use your conversations, voice, or AI queries to train AI models.</li>
+                    <li><strong>No data retention</strong> — AI queries sent to the cloud are processed in real-time and not stored after generating a response.</li>
+                    <li><strong>Aggregated analytics</strong> — We only collect anonymous, aggregated usage statistics (e.g., "voice translation was used X times"). No content.</li>
+                </ul>
+                <div class="pp-callout"><div class="pp-callout-icon"><svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2z"/></svg></div><p><strong>Your conversations stay private.</strong> Kora AI processes your specific query in isolation. It does not read your other messages, contacts, or media to generate responses.</p></div>
+            </div>
+            <div class="pp-section" id="on-device" data-animate>
+                <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="3"/><path d="M12 18h.01"/></svg></div><h2>On-Device Processing</h2></div>
+                <p>Kora Messenger prioritizes on-device AI processing to protect your privacy:</p>
+                <ul>
+                    <li><strong>Speech-to-text (STT)</strong> — Uses Google ML Kit (Android) and CoreML (iOS) running locally on your device</li>
+                    <li><strong>Translation</strong> — On-device ML models handle translation without sending text to the cloud</li>
+                    <li><strong>Voice synthesis (TTS)</strong> — Mathematical voice vectors generate speech locally</li>
+                    <li><strong>Biometric processing</strong> — Fingerprint and Face ID data never leave the secure enclave/keystore</li>
+                </ul>
+                <div class="pp-callout"><div class="pp-callout-icon"><svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/></svg></div><p><strong>E2EE privacy preserved:</strong> Because voice translation and synthesis happen on-device, your plaintext never touches a server. End-to-end encryption is maintained end-to-end.</p></div>
+            </div>
+            <div class="pp-section" id="guardrails" data-animate>
+                <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><path d="M12 2L4 7v6c0 5.25 3.4 9.74 8 11 4.6-1.26 8-5.75 8-11V7l-8-5z"/></svg></div><h2>AI Guardrails</h2></div>
+                <p>Kora AI operates under strict guardrails to protect users and maintain trust:</p>
+                <ul>
+                    <li><strong>No internal disclosures</strong> — Kora AI will never reveal internal implementation details, specific translation providers, or owner-specific account policies</li>
+                    <li><strong>No harmful content</strong> — Kora AI refuses to generate content that promotes violence, hate speech, self-harm, or illegal activity</li>
+                    <li><strong>No impersonation</strong> — Kora AI will not pretend to be a real person or create content on behalf of real individuals</li>
+                    <li><strong>No code execution</strong> — Kora AI cannot execute code, access your files, or perform actions on your device</li>
+                    <li><strong>No data extraction</strong> — Kora AI will not attempt to extract personal data, passwords, or sensitive information from users</li>
+                    <li><strong>Age-appropriate</strong> — Kora AI is designed to be appropriate for users aged 13+ and will not generate adult content</li>
+                    <li><strong>Transparency</strong> — AI-generated content is always labeled as such within the chat</li>
+                </ul>
+            </div>
+            <div class="pp-section" id="limitations" data-animate>
+                <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg></div><h2>Limitations</h2></div>
+                <div class="pp-callout warn"><div class="pp-callout-icon"><svg viewBox="0 0 24 24"><path d="M12 2L1 21h22L12 2zm0 4l7.5 13h-15L12 6z"/></svg></div><p><strong>AI can make mistakes.</strong> Kora AI responses are generated and may contain inaccuracies. Always verify critical information (medical, legal, financial) independently.</p></div>
+                <ul>
+                    <li>Kora AI may not have up-to-date information on very recent events unless using the web search feature</li>
+                    <li>Voice translation accuracy varies by language, accent, and audio quality</li>
+                    <li>AI image generation may produce unexpected or imperfect results</li>
+                    <li>Kora AI cannot access your private messages, contacts, or media to inform its responses</li>
+                    <li>Kora AI responses do not represent the official position of Nexora Technologies</li>
+                </ul>
+                <p>You are responsible for how you use AI-generated content. Kora AI is a tool — not a source of professional advice.</p>
+            </div>
+            <div class="pp-section" id="voice-translation" data-animate>
+                <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg></div><h2>Voice Translation Specifics</h2></div>
+                <ul>
+                    <li><strong>Input source</strong> — Uses VOICE_COMMUNICATION source (microphone only, isolated from system audio and notifications)</li>
+                    <li><strong>Processing</strong> — On-device via ML Kit (Android) / CoreML (iOS). No cloud APIs for plaintext.</li>
+                    <li><strong>Supported languages</strong> — 100+ languages including Yoruba, Igbo, Hausa, Swahili, French, Arabic, and more</li>
+                    <li><strong>Architecture</strong> — Zero-cost strategy using on-device STT + free-tier LLM calls for complex translations only</li>
+                    <li><strong>Privacy</strong> — Voice data is processed and discarded locally. Never uploaded, never stored on servers.</li>
+                </ul>
+            </div>
+            <div class="pp-section" id="image-gen" data-animate>
+                <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></div><h2>AI Image Generation</h2></div>
+                <ul>
+                    <li>Generate images from text descriptions directly in chat</li>
+                    <li>Images are watermarked with a small Kora AI indicator</li>
+                    <li>You own the images you generate and can share them freely</li>
+                    <li>Nexora Technologies retains a license to the underlying generation model, not your prompts or generated images</li>
+                    <li><strong>Prohibited:</strong> Generating images of real people without consent, explicit content, or content that violates our Acceptable Use Policy</li>
+                </ul>
+            </div>
+            <div class="pp-section" id="web-search" data-animate>
+                <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg></div><h2>AI Web Search</h2></div>
+                <ul>
+                    <li>Kora AI can search the web for real-time information when you ask</li>
+                    <li>Search queries are sent to our backend API, which queries search providers and returns results</li>
+                    <li>Your search query is processed in real-time and not stored after the response is generated</li>
+                    <li>Web search results include source links for transparency</li>
+                    <li>Kora AI clearly labels which parts of a response come from web search vs. its own knowledge</li>
+                </ul>
+            </div>
+            <div class="pp-section" id="your-control" data-animate>
+                <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 10v6m11-11h-6M7 12H1"/></svg></div><h2>Your Control</h2></div>
+                <ul>
+                    <li><strong>Disable AI</strong> — You can disable Kora AI in Settings → AI → Disable AI Assistant</li>
+                    <li><strong>Disable voice translation</strong> — Turn off in Settings → AI → Voice Translation</li>
+                    <li><strong>Disable web search</strong> — Turn off in Settings → AI → Web Search</li>
+                    <li><strong>Disable image generation</strong> — Turn off in Settings → AI → Image Generation</li>
+                    <li><strong>Delete AI history</strong> — Clear all AI conversations in Settings → AI → Clear AI History</li>
+                </ul>
+                <p>Disabling AI features does not affect your messaging, calling, or encryption. It only turns off AI-specific capabilities.</p>
+            </div>
+            <div class="pp-section" id="transparency" data-animate>
+                <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg></div><h2>Transparency Commitment</h2></div>
+                <div class="pp-callout"><div class="pp-callout-icon"><svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/></svg></div><p><strong>We commit to:</strong> Clearly labeling AI-generated content · Never training on your private data · Processing on-device wherever possible · Disclosing what goes to the cloud · Giving you full control to disable any AI feature</p></div>
+            </div>
+            <div class="pp-section" id="contact" data-animate>
+                <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><path d="M22 6l-10 7L2 6"/></svg></div><h2>Contact</h2></div>
+                <div class="pp-callout"><div class="pp-callout-icon"><svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/></svg></div><p><strong>AI concerns:</strong> ai-safety@koramessenger.com<br><strong>General:</strong> support@koramessenger.com<br><strong>Company:</strong> Nexora Technologies</p></div>
+            </div>
+        </div>
+    </div></div></section>
+
+    <footer class="footer"><div class="container">
+        <div class="footer-brand"><div class="logo-icon"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12c0 1.54.36 3 .97 4.29L2 22l5.71-.97C9 21.64 10.46 22 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2z"/></svg></div>Kora Messenger</div>
+        <div class="footer-links"><a href="index.html">Home</a><a href="privacy-policy.html">Privacy</a><a href="terms-of-service.html">Terms</a><a href="premium-policy.html">Premium</a><a href="ai-policy.html">AI Policy</a></div>
+        <div class="footer-copy">© 2026 Nexora Technologies. All rights reserved.</div>
+    </div></footer>
+    <script>
+        const observer = new IntersectionObserver((entries) => { entries.forEach((entry, index) => { if (entry.isIntersecting) { setTimeout(() => entry.target.classList.add('visible'), index * 60); } }); }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+        document.querySelectorAll('[data-animate]').forEach(el => observer.observe(el));
+        const tocLinks = document.querySelectorAll('.pp-toc a'); const sections = document.querySelectorAll('.pp-section');
+        window.addEventListener('scroll', () => { let current = ''; sections.forEach(s => { if (window.scrollY >= s.offsetTop - 120) current = s.id; }); tocLinks.forEach(a => { a.classList.remove('active'); if (a.getAttribute('href') === '#' + current) a.classList.add('active'); }); });
+    </script>
+</body>
+</html>

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Refund Policy — Kora Messenger</title>
+    <meta name="description" content="Kora Messenger Refund Policy — eligibility, process, and timelines for subscription refunds.">
+    <meta name="theme-color" content="#6C63FF">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --purple: #6C63FF; --blue: #4A90D9; --navy: #0A0E27; --gradient: linear-gradient(135deg, #6C63FF 0%, #4A90D9 100%); --gradient-soft: linear-gradient(135deg, rgba(108, 99, 255, 0.08) 0%, rgba(74, 144, 217, 0.08) 100%); --glass: rgba(255, 255, 255, 0.7); --glass-border: rgba(255, 255, 255, 0.3); --text-primary: #0A0E27; --text-secondary: #4A5070; --text-muted: #8892B0; --shadow-sm: 0 2px 12px rgba(10, 14, 39, 0.06); }
+        html { scroll-behavior: smooth; } body { font-family: 'Inter', sans-serif; background: #FAFBFF; color: var(--text-primary); line-height: 1.7; overflow-x: hidden; }
+        h1, h2, h3, h4 { font-family: 'Space Grotesk', sans-serif; font-weight: 700; letter-spacing: -0.02em; }
+        a { text-decoration: none; color: var(--purple); } .container { max-width: 900px; margin: 0 auto; padding: 0 24px; }
+        .navbar { position: fixed; top: 0; left: 0; right: 0; z-index: 1000; padding: 16px 0; background: rgba(250, 251, 255, 0.85); backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%); border-bottom: 1px solid rgba(108, 99, 255, 0.08); }
+        .navbar .container { display: flex; align-items: center; justify-content: space-between; }
+        .logo { display: flex; align-items: center; gap: 10px; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 22px; color: var(--text-primary); }
+        .logo-icon { width: 36px; height: 36px; background: var(--gradient); border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 16px rgba(108, 99, 255, 0.3); }
+        .logo-icon svg { width: 20px; height: 20px; fill: white; }
+        .nav-back { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: var(--text-secondary); padding: 10px 20px; border-radius: 100px; background: var(--glass); backdrop-filter: blur(12px); border: 1px solid var(--glass-border); transition: all 0.3s; }
+        .nav-back:hover { color: var(--purple); border-color: var(--purple); }
+        .pp-hero { padding: 140px 0 60px; text-align: center; position: relative; overflow: hidden; }
+        .pp-hero::before { content: ''; position: absolute; top: -30%; left: 50%; transform: translateX(-50%); width: 700px; height: 700px; background: radial-gradient(circle, rgba(108, 99, 255, 0.08) 0%, transparent 60%); border-radius: 50%; z-index: 0; }
+        .pp-hero .container { position: relative; z-index: 1; }
+        .pp-hero-badge { display: inline-flex; align-items: center; gap: 8px; background: var(--glass); backdrop-filter: blur(12px); border: 1px solid var(--glass-border); padding: 8px 16px; border-radius: 100px; font-size: 13px; font-weight: 600; color: var(--purple); margin-bottom: 24px; box-shadow: var(--shadow-sm); }
+        .pp-hero h1 { font-size: 48px; margin-bottom: 16px; background: linear-gradient(135deg, #0A0E27 0%, #6C63FF 50%, #4A90D9 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .pp-hero p { font-size: 18px; color: var(--text-secondary); max-width: 540px; margin: 0 auto; }
+        .pp-last-updated { margin-top: 24px; font-size: 14px; color: var(--text-muted); display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 100px; background: rgba(108, 99, 255, 0.05); }
+        .pp-content { padding: 40px 0 100px; } .pp-layout { display: grid; grid-template-columns: 220px 1fr; gap: 48px; }
+        .pp-toc { position: sticky; top: 100px; align-self: start; background: var(--glass); backdrop-filter: blur(20px) saturate(180%); border: 1px solid var(--glass-border); border-radius: 20px; padding: 24px; box-shadow: var(--shadow-sm); }
+        .pp-toc h4 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 16px; }
+        .pp-toc ul { list-style: none; } .pp-toc li { margin-bottom: 8px; }
+        .pp-toc a { font-size: 14px; font-weight: 500; color: var(--text-secondary); display: block; padding: 6px 12px; border-radius: 10px; transition: all 0.2s; border-left: 2px solid transparent; }
+        .pp-toc a:hover { color: var(--purple); background: rgba(108, 99, 255, 0.06); border-left-color: var(--purple); }
+        .pp-toc a.active { color: var(--purple); background: rgba(108, 99, 255, 0.08); border-left-color: var(--purple); }
+        .pp-section { background: var(--glass); backdrop-filter: blur(20px) saturate(180%); border: 1px solid var(--glass-border); border-radius: 24px; padding: 36px; margin-bottom: 24px; box-shadow: var(--shadow-sm); scroll-margin-top: 100px; opacity: 0; transform: translateY(20px); transition: opacity 0.5s ease, transform 0.5s ease; }
+        .pp-section.visible { opacity: 1; transform: translateY(0); }
+        .pp-section-header { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
+        .pp-section-icon { width: 44px; height: 44px; border-radius: 14px; background: var(--gradient-soft); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .pp-section-icon svg { width: 22px; height: 22px; } .pp-section h2 { font-size: 22px; }
+        .pp-section p { font-size: 15px; color: var(--text-secondary); margin-bottom: 16px; } .pp-section p:last-child { margin-bottom: 0; }
+        .pp-section ul { margin: 12px 0 16px 20px; } .pp-section li { font-size: 15px; color: var(--text-secondary); margin-bottom: 8px; }
+        .pp-section strong { color: var(--text-primary); font-weight: 600; }
+        .pp-callout { background: linear-gradient(135deg, rgba(108, 99, 255, 0.06) 0%, rgba(74, 144, 217, 0.06) 100%); border: 1px solid rgba(108, 99, 255, 0.12); border-radius: 16px; padding: 20px; margin: 20px 0; display: flex; align-items: flex-start; gap: 14px; }
+        .pp-callout-icon { width: 36px; height: 36px; border-radius: 12px; background: var(--gradient); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .pp-callout-icon svg { width: 18px; height: 18px; fill: white; }
+        .pp-callout p { margin: 0; font-size: 14px; color: var(--text-primary); } .pp-callout p strong { color: var(--purple); }
+        .pp-table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+        .pp-table th { text-align: left; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); padding: 12px 16px; border-bottom: 2px solid rgba(108, 99, 255, 0.1); }
+        .pp-table td { padding: 14px 16px; font-size: 14px; color: var(--text-secondary); border-bottom: 1px solid rgba(108, 99, 255, 0.06); }
+        .footer { background: var(--navy); color: rgba(255,255,255,0.7); padding: 48px 0 32px; }
+        .footer .container { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; }
+        .footer-brand { display: flex; align-items: center; gap: 10px; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 18px; color: white; }
+        .footer-brand .logo-icon { width: 28px; height: 28px; } .footer-brand .logo-icon svg { width: 16px; height: 16px; }
+        .footer-links { display: flex; gap: 24px; flex-wrap: wrap; } .footer-links a { font-size: 14px; color: rgba(255,255,255,0.5); transition: color 0.2s; } .footer-links a:hover { color: white; }
+        .footer-copy { font-size: 13px; color: rgba(255,255,255,0.4); width: 100%; text-align: center; margin-top: 24px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.08); }
+        @media (max-width: 768px) { .pp-layout { grid-template-columns: 1fr; } .pp-toc { display: none; } .pp-hero h1 { font-size: 34px; } .pp-section { padding: 24px; } .footer .container { flex-direction: column; text-align: center; } }
+    </style>
+</head>
+<body>
+    <nav class="navbar"><div class="container">
+        <a href="index.html" class="logo"><div class="logo-icon"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12c0 1.54.36 3 .97 4.29L2 22l5.71-.97C9 21.64 10.46 22 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2z"/></svg></div>Kora</a>
+        <a href="index.html" class="nav-back"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>Back to Home</a>
+    </div></nav>
+
+    <section class="pp-hero"><div class="container">
+        <div class="pp-hero-badge"><span style="width:8px;height:8px;background:var(--purple);border-radius:50%;animation:pulse 2s infinite;"></span>Refund Policy</div>
+        <h1>Refund Policy</h1>
+        <p>Our straightforward refund policy for Kora Premium subscriptions. No fine print, no runaround.</p>
+        <div class="pp-last-updated"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>Last updated: September 1, 2026</div>
+    </div></section>
+
+    <section class="pp-content"><div class="container"><div class="pp-layout">
+        <div class="pp-toc"><h4>Contents</h4><ul>
+            <li><a href="#eligibility">Refund Eligibility</a></li>
+            <li><a href="#timeframe">Refund Timeframes</a></li>
+            <li><a href="#how-to">How to Request</a></li>
+            <li><a href="#processing">Processing Time</a></li>
+            <li><a href="#exceptions">Exceptions</a></li>
+            <li><a href="#no-refund">Non-Refundable Cases</a></li>
+            <li><a href="#contact">Contact</a></li>
+        </ul></div>
+        <div>
+            <div class="pp-section" id="eligibility" data-animate>
+                <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg></div><h2>Refund Eligibility</h2></div>
+                <p>We believe in fair, transparent refunds. Here's when you're eligible:</p>
+                <table class="pp-table">
+                    <tr><th>Situation</th><th>Eligible?</th><th>Window</th></tr>
+                    <tr><td>New monthly subscription</td><td><strong>Yes</strong></td><td>Within 7 days, if premium features unused</td></tr>
+                    <tr><td>New annual subscription</td><td><strong>Yes</strong></td><td>Within 7 days, if premium features unused</td></tr>
+                    <tr><td>Monthly renewal (auto-renew)</td><td><strong>Yes</strong></td><td>Within 7 days of renewal, if unused</td></tr>
+                    <tr><td>Annual renewal (auto-renew)</td><td><strong>Yes</strong></td><td>Within 7 days of renewal, if unused</td></tr>
+                    <tr><td>Accidental purchase</td><td><strong>Yes</strong></td><td>Within 7 days, case-by-case</td></tr>
+                    <tr><td>Service outage during subscription</td><td><strong>Yes</strong></td><td>Case-by-case, prorated</td></tr>
+                </table>
+            </div>
+            <div class="pp-section" id="timeframe" data-animate>
+                <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div><h2>Refund Timeframes</h2></div>
+                <ul>
+                    <li><strong>7-day window</strong> — Full refund if you haven't used premium features after subscribing or renewing</li>
+                    <li><strong>Used premium features</strong> — If you've used premium features (e.g., applied a custom app icon, sent HD media), we evaluate case-by-case but may offer partial refund</li>
+                    <li><strong>After 7 days</strong> — Contact us with your reason. We handle these fairly and individually</li>
+                    <li><strong>Annual subscriptions</strong> — If you cancel mid-year, we may offer a prorated refund for unused months at our discretion</li>
+                </ul>
+                <div class="pp-callout"><div class="pp-callout-icon"><svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/></svg></div><p><strong>How we check "unused":</strong> We check whether you've accessed any premium-only feature (app icon switching, HD media, premium stickers, etc.). Simply having premium active doesn't count as "used" — you need to have actually used a premium feature.</p></div>
+            </div>
+            <div class="pp-section" id="how-to" data-animate>
+                <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9M3 12l4-4M3 12l4 4"/></svg></div><h2>How to Request a Refund</h2></div>
+                <ul>
+                    <li><strong>In-app:</strong> Settings → Premium → Request Refund</li>
+                    <li><strong>Email:</strong> billing@koramessenger.com with your account email and reason</li>
+                    <li><strong>Include:</strong> Your Kora ID, email, approximate purchase date, and reason for refund</li>
+                    <li><strong>Response time:</strong> We respond to all refund requests within 48 hours</li>
+                </ul>
+            </div>
+            <div class="pp-section" id="processing" data-animate>
+                <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div><h2>Processing Time</h2></div>
+                <ul>
+                    <li><strong>Approval:</strong> Within 48 hours of your request</li>
+                    <li><strong>Paystack processing:</strong> 1-3 business days</li>
+                    <li><strong>Your bank:</strong> 5-10 business days to appear on your statement</li>
+                    <li><strong>Total time:</strong> Typically 7-14 business days from request to money in your account</li>
+                </ul>
+                <p>Refunds are processed back to the original payment method. We cannot refund to a different card or account.</p>
+            </div>
+            <div class="pp-section" id="exceptions" data-animate>
+                <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg></div><h2>Exceptions & Special Cases</h2></div>
+                <ul>
+                    <li><strong>Service outage</strong> — If Kora Premium was unavailable for an extended period, we offer prorated refunds or subscription extensions</li>
+                    <li><strong>Billing error</strong> — If you were charged incorrectly, we refund the full erroneous charge immediately</li>
+                    <li><strong>Double charge</strong> — If Paystack charged you twice for the same subscription, we refund the duplicate immediately</li>
+                    <li><strong>Account suspension</strong> — If your account was suspended while you had active premium, we offer prorated refunds</li>
+                </ul>
+            </div>
+            <div class="pp-section" id="no-refund" data-animate>
+                <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M4.93 4.93l14.14 14.14"/></svg></div><h2>Non-Refundable Cases</h2></div>
+                <ul>
+                    <li>Subscriptions where premium features were actively used beyond the 7-day window</li>
+                    <li>Repeated subscribe-refund-subscribe patterns (we detect and block this)</li>
+                    <li>Refunds requested after the billing period has fully elapsed (30+ days for monthly, 12+ months for annual)</li>
+                    <li>Accounts terminated for Terms of Service violations</li>
+                    <li>Charges from more than 60 days ago (beyond Paystack's dispute window)</li>
+                </ul>
+                <div class="pp-callout"><div class="pp-callout-icon"><svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/></svg></div><p><strong>Even in non-refundable cases,</strong> we encourage you to contact us. We handle every case individually and may make exceptions for genuine circumstances.</p></div>
+            </div>
+            <div class="pp-section" id="contact" data-animate>
+                <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><path d="M22 6l-10 7L2 6"/></svg></div><h2>Contact</h2></div>
+                <div class="pp-callout"><div class="pp-callout-icon"><svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/></svg></div><p><strong>Refund requests:</strong> billing@koramessenger.com<br><strong>General support:</strong> support@koramessenger.com<br><strong>Company:</strong> Nexora Technologies</p></div>
+            </div>
+        </div>
+    </div></div></section>
+
+    <footer class="footer"><div class="container">
+        <div class="footer-brand"><div class="logo-icon"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12c0 1.54.36 3 .97 4.29L2 22l5.71-.97C9 21.64 10.46 22 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2z"/></svg></div>Kora Messenger</div>
+        <div class="footer-links"><a href="index.html">Home</a><a href="privacy-policy.html">Privacy</a><a href="terms-of-service.html">Terms</a><a href="premium-policy.html">Premium</a><a href="refund-policy.html">Refunds</a></div>
+        <div class="footer-copy">© 2026 Nexora Technologies. All rights reserved.</div>
+    </div></footer>
+    <script>
+        const observer = new IntersectionObserver((entries) => { entries.forEach((entry, index) => { if (entry.isIntersecting) { setTimeout(() => entry.target.classList.add('visible'), index * 60); } }); }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+        document.querySelectorAll('[data-animate]').forEach(el => observer.observe(el));
+        const tocLinks = document.querySelectorAll('.pp-toc a'); const sections = document.querySelectorAll('.pp-section');
+        window.addEventListener('scroll', () => { let current = ''; sections.forEach(s => { if (window.scrollY >= s.offsetTop - 120) current = s.id; }); tocLinks.forEach(a => { a.classList.remove('active'); if (a.getAttribute('href') === '#' + current) a.classList.add('active'); }); });
+    </script>
+</body>
+</html>
