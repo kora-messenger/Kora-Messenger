@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>End-to-End Encryption — Kora Messenger</title>
-    <meta name="description" content="How Kora Messenger protects your messages, calls, and media with end-to-end encryption. Signal Protocol, key management, safety numbers, and forward secrecy explained.">
+    <meta name="description" content="How Kora Messenger protects your messages, calls, and media with end-to-end encryption. Double Ratchet protocol, key management, safety numbers, and forward secrecy explained.">
     <meta name="theme-color" content="#6C63FF">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -123,7 +123,7 @@
             <li><a href="#what-is-e2ee">What is E2EE</a></li>
             <li><a href="#what-encrypted">What's Encrypted</a></li>
             <li><a href="#what-not">What's Not Encrypted</a></li>
-            <li><a href="#signal">Signal Protocol</a></li>
+            <li><a href="#protocol">Our Encryption Protocol</a></li>
             <li><a href="#key-exchange">Key Exchange</a></li>
             <li><a href="#forward-secrecy">Forward Secrecy</a></li>
             <li><a href="#key-storage">Key Storage</a></li>
@@ -148,18 +148,18 @@
                 <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg></div><h2>What's Encrypted</h2></div>
                 <table class="pp-table">
                     <tr><th>Data Type</th><th>Encrypted</th><th>Method</th></tr>
-                    <tr><td><strong>Text messages</strong></td><td><span class="pp-chip green">E2E Encrypted</span></td><td>Signal Protocol (Double Ratchet)</td></tr>
-                    <tr><td><strong>Voice notes</strong></td><td><span class="pp-chip green">E2E Encrypted</span></td><td>Signal Protocol</td></tr>
-                    <tr><td><strong>Photos</strong></td><td><span class="pp-chip green">E2E Encrypted</span></td><td>AES-256-GCM + Signal key exchange</td></tr>
-                    <tr><td><strong>Videos</strong></td><td><span class="pp-chip green">E2E Encrypted</span></td><td>AES-256-GCM + Signal key exchange</td></tr>
-                    <tr><td><strong>Documents</strong></td><td><span class="pp-chip green">E2E Encrypted</span></td><td>AES-256-GCM + Signal key exchange</td></tr>
+                    <tr><td><strong>Text messages</strong></td><td><span class="pp-chip green">E2E Encrypted</span></td><td>Double Ratchet Protocol</td></tr>
+                    <tr><td><strong>Voice notes</strong></td><td><span class="pp-chip green">E2E Encrypted</span></td><td>Double Ratchet Protocol</td></tr>
+                    <tr><td><strong>Photos</strong></td><td><span class="pp-chip green">E2E Encrypted</span></td><td>AES-256-GCM + secure key exchange</td></tr>
+                    <tr><td><strong>Videos</strong></td><td><span class="pp-chip green">E2E Encrypted</span></td><td>AES-256-GCM + secure key exchange</td></tr>
+                    <tr><td><strong>Documents</strong></td><td><span class="pp-chip green">E2E Encrypted</span></td><td>AES-256-GCM + secure key exchange</td></tr>
                     <tr><td><strong>Voice calls</strong></td><td><span class="pp-chip green">E2E Encrypted</span></td><td>WebRTC DTLS-SRTP</td></tr>
                     <tr><td><strong>Video calls</strong></td><td><span class="pp-chip green">E2E Encrypted</span></td><td>WebRTC DTLS-SRTP</td></tr>
                     <tr><td><strong>Group calls (≤32)</strong></td><td><span class="pp-chip green">E2E Encrypted</span></td><td>WebRTC SFU + per-participant E2EE</td></tr>
-                    <tr><td><strong>Status updates</strong></td><td><span class="pp-chip green">E2E Encrypted</span></td><td>Signal Protocol (sender key)</td></tr>
-                    <tr><td><strong>Reactions & replies</strong></td><td><span class="pp-chip green">E2E Encrypted</span></td><td>Signal Protocol</td></tr>
-                    <tr><td><strong>Location sharing</strong></td><td><span class="pp-chip green">E2E Encrypted</span></td><td>Signal Protocol</td></tr>
-                    <tr><td><strong>Contact cards (vCard)</strong></td><td><span class="pp-chip green">E2E Encrypted</span></td><td>Signal Protocol</td></tr>
+                    <tr><td><strong>Status updates</strong></td><td><span class="pp-chip green">E2E Encrypted</span></td><td>Sender Key Protocol</td></tr>
+                    <tr><td><strong>Reactions & replies</strong></td><td><span class="pp-chip green">E2E Encrypted</span></td><td>Double Ratchet Protocol</td></tr>
+                    <tr><td><strong>Location sharing</strong></td><td><span class="pp-chip green">E2E Encrypted</span></td><td>Double Ratchet Protocol</td></tr>
+                    <tr><td><strong>Contact cards (vCard)</strong></td><td><span class="pp-chip green">E2E Encrypted</span></td><td>Double Ratchet Protocol</td></tr>
                 </table>
             </div>
 
@@ -180,11 +180,11 @@
                 <div class="pp-callout"><div class="pp-callout-icon"><svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/></svg></div><p><strong>Content vs. metadata:</strong> Your message <em>content</em> is E2E encrypted. We can see <em>that</em> you sent a message to someone, but not <em>what</em> the message says.</p></div>
             </div>
 
-            <div class="pp-section" id="signal" data-animate>
-                <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><path d="M12 2L4 7v6c0 5.25 3.4 9.74 8 11 4.6-1.26 8-5.75 8-11V7l-8-5z"/></svg></div><h2>Signal Protocol</h2></div>
-                <p>Kora uses the <strong>Signal Protocol</strong> — the same cryptographic protocol used by Signal, WhatsApp, and other secure messengers. It's been independently audited and is widely considered the gold standard for messaging encryption.</p>
+            <div class="pp-section" id="protocol" data-animate>
+                <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><path d="M12 2L4 7v6c0 5.25 3.4 9.74 8 11 4.6-1.26 8-5.75 8-11V7l-8-5z"/></svg></div><h2>Our Encryption Protocol</h2></div>
+                <p>Kora uses a modern <strong>Double Ratchet encryption protocol</strong> — one of the most trusted cryptographic designs for secure messaging. It's built on industry-standard, independently audited cryptography and represents the gold standard for end-to-end encryption.</p>
                 <h3 style="font-size:18px; margin: 20px 0 12px;">The Double Ratchet Algorithm</h3>
-                <p>Signal Protocol uses the <strong>Double Ratchet</strong> algorithm, which combines:</p>
+                <p>Kora's encryption uses the <strong>Double Ratchet</strong> algorithm, which combines:</p>
                 <ul>
                     <li><strong>X3DH (Extended Triple Diffie-Hellman)</strong> — Establishes a shared secret between two parties who have never communicated before</li>
                     <li><strong>Symmetric ratchet</strong> — Generates a new encryption key for every single message. Once a key is used, it's destroyed. This provides <strong>forward secrecy</strong>.</li>
@@ -218,7 +218,7 @@ chain_key = HMAC-SHA256(chain_key, "advance")</code></pre>
                 <ul>
                     <li>Each device generates an <strong>identity key pair</strong> (long-term) and <strong>ephemeral key pairs</strong> (short-term, rotated regularly)</li>
                     <li>Public keys are shared via Kora's server (which cannot derive the shared secret)</li>
-                    <li>The <strong>X3DH handshake</strong> combines multiple DH exchanges to create a shared secret</li>
+                    <li>The <strong>secure handshake protocol</strong> combines multiple DH exchanges to create a shared secret</li>
                     <li>Only your device and the recipient's device ever know the shared secret</li>
                     <li>The server only sees public keys — useless without the private keys</li>
                 </ul>
@@ -267,7 +267,7 @@ chain_key = HMAC-SHA256(chain_key, "advance")</code></pre>
 
             <div class="pp-section" id="group-encryption" data-animate>
                 <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><path d="M17 20h5v-2a4 4 0 0 0-3-3.87M9 20H4v-2a4 4 0 0 1 3-3.87m6-1.13a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/></svg></div><h2>Group Encryption</h2></div>
-                <p>Group chats use the <strong>Sender Key</strong> protocol — an extension of Signal Protocol for group messaging:</p>
+                <p>Group chats use the <strong>Sender Key</strong> protocol — an extension of our core encryption protocol for group messaging:</p>
                 <ul>
                     <li>Each member gets a <strong>sender key</strong> that allows them to encrypt messages to the group without individually encrypting for each member</li>
                     <li>Sender keys are distributed via <strong>1-on-1 E2E encrypted channels</strong> — so group key distribution is as secure as private messaging</li>
@@ -296,7 +296,7 @@ chain_key = HMAC-SHA256(chain_key, "advance")</code></pre>
                 <p>Photos, videos, documents, and voice notes are encrypted before they leave your device:</p>
                 <ul>
                     <li><strong>AES-256-GCM</strong> — Media is encrypted with a random symmetric key generated on your device</li>
-                    <li><strong>Signal key exchange</strong> — The symmetric key is shared with the recipient using the Signal Protocol (same as text messages)</li>
+                    <li><strong>Secure key exchange</strong> — The symmetric key is shared with the recipient using our Double Ratchet protocol (same as text messages)</li>
                     <li><strong>Encrypted upload</strong> — The encrypted media is uploaded to our servers, but we only see ciphertext</li>
                     <li><strong>Encrypted download</strong> — The recipient downloads the ciphertext and decrypts it locally with their key</li>
                     <li><strong>Auto-delete</strong> — Encrypted media is deleted from servers after 90 days (or immediately if the message is deleted)</li>
