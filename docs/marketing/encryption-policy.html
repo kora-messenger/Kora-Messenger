@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>End-to-End Encryption — Kora Messenger</title>
+    <meta name="description" content="How Kora Messenger protects your messages, calls, and media with end-to-end encryption. Signal Protocol, key management, safety numbers, and forward secrecy explained.">
+    <meta name="theme-color" content="#6C63FF">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --purple: #6C63FF; --blue: #4A90D9; --navy: #0A0E27; --black: #060818; --gradient: linear-gradient(135deg, #6C63FF 0%, #4A90D9 100%); --gradient-soft: linear-gradient(135deg, rgba(108, 99, 255, 0.08) 0%, rgba(74, 144, 217, 0.08) 100%); --glass: rgba(255, 255, 255, 0.7); --glass-border: rgba(255, 255, 255, 0.3); --text-primary: #0A0E27; --text-secondary: #4A5070; --text-muted: #8892B0; --shadow-sm: 0 2px 12px rgba(10, 14, 39, 0.06); --shadow-md: 0 8px 32px rgba(10, 14, 39, 0.08); --shadow-lg: 0 24px 64px rgba(10, 14, 39, 0.12); --mono: 'JetBrains Mono', monospace; }
+        html { scroll-behavior: smooth; } body { font-family: 'Inter', sans-serif; background: #FAFBFF; color: var(--text-primary); line-height: 1.7; overflow-x: hidden; }
+        h1, h2, h3, h4 { font-family: 'Space Grotesk', sans-serif; font-weight: 700; letter-spacing: -0.02em; }
+        a { text-decoration: none; color: var(--purple); } .container { max-width: 900px; margin: 0 auto; padding: 0 24px; }
+        code { font-family: var(--mono); font-size: 0.9em; background: rgba(108, 99, 255, 0.06); padding: 2px 6px; border-radius: 4px; color: var(--purple); }
+        pre { font-family: var(--mono); background: var(--navy); color: #E2E8F0; padding: 20px; border-radius: 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; margin: 16px 0; }
+        pre code { background: none; color: inherit; padding: 0; }
+        .navbar { position: fixed; top: 0; left: 0; right: 0; z-index: 1000; padding: 16px 0; background: rgba(250, 251, 255, 0.85); backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%); border-bottom: 1px solid rgba(108, 99, 255, 0.08); }
+        .navbar .container { display: flex; align-items: center; justify-content: space-between; }
+        .logo { display: flex; align-items: center; gap: 10px; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 22px; color: var(--text-primary); }
+        .logo-icon { width: 36px; height: 36px; background: var(--gradient); border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 16px rgba(108, 99, 255, 0.3); }
+        .logo-icon svg { width: 20px; height: 20px; fill: white; }
+        .nav-back { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: var(--text-secondary); padding: 10px 20px; border-radius: 100px; background: var(--glass); backdrop-filter: blur(12px); border: 1px solid var(--glass-border); transition: all 0.3s; }
+        .nav-back:hover { color: var(--purple); border-color: var(--purple); }
+
+        /* Hero */
+        .pp-hero { padding: 140px 0 60px; text-align: center; position: relative; overflow: hidden; }
+        .pp-hero::before { content: ''; position: absolute; top: -30%; left: 50%; transform: translateX(-50%); width: 700px; height: 700px; background: radial-gradient(circle, rgba(108, 99, 255, 0.08) 0%, transparent 60%); border-radius: 50%; z-index: 0; }
+        .pp-hero .container { position: relative; z-index: 1; }
+        .pp-hero-badge { display: inline-flex; align-items: center; gap: 8px; background: var(--glass); backdrop-filter: blur(12px); border: 1px solid var(--glass-border); padding: 8px 16px; border-radius: 100px; font-size: 13px; font-weight: 600; color: var(--purple); margin-bottom: 24px; box-shadow: var(--shadow-sm); }
+        .pp-hero h1 { font-size: 48px; margin-bottom: 16px; background: linear-gradient(135deg, #0A0E27 0%, #6C63FF 50%, #4A90D9 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .pp-hero p { font-size: 18px; color: var(--text-secondary); max-width: 540px; margin: 0 auto; }
+        .pp-last-updated { margin-top: 24px; font-size: 14px; color: var(--text-muted); display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 100px; background: rgba(108, 99, 255, 0.05); }
+
+        /* Encryption hero visual */
+        .encrypt-hero-visual { display: flex; justify-content: center; align-items: center; margin: 48px 0 0; }
+        .encrypt-chain { display: flex; align-items: center; gap: 16px; }
+        .encrypt-node { width: 80px; height: 80px; border-radius: 24px; background: var(--glass); backdrop-filter: blur(20px); border: 1px solid var(--glass-border); box-shadow: var(--shadow-sm); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
+        .encrypt-node svg { width: 28px; height: 28px; }
+        .encrypt-node span { font-size: 11px; font-weight: 600; color: var(--text-secondary); }
+        .encrypt-link { width: 60px; height: 3px; background: var(--gradient); border-radius: 2px; position: relative; overflow: hidden; }
+        .encrypt-link::after { content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent); animation: flow 2s linear infinite; }
+        @keyframes flow { to { left: 100%; } }
+        .encrypt-lock { width: 80px; height: 80px; border-radius: 24px; background: var(--gradient); box-shadow: 0 8px 32px rgba(108, 99, 255, 0.3); display: flex; align-items: center; justify-content: center; animation: pulseLock 3s ease-in-out infinite; }
+        .encrypt-lock svg { width: 36px; height: 36px; fill: white; }
+        @keyframes pulseLock { 0%, 100% { transform: scale(1); box-shadow: 0 8px 32px rgba(108, 99, 255, 0.3); } 50% { transform: scale(1.08); box-shadow: 0 8px 48px rgba(108, 99, 255, 0.5); } }
+
+        /* Content */
+        .pp-content { padding: 40px 0 100px; } .pp-layout { display: grid; grid-template-columns: 220px 1fr; gap: 48px; }
+        .pp-toc { position: sticky; top: 100px; align-self: start; background: var(--glass); backdrop-filter: blur(20px) saturate(180%); border: 1px solid var(--glass-border); border-radius: 20px; padding: 24px; box-shadow: var(--shadow-sm); }
+        .pp-toc h4 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 16px; }
+        .pp-toc ul { list-style: none; } .pp-toc li { margin-bottom: 8px; }
+        .pp-toc a { font-size: 14px; font-weight: 500; color: var(--text-secondary); display: block; padding: 6px 12px; border-radius: 10px; transition: all 0.2s; border-left: 2px solid transparent; }
+        .pp-toc a:hover, .pp-toc a.active { color: var(--purple); background: rgba(108, 99, 255, 0.08); border-left-color: var(--purple); }
+
+        .pp-section { background: var(--glass); backdrop-filter: blur(20px) saturate(180%); border: 1px solid var(--glass-border); border-radius: 24px; padding: 36px; margin-bottom: 24px; box-shadow: var(--shadow-sm); scroll-margin-top: 100px; opacity: 0; transform: translateY(20px); transition: opacity 0.5s ease, transform 0.5s ease; }
+        .pp-section.visible { opacity: 1; transform: translateY(0); }
+        .pp-section-header { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
+        .pp-section-icon { width: 44px; height: 44px; border-radius: 14px; background: var(--gradient-soft); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .pp-section-icon svg { width: 22px; height: 22px; } .pp-section h2 { font-size: 22px; }
+        .pp-section p { font-size: 15px; color: var(--text-secondary); margin-bottom: 16px; } .pp-section p:last-child { margin-bottom: 0; }
+        .pp-section ul { margin: 12px 0 16px 20px; } .pp-section li { font-size: 15px; color: var(--text-secondary); margin-bottom: 8px; }
+        .pp-section strong { color: var(--text-primary); font-weight: 600; }
+        .pp-callout { background: linear-gradient(135deg, rgba(108, 99, 255, 0.06) 0%, rgba(74, 144, 217, 0.06) 100%); border: 1px solid rgba(108, 99, 255, 0.12); border-radius: 16px; padding: 20px; margin: 20px 0; display: flex; align-items: flex-start; gap: 14px; }
+        .pp-callout-icon { width: 36px; height: 36px; border-radius: 12px; background: var(--gradient); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .pp-callout-icon svg { width: 18px; height: 18px; fill: white; }
+        .pp-callout p { margin: 0; font-size: 14px; color: var(--text-primary); } .pp-callout p strong { color: var(--purple); }
+
+        .pp-table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+        .pp-table th { text-align: left; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); padding: 12px 16px; border-bottom: 2px solid rgba(108, 99, 255, 0.1); }
+        .pp-table td { padding: 14px 16px; font-size: 14px; color: var(--text-secondary); border-bottom: 1px solid rgba(108, 99, 255, 0.06); }
+        .pp-chip { display: inline-block; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 100px; background: rgba(108, 99, 255, 0.08); color: var(--purple); margin-right: 6px; }
+        .pp-chip.green { background: rgba(34, 197, 94, 0.08); color: #16a34a; }
+        .pp-chip.blue { background: rgba(74, 144, 217, 0.08); color: var(--blue); }
+
+        /* Diagram */
+        .diagram { background: var(--navy); border-radius: 20px; padding: 32px; margin: 20px 0; }
+        .diagram-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+        .diagram-row:last-child { margin-bottom: 0; }
+        .diagram-node { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 12px 16px; color: white; font-size: 13px; font-weight: 600; flex: 1; text-align: center; }
+        .diagram-node.purple { border-color: rgba(108, 99, 255, 0.4); background: rgba(108, 99, 255, 0.1); }
+        .diagram-node.green { border-color: rgba(74, 144, 217, 0.4); background: rgba(74, 144, 217, 0.1); }
+        .diagram-arrow { color: rgba(255,255,255,0.3); font-size: 20px; flex-shrink: 0; }
+        .diagram-label { color: rgba(255,255,255,0.5); font-size: 11px; text-align: center; margin-top: 4px; font-family: var(--mono); }
+
+        .footer { background: var(--navy); color: rgba(255,255,255,0.7); padding: 48px 0 32px; }
+        .footer .container { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; }
+        .footer-brand { display: flex; align-items: center; gap: 10px; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 18px; color: white; }
+        .footer-brand .logo-icon { width: 28px; height: 28px; } .footer-brand .logo-icon svg { width: 16px; height: 16px; }
+        .footer-links { display: flex; gap: 24px; flex-wrap: wrap; } .footer-links a { font-size: 14px; color: rgba(255,255,255,0.5); transition: color 0.2s; } .footer-links a:hover { color: white; }
+        .footer-copy { font-size: 13px; color: rgba(255,255,255,0.4); width: 100%; text-align: center; margin-top: 24px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.08); }
+        @media (max-width: 768px) { .pp-layout { grid-template-columns: 1fr; } .pp-toc { display: none; } .pp-hero h1 { font-size: 34px; } .pp-section { padding: 24px; } .encrypt-chain { flex-direction: column; } .encrypt-link { width: 3px; height: 30px; } .footer .container { flex-direction: column; text-align: center; } }
+    </style>
+</head>
+<body>
+    <nav class="navbar"><div class="container">
+        <a href="index.html" class="logo"><div class="logo-icon"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12c0 1.54.36 3 .97 4.29L2 22l5.71-.97C9 21.64 10.46 22 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2z"/></svg></div>Kora</a>
+        <a href="index.html" class="nav-back"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>Back to Home</a>
+    </div></nav>
+
+    <section class="pp-hero"><div class="container">
+        <div class="pp-hero-badge"><span style="width:8px;height:8px;background:var(--purple);border-radius:50%;animation:pulse 2s infinite;"></span>End-to-End Encryption</div>
+        <h1>End-to-End Encryption</h1>
+        <p>Every message, call, photo, and voice note in Kora is protected with end-to-end encryption. Not even we can read them. Here's exactly how it works.</p>
+        <div class="pp-last-updated"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>Last updated: September 1, 2026</div>
+
+        <div class="encrypt-hero-visual">
+            <div class="encrypt-chain">
+                <div class="encrypt-node"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg><span>Sender</span></div>
+                <div class="encrypt-link"></div>
+                <div class="encrypt-lock"><svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg></div>
+                <div class="encrypt-link"></div>
+                <div class="encrypt-node"><svg viewBox="0 0 24 24" fill="none" stroke="#4A90D9" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg><span>Recipient</span></div>
+            </div>
+        </div>
+    </div></section>
+
+    <section class="pp-content"><div class="container"><div class="pp-layout">
+        <div class="pp-toc"><h4>Contents</h4><ul>
+            <li><a href="#what-is-e2ee">What is E2EE</a></li>
+            <li><a href="#what-encrypted">What's Encrypted</a></li>
+            <li><a href="#what-not">What's Not Encrypted</a></li>
+            <li><a href="#signal">Signal Protocol</a></li>
+            <li><a href="#key-exchange">Key Exchange</a></li>
+            <li><a href="#forward-secrecy">Forward Secrecy</a></li>
+            <li><a href="#key-storage">Key Storage</a></li>
+            <li><a href="#safety-numbers">Safety Numbers</a></li>
+            <li><a href="#group-encryption">Group Encryption</a></li>
+            <li><a href="#call-encryption">Call Encryption</a></li>
+            <li><a href="#media-encryption">Media Encryption</a></li>
+            <li><a href="#ai-privacy">AI & E2EE</a></li>
+            <li><a href="#metadata">Metadata Handling</a></li>
+            <li><a href="#verification">Verification</a></li>
+            <li><a href="#open-source">Open Source</a></li>
+            <li><a href="#contact">Contact</a></li>
+        </ul></div>
+        <div>
+            <div class="pp-section" id="what-is-e2ee" data-animate>
+                <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div><h2>What is End-to-End Encryption?</h2></div>
+                <p>End-to-end encryption (E2EE) means your messages are encrypted on <strong>your device</strong> and can only be decrypted on the <strong>recipient's device</strong>. The encryption keys never leave your devices — so nobody in between, including Kora's servers, your internet provider, or anyone else, can read your messages.</p>
+                <div class="pp-callout"><div class="pp-callout-icon"><svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/></svg></div><p><strong>Not even we can read your messages.</strong> We store encrypted copies for delivery, but we don't hold the decryption keys. If a government asked us for your messages, we could only hand over encrypted ciphertext — unreadable to everyone except you and your recipient.</p></div>
+            </div>
+
+            <div class="pp-section" id="what-encrypted" data-animate>
+                <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg></div><h2>What's Encrypted</h2></div>
+                <table class="pp-table">
+                    <tr><th>Data Type</th><th>Encrypted</th><th>Method</th></tr>
+                    <tr><td><strong>Text messages</strong></td><td><span class="pp-chip green">E2E Encrypted</span></td><td>Signal Protocol (Double Ratchet)</td></tr>
+                    <tr><td><strong>Voice notes</strong></td><td><span class="pp-chip green">E2E Encrypted</span></td><td>Signal Protocol</td></tr>
+                    <tr><td><strong>Photos</strong></td><td><span class="pp-chip green">E2E Encrypted</span></td><td>AES-256-GCM + Signal key exchange</td></tr>
+                    <tr><td><strong>Videos</strong></td><td><span class="pp-chip green">E2E Encrypted</span></td><td>AES-256-GCM + Signal key exchange</td></tr>
+                    <tr><td><strong>Documents</strong></td><td><span class="pp-chip green">E2E Encrypted</span></td><td>AES-256-GCM + Signal key exchange</td></tr>
+                    <tr><td><strong>Voice calls</strong></td><td><span class="pp-chip green">E2E Encrypted</span></td><td>WebRTC DTLS-SRTP</td></tr>
+                    <tr><td><strong>Video calls</strong></td><td><span class="pp-chip green">E2E Encrypted</span></td><td>WebRTC DTLS-SRTP</td></tr>
+                    <tr><td><strong>Group calls (≤32)</strong></td><td><span class="pp-chip green">E2E Encrypted</span></td><td>WebRTC SFU + per-participant E2EE</td></tr>
+                    <tr><td><strong>Status updates</strong></td><td><span class="pp-chip green">E2E Encrypted</span></td><td>Signal Protocol (sender key)</td></tr>
+                    <tr><td><strong>Reactions & replies</strong></td><td><span class="pp-chip green">E2E Encrypted</span></td><td>Signal Protocol</td></tr>
+                    <tr><td><strong>Location sharing</strong></td><td><span class="pp-chip green">E2E Encrypted</span></td><td>Signal Protocol</td></tr>
+                    <tr><td><strong>Contact cards (vCard)</strong></td><td><span class="pp-chip green">E2E Encrypted</span></td><td>Signal Protocol</td></tr>
+                </table>
+            </div>
+
+            <div class="pp-section" id="what-not" data-animate>
+                <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg></div><h2>What's Not End-to-End Encrypted</h2></div>
+                <p>Some data must be visible to our servers to make the app work. This data is still encrypted in transit (TLS) and at rest, but it's not E2E encrypted because we need to read it:</p>
+                <table class="pp-table">
+                    <tr><th>Data</th><th>Why We Need It</th><th>Protection</th></tr>
+                    <tr><td>Phone number</td><td>Account identification & routing</td><td><span class="pp-chip blue">TLS + at-rest encryption</span></td></tr>
+                    <tr><td>Email address</td><td>Account recovery & verification</td><td><span class="pp-chip blue">TLS + at-rest encryption</span></td></tr>
+                    <tr><td>Display name & profile photo</td><td>User identification</td><td><span class="pp-chip blue">TLS + at-rest encryption</span></td></tr>
+                    <tr><td>Contact list (hashed)</td><td>Finding friends on Kora</td><td><span class="pp-chip blue">SHA-256 hashed + TLS</span></td></tr>
+                    <tr><td>Message metadata</td><td>Delivery routing (timestamp, sender ID, recipient ID)</td><td><span class="pp-chip blue">TLS + at-rest encryption</span></td></tr>
+                    <tr><td>Call metadata</td><td>Call setup (duration, timestamp)</td><td><span class="pp-chip blue">TLS + at-rest encryption</span></td></tr>
+                    <tr><td>Push notification tokens</td><td>Delivering notifications via FCM</td><td><span class="pp-chip blue">TLS + at-rest encryption</span></td></tr>
+                    <tr><td>Device identifiers</td><td>Trusted device management</td><td><span class="pp-chip blue">TLS + at-rest encryption</span></td></tr>
+                </table>
+                <div class="pp-callout"><div class="pp-callout-icon"><svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/></svg></div><p><strong>Content vs. metadata:</strong> Your message <em>content</em> is E2E encrypted. We can see <em>that</em> you sent a message to someone, but not <em>what</em> the message says.</p></div>
+            </div>
+
+            <div class="pp-section" id="signal" data-animate>
+                <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><path d="M12 2L4 7v6c0 5.25 3.4 9.74 8 11 4.6-1.26 8-5.75 8-11V7l-8-5z"/></svg></div><h2>Signal Protocol</h2></div>
+                <p>Kora uses the <strong>Signal Protocol</strong> — the same cryptographic protocol used by Signal, WhatsApp, and other secure messengers. It's been independently audited and is widely considered the gold standard for messaging encryption.</p>
+                <h3 style="font-size:18px; margin: 20px 0 12px;">The Double Ratchet Algorithm</h3>
+                <p>Signal Protocol uses the <strong>Double Ratchet</strong> algorithm, which combines:</p>
+                <ul>
+                    <li><strong>X3DH (Extended Triple Diffie-Hellman)</strong> — Establishes a shared secret between two parties who have never communicated before</li>
+                    <li><strong>Symmetric ratchet</strong> — Generates a new encryption key for every single message. Once a key is used, it's destroyed. This provides <strong>forward secrecy</strong>.</li>
+                    <li><strong>Diffie-Hellman ratchet</strong> — Periodically mixes in new DH key exchanges to provide <strong>post-compromise security</strong> — if a key is compromised, future messages are still safe after a DH ratchet step.</li>
+                </ul>
+                <pre><code>// Simplified: every message gets a unique key
+message_key = HKDF(chain_key, message_number)
+ciphertext = AES-256-GCM(plaintext, message_key)
+// After encryption, message_key is destroyed
+chain_key = HMAC-SHA256(chain_key, "advance")</code></pre>
+            </div>
+
+            <div class="pp-section" id="key-exchange" data-animate>
+                <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><path d="M7 11l5-5 5 5M7 13l5 5 5-5"/></svg></div><h2>Key Exchange</h2></div>
+                <p>When you start a new conversation, Kora performs a key exchange:</p>
+                <div class="diagram">
+                    <div class="diagram-row">
+                        <div class="diagram-node purple">Your Device<br><small>Generates key pair</small></div>
+                        <div class="diagram-arrow">→</div>
+                        <div class="diagram-node">Kora Server<br><small>Relays public key</small></div>
+                        <div class="diagram-arrow">→</div>
+                        <div class="diagram-node green">Recipient<br><small>Generates key pair</small></div>
+                    </div>
+                    <div class="diagram-label">← X3DH Key Agreement →</div>
+                    <div class="diagram-row">
+                        <div class="diagram-node purple">Shared Secret<br><small>Computed locally</small></div>
+                        <div class="diagram-arrow">=</div>
+                        <div class="diagram-node green">Shared Secret<br><small>Computed locally</small></div>
+                    </div>
+                </div>
+                <ul>
+                    <li>Each device generates an <strong>identity key pair</strong> (long-term) and <strong>ephemeral key pairs</strong> (short-term, rotated regularly)</li>
+                    <li>Public keys are shared via Kora's server (which cannot derive the shared secret)</li>
+                    <li>The <strong>X3DH handshake</strong> combines multiple DH exchanges to create a shared secret</li>
+                    <li>Only your device and the recipient's device ever know the shared secret</li>
+                    <li>The server only sees public keys — useless without the private keys</li>
+                </ul>
+            </div>
+
+            <div class="pp-section" id="forward-secrecy" data-animate>
+                <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9M3 12l4-4M3 12l4 4"/></svg></div><h2>Forward Secrecy</h2></div>
+                <div class="pp-callout"><div class="pp-callout-icon"><svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/></svg></div><p><strong>Forward secrecy</strong> means every message uses a unique encryption key. If an attacker somehow compromises one key, they can only decrypt that one message — not past or future messages.</p></div>
+                <ul>
+                    <li><strong>Per-message keys</strong> — Each message is encrypted with a new key derived from a ratchet chain</li>
+                    <li><strong>Key deletion</strong> — After a message is encrypted and the key is used, the key is permanently deleted from memory</li>
+                    <li><strong>Post-compromise security</strong> — The DH ratchet periodically refreshes the chain. Even if keys are stolen, the next DH ratchet step restores security</li>
+                    <li><strong>Session-specific</strong> — Each conversation has its own independent key chain. Compromising one conversation doesn't affect others</li>
+                </ul>
+            </div>
+
+            <div class="pp-section" id="key-storage" data-animate>
+                <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="3"/><path d="M12 18h.01"/></svg></div><h2>Key Storage</h2></div>
+                <p>Your private encryption keys are stored in your device's secure hardware — never on our servers:</p>
+                <table class="pp-table">
+                    <tr><th>Platform</th><th>Key Storage</th><th>Access</th></tr>
+                    <tr><td><strong>Android</strong></td><td>Android Keystore (hardware-backed TEE/StrongBox)</td><td>Keys never leave secure hardware. OS enforces biometric/PIN access.</td></tr>
+                    <tr><td><strong>iOS</strong></td><td>iOS Secure Enclave</td><td>Keys generated and used inside the Secure Enclave. Never extractable.</td></tr>
+                </table>
+                <ul>
+                    <li>Private keys are <strong>generated on-device</strong> and never transmitted to any server</li>
+                    <li>Keys are stored in <strong>hardware-backed secure storage</strong> — even a full device backup doesn't expose them</li>
+                    <li>On Android, we use <code>KeyGenParameterSpec.Builder</code> with <code>setUserAuthenticationRequired</code> when biometric lock is enabled</li>
+                    <li>On iOS, we use <code>SecureEnclave</code> with <code>kSecAttrTokenIDSecureEnclaveID</code> for key generation</li>
+                    <li>When you delete your account, all keys are permanently destroyed</li>
+                </ul>
+            </div>
+
+            <div class="pp-section" id="safety-numbers" data-animate>
+                <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><path d="M7 11l5-5 5 5M7 13l5 5 5-5"/><circle cx="12" cy="12" r="10"/></svg></div><h2>Safety Numbers</h2></div>
+                <p>Every chat in Kora has a <strong>safety number</strong> — a unique fingerprint that identifies the encryption keys of both participants. You can verify your conversation is truly private:</p>
+                <ul>
+                    <li><strong>Find it:</strong> Chat → Info → Encryption → Safety Number</li>
+                    <li><strong>Verify:</strong> Compare the 60-digit number (or scan the QR code) with the person you're chatting with</li>
+                    <li><strong>If they match:</strong> Your conversation is completely secure and no one is intercepting it</li>
+                    <li><strong>If they don't match:</strong> Your conversation may be compromised. Re-establish encryption by clearing the chat's keys.</li>
+                    <li><strong>How it works:</strong> The safety number is a hash of both participants' identity public keys. A man-in-the-middle attack changes the keys, which changes the safety number.</li>
+                </ul>
+                <div class="pp-callout"><div class="pp-callout-icon"><svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/></svg></div><p><strong>Pro tip:</strong> You don't need to verify every chat — only ones where you discuss extremely sensitive information. Most chats are safe by default.</p></div>
+            </div>
+
+            <div class="pp-section" id="group-encryption" data-animate>
+                <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><path d="M17 20h5v-2a4 4 0 0 0-3-3.87M9 20H4v-2a4 4 0 0 1 3-3.87m6-1.13a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/></svg></div><h2>Group Encryption</h2></div>
+                <p>Group chats use the <strong>Sender Key</strong> protocol — an extension of Signal Protocol for group messaging:</p>
+                <ul>
+                    <li>Each member gets a <strong>sender key</strong> that allows them to encrypt messages to the group without individually encrypting for each member</li>
+                    <li>Sender keys are distributed via <strong>1-on-1 E2E encrypted channels</strong> — so group key distribution is as secure as private messaging</li>
+                    <li>When a member leaves, the group <strong>ratchets the sender keys</strong> — the departed member can't read future messages</li>
+                    <li>When a new member joins, they receive sender keys from existing members via E2E encrypted channels</li>
+                    <li>Group calls (up to 32) use <strong>per-participant E2EE</strong> — each participant's audio/video is encrypted with keys only they and the call participants hold</li>
+                </ul>
+                <div class="pp-callout"><div class="pp-callout-icon"><svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/></svg></div><p><strong>Member changes trigger key rotation.</strong> When someone leaves a group, the encryption keys are ratcheted so they can't read future messages — even if they still have the app installed.</p></div>
+            </div>
+
+            <div class="pp-section" id="call-encryption" data-animate>
+                <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg></div><h2>Call Encryption</h2></div>
+                <p>Voice and video calls in Kora are encrypted with <strong>WebRTC DTLS-SRTP</strong>:</p>
+                <ul>
+                    <li><strong>DTLS</strong> — Datagram Transport Layer Security establishes an encrypted channel between devices</li>
+                    <li><strong>SRTP</strong> — Secure Real-Time Transport Protocol encrypts the actual audio/video packets</li>
+                    <li><strong>P2P when possible</strong> — Calls go directly between devices when possible, bypassing servers entirely</li>
+                    <li><strong>TURN server fallback</strong> — When P2P isn't possible, encrypted media passes through a TURN relay — but the relay can't decrypt it (keys are negotiated end-to-end)</li>
+                    <li><strong>Group calls</strong> — Use a Selective Forwarding Unit (SFU) with per-participant E2EE. The SFU forwards encrypted packets but cannot read them</li>
+                </ul>
+                <div class="pp-callout"><div class="pp-callout-icon"><svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/></svg></div><p><strong>Call content never passes through our servers in readable form.</strong> Even when using TURN/SFU relays, the media is encrypted end-to-end and the relay only forwards opaque packets.</p></div>
+            </div>
+
+            <div class="pp-section" id="media-encryption" data-animate>
+                <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></div><h2>Media Encryption</h2></div>
+                <p>Photos, videos, documents, and voice notes are encrypted before they leave your device:</p>
+                <ul>
+                    <li><strong>AES-256-GCM</strong> — Media is encrypted with a random symmetric key generated on your device</li>
+                    <li><strong>Signal key exchange</strong> — The symmetric key is shared with the recipient using the Signal Protocol (same as text messages)</li>
+                    <li><strong>Encrypted upload</strong> — The encrypted media is uploaded to our servers, but we only see ciphertext</li>
+                    <li><strong>Encrypted download</strong> — The recipient downloads the ciphertext and decrypts it locally with their key</li>
+                    <li><strong>Auto-delete</strong> — Encrypted media is deleted from servers after 90 days (or immediately if the message is deleted)</li>
+                </ul>
+            </div>
+
+            <div class="pp-section" id="ai-privacy" data-animate>
+                <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 10v6m11-11h-6M7 12H1"/></svg></div><h2>AI & E2EE Privacy</h2></div>
+                <p>Kora AI is designed to preserve your E2E encryption:</p>
+                <ul>
+                    <li><strong>Voice translation</strong> — Speech-to-text and translation happen <strong>on-device</strong> using ML Kit / CoreML. Your voice never leaves your phone, so E2EE is never broken.</li>
+                    <li><strong>Voice synthesis</strong> — Text-to-speech uses <strong>mathematical voice vectors</strong> generated locally. No cloud API processes your plaintext.</li>
+                    <li><strong>AI chat assistant</strong> — When you ask Kora AI a question, only your <strong>specific query</strong> is sent to the cloud for processing. Your other messages are not shared.</li>
+                    <li><strong>No AI training</strong> — We never use your conversations, voice data, or AI queries to train any AI model.</li>
+                    <li><strong>No data retention</strong> — Cloud AI queries are processed in real-time and not stored after generating a response.</li>
+                </ul>
+                <div class="pp-callout"><div class="pp-callout-icon"><svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/></svg></div><p><strong>On-device AI is the key.</strong> By processing voice translation and synthesis locally, your plaintext never touches a server — E2EE is maintained end-to-end.</p></div>
+            </div>
+
+            <div class="pp-section" id="metadata" data-animate>
+                <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><path d="M3 3h18v18H3z"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg></div><h2>Metadata Handling</h2></div>
+                <p>While we can't read your messages, we do need some metadata to deliver them. Here's what we collect and how we handle it:</p>
+                <table class="pp-table">
+                    <tr><th>Metadata</th><th>Why Needed</th><th>Retention</th></tr>
+                    <tr><td>Sender & recipient IDs</td><td>Message routing</td><td>30 days after delivery</td></tr>
+                    <tr><td>Message timestamp</td><td>Ordering & display</td><td>30 days after delivery</td></tr>
+                    <tr><td>Message size</td><td>Storage management</td><td>30 days after delivery</td></tr>
+                    <tr><td>Call duration & timestamp</td><td>Call history display</td><td>90 days</td></tr>
+                    <tr><td>Delivery status</td><td>Read receipts & delivery confirmation</td><td>30 days</td></tr>
+                    <tr><td>Device info</td><td>Trusted device management</td><td>While account active</td></tr>
+                </table>
+                <div class="pp-callout"><div class="pp-callout-icon"><svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/></svg></div><p><strong>We're working on minimizing metadata further.</strong> Our goal is to retain as little metadata as possible while still making the app work reliably.</p></div>
+            </div>
+
+            <div class="pp-section" id="verification" data-animate>
+                <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg></div><h2>How to Verify Your Encryption</h2></div>
+                <p>You can verify that your conversations are truly end-to-end encrypted:</p>
+                <ul>
+                    <li><strong>Check the lock icon</strong> — Every E2E encrypted chat shows a lock icon in the chat header</li>
+                    <li><strong>Check safety numbers</strong> — Chat → Info → Encryption → Safety Number. Compare with your contact.</li>
+                    <li><strong>Scan QR code</strong> — If you're in the same room, scan each other's QR code for instant verification</li>
+                    <li><strong>Encryption notification</strong> — Kora notifies you when a chat's encryption keys change (e.g., if the person got a new phone)</li>
+                </ul>
+            </div>
+
+            <div class="pp-section" id="open-source" data-animate>
+                <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><path d="M16 18l6-6-6-6M8 6l-6 6 6 6"/></svg></div><h2>Open Source & Auditability</h2></div>
+                <p>Kora Messenger's code is <strong>open source</strong> on GitHub at <a href="https://github.com/kora-messenger/Kora-Messenger" target="_blank">github.com/kora-messenger/Kora-Messenger</a>. This means:</p>
+                <ul>
+                    <li>Our encryption implementation can be reviewed by anyone</li>
+                    <li>Security researchers can audit and test our code</li>
+                    <li>You can verify we're actually encrypting what we claim to encrypt</li>
+                    <li>The community can report vulnerabilities through responsible disclosure</li>
+                </ul>
+                <div class="pp-callout"><div class="pp-callout-icon"><svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/></svg></div><p><strong>Found a security issue?</strong> Email security@koramessenger.com. We offer recognition and bounties for responsible disclosure.</p></div>
+            </div>
+
+            <div class="pp-section" id="contact" data-animate>
+                <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><path d="M22 6l-10 7L2 6"/></svg></div><h2>Contact</h2></div>
+                <div class="pp-callout"><div class="pp-callout-icon"><svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/></svg></div><p><strong>Security team:</strong> security@koramessenger.com<br><strong>Privacy concerns:</strong> privacy@koramessenger.com<br><strong>General:</strong> support@koramessenger.com<br><strong>Company:</strong> Nexora Technologies</p></div>
+            </div>
+        </div>
+    </div></div></section>
+
+    <footer class="footer"><div class="container">
+        <div class="footer-brand"><div class="logo-icon"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12c0 1.54.36 3 .97 4.29L2 22l5.71-.97C9 21.64 10.46 22 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2z"/></svg></div>Kora Messenger</div>
+        <div class="footer-links"><a href="index.html">Home</a><a href="privacy-policy.html">Privacy</a><a href="encryption-policy.html">Encryption</a><a href="ai-policy.html">AI Policy</a><a href="security.html">Security</a></div>
+        <div class="footer-copy">© 2026 Nexora Technologies. All rights reserved.</div>
+    </div></footer>
+    <script>
+        const observer = new IntersectionObserver((entries) => { entries.forEach((entry, index) => { if (entry.isIntersecting) { setTimeout(() => entry.target.classList.add('visible'), index * 60); } }); }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+        document.querySelectorAll('[data-animate]').forEach(el => observer.observe(el));
+        const tocLinks = document.querySelectorAll('.pp-toc a'); const sections = document.querySelectorAll('.pp-section');
+        window.addEventListener('scroll', () => { let current = ''; sections.forEach(s => { if (window.scrollY >= s.offsetTop - 120) current = s.id; }); tocLinks.forEach(a => { a.classList.remove('active'); if (a.getAttribute('href') === '#' + current) a.classList.add('active'); }); });
+    </script>
+</body>
+</html>
