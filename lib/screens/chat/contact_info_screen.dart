@@ -11,6 +11,7 @@ import 'e2ee_verification_screen.dart';
 import '../settings/default_chat_theme_screen.dart';
 import '../../utils/kora_page_routes.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../services/anti_screenshot_service.dart';
 
 /// Full-screen contact info — opens when the user taps the avatar or
 /// name in a chat. Mirrors WhatsApp's Contact Info screen.
@@ -61,6 +62,37 @@ class ContactInfoScreen extends StatefulWidget {
 }
 
 class _ContactInfoScreenState extends State<ContactInfoScreen> {
+  bool _screenshotBlocked = false;
+
+
+  @override
+  void initState() {
+    super.initState();
+    _loadScreenshotState();
+  }
+
+  Future<void> _loadScreenshotState() async {
+    final chatId = widget.chatId ?? widget.koraId ?? widget.name;
+    final enabled = await AntiScreenshotService.instance.isEnabled(chatId);
+    if (mounted) setState(() => _screenshotBlocked = enabled);
+  }
+
+  Future<void> _toggleScreenshotBlock(bool val) async {
+    final chatId = widget.chatId ?? widget.koraId ?? widget.name;
+    await AntiScreenshotService.instance.setEnabled(chatId, val);
+    setState(() => _screenshotBlocked = val);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(val
+              ? 'Screenshots blocked for this chat'
+              : 'Screenshots allowed for this chat'),
+          backgroundColor: KoraColors.purple,
+          duration: const Duration(seconds: 1),
+        ),
+      );
+    }
+  }
   bool _isMuted = false;
 
   @override
@@ -413,6 +445,52 @@ class _ContactInfoScreenState extends State<ContactInfoScreen> {
                 peerPublicKey: '',
               ),
             )),
+          ),
+          Divider(height: 1, indent: 56, color: border),
+          // Block screenshots
+          ListTile(
+            leading: Icon(
+              _screenshotBlocked ? Icons.shield : Icons.shield_outlined,
+              color: _screenshotBlocked ? KoraColors.purple : textMuted,
+              size: 22,
+            ),
+            title: Text('Block screenshots', style: TextStyle(color: textPrimary, fontSize: 15)),
+            subtitle: Text(
+              _screenshotBlocked
+                  ? 'Screenshots and screen recording are blocked'
+                  : 'Prevent screenshots in this chat',
+              style: TextStyle(color: textMuted, fontSize: 13),
+            ),
+            trailing: Switch.adaptive(
+              value: _screenshotBlocked,
+              activeTrackColor: KoraColors.purple,
+              onChanged: (val) {
+                if (val) {
+                  showDialog(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      backgroundColor: KoraColors.darkCard,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                      title: const Text('Block screenshots?', style: TextStyle(color: Colors.white)),
+                      content: const Text(
+                        'Screenshots and screen recording will be blocked for this chat. '
+                        'This only affects this device.',
+                        style: TextStyle(color: Colors.white70, fontSize: 14),
+                      ),
+                      actions: [
+                        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel', style: TextStyle(color: Colors.white54))),
+                        TextButton(
+                          onPressed: () { Navigator.pop(ctx); _toggleScreenshotBlock(true); },
+                          child: Text('Block', style: TextStyle(color: KoraColors.purple, fontWeight: FontWeight.w600)),
+                        ),
+                      ],
+                    ),
+                  );
+                } else {
+                  _toggleScreenshotBlock(false);
+                }
+              },
+            ),
           ),
         ],
       ),

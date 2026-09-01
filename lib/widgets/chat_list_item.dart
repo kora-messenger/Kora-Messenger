@@ -22,6 +22,8 @@ class ChatListItem extends StatelessWidget {
   /// Chat Peek preview (no read receipts sent to the other user).
   final VoidCallback? onAvatarLongPress;
 
+  final bool showLockIcon;
+
   const ChatListItem({
     super.key,
     required this.chat,
@@ -29,6 +31,7 @@ class ChatListItem extends StatelessWidget {
     this.onLongPress,
     this.onAvatarLongPress,
     this.isSelected = false,
+    this.showLockIcon = false,
   });
 
   @override
@@ -102,6 +105,10 @@ class ChatListItem extends StatelessWidget {
                               ),
                             ),
                           ),
+                          if (showLockIcon) ...[
+                            const SizedBox(width: 4),
+                            const Icon(Icons.lock, size: 14, color: KoraColors.purple),
+                          ],
                           if (chat.isPinned) ...[
                             const SizedBox(width: 4),
                             Icon(Icons.push_pin, size: 14, color: textSecondary),

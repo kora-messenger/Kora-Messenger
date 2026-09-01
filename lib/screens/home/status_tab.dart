@@ -4,6 +4,9 @@ import 'package:image_picker/image_picker.dart';
 import '../../theme/kora_colors.dart';
 import '../../services/session_manager.dart';
 import '../../services/status_service.dart';
+import '../../services/status_trigger_service.dart';
+import '../status/status_triggers_screen.dart';
+
 import '../../models/status_model.dart';
 import '../../widgets/kora_avatar.dart';
 import '../chat/kora_camera_screen.dart';
@@ -57,12 +60,15 @@ class _StatusTabState extends State<StatusTab> {
 
   @override
   void dispose() {
+    StatusTriggerService.instance.removeListener(_refresh);
     _searchController.dispose();
     super.dispose();
   }
 
   Future<void> _loadData() async {
     await StatusService.instance.init();
+    await StatusTriggerService.instance.init();
+    StatusTriggerService.instance.addListener(_refresh);
     final session = await SessionManager.instance.loadSession();
     if (mounted) {
       setState(() {
@@ -306,6 +312,17 @@ class _StatusTabState extends State<StatusTab> {
               ),
             ),
             const SizedBox(height: 12),
+            ListTile(
+              leading: const Icon(Icons.bolt, color: KoraColors.purple),
+              title: Text('Status triggers', style: TextStyle(color: textPrimary)),
+              subtitle: Text('Automated status updates', style: TextStyle(color: textSecondary, fontSize: 13)),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const StatusTriggersScreen()),
+                ).then((_) => _refresh());
+              },
+            ),
             ListTile(
               leading: Icon(Icons.lock_outline, color: textPrimary),
               title: Text('Status privacy', style: TextStyle(color: textPrimary)),
@@ -612,6 +629,15 @@ class _StatusTabState extends State<StatusTab> {
                       style: TextStyle(color: textPrimary, fontSize: 24, fontWeight: FontWeight.w800)),
                     const Spacer(),
                     IconButton(
+                      icon: const Icon(Icons.bolt, color: KoraColors.purple, size: 22),
+                      tooltip: 'Status Triggers',
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const StatusTriggersScreen()),
+                        ).then((_) => _refresh());
+                      },
+                    ),
+                    IconButton(
                       icon: Icon(Icons.search, color: textPrimary, size: 22),
                       onPressed: () => setState(() => _isSearching = true)),
                     IconButton(
@@ -841,15 +867,54 @@ class _StatusTabState extends State<StatusTab> {
                 ),
               ],
             ),
-      title: Text(
-        hasStatus ? 'My status' : 'My status',
-        style: TextStyle(color: textPrimary, fontSize: 15, fontWeight: FontWeight.w600),
+      title: Row(
+        children: [
+          Text(
+            'My status',
+            style: TextStyle(color: textPrimary, fontSize: 15, fontWeight: FontWeight.w600),
+          ),
+          if (StatusTriggerService.instance.getActiveTrigger() != null) ...[
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                gradient: KoraColors.brandGradient,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Text(
+                'auto',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
       subtitle: Text(
-        hasStatus
-            ? (totalViews > 0 ? '$totalViews ${totalViews == 1 ? 'view' : 'views'}' : 'Tap to view')
-            : 'Tap to add status update',
-        style: TextStyle(color: textSecondary, fontSize: 13),
+        StatusTriggerService.instance.getActiveTrigger() != null
+            ? '${StatusTriggerService.instance.getActiveTrigger()!.emoji} ${StatusTriggerService.instance.getActiveTrigger()!.statusText}'
+            : (hasStatus
+                ? (totalViews > 0 ? '$totalViews ${totalViews == 1 ? 'view' : 'views'}' : 'Tap to view')
+                : 'Tap to add status update'),
+        style: TextStyle(
+          color: StatusTriggerService.instance.getActiveTrigger() != null ? KoraColors.purple : textSecondary,
+          fontSize: 13,
+          fontWeight: StatusTriggerService.instance.getActiveTrigger() != null ? FontWeight.w500 : FontWeight.normal,
+        ),
+        overflow: TextOverflow.ellipsis,
+      ),
+      trailing: IconButton(
+        icon: const Icon(Icons.bolt, color: KoraColors.purple, size: 20),
+        tooltip: 'Status Triggers',
+        onPressed: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const StatusTriggersScreen()),
+          ).then((_) => _refresh());
+        },
       ),
     );
   }

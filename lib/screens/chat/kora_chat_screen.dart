@@ -2,6 +2,8 @@ import 'dart:io';
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import '../../widgets/secure_screen.dart';
+import '../../services/anti_screenshot_service.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
@@ -92,6 +94,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
   KoraMessage? _replyTarget;
   String? _highlightedMessageId;
   bool _isLoading = true;
+  bool _screenshotBlocked = false;
   bool _isAiTyping = false;
   bool _isBlocked = false;
   bool _isSpammer = false;
@@ -111,6 +114,19 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
 
   bool get _isAiChat =>
       widget.chatId == 'kora_support' || widget.chatId == 'kora_ai';
+
+  @override
+  void initState() {
+    super.initState();
+    _checkScreenshotBlock();
+  }
+
+  void _checkScreenshotBlock() async {
+    final chatId = widget.chatId;
+    if (chatId == null) return;
+    final enabled = await AntiScreenshotService.instance.isEnabled(chatId);
+    if (mounted) setState(() => _screenshotBlocked = enabled);
+  }
 
   @override
   void initState() {
@@ -1753,7 +1769,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
     final hasWallpaper = wallpaperAssetPath != null;
 
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
-    return Scaffold(
+    final scaffold = Scaffold(
       resizeToAvoidBottomInset: false,
       backgroundColor: theme.wallpaper,
       body: SafeArea(
@@ -1995,7 +2011,11 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
         ),
       ),
     );
-  }
+      if (_screenshotBlocked) {
+      return SecureScreen(child: scaffold);
+    }
+    return scaffold;
+}
 
   /// Show AI chat summary sheet.
   void _showChatSummary() {

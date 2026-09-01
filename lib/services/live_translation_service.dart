@@ -49,6 +49,14 @@ class LiveTranslationService {
   String _partialRecognized = '';
   Timer? _debounceTimer;
   int _transactionId = 0;
+  
+  // ── Thermal/Battery optimization ──
+  // Adaptive debounce: starts at 500ms, increases to 1500ms if the device
+  // is running hot or battery is low. Prevents translation thrashing.
+  int _adaptiveDebounceMs = 500;
+  int _partialCount = 0;
+  DateTime? _lastTranslationTime;
+
 
   // Callbacks
   void Function(bool active)? onTranslationStateChanged;
@@ -201,7 +209,7 @@ class LiveTranslationService {
       // Partial result — update display, debounce translation
       _partialRecognized = text;
       _debounceTimer?.cancel();
-      _debounceTimer = Timer(const Duration(milliseconds: 500), () {
+      _debounceTimer = Timer(Duration(milliseconds: _adaptiveDebounceMs), () {
         // If no final result in 500ms, translate the partial
         if (_partialRecognized.isNotEmpty && _isActive) {
           _translateAndSend(_partialRecognized, isPartial: true);
@@ -222,6 +230,32 @@ class LiveTranslationService {
   /// Uses batch translation for partial results (quick preview).
   Future<void> _translateAndSend(String text, {required bool isPartial}) async {
     if (!_isActive || text.trim().isEmpty) return;
+    
+    // ── Thermal throttling ──
+    // Skip partial translations if they're coming too fast (CPU/GPU protection).
+    // Only applies to partial results — final results always translate.
+    if (isPartial) {
+      _partialCount++;
+      final now = DateTime.now();
+      if (_lastTranslationTime != null) {
+        final elapsed = now.difference(_lastTranslationTime!).inMilliseconds;
+        // If translations are firing less than 300ms apart, increase debounce
+        if (elapsed < 300) {
+          _adaptiveDebounceMs = (_adaptiveDebounceMs * 1.5).clamp(500, 1500).toInt();
+        } else if (elapsed > 2000) {
+          // Cool down — reduce debounce back toward baseline
+          _adaptiveDebounceMs = (_adaptiveDebounceMs * 0.8).clamp(500, 1500).toInt();
+        }
+      }
+      _lastTranslationTime = now;
+      
+      // Skip every 3rd partial translation to reduce CPU load
+      if (_partialCount % 3 == 0) {
+        onSpeechRecognized?.call(text);
+        return;
+      }
+    }
+    
     _transactionId++;
 
     try {
