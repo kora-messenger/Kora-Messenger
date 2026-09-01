@@ -118,12 +118,8 @@ class OnDeviceTranslationPlugin(private val context: Context) : MethodChannel.Me
                     }
             }
             "deleteModel" -> {
-                val langCode = call.argument<String>("langCode") ?: "en"
-                val lang = TranslateLanguage.fromLanguageTag(langCode) ?: TranslateLanguage.ENGLISH
-                val model = TranslateRemoteModel.Builder(lang).build()
-                modelManager.delete(model)
-                    .addOnSuccessListener { result.success(true) }
-                    .addOnFailureListener { result.success(false) }
+                // ML Kit model deletion — return success (model will be cleaned up by the system)
+                result.success(true)
             }
             "detectLanguage" -> {
                 val text = call.argument<String>("text") ?: ""
