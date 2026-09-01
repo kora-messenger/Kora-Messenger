@@ -69,6 +69,7 @@ class _ContactInfoScreenState extends State<ContactInfoScreen> {
   void initState() {
     super.initState();
     _loadScreenshotState();
+    _loadMuteState();
   }
 
   Future<void> _loadScreenshotState() async {
@@ -94,12 +95,6 @@ class _ContactInfoScreenState extends State<ContactInfoScreen> {
     }
   }
   bool _isMuted = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadMuteState();
-  }
 
   Future<void> _loadMuteState() async {
     final prefs = await SharedPreferences.getInstance();

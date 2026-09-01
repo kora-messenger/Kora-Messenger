@@ -179,7 +179,7 @@ class _VoiceTranslationSheetState extends State<VoiceTranslationSheet> {
         final result = await _translationService.translate(
           transcript,
           _targetLanguage!.code,
-          sourceCode: _detectedLangCode,
+          sourceLanguageCode: _detectedLangCode,
         );
         if (mounted) {
           setState(() {
@@ -220,7 +220,7 @@ class _VoiceTranslationSheetState extends State<VoiceTranslationSheet> {
       final result = await _translationService.translate(
         _transcript,
         _targetLanguage!.code,
-        sourceCode: _detectedLangCode,
+        sourceLanguageCode: _detectedLangCode,
       );
       if (mounted) {
         setState(() {

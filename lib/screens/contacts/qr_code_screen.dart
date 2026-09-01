@@ -309,14 +309,14 @@ class _QrCodeScreenState extends State<QrCodeScreen>
       if (boundary == null) return;
 
       final image = await boundary.toImage(pixelRatio: 3.0);
-      final byteData = await image.toByteData(format: ui.ImageByteFormat.webp);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
       if (byteData == null) return;
 
       final bytes = Uint8List.view(byteData.buffer);
       final tempDir = await getTemporaryDirectory();
       final fullName = _session?['fullName']?.toString() ?? 'Kora User';
       final safeName = fullName.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
-      final file = File('${tempDir.path}/kora_qr_$safeName.webp');
+      final file = File('${tempDir.path}/kora_qr_$safeName.png');
       await file.writeAsBytes(bytes);
 
       await Share.shareXFiles(

@@ -1,14 +1,14 @@
-import 'package:flutter/material.dart\;
-import 'package:local_auth/local_auth.dart\;
-import '../models/chat_models.dart\;
-import '../services/chat_service.dart\;
-import '../services/chat_vault_service.dart\;
-import '../services/conversation_directory.dart\;
-import '../theme/kora_colors.dart\;
-import '../widgets/chat_list_item.dart\;
-import '../widgets/kora_empty_state.dart\;
-import '../widgets/kora_menu_sheet.dart\;
-import 'chat/kora_chat_screen.dart\;
+import 'package:flutter/material.dart';
+import 'package:local_auth/local_auth.dart';
+import '../models/chat_models.dart';
+import '../services/chat_service.dart';
+import '../services/chat_vault_service.dart';
+import '../services/conversation_directory.dart';
+import '../theme/kora_colors.dart';
+import '../widgets/chat_list_item.dart';
+import '../widgets/kora_empty_state.dart';
+import '../widgets/kora_menu_sheet.dart';
+import 'chat/kora_chat_screen.dart';
 
 /// Locked Chats screen — shows chats the user has locked.
 /// Hidden from BOTH the main Home list and Archived Chats; only reachable

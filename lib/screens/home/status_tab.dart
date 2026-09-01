@@ -292,6 +292,7 @@ class _StatusTabState extends State<StatusTab> {
   void _showMoreOptions() {
     final brightness = Theme.of(context).brightness;
     final textPrimary = KoraColors.textPrimaryFor(brightness);
+    final textSecondary = KoraColors.textSecondaryFor(brightness);
     final surface = KoraColors.surfaceFor(brightness);
     showModalBottomSheet(
       context: context,

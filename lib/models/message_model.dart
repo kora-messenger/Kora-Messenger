@@ -440,6 +440,8 @@ class KoraMessage {
         return 256;
       case KoraMessageType.text:
         return utf8.encode(text).length + 32; // text bytes + metadata overhead
+      case KoraMessageType.videoNote:
+        return 2500000; // ~2.5 MB average video note
     }
   }
 }

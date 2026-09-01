@@ -17,6 +17,7 @@ import '../settings/chat_settings_screen.dart';
 import '../settings/notifications_settings_screen.dart';
 import '../settings/about_kora_screen.dart';
 import '../settings/business_tools_screen.dart';
+import '../settings/help_center_screen.dart';
 import '../settings/future_features_screen.dart';
 import '../settings/premium_subscribe_sheet.dart';
 import '../settings/billing_screen.dart';

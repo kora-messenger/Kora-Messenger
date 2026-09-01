@@ -267,7 +267,7 @@ class _CallWallpaperPickerState extends State<CallWallpaperPicker> {
                     margin: const EdgeInsets.all(16),
                     height: 120,
                     width: double.infinity,
-                    decoration: currentWallpaper.decoration.copyWith(
+                    decoration: (currentWallpaper.decoration as BoxDecoration).copyWith(
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: Colors.white24, width: 1),
                     ),
@@ -418,7 +418,7 @@ class _CallWallpaperPickerState extends State<CallWallpaperPicker> {
                               Expanded(
                                 child: AnimatedContainer(
                                   duration: const Duration(milliseconds: 200),
-                                  decoration: wallpaper.decoration.copyWith(
+                                  decoration: (wallpaper.decoration as BoxDecoration).copyWith(
                                     borderRadius: BorderRadius.circular(12),
                                     border: Border.all(
                                       color: isSelected ? KoraColors.purple : Colors.white24,

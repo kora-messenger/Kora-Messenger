@@ -106,7 +106,7 @@ class _TranslateSheetState extends State<TranslateSheet>
         // Once the source language is known (auto-detected or user-picked),
         // always pass it explicitly so the user's own choice of source is
         // respected instead of re-detecting every time.
-        sourceCode: _sourceLanguage?.code,
+        sourceLanguageCode: _sourceLanguage?.code,
       );
       if (mounted) {
         setState(() {

@@ -115,12 +115,6 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
   bool get _isAiChat =>
       widget.chatId == 'kora_support' || widget.chatId == 'kora_ai';
 
-  @override
-  void initState() {
-    super.initState();
-    _checkScreenshotBlock();
-  }
-
   void _checkScreenshotBlock() async {
     final chatId = widget.chatId;
     if (chatId == null) return;
@@ -131,6 +125,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
   @override
   void initState() {
     super.initState();
+    _checkScreenshotBlock();
     _loadEmail();
     _themeProvider.addListener(_onThemeChanged);
     // Register this conversation in the directory so it appears

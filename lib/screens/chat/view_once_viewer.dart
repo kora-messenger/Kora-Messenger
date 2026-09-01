@@ -59,7 +59,7 @@ class _ViewOnceViewerState extends State<ViewOnceViewer> {
         _videoController!.play();
         setState(() => _isVideoPlaying = true);
         _videoController!.setLooping(false);
-        _videoController!.setPosition(const Duration(seconds: 0));
+        _videoController!.seekTo(const Duration(seconds: 0));
 
         // Start countdown
         _startCountdown();
