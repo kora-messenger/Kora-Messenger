@@ -33,3 +33,8 @@ backend/kora_ai_images/
 build_logs.zip
 build_logs/
 koraAuth_full.txt
+
+# Android keystore (never commit this)
+*.jks
+*.keystore
+android/keystore/

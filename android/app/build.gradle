@@ -59,9 +59,32 @@ android {
     // ABI splits handled by Flutter build flags (--target-platform)
     // Removed splits block for AGP 8.x compatibility
 
+    // ═══ RELEASE SIGNING CONFIGURATION ═══
+    // Loads keystore from key.properties (local dev) or environment vars (CI)
+    def keystoreProperties = new Properties()
+    def keystorePropertiesFile = rootProject.file("key.properties")
+    if (keystorePropertiesFile.exists()) {
+        keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+    } else {
+        // Fallback to environment variables (GitHub Actions CI)
+        keystoreProperties.setProperty('keyAlias', System.getenv('KEY_ALIAS') ?: 'kora-key')
+        keystoreProperties.setProperty('keyPassword', System.getenv('KEY_PASSWORD') ?: '')
+        keystoreProperties.setProperty('storeFile', System.getenv('KEYSTORE_FILE') ?: 'keystore/kora-release-key.jks')
+        keystoreProperties.setProperty('storePassword', System.getenv('KEYSTORE_PASSWORD') ?: '')
+    }
+
+    signingConfigs {
+        release {
+            keyAlias keystoreProperties['keyAlias']
+            keyPassword keystoreProperties['keyPassword']
+            storeFile file(keystoreProperties['storeFile'])
+            storePassword keystoreProperties['storePassword']
+        }
+    }
+
     buildTypes {
         release {
-            signingConfig = signingConfigs.debug
+            signingConfig = signingConfigs.release
 
             // ═══ CODE SHRINKING + RESOURCE SHRINKING (R8) ═══
             // R8 compiler: removes unused code, obfuscates, optimizes

@@ -34,11 +34,27 @@ jobs:
       - name: Analyze
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
 
+      - name: Decode release keystore
+        run: |
+          mkdir -p android/keystore
+          if [ -n "${{ secrets.KORA_KEYSTORE_BASE64 }}" ]; then
+            echo "${{ secrets.KORA_KEYSTORE_BASE64 }}" | base64 -d > android/keystore/kora-release-key.jks
+            echo "Keystore decoded successfully"
+          else
+            echo "WARNING: KORA_KEYSTORE_BASE64 secret not set. Falling back to debug signing."
+          fi
+
       - name: Build split APKs (per ABI)
         run: |
-          flutter build apk --release --split-per-abi \
-            --dart-define=KORA_BACKEND_URL=${{ secrets.KORA_BACKEND_URL }} \
-            --dart-define=KORA_AI_AUTH_TOKEN=${{ secrets.KORA_AI_AUTH_TOKEN }}
+          if [ -f android/keystore/kora-release-key.jks ]; then
+            flutter build apk --release --split-per-abi \
+              --dart-define=KORA_BACKEND_URL=${{ secrets.KORA_BACKEND_URL }} \
+              --dart-define=KORA_AI_AUTH_TOKEN=${{ secrets.KORA_AI_AUTH_TOKEN }}
+          else
+            flutter build apk --release --split-per-abi \
+              --dart-define=KORA_BACKEND_URL=${{ secrets.KORA_BACKEND_URL }} \
+              --dart-define=KORA_AI_AUTH_TOKEN=${{ secrets.KORA_AI_AUTH_TOKEN }}
+          fi
 
       - name: Build universal APK (fallback for all devices)
         run: |
@@ -46,7 +62,7 @@ jobs:
             --dart-define=KORA_BACKEND_URL=${{ secrets.KORA_BACKEND_URL }} \
             --dart-define=KORA_AI_AUTH_TOKEN=${{ secrets.KORA_AI_AUTH_TOKEN }}
 
-      - name: Build AAB (for Google Play Beta)
+      - name: Build AAB (for Google Play)
         run: |
           flutter build appbundle --release \
             --dart-define=KORA_BACKEND_URL=${{ secrets.KORA_BACKEND_URL }} \
