@@ -61,48 +61,49 @@
         .footer-brand .logo-icon { width: 28px; height: 28px; } .footer-brand .logo-icon svg { width: 16px; height: 16px; }
         .footer-links { display: flex; gap: 24px; flex-wrap: wrap; } .footer-links a { font-size: 14px; color: rgba(255,255,255,0.5); transition: color 0.2s; } .footer-links a:hover { color: white; }
         .footer-copy { font-size: 13px; color: rgba(255,255,255,0.4); width: 100%; text-align: center; margin-top: 24px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.08); }
-        @media (max-width: 768px) {
-            .pp-layout { grid-template-columns: 1fr !important }
-            .pp-toc { display: none !important }
-            .pp-hero { padding: 110px 0 40px !important }
-            .pp-hero h1 { font-size: 28px !important }
-            .pp-hero p { font-size: 15px !important }
-            .pp-content { padding: 24px 0 60px !important }
-            .container { padding: 0 16px !important }
-            .pp-section { padding: 20px 16px !important border-radius: 18px !important margin-bottom: 16px !important }
-            .pp-section h2 { font-size: 18px !important }
-            .pp-section p { font-size: 14px !important }
-            .pp-section li { font-size: 14px !important }
-            .pp-section-header { gap: 10px !important margin-bottom: 14px !important }
-            .pp-section-icon { width: 36px !important height: 36px !important border-radius: 12px !important }
-            .pp-section-icon svg { width: 18px !important height: 18px !important }
-            .pp-callout { padding: 16px !important gap: 10px !important border-radius: 14px !important }
-            .pp-callout-icon { width: 30px !important height: 30px !important border-radius: 10px !important }
-            .pp-callout p { font-size: 13px !important }
-            .pp-table { display: block !important overflow-x: auto !important white-space: nowrap !important -webkit-overflow-scrolling: touch !important }
-            .pp-table th { font-size: 12px !important padding: 10px 12px !important }
-            .pp-table td { font-size: 13px !important padding: 10px 12px !important }
-            .pp-hero-badge { font-size: 12px !important padding: 6px 14px !important }
-            .pp-last-updated { font-size: 12px !important padding: 6px 12px !important }
-            .nav-back { font-size: 13px !important padding: 8px 16px !important }
-            .logo { font-size: 18px !important }
-            .logo-icon { width: 30px !important height: 30px !important border-radius: 10px !important }
-            .logo-icon svg { width: 16px !important height: 16px !important }
-            .footer { padding: 32px 0 24px !important }
-            .footer .container { flex-direction: column !important text-align: center !important gap: 16px !important }
-            .footer-brand { font-size: 16px !important }
-            .footer-links { flex-wrap: wrap !important justify-content: center !important gap: 12px !important }
-            .footer-links a { font-size: 13px !important }
-            .footer-copy { font-size: 12px !important }
+                @media (max-width: 768px) {
+            .pp-layout { grid-template-columns: 1fr !important; }
+            .pp-toc { display: none !important; }
+            .pp-hero { padding: 110px 0 40px !important; }
+            .pp-hero h1 { font-size: 28px !important; }
+            .pp-hero p { font-size: 15px !important; }
+            .pp-content { padding: 24px 0 60px !important; }
+            .container { padding: 0 16px !important; max-width: 100% !important; }
+            .pp-section { padding: 20px 16px !important; border-radius: 18px !important; margin-bottom: 16px !important; overflow-x: auto !important; }
+            .pp-section h2 { font-size: 18px !important; }
+            .pp-section p { font-size: 14px !important; word-break: break-word; }
+            .pp-section li { font-size: 14px !important; word-break: break-word; }
+            .pp-section-header { gap: 10px !important; margin-bottom: 14px !important; }
+            .pp-section-icon { width: 36px !important; height: 36px !important; border-radius: 12px !important; }
+            .pp-section-icon svg { width: 18px !important; height: 18px !important; }
+            .pp-callout { padding: 16px !important; gap: 10px !important; border-radius: 14px !important; }
+            .pp-callout-icon { width: 30px !important; height: 30px !important; border-radius: 10px !important; }
+            .pp-callout p { font-size: 13px !important; }
+            .pp-table { display: block !important; overflow-x: auto !important; max-width: 100% !important; -webkit-overflow-scrolling: touch; }
+            .pp-table th { font-size: 12px !important; padding: 10px 12px !important; }
+            .pp-table td { font-size: 13px !important; padding: 10px 12px !important; word-break: break-word; }
+            .pp-hero-badge { font-size: 12px !important; padding: 6px 14px !important; }
+            .pp-last-updated { font-size: 12px !important; padding: 6px 12px !important; }
+            .nav-back { font-size: 13px !important; padding: 8px 16px !important; }
+            .logo { font-size: 18px !important; }
+            .logo-icon { width: 30px !important; height: 30px !important; border-radius: 10px !important; }
+            .logo-icon svg { width: 16px !important; height: 16px !important; }
+            .footer { padding: 32px 0 24px !important; }
+            .footer .container { flex-direction: column !important; text-align: center !important; gap: 16px !important; }
+            .footer-brand { font-size: 16px !important; }
+            .footer-links { flex-wrap: wrap !important; justify-content: center !important; gap: 12px !important; }
+            .footer-links a { font-size: 13px !important; }
+            .footer-copy { font-size: 12px !important; }
         }
         @media (max-width: 480px) {
-            .pp-hero h1 { font-size: 24px !important }
-            .pp-hero p { font-size: 14px; }
-            .pp-section { padding: 16px 12px; }
-            .pp-section h2 { font-size: 16px; }
-            .pp-callout { padding: 14px; }
-            .pp-callout p { font-size: 12px; }
+            .pp-hero h1 { font-size: 24px !important; }
+            .pp-hero p { font-size: 14px !important; }
+            .pp-section { padding: 16px 12px !important; }
+            .pp-section h2 { font-size: 16px !important; }
+            .pp-callout { padding: 14px !important; }
+            .pp-callout p { font-size: 12px !important; }
         }
+
     </style>
 </head>
 <body>
