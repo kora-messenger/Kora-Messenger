@@ -56,16 +56,8 @@ android {
         }
     }
 
-    // ═══ APK SPLITS (for local testing builds) ═══
-    // Generate per-ABI APKs when building debug/test locally
-    splits {
-        abi {
-            enabled = true
-            reset()
-            include "armeabi-v7a", "arm64-v8a", "x86_64"
-            universalApk = false
-        }
-    }
+    // ABI splits handled by Flutter build flags (--target-platform)
+    // Removed splits block for AGP 8.x compatibility
 
     buildTypes {
         release {
