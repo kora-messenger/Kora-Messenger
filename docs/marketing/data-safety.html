@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Safety — Kora Messenger</title>
+    <meta name="description" content="Kora Messenger Data Safety disclosure — how we handle, encrypt, and protect your data. Google Play Data Safety form.">
+    <meta name="theme-color" content="#6C63FF">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --purple: #6C63FF; --blue: #4A90D9; --navy: #0A0E27; --gradient: linear-gradient(135deg, #6C63FF 0%, #4A90D9 100%); --gradient-soft: linear-gradient(135deg, rgba(108, 99, 255, 0.08) 0%, rgba(74, 144, 217, 0.08) 100%); --glass: rgba(255, 255, 255, 0.7); --glass-border: rgba(255, 255, 255, 0.3); --text-primary: #0A0E27; --text-secondary: #4A5070; --text-muted: #8892B0; --shadow-sm: 0 2px 12px rgba(10, 14, 39, 0.06); }
+        html { scroll-behavior: smooth; } body { font-family: 'Inter', sans-serif; background: #FAFBFF; color: var(--text-primary); line-height: 1.7; overflow-x: hidden; }
+        h1, h2, h3, h4 { font-family: 'Space Grotesk', sans-serif; font-weight: 700; letter-spacing: -0.02em; }
+        a { text-decoration: none; color: var(--purple); } .container { max-width: 900px; margin: 0 auto; padding: 0 24px; }
+        .navbar { position: fixed; top: 0; left: 0; right: 0; z-index: 1000; padding: 16px 0; background: rgba(250, 251, 255, 0.85); backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%); border-bottom: 1px solid rgba(108, 99, 255, 0.08); }
+        .navbar .container { display: flex; align-items: center; justify-content: space-between; }
+        .logo { display: flex; align-items: center; gap: 10px; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 22px; color: var(--text-primary); }
+        .logo-icon { width: 36px; height: 36px; background: var(--gradient); border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 16px rgba(108, 99, 255, 0.3); }
+        .logo-icon svg { width: 20px; height: 20px; fill: white; }
+        .nav-back { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: var(--text-secondary); padding: 10px 20px; border-radius: 100px; background: var(--glass); backdrop-filter: blur(12px); border: 1px solid var(--glass-border); transition: all 0.3s; }
+        .nav-back:hover { color: var(--purple); border-color: var(--purple); }
+        .pp-hero { padding: 140px 0 60px; text-align: center; position: relative; overflow: hidden; }
+        .pp-hero::before { content: ''; position: absolute; top: -30%; left: 50%; transform: translateX(-50%); width: 700px; height: 700px; background: radial-gradient(circle, rgba(108, 99, 255, 0.08) 0%, transparent 60%); border-radius: 50%; z-index: 0; }
+        .pp-hero .container { position: relative; z-index: 1; }
+        .pp-hero-badge { display: inline-flex; align-items: center; gap: 8px; background: var(--glass); backdrop-filter: blur(12px); border: 1px solid var(--glass-border); padding: 8px 16px; border-radius: 100px; font-size: 13px; font-weight: 600; color: var(--purple); margin-bottom: 24px; box-shadow: var(--shadow-sm); }
+        .pp-hero h1 { font-size: 48px; margin-bottom: 16px; background: linear-gradient(135deg, #0A0E27 0%, #6C63FF 50%, #4A90D9 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .pp-hero p { font-size: 18px; color: var(--text-secondary); max-width: 540px; margin: 0 auto; }
+        .pp-last-updated { margin-top: 24px; font-size: 14px; color: var(--text-muted); display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 100px; background: rgba(108, 99, 255, 0.05); }
+        .pp-content { padding: 40px 0 100px; }
+        .pp-section { background: var(--glass); backdrop-filter: blur(20px) saturate(180%); border: 1px solid var(--glass-border); border-radius: 24px; padding: 36px; margin-bottom: 24px; box-shadow: var(--shadow-sm); scroll-margin-top: 100px; opacity: 0; transform: translateY(20px); transition: opacity 0.5s ease, transform 0.5s ease; }
+        .pp-section.visible { opacity: 1; transform: translateY(0); }
+        .pp-section-header { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
+        .pp-section-icon { width: 44px; height: 44px; border-radius: 14px; background: var(--gradient-soft); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .pp-section-icon svg { width: 22px; height: 22px; } .pp-section h2 { font-size: 22px; }
+        .pp-section p { font-size: 15px; color: var(--text-secondary); margin-bottom: 16px; } .pp-section p:last-child { margin-bottom: 0; }
+        .pp-section ul { margin: 12px 0 16px 20px; } .pp-section li { font-size: 15px; color: var(--text-secondary); margin-bottom: 8px; }
+        .pp-section strong { color: var(--text-primary); font-weight: 600; }
+        .pp-callout { background: linear-gradient(135deg, rgba(108, 99, 255, 0.06) 0%, rgba(74, 144, 217, 0.06) 100%); border: 1px solid rgba(108, 99, 255, 0.12); border-radius: 16px; padding: 20px; margin: 20px 0; display: flex; align-items: flex-start; gap: 14px; }
+        .pp-callout-icon { width: 36px; height: 36px; border-radius: 12px; background: var(--gradient); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .pp-callout-icon svg { width: 18px; height: 18px; fill: white; }
+        .pp-callout p { margin: 0; font-size: 14px; color: var(--text-primary); } .pp-callout p strong { color: var(--purple); }
+        .pp-table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+        .pp-table th { text-align: left; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); padding: 12px 16px; border-bottom: 2px solid rgba(108, 99, 255, 0.1); }
+        .pp-table td { padding: 14px 16px; font-size: 14px; color: var(--text-secondary); border-bottom: 1px solid rgba(108, 99, 255, 0.06); }
+        .pp-chip { display: inline-block; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 100px; background: rgba(108, 99, 255, 0.08); color: var(--purple); margin-right: 6px; }
+        .pp-chip.green { background: rgba(34, 197, 94, 0.08); color: #16a34a; }
+        .pp-chip.red { background: rgba(239, 68, 68, 0.08); color: #dc2626; }
+        .footer { background: var(--navy); color: rgba(255,255,255,0.7); padding: 48px 0 32px; }
+        .footer .container { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; }
+        .footer-brand { display: flex; align-items: center; gap: 10px; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 18px; color: white; }
+        .footer-brand .logo-icon { width: 28px; height: 28px; } .footer-brand .logo-icon svg { width: 16px; height: 16px; }
+        .footer-links { display: flex; gap: 24px; } .footer-links a { font-size: 14px; color: rgba(255,255,255,0.5); transition: color 0.2s; } .footer-links a:hover { color: white; }
+        .footer-copy { font-size: 13px; color: rgba(255,255,255,0.4); width: 100%; text-align: center; margin-top: 24px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.08); }
+        @media (max-width: 768px) { .pp-hero h1 { font-size: 34px; } .pp-section { padding: 24px; } .footer .container { flex-direction: column; text-align: center; } }
+    </style>
+</head>
+<body>
+    <nav class="navbar"><div class="container">
+        <a href="index.html" class="logo"><div class="logo-icon"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12c0 1.54.36 3 .97 4.29L2 22l5.71-.97C9 21.64 10.46 22 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2z"/></svg></div>Kora</a>
+        <a href="index.html" class="nav-back"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>Back to Home</a>
+    </div></nav>
+
+    <section class="pp-hero"><div class="container">
+        <div class="pp-hero-badge"><span style="width:8px;height:8px;background:var(--purple);border-radius:50%;animation:pulse 2s infinite;"></span>Google Play Data Safety</div>
+        <h1>Data Safety</h1>
+        <p>Full transparency about how Kora Messenger handles your data — as required by Google Play's Data Safety disclosure.</p>
+        <div class="pp-last-updated"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>Last updated: September 1, 2026</div>
+    </div></section>
+
+    <section class="pp-content"><div class="container">
+        <div class="pp-section" data-animate>
+            <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><path d="M12 2L4 7v6c0 5.25 3.4 9.74 8 11 4.6-1.26 8-5.75 8-11V7l-8-5z"/></svg></div><h2>Data Safety Summary</h2></div>
+            <div class="pp-callout"><div class="pp-callout-icon"><svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></div><p><strong>No data is shared with third parties.</strong> No data is used for advertising. Messages are end-to-end encrypted. AI processing happens on-device.</p></div>
+        </div>
+
+        <div class="pp-section" data-animate>
+            <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div><h2>Data Collected</h2></div>
+            <table class="pp-table">
+                <tr><th>Data Type</th><th>Purpose</th><th>Encrypted</th><th>Optional</th></tr>
+                <tr><td><strong>Phone number</strong></td><td>Account registration & verification</td><td><span class="pp-chip green">Yes</span></td><td>No</td></tr>
+                <tr><td><strong>Email address</strong></td><td>Account recovery & verification</td><td><span class="pp-chip green">Yes</span></td><td>No</td></tr>
+                <tr><td><strong>Display name</strong></td><td>User identification</td><td><span class="pp-chip green">Yes</span></td><td>No</td></tr>
+                <tr><td><strong>Profile photo</strong></td><td>User avatar</td><td><span class="pp-chip green">Yes</span></td><td><span class="pp-chip">Yes</span></td></tr>
+                <tr><td><strong>Contacts (hashed)</strong></td><td>Finding friends on Kora</td><td><span class="pp-chip green">Hashed</span></td><td><span class="pp-chip">Yes</span></td></tr>
+                <tr><td><strong>Messages</strong></td><td>Messaging (stored encrypted)</td><td><span class="pp-chip green">E2E</span></td><td>No</td></tr>
+                <tr><td><strong>Voice notes</strong></td><td>Voice messaging</td><td><span class="pp-chip green">E2E</span></td><td>No</td></tr>
+                <tr><td><strong>Photos & videos</strong></td><td>Media sharing</td><td><span class="pp-chip green">E2E</span></td><td>No</td></tr>
+                <tr><td><strong>Call metadata</strong></td><td>Call duration & timestamps</td><td><span class="pp-chip green">Yes</span></td><td>No</td></tr>
+                <tr><td><strong>Device info</strong></td><td>Security & trusted device management</td><td><span class="pp-chip green">Yes</span></td><td>No</td></tr>
+            </table>
+        </div>
+
+        <div class="pp-section" data-animate>
+            <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg></div><h2>Security Practices</h2></div>
+            <ul>
+                <li><strong>End-to-end encryption</strong> — Signal Protocol for all messages, calls, and media</li>
+                <li><strong>On-device AI</strong> — Voice translation and AI features run locally (ML Kit / CoreML)</li>
+                <li><strong>Biometric locks</strong> — Fingerprint and Face ID for app and chat vault access</li>
+                <li><strong>Anti-screenshot protection</strong> — Prevents screenshots in sensitive chats</li>
+                <li><strong>Secure key storage</strong> — Encryption keys stored in Android Keystore / iOS Secure Enclave</li>
+                <li><strong>No third-party tracking</strong> — No advertising SDKs, no analytics that profile users</li>
+            </ul>
+        </div>
+
+        <div class="pp-section" data-animate>
+            <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div><h2>Data Deletion</h2></div>
+            <div class="pp-callout"><div class="pp-callout-icon"><svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></div><p><strong>You can delete your account and data at any time</strong> in Settings → Account → Delete Account. All data is permanently removed within 30 days.</p></div>
+            <p>For data deletion requests without app access, email <a href="mailto:support@koramessenger.com">support@koramessenger.com</a>.</p>
+        </div>
+
+        <div class="pp-section" data-animate>
+            <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><circle cx="6" cy="12" r="3"/><circle cx="18" cy="12" r="3"/><path d="M9 12h6"/></svg></div><h2>Third-Party Sharing</h2></div>
+            <div class="pp-callout"><div class="pp-callout-icon"><svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/></svg></div><p><strong>We do not share data with third parties</strong> except for essential service providers (Firebase for push notifications, Paystack for payments). These providers do not have access to message content.</p></div>
+        </div>
+
+        <div class="pp-section" data-animate>
+            <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div><h2>Compliance</h2></div>
+            <ul>
+                <li><strong>GDPR</strong> — Full compliance with EU data protection regulations</li>
+                <li><strong>CCPA</strong> — California Consumer Privacy Act compliant</li>
+                <li><strong>NDPR</strong> — Nigeria Data Protection Regulation compliant</li>
+                <li><strong>Google Play Data Safety</strong> — This page fulfills Google Play's Data Safety disclosure requirements</li>
+            </ul>
+        </div>
+
+        <div class="pp-section" data-animate>
+            <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><path d="M22 6l-10 7L2 6"/></svg></div><h2>Contact</h2></div>
+            <div class="pp-callout"><div class="pp-callout-icon"><svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/></svg></div><p><strong>Email:</strong> support@koramessenger.com<br><strong>Company:</strong> Nexora Technologies</p></div>
+        </div>
+    </div></section>
+
+    <footer class="footer"><div class="container">
+        <div class="footer-brand"><div class="logo-icon"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12c0 1.54.36 3 .97 4.29L2 22l5.71-.97C9 21.64 10.46 22 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2z"/></svg></div>Kora Messenger</div>
+        <div class="footer-links"><a href="index.html">Home</a><a href="privacy-policy.html">Privacy</a><a href="terms-of-service.html">Terms</a><a href="data-safety.html">Data Safety</a></div>
+        <div class="footer-copy">© 2026 Nexora Technologies. All rights reserved.</div>
+    </div></footer>
+    <script>
+        const observer = new IntersectionObserver((entries) => { entries.forEach((entry, index) => { if (entry.isIntersecting) { setTimeout(() => entry.target.classList.add('visible'), index * 60); } }); }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+        document.querySelectorAll('[data-animate]').forEach(el => observer.observe(el));
+    </script>
+</body>
+</html>

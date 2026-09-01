@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terms of Service — Kora Messenger</title>
+    <meta name="description" content="Kora Messenger Terms of Service — the rules and guidelines for using our messaging platform.">
+    <meta name="theme-color" content="#6C63FF">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --purple: #6C63FF; --blue: #4A90D9; --navy: #0A0E27;
+            --gradient: linear-gradient(135deg, #6C63FF 0%, #4A90D9 100%);
+            --gradient-soft: linear-gradient(135deg, rgba(108, 99, 255, 0.08) 0%, rgba(74, 144, 217, 0.08) 100%);
+            --glass: rgba(255, 255, 255, 0.7); --glass-border: rgba(255, 255, 255, 0.3);
+            --text-primary: #0A0E27; --text-secondary: #4A5070; --text-muted: #8892B0;
+            --shadow-sm: 0 2px 12px rgba(10, 14, 39, 0.06);
+        }
+        html { scroll-behavior: smooth; }
+        body { font-family: 'Inter', sans-serif; background: #FAFBFF; color: var(--text-primary); line-height: 1.7; overflow-x: hidden; }
+        h1, h2, h3, h4 { font-family: 'Space Grotesk', sans-serif; font-weight: 700; letter-spacing: -0.02em; }
+        a { text-decoration: none; color: var(--purple); }
+        .container { max-width: 900px; margin: 0 auto; padding: 0 24px; }
+        .navbar { position: fixed; top: 0; left: 0; right: 0; z-index: 1000; padding: 16px 0; background: rgba(250, 251, 255, 0.85); backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%); border-bottom: 1px solid rgba(108, 99, 255, 0.08); }
+        .navbar .container { display: flex; align-items: center; justify-content: space-between; }
+        .logo { display: flex; align-items: center; gap: 10px; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 22px; color: var(--text-primary); }
+        .logo-icon { width: 36px; height: 36px; background: var(--gradient); border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 16px rgba(108, 99, 255, 0.3); }
+        .logo-icon svg { width: 20px; height: 20px; fill: white; }
+        .nav-back { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: var(--text-secondary); padding: 10px 20px; border-radius: 100px; background: var(--glass); backdrop-filter: blur(12px); border: 1px solid var(--glass-border); transition: all 0.3s; }
+        .nav-back:hover { color: var(--purple); border-color: var(--purple); transform: translateX(-2px); }
+        .pp-hero { padding: 140px 0 60px; text-align: center; position: relative; overflow: hidden; }
+        .pp-hero::before { content: ''; position: absolute; top: -30%; left: 50%; transform: translateX(-50%); width: 700px; height: 700px; background: radial-gradient(circle, rgba(108, 99, 255, 0.08) 0%, transparent 60%); border-radius: 50%; z-index: 0; }
+        .pp-hero .container { position: relative; z-index: 1; }
+        .pp-hero-badge { display: inline-flex; align-items: center; gap: 8px; background: var(--glass); backdrop-filter: blur(12px); border: 1px solid var(--glass-border); padding: 8px 16px; border-radius: 100px; font-size: 13px; font-weight: 600; color: var(--purple); margin-bottom: 24px; box-shadow: var(--shadow-sm); }
+        .pp-hero h1 { font-size: 48px; margin-bottom: 16px; background: linear-gradient(135deg, #0A0E27 0%, #6C63FF 50%, #4A90D9 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .pp-hero p { font-size: 18px; color: var(--text-secondary); max-width: 540px; margin: 0 auto; }
+        .pp-last-updated { margin-top: 24px; font-size: 14px; color: var(--text-muted); display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 100px; background: rgba(108, 99, 255, 0.05); }
+        .pp-content { padding: 40px 0 100px; }
+        .pp-layout { display: grid; grid-template-columns: 220px 1fr; gap: 48px; }
+        .pp-toc { position: sticky; top: 100px; align-self: start; background: var(--glass); backdrop-filter: blur(20px) saturate(180%); border: 1px solid var(--glass-border); border-radius: 20px; padding: 24px; box-shadow: var(--shadow-sm); }
+        .pp-toc h4 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 16px; }
+        .pp-toc ul { list-style: none; }
+        .pp-toc li { margin-bottom: 8px; }
+        .pp-toc a { font-size: 14px; font-weight: 500; color: var(--text-secondary); display: block; padding: 6px 12px; border-radius: 10px; transition: all 0.2s; border-left: 2px solid transparent; }
+        .pp-toc a:hover { color: var(--purple); background: rgba(108, 99, 255, 0.06); border-left-color: var(--purple); }
+        .pp-toc a.active { color: var(--purple); background: rgba(108, 99, 255, 0.08); border-left-color: var(--purple); }
+        .pp-section { background: var(--glass); backdrop-filter: blur(20px) saturate(180%); border: 1px solid var(--glass-border); border-radius: 24px; padding: 36px; margin-bottom: 24px; box-shadow: var(--shadow-sm); scroll-margin-top: 100px; opacity: 0; transform: translateY(20px); transition: opacity 0.5s ease, transform 0.5s ease; }
+        .pp-section.visible { opacity: 1; transform: translateY(0); }
+        .pp-section-header { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
+        .pp-section-icon { width: 44px; height: 44px; border-radius: 14px; background: var(--gradient-soft); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .pp-section-icon svg { width: 22px; height: 22px; }
+        .pp-section h2 { font-size: 22px; }
+        .pp-section p { font-size: 15px; color: var(--text-secondary); margin-bottom: 16px; }
+        .pp-section p:last-child { margin-bottom: 0; }
+        .pp-section ul, .pp-section ol { margin: 12px 0 16px 20px; }
+        .pp-section li { font-size: 15px; color: var(--text-secondary); margin-bottom: 8px; }
+        .pp-section strong { color: var(--text-primary); font-weight: 600; }
+        .pp-callout { background: linear-gradient(135deg, rgba(108, 99, 255, 0.06) 0%, rgba(74, 144, 217, 0.06) 100%); border: 1px solid rgba(108, 99, 255, 0.12); border-radius: 16px; padding: 20px; margin: 20px 0; display: flex; align-items: flex-start; gap: 14px; }
+        .pp-callout-icon { width: 36px; height: 36px; border-radius: 12px; background: var(--gradient); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .pp-callout-icon svg { width: 18px; height: 18px; fill: white; }
+        .pp-callout p { margin: 0; font-size: 14px; color: var(--text-primary); }
+        .pp-callout p strong { color: var(--purple); }
+        .pp-callout.warn { background: linear-gradient(135deg, rgba(239, 68, 68, 0.06) 0%, rgba(217, 70, 70, 0.06) 100%); border-color: rgba(239, 68, 68, 0.15); }
+        .pp-callout.warn .pp-callout-icon { background: linear-gradient(135deg, #EF4444 0%, #DC4646 100%); }
+        .footer { background: var(--navy); color: rgba(255,255,255,0.7); padding: 48px 0 32px; }
+        .footer .container { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; }
+        .footer-brand { display: flex; align-items: center; gap: 10px; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 18px; color: white; }
+        .footer-brand .logo-icon { width: 28px; height: 28px; }
+        .footer-brand .logo-icon svg { width: 16px; height: 16px; }
+        .footer-links { display: flex; gap: 24px; }
+        .footer-links a { font-size: 14px; color: rgba(255,255,255,0.5); transition: color 0.2s; }
+        .footer-links a:hover { color: white; }
+        .footer-copy { font-size: 13px; color: rgba(255,255,255,0.4); width: 100%; text-align: center; margin-top: 24px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.08); }
+        @media (max-width: 768px) { .pp-layout { grid-template-columns: 1fr; } .pp-toc { display: none; } .pp-hero h1 { font-size: 34px; } .pp-section { padding: 24px; } .footer .container { flex-direction: column; text-align: center; } }
+    </style>
+</head>
+<body>
+    <nav class="navbar"><div class="container">
+        <a href="index.html" class="logo"><div class="logo-icon"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12c0 1.54.36 3 .97 4.29L2 22l5.71-.97C9 21.64 10.46 22 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2z"/></svg></div>Kora</a>
+        <a href="index.html" class="nav-back"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>Back to Home</a>
+    </div></nav>
+
+    <section class="pp-hero"><div class="container">
+        <div class="pp-hero-badge"><span style="width:8px;height:8px;background:var(--purple);border-radius:50%;animation:pulse 2s infinite;"></span>Terms & Conditions</div>
+        <h1>Terms of Service</h1>
+        <p>The rules and guidelines for using Kora Messenger. By using Kora, you agree to these terms.</p>
+        <div class="pp-last-updated"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>Last updated: September 1, 2026</div>
+    </div></section>
+
+    <section class="pp-content"><div class="container"><div class="pp-layout">
+        <div class="pp-toc"><h4>Contents</h4><ul>
+            <li><a href="#acceptance">Acceptance</a></li>
+            <li><a href="#description">Service Description</a></li>
+            <li><a href="#eligibility">Eligibility</a></li>
+            <li><a href="#account">Account & Registration</a></li>
+            <li><a href="#acceptable-use">Acceptable Use</a></li>
+            <li><a href="#prohibited">Prohibited Conduct</a></li>
+            <li><a href="#premium">Premium Subscriptions</a></li>
+            <li><a href="#ai">Kora AI Terms</a></li>
+            <li><a href="#ip">Intellectual Property</a></li>
+            <li><a href="#disclaimer">Disclaimer</a></li>
+            <li><a href="#liability">Limitation of Liability</a></li>
+            <li><a href="#termination">Termination</a></li>
+            <li><a href="#governing">Governing Law</a></li>
+            <li><a href="#changes">Changes</a></li>
+            <li><a href="#contact">Contact</a></li>
+        </ul></div>
+        <div>
+            <div class="pp-section" id="acceptance" data-animate>
+                <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg></div><h2>1. Acceptance of Terms</h2></div>
+                <p>By downloading, installing, or using Kora Messenger ("Kora," "the App," "the Service"), you agree to be bound by these Terms of Service ("Terms"). If you do not agree, do not use Kora.</p>
+                <p>These Terms form a legally binding agreement between you and <strong>Nexora Technologies</strong> ("we," "us," "our").</p>
+            </div>
+            <div class="pp-section" id="description" data-animate>
+                <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div><h2>2. Service Description</h2></div>
+                <p>Kora Messenger is an end-to-end encrypted messaging application that provides:</p>
+                <ul>
+                    <li>Text, voice, and media messaging</li>
+                    <li>Voice and video calls (1-on-1 and group up to 32 participants)</li>
+                    <li>AI-powered voice translation and assistant</li>
+                    <li>Communities, channels, and group management</li>
+                    <li>Premium features (app icon switching, enhanced customization)</li>
+                </ul>
+            </div>
+            <div class="pp-section" id="eligibility" data-animate>
+                <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div><h2>3. Eligibility</h2></div>
+                <p>You must be at least <strong>13 years old</strong> to use Kora Messenger. Users aged 13-17 must have parental or guardian permission. By using Kora, you represent that you meet these requirements.</p>
+            </div>
+            <div class="pp-section" id="account" data-animate>
+                <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg></div><h2>4. Account & Registration</h2></div>
+                <ul>
+                    <li><strong>Account creation</strong> requires a valid phone number and email address.</li>
+                    <li>You must provide accurate, current information.</li>
+                    <li>You are responsible for keeping your account credentials secure.</li>
+                    <li>One account per person. Creating multiple accounts for malicious purposes is prohibited.</li>
+                    <li>You can delete your account at any time within Settings.</li>
+                </ul>
+            </div>
+            <div class="pp-section" id="acceptable-use" data-animate>
+                <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><path d="M9 12l2 2 4-4"/><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div><h2>5. Acceptable Use</h2></div>
+                <p>You agree to use Kora Messenger responsibly and lawfully. You are solely responsible for the content you share.</p>
+                <div class="pp-callout"><div class="pp-callout-icon"><svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/></svg></div><p><strong>Good faith:</strong> Use Kora to communicate genuinely, respect others' privacy, and follow all applicable laws.</p></div>
+            </div>
+            <div class="pp-section" id="prohibited" data-animate>
+                <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M4.93 4.93l14.14 14.14"/></svg></div><h2>6. Prohibited Conduct</h2></div>
+                <p>The following activities are strictly prohibited and may result in immediate account suspension:</p>
+                <ul>
+                    <li><strong>Spam & fraud</strong> — Sending unsolicited bulk messages, phishing, or scams</li>
+                    <li><strong>Harmful content</strong> — Sharing content that threatens, harasses, or incites violence</li>
+                    <li><strong>Illegal activity</strong> — Using Kora for any illegal purpose under your jurisdiction</li>
+                    <li><strong>Child exploitation</strong> — Any content exploiting minors (zero-tolerance, reported to authorities)</li>
+                    <li><strong>Malware & hacking</strong> — Distributing malware or attempting to compromise the service</li>
+                    <li><strong>Impersonation</strong> — Pretending to be someone else without authorization</li>
+                    <li><strong>Automated access</strong> — Using bots, scrapers, or automated tools without permission</li>
+                    <li><strong>Circumvention</strong> — Bypassing security measures or account restrictions</li>
+                </ul>
+                <div class="pp-callout warn"><div class="pp-callout-icon"><svg viewBox="0 0 24 24"><path d="M12 2L1 21h22L12 2zm0 4l7.5 13h-15L12 6z"/></svg></div><p><strong>Violations may result in:</strong> Account suspension · Permanent ban · Legal action · Reports to law enforcement</p></div>
+            </div>
+            <div class="pp-section" id="premium" data-animate>
+                <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><path d="M12 2l3 7h7l-5.5 4.5L18 21l-6-4.5L6 21l1.5-7.5L2 9h7z"/></svg></div><h2>7. Premium Subscriptions</h2></div>
+                <ul>
+                    <li><strong>Kora Premium</strong> offers enhanced features (app icon switching, advanced customization).</li>
+                    <li>Subscriptions are billed via <strong>Paystack</strong> on a monthly or annual basis.</li>
+                    <li>Premium features remain accessible until the end of your billing period if cancelled.</li>
+                    <li><strong>Kora AI is free for all users</strong> — not gated behind premium.</li>
+                    <li>The app owner holds a permanent premium override without payment.</li>
+                    <li>Refunds are handled per Paystack's refund policy and applicable consumer protection laws.</li>
+                </ul>
+            </div>
+            <div class="pp-section" id="ai" data-animate>
+                <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 10v6m11-11h-6M7 12H1"/></svg></div><h2>8. Kora AI Terms</h2></div>
+                <ul>
+                    <li>Kora AI is a free assistant available in all chats.</li>
+                    <li>AI features (voice translation, web search, image generation) process data on-device where possible.</li>
+                    <li>AI responses are generated and may contain inaccuracies. Verify critical information independently.</li>
+                    <li>Kora AI will not disclose internal implementation details, providers, or account policies.</li>
+                    <li>You are responsible for how you use AI-generated content.</li>
+                </ul>
+            </div>
+            <div class="pp-section" id="ip" data-animate>
+                <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><path d="M12 2v20M2 12h20"/></svg></div><h2>9. Intellectual Property</h2></div>
+                <ul>
+                    <li>Kora Messenger, its design, code, and branding are owned by <strong>Nexora Technologies</strong>.</li>
+                    <li>You retain ownership of content you create and share through Kora.</li>
+                    <li>You grant Kora a limited license to transmit and store your content for the purpose of providing the service.</li>
+                    <li>The "Kora" name, logo, and visual identity are trademarks of Nexora Technologies.</li>
+                </ul>
+            </div>
+            <div class="pp-section" id="disclaimer" data-animate>
+                <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg></div><h2>10. Disclaimer</h2></div>
+                <p>Kora Messenger is provided "as is" and "as available" without warranties of any kind. We do not guarantee uninterrupted, error-free, or secure service. You use Kora at your own risk.</p>
+            </div>
+            <div class="pp-section" id="liability" data-animate>
+                <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><path d="M12 2L1 21h22L12 2z"/></svg></div><h2>11. Limitation of Liability</h2></div>
+                <p>To the maximum extent permitted by law, Nexora Technologies shall not be liable for any indirect, incidental, consequential, or punitive damages arising from your use of Kora Messenger.</p>
+                <p>Our total liability shall not exceed the amount you paid for Kora Premium in the 12 months preceding the claim.</p>
+            </div>
+            <div class="pp-section" id="termination" data-animate>
+                <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></div><h2>12. Termination</h2></div>
+                <ul>
+                    <li>You may delete your account at any time in Settings.</li>
+                    <li>We may suspend or terminate your account for violations of these Terms.</li>
+                    <li>Upon termination, your data is deleted within 30 days.</li>
+                    <li>Sections on IP, liability, and governing law survive termination.</li>
+                </ul>
+            </div>
+            <div class="pp-section" id="governing" data-animate>
+                <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><path d="M3 6l9-3 9 3M3 6v12l9 3 9-3V6M3 6l9 3M21 6l-9 3M12 9v12"/></svg></div><h2>13. Governing Law</h2></div>
+                <p>These Terms are governed by the laws of the <strong>Federal Republic of Nigeria</strong>. Any disputes shall be resolved in the courts of Nigeria, unless otherwise required by mandatory consumer protection laws in your jurisdiction.</p>
+            </div>
+            <div class="pp-section" id="changes" data-animate>
+                <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div><h2>14. Changes to Terms</h2></div>
+                <p>We may update these Terms from time to time. We'll notify you through the app at least 7 days before material changes take effect. Continued use after the effective date constitutes acceptance.</p>
+            </div>
+            <div class="pp-section" id="contact" data-animate>
+                <div class="pp-section-header"><div class="pp-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><path d="M22 6l-10 7L2 6"/></svg></div><h2>15. Contact</h2></div>
+                <div class="pp-callout"><div class="pp-callout-icon"><svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/></svg></div><p><strong>Email:</strong> support@koramessenger.com<br><strong>Company:</strong> Nexora Technologies<br><strong>Website:</strong> koramessenger.com</p></div>
+            </div>
+        </div>
+    </div></div></section>
+
+    <footer class="footer"><div class="container">
+        <div class="footer-brand"><div class="logo-icon"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12c0 1.54.36 3 .97 4.29L2 22l5.71-.97C9 21.64 10.46 22 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2z"/></svg></div>Kora Messenger</div>
+        <div class="footer-links"><a href="index.html">Home</a><a href="privacy-policy.html">Privacy</a><a href="terms-of-service.html">Terms</a><a href="cookie-policy.html">Cookies</a></div>
+        <div class="footer-copy">© 2026 Nexora Technologies. All rights reserved.</div>
+    </div></footer>
+
+    <script>
+        const observer = new IntersectionObserver((entries) => { entries.forEach((entry, index) => { if (entry.isIntersecting) { setTimeout(() => entry.target.classList.add('visible'), index * 60); } }); }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+        document.querySelectorAll('[data-animate]').forEach(el => observer.observe(el));
+        const tocLinks = document.querySelectorAll('.pp-toc a'); const sections = document.querySelectorAll('.pp-section');
+        window.addEventListener('scroll', () => { let current = ''; sections.forEach(s => { if (window.scrollY >= s.offsetTop - 120) current = s.id; }); tocLinks.forEach(a => { a.classList.remove('active'); if (a.getAttribute('href') === '#' + current) a.classList.add('active'); }); });
+    </script>
+</body>
+</html>
