@@ -435,13 +435,13 @@ class _AccountScreenState extends State<AccountScreen> {
       ),
     );
 
+      final email = _session?['email']?.toString() ?? '';
     try {
       // Get deviceId and deviceName from SharedPreferences (fallback: 'Unknown Device')
       final prefs = await SharedPreferences.getInstance();
       final deviceId = prefs.getString('kora_device_id') ?? 'Unknown Device';
       final deviceName = prefs.getString('kora_device_name') ?? 'Unknown Device';
 
-      final email = _session?['email']?.toString() ?? '';
       final userId = _session?['id']?.toString() ?? '';
 
       // 4. Call backend API (KoraApi.post) with action 'logout'
