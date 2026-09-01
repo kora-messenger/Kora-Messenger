@@ -1,4 +1,4 @@
-name: Build Kora Messenger APK & AAB
+name: Build Kora Messenger APK
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   build:
-    name: Build APK & AAB
+    name: Build APK
     runs-on: ubuntu-latest
 
     steps:
@@ -44,17 +44,7 @@ jobs:
             echo "WARNING: KORA_KEYSTORE_BASE64 secret not set. Falling back to debug signing."
           fi
 
-      - name: Build split APKs (per ABI)
-        env:
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-        run: |
-          flutter build apk --release --split-per-abi \
-            --dart-define=KORA_BACKEND_URL=${{ secrets.KORA_BACKEND_URL }} \
-            --dart-define=KORA_AI_AUTH_TOKEN=${{ secrets.KORA_AI_AUTH_TOKEN }}
-
-      - name: Build universal APK (fallback for all devices)
+      - name: Build universal APK
         env:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
@@ -64,57 +54,12 @@ jobs:
             --dart-define=KORA_BACKEND_URL=${{ secrets.KORA_BACKEND_URL }} \
             --dart-define=KORA_AI_AUTH_TOKEN=${{ secrets.KORA_AI_AUTH_TOKEN }}
 
-      - name: Build AAB (for Google Play)
-        env:
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-        run: |
-          flutter build appbundle --release \
-            --dart-define=KORA_BACKEND_URL=${{ secrets.KORA_BACKEND_URL }} \
-            --dart-define=KORA_AI_AUTH_TOKEN=${{ secrets.KORA_AI_AUTH_TOKEN }}
-
-      - name: Upload arm64 APK (modern phones - ~90% of devices)
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v7
         with:
-          name: kora-messenger-arm64-v8a
-          path: build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
-          retention-days: 30
-
-      - name: Upload armeabi APK (older 32-bit phones)
-        uses: actions/upload-artifact@v7
-        with:
-          name: kora-messenger-armeabi-v7a
-          path: build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
-          retention-days: 30
-
-      - name: Upload x86_64 APK (emulators & some tablets)
-        uses: actions/upload-artifact@v7
-        with:
-          name: kora-messenger-x86_64
-          path: build/app/outputs/flutter-apk/app-x86_64-release.apk
-          retention-days: 30
-
-      - name: Upload universal APK (all devices, larger download)
-        uses: actions/upload-artifact@v7
-        with:
-          name: kora-messenger-universal
+          name: kora-messenger-apk
           path: build/app/outputs/flutter-apk/app-release.apk
           retention-days: 30
-
-      - name: Upload AAB artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: kora-messenger-aab
-          path: build/app/outputs/bundle/release/app-release.aab
-          retention-days: 30
-
-      - name: Rename APKs for release
-        run: |
-          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk Kora-Messenger-arm64.apk
-          cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk Kora-Messenger-arm32.apk
-          cp build/app/outputs/flutter-apk/app-x86_64-release.apk Kora-Messenger-x64.apk
-          cp build/app/outputs/flutter-apk/app-release.apk Kora-Messenger-universal.apk
 
       - name: Publish public download release
         uses: softprops/action-gh-release@v2
@@ -124,16 +69,9 @@ jobs:
           body: |
             Automatically published on every push to main.
 
-            **Download the right APK for your device:**
-            - **Kora-Messenger-arm64.apk** — Most modern phones (Samsung, Pixel, OnePlus, etc.) ~90% of devices
-            - **Kora-Messenger-arm32.apk** — Older 32-bit phones
-            - **Kora-Messenger-x64.apk** — Emulators & some tablets
-            - **Kora-Messenger-universal.apk** — Works on ALL devices (larger download, pick this if unsure)
+            **Kora-Messenger-universal.apk** — Works on ALL Android devices.
           files: |
-            Kora-Messenger-arm64.apk
-            Kora-Messenger-arm32.apk
-            Kora-Messenger-x64.apk
-            Kora-Messenger-universal.apk
+            build/app/outputs/flutter-apk/app-release.apk
           prerelease: false
           make_latest: true
         env:
