@@ -22,8 +22,17 @@ import '../services/crash_logger.dart';
 /// - Kora's dark theme design language
 class LoginVerificationScreen extends StatefulWidget {
   final String email;
+  final String? deliveryMethod; // 'app' or 'email' — initial method used
+  final String? nextType;        // 'email' or null — fallback method
+  final int? timeout;            // seconds before fallback available
 
-  const LoginVerificationScreen({super.key, required this.email});
+  const LoginVerificationScreen({
+    super.key,
+    required this.email,
+    this.deliveryMethod,
+    this.nextType,
+    this.timeout,
+  });
 
   @override
   State<LoginVerificationScreen> createState() => _LoginVerificationScreenState();
@@ -47,10 +56,16 @@ class _LoginVerificationScreenState extends State<LoginVerificationScreen>
   bool _isResending = false;
   bool _verifyTriggered = false;
   String _initialClipboard = '';
+  
+  // Track which delivery method is currently active and what's next
+  String _currentMethod = 'email'; // 'app' or 'email'
+  String? _nextMethod;  // 'email' or null
 
   @override
   void initState() {
     super.initState();
+    _currentMethod = widget.deliveryMethod ?? 'email';
+    _nextMethod = widget.nextType;
     _setupFocusNodeKeyHandlers();
     WidgetsBinding.instance.addObserver(this);
     _startCountdown();
@@ -300,15 +315,30 @@ class _LoginVerificationScreenState extends State<LoginVerificationScreen>
     });
 
     try {
-      final result = await _auth.sendVerificationCode(widget.email, type: 'login');
+      // Telegram-style: resend via the NEXT method in the chain
+      final result = await _auth.resendCode(
+        email: widget.email,
+        type: 'login',
+        currentMethod: _currentMethod,
+      );
       if (!mounted) return;
 
       if (result.success) {
         _clearInputs();
         _startCountdown();
+        
+        // Update tracking with the new method
+        setState(() {
+          _currentMethod = result.deliveryMethod ?? _currentMethod;
+          _nextMethod = result.nextType;
+        });
+
+        final msg = _currentMethod == 'app'
+            ? 'Code sent to your other device. Check Kora Notifications.'
+            : 'A new code has been sent to your email.';
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('A new code has been sent to your email.'),
+          SnackBar(
+            content: Text(msg),
             backgroundColor: KoraColors.darkCard,
             behavior: SnackBarBehavior.floating,
           ),
@@ -370,11 +400,13 @@ class _LoginVerificationScreenState extends State<LoginVerificationScreen>
               ),
               const SizedBox(height: 8),
 
-              const Center(
+              Center(
                 child: Text(
-                  'For your security, we sent a verification code\nto your email to confirm it\'s you.',
+                  _currentMethod == 'app'
+                      ? 'For your security, we sent a verification code\nto your other device. Check Kora Notifications.'
+                      : 'For your security, we sent a verification code\nto your email to confirm it\'s you.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: Color(0xFFA0A0B8), fontSize: 14, height: 1.5),
+                  style: const TextStyle(color: Color(0xFFA0A0B8), fontSize: 14, height: 1.5),
                 ),
               ),
               const SizedBox(height: 6),
@@ -384,7 +416,9 @@ class _LoginVerificationScreenState extends State<LoginVerificationScreen>
                 children: [
                   Flexible(
                     child: Text(
-                      'Code sent to $_maskedEmail',
+                      _currentMethod == 'app'
+                          ? 'Code sent to your other device'
+                          : 'Code sent to $_maskedEmail',
                       style: const TextStyle(color: Color(0xFF6B6B80), fontSize: 13),
                     ),
                   ),
@@ -515,30 +549,57 @@ class _LoginVerificationScreenState extends State<LoginVerificationScreen>
 
 
   Widget _buildResendSection() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+    // Determine the label for what the resend will do
+    final resendLabel = _nextMethod == 'email'
+        ? 'Send code to email instead'
+        : _currentMethod == 'email'
+            ? 'Resend code'
+            : 'Resend code';
+
+    return Column(
       children: [
-        const Text(
-          "Didn't get the code? ",
-          style: TextStyle(color: Color(0xFFA0A0B8), fontSize: 14),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text(
+              "Didn't get the code? ",
+              style: TextStyle(color: Color(0xFFA0A0B8), fontSize: 14),
+            ),
+            if (_countdown > 0)
+              Text(
+                'Try again in ${_countdown}s',
+                style: const TextStyle(color: Color(0xFF6B6B80), fontSize: 14),
+              )
+            else if (_isResending)
+              const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2, color: KoraColors.purple),
+              )
+            else
+              GestureDetector(
+                onTap: _resend,
+                child: Text(
+                  resendLabel,
+                  style: const TextStyle(color: KoraColors.purple, fontSize: 14, fontWeight: FontWeight.w600),
+                ),
+              ),
+          ],
         ),
-        if (_countdown > 0)
-          Text(
-            'Resend in ${_countdown}s',
-            style: const TextStyle(color: Color(0xFF6B6B80), fontSize: 14),
-          )
-        else if (_isResending)
-          const SizedBox(
-            width: 16,
-            height: 16,
-            child: CircularProgressIndicator(strokeWidth: 2, color: KoraColors.purple),
-          )
-        else
-          GestureDetector(
-            onTap: _resend,
-            child: const Text(
-              'Resend code',
-              style: TextStyle(color: KoraColors.purple, fontSize: 14, fontWeight: FontWeight.w600),
+        // Show delivery method badge
+        if (_currentMethod == 'app')
+          const Padding(
+            padding: EdgeInsets.only(top: 10),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.smartphone, size: 14, color: Color(0xFF6B6B80)),
+                SizedBox(width: 4),
+                Text(
+                  'Check Kora Notifications on your other device',
+                  style: TextStyle(color: Color(0xFF6B6B80), fontSize: 12),
+                ),
+              ],
             ),
           ),
       ],

@@ -239,7 +239,12 @@ class _LogInScreenState extends State<LogInScreen> {
         setState(() => _isLoading = false);
         TextInput.finishAutofillContext();
         Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => LoginVerificationScreen(email: email)),
+          MaterialPageRoute(builder: (_) => LoginVerificationScreen(
+            email: email,
+            deliveryMethod: result.deliveryMethod,
+            nextType: result.nextType,
+            timeout: result.timeout,
+          )),
         );
         return;
       }

@@ -89,6 +89,61 @@ class AuthService {
     }
   }
 
+  // ── Resend code (fallback to next delivery method) ───────────
+
+  /// Resends the verification code using the next method in the
+  /// priority chain (Telegram-style fallback).
+  /// Returns (success, errorMessage, deliveryMethod, nextType, timeout).
+  Future<({
+    bool success,
+    String? error,
+    String? deliveryMethod,
+    String? nextType,
+    int? timeout,
+  })> resendCode({
+    required String email,
+    String type = 'login',
+    String? currentMethod,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse(_endpoint),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'action': 'resendCode',
+          'email': email.toLowerCase().trim(),
+          'type': type,
+          'currentMethod': currentMethod,
+        }),
+      ).timeout(const Duration(seconds: 30));
+      final data = jsonDecode(response.body);
+      if (data['success'] == true) {
+        return (
+          success: true,
+          error: null,
+          deliveryMethod: data['deliveryMethod'] as String?,
+          nextType: data['nextType'] as String?,
+          timeout: data['timeout'] as int?,
+        );
+      }
+      return (
+        success: false,
+        error: data['error'] as String?,
+        deliveryMethod: null,
+        nextType: null,
+        timeout: null,
+      );
+    } catch (e) {
+      return (
+        success: false,
+        error: _friendlyError(e),
+        deliveryMethod: null,
+        nextType: null,
+        timeout: null,
+      );
+    }
+  }
+
   // ── Send verification code ──────────────────────────────────
 
   /// Sends a verification code to the given email.
@@ -169,6 +224,9 @@ class AuthService {
   Future<({
     bool success,
     bool needsDeviceVerification,
+    String? deliveryMethod, // 'app' or 'email'
+    String? nextType,        // 'email' or null
+    int? timeout,            // seconds before fallback
     String? error,
     Map<String, dynamic>? user,
   })> login({
@@ -207,6 +265,9 @@ class AuthService {
         return (
           success: false,
           needsDeviceVerification: false,
+          deliveryMethod: null,
+          nextType: null,
+          timeout: null,
           error: response.statusCode == 200
               ? 'Unexpected response from server. Please try again.'
               : 'Server error (${response.statusCode}). Please try again.',
@@ -222,6 +283,9 @@ class AuthService {
           return (
             success: false,
             needsDeviceVerification: false,
+            deliveryMethod: null,
+            nextType: null,
+            timeout: null,
             error: 'Login succeeded but user data was missing. Please try again.',
             user: null,
           );
@@ -229,6 +293,9 @@ class AuthService {
         return (
           success: true,
           needsDeviceVerification: false,
+          deliveryMethod: null,
+          nextType: null,
+          timeout: null,
           error: null,
           user: user,
         );
@@ -240,6 +307,9 @@ class AuthService {
         return (
           success: false,
           needsDeviceVerification: true,
+          deliveryMethod: data['deliveryMethod'] as String?,
+          nextType: data['nextType'] as String?,
+          timeout: data['timeout'] as int?,
           error: null,
           user: null,
         );
@@ -261,6 +331,9 @@ class AuthService {
       return (
         success: false,
         needsDeviceVerification: false,
+        deliveryMethod: null,
+        nextType: null,
+        timeout: null,
         error: backendError ?? 'Unable to login. Please check your details and try again.',
         user: null,
       );
@@ -269,6 +342,9 @@ class AuthService {
       return (
         success: false,
         needsDeviceVerification: false,
+        deliveryMethod: null,
+        nextType: null,
+        timeout: null,
         error: _friendlyError(e),
         user: null,
       );

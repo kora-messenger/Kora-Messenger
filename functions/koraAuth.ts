@@ -415,10 +415,16 @@ Deno.serve(async (req: Request) => {
         }
       }
 
-      // Device NOT recognized — send login verification code
+      // ── Priority-based code delivery (Telegram-style) ──
+      // 1. Check for ACTIVE sessions on OTHER devices → push code to those
+      // 2. If no other active sessions → send code to email
+      // 3. resendCode falls back to the next method after timeout
+
       const code = generateCode();
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+      const codeTimeoutSeconds = 60; // seconds before fallback to next method
 
+      // Invalidate old login codes
       const oldCodes = await db.entities.VerificationCode.filter({ email, type: 'login', used: false });
       if (oldCodes && oldCodes.length > 0) {
         for (const oc of oldCodes) {
@@ -426,20 +432,178 @@ Deno.serve(async (req: Request) => {
         }
       }
 
-      await db.entities.VerificationCode.create({
-        email, code, type: 'login', expiresAt, used: false, attempts: 0,
+      // Check for active sessions on OTHER devices (not this one)
+      const allDevices = await db.entities.TrustedDevice.filter({ userEmail: email, isActive: true });
+      const otherActiveDevices = (allDevices || []).filter((d: any) => {
+        const dId = d.data?.deviceId || d.deviceId;
+        return dId && dId !== deviceId;
       });
 
-      // Send verification email — fire-and-forget so the login response
-      // is never delayed by SMTP. The code is already saved in the DB.
-      sendVerificationEmail(email, code, 'login').catch(emailErr => {
-        console.error('Failed to send login verification email:', emailErr);
+      let deliveryMethod: 'app' | 'email';
+      let nextType: 'email' | null;
+
+      if (otherActiveDevices.length > 0) {
+        // PRIORITY 1: Push code to other active sessions via service notification
+        deliveryMethod = 'app';
+        nextType = 'email';
+
+        // Send as a service notification to ALL other active sessions
+        const notifMessage = `🔐 New Device Login\n\nSomeone is trying to sign in to your Kora account on a new device (${deviceName || 'Unknown Device'}).\n\nYour login code is: ${code}\n\nIf this wasn't you, go to Settings → Account → Security to review your devices.`;
+
+        for (const device of otherActiveDevices) {
+          const notifId = 'sn-' + Date.now() + '-' + Math.random().toString(36).substring(2, 8);
+          const now = new Date().toISOString();
+          await db.entities.ChatMessage.create({
+            userEmail: email,
+            chatId: 'kora_notifications',
+            messageId: notifId,
+            text: notifMessage,
+            type: 'service',
+            isAi: false, isMe: false, isSeen: false, isStarred: false, isWebSearch: false,
+            timestamp: now, lastMessageText: notifMessage,
+            lastMessageTimestamp: now, lastMessageType: 'service',
+            actionType: 'login_code', actionLabel: 'popup',
+            status: 'sent', reaction: '', replyToId: '', replyToName: '', replyToText: '',
+          });
+        }
+
+        // Update/create the Kora Notifications conversation
+        const existingConv = await db.entities.Conversation.filter({
+          userEmail: email, chatId: 'kora_notifications',
+        });
+        if (existingConv && existingConv.length > 0) {
+          await db.entities.Conversation.update(existingConv[0].id, {
+            lastMessageText: 'New device login code',
+            lastMessageTimestamp: new Date().toISOString(),
+            lastMessageType: 'service',
+            unreadCount: (existingConv[0].data?.unreadCount ?? 0) + 1,
+          });
+        } else {
+          await db.entities.Conversation.create({
+            userEmail: email, chatId: 'kora_notifications',
+            name: 'Kora Notifications', avatarUrl: '',
+            lastMessageText: 'New device login code',
+            lastMessageTimestamp: new Date().toISOString(),
+            lastMessageType: 'service', unreadCount: 1, isOnline: false,
+            badge: '', recipientEmail: '', avatarAsset: '',
+          });
+        }
+
+        // Also try to send FCM push to those devices
+        try {
+          // FCM push handled by the service notification polling
+        } catch (e) {
+          console.error('Failed to push login code notification:', e);
+        }
+
+        // Also send email as a backup (fire-and-forget, doesn't block)
+        sendVerificationEmail(email, code, 'login').catch(() => {});
+
+      } else {
+        // PRIORITY 2: No other active sessions → email only
+        deliveryMethod = 'email';
+        nextType = null;
+
+        sendVerificationEmail(email, code, 'login').catch(emailErr => {
+          console.error('Failed to send login verification email:', emailErr);
+        });
+      }
+
+      // Store the code with the delivery method
+      await db.entities.VerificationCode.create({
+        email, code, type: 'login', expiresAt, used: false, attempts: 0,
       });
 
       return jsonResponse({
         success: false,
         needsDeviceVerification: true,
-        message: 'Verification code sent to your email',
+        deliveryMethod,
+        nextType,
+        timeout: codeTimeoutSeconds,
+        message: deliveryMethod === 'app'
+          ? 'Code sent to your other device. Check Kora Notifications.'
+          : 'Verification code sent to your email',
+      });
+    }
+
+    // ── RESEND CODE (fallback to next delivery method) ──────
+    // Telegram-style: after timeout, user can request the code via
+    // the next method in the priority chain.
+    if (action === 'resendCode') {
+      const { email, type = 'login', currentMethod } = body;
+      if (!email) return jsonResponse({ success: false, error: 'Email is required' });
+
+      // Check account exists for login/passwordReset
+      if (type === 'login' || type === 'passwordReset') {
+        const accounts = await db.entities.KoraUser.filter({ email });
+        if (!accounts || accounts.length === 0) {
+          return jsonResponse({ success: false, error: 'No account found with this email' });
+        }
+      }
+
+      // Invalidate old codes
+      const oldCodes = await db.entities.VerificationCode.filter({ email, type, used: false });
+      if (oldCodes && oldCodes.length > 0) {
+        for (const oc of oldCodes) {
+          await db.entities.VerificationCode.update(oc.id, { used: true });
+        }
+      }
+
+      const code = generateCode();
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+
+      // Determine next method based on what was tried before
+      // app → email → (sms, future)
+      // email → (app, if sessions exist, future)
+      let deliveryMethod: 'app' | 'email';
+      let nextType: 'email' | null = null;
+
+      if (currentMethod === 'app') {
+        // Fallback from app → email
+        deliveryMethod = 'email';
+        nextType = null;
+        sendVerificationEmail(email, code, type).catch(() => {});
+      } else {
+        // Fallback from email → try app (if sessions exist)
+        const allDevices = await db.entities.TrustedDevice.filter({ userEmail: email, isActive: true });
+        if (allDevices && allDevices.length > 0) {
+          deliveryMethod = 'app';
+          nextType = 'email';
+          // Push to active sessions
+          const notifMessage = `🔐 Login Code\n\nYour verification code is: ${code}\n\nIf this wasn't you, review your devices in Settings → Account → Security.`;
+          for (const device of allDevices) {
+            const notifId = 'sn-' + Date.now() + '-' + Math.random().toString(36).substring(2, 8);
+            const now = new Date().toISOString();
+            await db.entities.ChatMessage.create({
+              userEmail: email, chatId: 'kora_notifications', messageId: notifId,
+              text: notifMessage, type: 'service',
+              isAi: false, isMe: false, isSeen: false, isStarred: false, isWebSearch: false,
+              timestamp: now, lastMessageText: notifMessage,
+              lastMessageTimestamp: now, lastMessageType: 'service',
+              actionType: 'login_code', actionLabel: 'popup',
+              status: 'sent', reaction: '', replyToId: '', replyToName: '', replyToText: '',
+            });
+          }
+          sendVerificationEmail(email, code, type).catch(() => {});
+        } else {
+          deliveryMethod = 'email';
+          nextType = null;
+          sendVerificationEmail(email, code, type).catch(() => {});
+        }
+      }
+
+      await db.entities.VerificationCode.create({
+        email, code, type, expiresAt, used: false, attempts: 0,
+      });
+
+      return jsonResponse({
+        success: true,
+        deliveryMethod,
+        nextType,
+        timeout: 60,
+        message: deliveryMethod === 'app'
+          ? 'Code sent to your other device. Check Kora Notifications.'
+          : 'Verification code sent to your email',
       });
     }
 
