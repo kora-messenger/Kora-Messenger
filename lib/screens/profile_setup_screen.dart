@@ -12,6 +12,7 @@ import 'chat/emoji_picker_sheet.dart';
 import '../services/auth_service.dart';
 import '../config/kora_api.dart';
 import '../services/session_manager.dart';
+import '../services/accounts_manager.dart';
 import '../services/chat_sync_service.dart';
 import 'kora_home_screen.dart';
 
@@ -323,6 +324,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           );
           await ChatSyncService.instance.restoreFromCloud();
           ChatSyncService.instance.startPolling();
+          // Register in multi-account list.
+          await AccountsManager.instance.addOrUpdateAccount(session);
         }
       }
       _navigateHome();

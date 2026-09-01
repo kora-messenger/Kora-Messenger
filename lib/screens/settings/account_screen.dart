@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../theme/kora_colors.dart';
 import '../../services/session_manager.dart';
+import '../../services/accounts_manager.dart';
 import '../../config/kora_api.dart';
 import 'passkeys_screen.dart';
 import 'two_factor_screen.dart';
@@ -457,6 +458,10 @@ class _AccountScreenState extends State<AccountScreen> {
 
     try {
       await SessionManager.instance.clearSession();
+      // Remove this account from the multi-account list.
+      if (email.isNotEmpty) {
+        await AccountsManager.instance.removeAccount(email);
+      }
     } catch (e) {
       // Ignore local clear errors
     }

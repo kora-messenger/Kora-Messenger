@@ -21,12 +21,14 @@ import 'signup_screen.dart';
 import 'backup_pin_login_screen.dart';
 import 'passkey_login_screen.dart';
 import '../services/device_manager.dart';
+import '../services/accounts_manager.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// Kora Login screen — deep black surface, purple gradient accents.
 /// User enters email + password to log in. New devices trigger verification.
 class LogInScreen extends StatefulWidget {
-  const LogInScreen({super.key});
+  final bool isAddingAccount;
+  const LogInScreen({super.key, this.isAddingAccount = false});
 
   @override
   State<LogInScreen> createState() => _LogInScreenState();
@@ -307,6 +309,8 @@ class _LogInScreenState extends State<LogInScreen> {
               (session?['fullName'] as String?) ?? '',
             );
           }
+          // Register this account in the multi-account list.
+          await AccountsManager.instance.addOrUpdateAccount(session);
         }
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('kora_last_email', email);

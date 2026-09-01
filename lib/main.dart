@@ -13,6 +13,7 @@ import 'screens/kora_home_screen.dart';
 import 'screens/profile_setup_screen.dart';
 import 'screens/crash_report_screen.dart';
 import 'services/session_manager.dart';
+import 'services/accounts_manager.dart';
 import 'services/notification_service.dart';
 import 'services/kora_firebase_service.dart';
 import 'services/data_saver_service.dart';
@@ -289,6 +290,9 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _routeToSession() async {
+    // Migrate legacy single-session to multi-account list on first boot
+    // after this feature ships.
+    await AccountsManager.instance.ensureMigrated();
     final session = await SessionManager.instance.loadSession();
 
     if (!mounted) return;

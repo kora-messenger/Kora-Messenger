@@ -3,7 +3,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/kora_colors.dart';
 import '../theme/chat_theme_provider.dart';
 import '../widgets/new_user_welcome_popup.dart';
+import '../widgets/kora_avatar.dart';
+import '../widgets/account_switcher_popup.dart';
 import '../services/session_manager.dart';
+import '../services/accounts_manager.dart';
 import '../services/chat_sync_service.dart';
 import '../services/service_notification_service.dart';
 import 'home/calls_tab.dart';
@@ -12,6 +15,9 @@ import 'home/status_tab.dart';
 import 'home/channels_tab.dart';
 import 'home/profile_tab.dart';
 import '../services/permission_service.dart';
+import 'login_screen.dart';
+import 'settings/billing_screen.dart';
+import '../config/subscription_pricing.dart';
 
 /// Main Kora experience — hosts the bottom navigation with 4 tabs
 /// matching WhatsApp's 2026 layout:
@@ -30,6 +36,8 @@ class KoraHomeScreen extends StatefulWidget {
 class _KoraHomeScreenState extends State<KoraHomeScreen> {
   late final PageController _pageController;
   int _tabIndex = 0;
+  String _ownName = '';
+  String? _ownAvatarUrl;
 
   @override
   void initState() {
@@ -38,11 +46,28 @@ class _KoraHomeScreenState extends State<KoraHomeScreen> {
     KoraPermissionService.requestEssentialOnce();
     ChatSyncService.instance.startPolling();
     ServiceNotificationService.instance.init();
+    _loadOwnProfile();
+    // Seed the multi-account list from the legacy single-session key the
+    // first time a returning user hits Home after this feature ships.
+    AccountsManager.instance.ensureMigrated();
     if (widget.isNewUser) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _showWelcomePopup();
       });
     }
+  }
+
+  Future<void> _loadOwnProfile() async {
+    final session = await SessionManager.instance.loadSession();
+    if (!mounted || session == null) return;
+    setState(() {
+      _ownName = (session['fullName'] as String?) ?? '';
+      _ownAvatarUrl = session['avatarUrl'] as String?;
+    });
+    // Make sure the currently active account is registered in the
+    // multi-account list (covers fresh logins that bypassed the
+    // migration path, e.g. brand-new signups).
+    await AccountsManager.instance.addOrUpdateAccount(session);
   }
 
   @override
@@ -131,6 +156,7 @@ class _KoraHomeScreenState extends State<KoraHomeScreen> {
                 _navItem(1, Icons.update_outlined, Icons.update, 'Updates', textSecondary),
                 _navItem(2, Icons.groups_outlined, Icons.groups, 'Communities', textSecondary),
                 _navItem(3, Icons.call_outlined, Icons.call, 'Calls', textSecondary),
+                _profileNavItem(textSecondary),
               ],
             ),
           ),
@@ -178,6 +204,142 @@ class _KoraHomeScreenState extends State<KoraHomeScreen> {
                   color: color,
                   fontSize: 11,
                   fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// The Profile tab — shows the current account's avatar. A normal tap
+  /// opens Settings (same destination as the 3-dot menu's Settings item).
+  /// A long-press pops up the Telegram-style account switcher.
+  Widget _profileNavItem(Color inactiveColor) {
+    return Expanded(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: _goToSettings,
+        onLongPress: _showAccountSwitcher,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            KoraAvatar(name: _ownName, imageUrl: _ownAvatarUrl, size: 26),
+            const SizedBox(height: 5),
+            Text(
+              'Profile',
+              style: TextStyle(
+                color: inactiveColor,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showAccountSwitcher() {
+    AccountSwitcherPopup.show(
+      context,
+      bottomOffset: 78,
+      onAddAccount: _goToAddAccount,
+      onLimitReached: _showAccountLimitDialog,
+      onSwitched: (email) {
+        // Fresh Home screen so every tab re-reads the newly active
+        // account's data instead of carrying over stale widget state.
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const KoraHomeScreen()),
+          (route) => false,
+        );
+      },
+    );
+  }
+
+  void _goToAddAccount() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const LogInScreen(isAddingAccount: true)),
+    );
+  }
+
+  Future<void> _showAccountLimitDialog() async {
+    final maxAllowed = await AccountsManager.instance.maxAccountsAllowed();
+    final isPremiumCeiling = maxAllowed == AccountsManager.premiumAccountLimit;
+    if (!mounted) return;
+
+    final brightness = Theme.of(context).brightness;
+    final card = KoraColors.cardFor(brightness);
+    final textPrimary = KoraColors.textPrimaryFor(brightness);
+    final textSecondary = KoraColors.textSecondaryFor(brightness);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: const BoxDecoration(
+                  gradient: KoraColors.brandGradient,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.person_add_alt, color: Colors.white, size: 28),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                isPremiumCeiling ? 'Account Limit Reached' : 'Account Limit Reached',
+                style: TextStyle(color: textPrimary, fontSize: 18, fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                isPremiumCeiling
+                    ? 'You\'ve added the maximum of $maxAllowed accounts on this device.'
+                    : 'You\'ve added the maximum of $maxAllowed accounts on this device. Upgrade to Kora Premium to add up to ${AccountsManager.premiumAccountLimit} accounts.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: textSecondary, fontSize: 14, height: 1.5),
+              ),
+              const SizedBox(height: 20),
+              if (!isPremiumCeiling)
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      Navigator.of(ctx).pop();
+                      final session = await SessionManager.instance.loadSession();
+                      final email = session?['email'] as String? ?? '';
+                      if (!mounted) return;
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => BillingScreen(
+                            selectedPlan: SubscriptionPlan.monthly,
+                            userEmail: email,
+                          ),
+                        ),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: KoraColors.purple,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    child: const Text('Upgrade to Premium', style: TextStyle(fontWeight: FontWeight.w700)),
+                  ),
+                ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: Text('OK', style: TextStyle(color: textSecondary, fontWeight: FontWeight.w600)),
                 ),
               ),
             ],
