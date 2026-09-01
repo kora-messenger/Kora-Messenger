@@ -92,7 +92,50 @@
         .footer-brand .logo-icon { width: 28px; height: 28px; } .footer-brand .logo-icon svg { width: 16px; height: 16px; }
         .footer-links { display: flex; gap: 24px; flex-wrap: wrap; } .footer-links a { font-size: 14px; color: rgba(255,255,255,0.5); transition: color 0.2s; } .footer-links a:hover { color: white; }
         .footer-copy { font-size: 13px; color: rgba(255,255,255,0.4); width: 100%; text-align: center; margin-top: 24px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.08); }
-        @media (max-width: 768px) { .pp-layout { grid-template-columns: 1fr; } .pp-toc { display: none; } .pp-hero h1 { font-size: 34px; } .pp-section { padding: 24px; } .encrypt-chain { flex-direction: column; } .encrypt-link { width: 3px; height: 30px; } .footer .container { flex-direction: column; text-align: center; } }
+        @media (max-width: 768px) {
+            .pp-layout { grid-template-columns: 1fr; }
+            .pp-toc { display: none; }
+            .pp-hero { padding: 110px 0 40px; }
+            .pp-hero h1 { font-size: 28px; }
+            .pp-hero p { font-size: 15px; }
+            .pp-content { padding: 24px 0 60px; }
+            .container { padding: 0 16px; }
+            .pp-section { padding: 20px 16px; border-radius: 18px; margin-bottom: 16px; }
+            .pp-section h2 { font-size: 18px; }
+            .pp-section p { font-size: 14px; }
+            .pp-section li { font-size: 14px; }
+            .pp-section-header { gap: 10px; margin-bottom: 14px; }
+            .pp-section-icon { width: 36px; height: 36px; border-radius: 12px; }
+            .pp-section-icon svg { width: 18px; height: 18px; }
+            .pp-callout { padding: 16px; gap: 10px; border-radius: 14px; }
+            .pp-callout-icon { width: 30px; height: 30px; border-radius: 10px; }
+            .pp-callout p { font-size: 13px; }
+            .pp-table { display: block; overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; }
+            .pp-table th { font-size: 12px; padding: 10px 12px; }
+            .pp-table td { font-size: 13px; padding: 10px 12px; }
+            .pp-hero-badge { font-size: 12px; padding: 6px 14px; }
+            .pp-last-updated { font-size: 12px; padding: 6px 12px; }
+            .nav-back { font-size: 13px; padding: 8px 16px; }
+            .logo { font-size: 18px; }
+            .logo-icon { width: 30px; height: 30px; border-radius: 10px; }
+            .logo-icon svg { width: 16px; height: 16px; }
+            .footer { padding: 32px 0 24px; }
+            .footer .container { flex-direction: column; text-align: center; gap: 16px; }
+            .footer-brand { font-size: 16px; }
+            .footer-links { flex-wrap: wrap; justify-content: center; gap: 12px; }
+            .footer-links a { font-size: 13px; }
+            .footer-copy { font-size: 12px; }
+            .encrypt-chain { flex-direction: column; }
+            .encrypt-link { width: 3px; height: 30px; }
+        }
+        @media (max-width: 480px) {
+            .pp-hero h1 { font-size: 24px; }
+            .pp-hero p { font-size: 14px; }
+            .pp-section { padding: 16px 12px; }
+            .pp-section h2 { font-size: 16px; }
+            .pp-callout { padding: 14px; }
+            .pp-callout p { font-size: 12px; }
+        }
     </style>
 </head>
 <body>
