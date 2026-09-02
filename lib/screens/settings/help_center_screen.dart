@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../theme/kora_colors.dart';
 import '../ai/kora_support_screen.dart';
@@ -11,16 +12,23 @@ class HelpCenterScreen extends StatelessWidget {
   const HelpCenterScreen({super.key});
 
   Future<void> _launchUrl(String url) async {
+    debugPrint('[HelpCenter] _launchUrl called: $url');
     final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
+    debugPrint('[HelpCenter] Parsed URI: $uri');
+    final canLaunch = await canLaunchUrl(uri);
+    debugPrint('[HelpCenter] canLaunchUrl($uri) => $canLaunch');
+    if (canLaunch) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
+      debugPrint('[HelpCenter] launchUrl succeeded for: $url');
+    } else {
+      debugPrint('[HelpCenter] ⚠️ launchUrl FAILED — cannot launch: $url');
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('[HelpCenter] build() — HelpCenterScreen rendered');
     final brightness = Theme.of(context).brightness;
-    final bg = KoraColors.backgroundFor(brightness);
     final card = KoraColors.cardFor(brightness);
     final textPrimary = KoraColors.textPrimaryFor(brightness);
     final textSecondary = KoraColors.textSecondaryFor(brightness);
@@ -55,8 +63,8 @@ class HelpCenterScreen extends StatelessWidget {
             iconColor: KoraColors.purple,
             title: 'Kora Support',
             subtitle: 'Chat with Kora AI for instant troubleshooting',
-            onTap: () => Navigator.push(context,
-              MaterialPageRoute(builder: (_) => const KoraSupportScreen())),
+            onTap: () { debugPrint('[HelpCenter] Tapped: Kora Support'); Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const KoraSupportScreen())); },
           ),
           const SizedBox(height: 8),
           _card(context, card, border, textPrimary, textSecondary,
@@ -64,8 +72,8 @@ class HelpCenterScreen extends StatelessWidget {
             iconColor: const Color(0xFFEF4444),
             title: 'Report a bug',
             subtitle: 'Tell us what went wrong',
-            onTap: () => Navigator.push(context,
-              MaterialPageRoute(builder: (_) => const ReportBugScreen())),
+            onTap: () { debugPrint('[HelpCenter] Tapped: Report a bug'); Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const ReportBugScreen())); },
           ),
           const SizedBox(height: 8),
           _card(context, card, border, textPrimary, textSecondary,
@@ -73,8 +81,8 @@ class HelpCenterScreen extends StatelessWidget {
             iconColor: KoraColors.blue,
             title: 'Send feedback',
             subtitle: 'Share ideas or suggestions',
-            onTap: () => Navigator.push(context,
-              MaterialPageRoute(builder: (_) => const FeedbackScreen())),
+            onTap: () { debugPrint('[HelpCenter] Tapped: Send feedback'); Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const FeedbackScreen())); },
           ),
           const SizedBox(height: 20),
 
@@ -109,7 +117,7 @@ class HelpCenterScreen extends StatelessWidget {
             iconColor: KoraColors.purple,
             title: 'Email support',
             subtitle: 'support@koramessenger.com',
-            onTap: () => _launchUrl('mailto:support@koramessenger.com'),
+            onTap: () { debugPrint('[HelpCenter] Tapped: Email support'); _launchUrl('mailto:support@koramessenger.com'); },
           ),
           const SizedBox(height: 8),
           _card(context, card, border, textPrimary, textSecondary,
@@ -117,7 +125,7 @@ class HelpCenterScreen extends StatelessWidget {
             iconColor: KoraColors.blue,
             title: 'Privacy concerns',
             subtitle: 'privacy@koramessenger.com',
-            onTap: () => _launchUrl('mailto:privacy@koramessenger.com'),
+            onTap: () { debugPrint('[HelpCenter] Tapped: Privacy concerns email'); _launchUrl('mailto:privacy@koramessenger.com'); },
           ),
           const SizedBox(height: 8),
           _card(context, card, border, textPrimary, textSecondary,
@@ -125,7 +133,7 @@ class HelpCenterScreen extends StatelessWidget {
             iconColor: const Color(0xFF6B7280),
             title: 'Legal inquiries',
             subtitle: 'legal@koramessenger.com',
-            onTap: () => _launchUrl('mailto:legal@koramessenger.com'),
+            onTap: () { debugPrint('[HelpCenter] Tapped: Legal inquiries email'); _launchUrl('mailto:legal@koramessenger.com'); },
           ),
           const SizedBox(height: 24),
 
@@ -292,7 +300,13 @@ class _ReportBugScreenState extends State<ReportBugScreen> {
   }
 
   void _submit() {
-    if (_descriptionController.text.trim().isEmpty) return;
+    debugPrint('[ReportBug] _submit() called');
+    debugPrint('[ReportBug] Category: \$_selectedCategory');
+    debugPrint('[ReportBug] Description length: \${_descriptionController.text.trim().length}');
+    if (_descriptionController.text.trim().isEmpty) {
+      debugPrint('[ReportBug] ⚠️ Submission blocked — empty description');
+      return;
+    }
     // Encode as mailto so it goes to support email with structured content
     final subject = Uri.encodeComponent('[Bug Report] $_selectedCategory');
     final body = Uri.encodeComponent(
@@ -307,6 +321,7 @@ class _ReportBugScreenState extends State<ReportBugScreen> {
   @override
   Widget build(BuildContext context) {
     final brightness = Theme.of(context).brightness;
+    debugPrint("[ReportBug] build() — ReportBugScreen rendered");
     final bg = KoraColors.backgroundFor(brightness);
     final card = KoraColors.cardFor(brightness);
     final textPrimary = KoraColors.textPrimaryFor(brightness);
@@ -337,7 +352,7 @@ class _ReportBugScreenState extends State<ReportBugScreen> {
             children: _categories.map((cat) {
               final selected = cat == _selectedCategory;
               return GestureDetector(
-                onTap: () => setState(() => _selectedCategory = cat),
+                onTap: () { debugPrint('[ReportBug] Category selected: $cat'); setState(() => _selectedCategory = cat); },
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   decoration: BoxDecoration(
@@ -428,24 +443,45 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
   final _controller = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    debugPrint('[Feedback] initState() — FeedbackScreen created');
+  }
+
+  @override
   void dispose() {
+    debugPrint('[Feedback] dispose() — FeedbackScreen disposed');
     _controller.dispose();
     super.dispose();
   }
 
   void _submit() {
-    if (_controller.text.trim().isEmpty) return;
+    debugPrint('[Feedback] _submit() called');
+    debugPrint('[Feedback] Feedback text length: \${_controller.text.trim().length}');
+    if (_controller.text.trim().isEmpty) {
+      debugPrint('[Feedback] ⚠️ Submission blocked — empty feedback');
+      return;
+    }
     final subject = Uri.encodeComponent('[Feedback] Kora Messenger');
     final body = Uri.encodeComponent(_controller.text);
     final uri = Uri.parse('mailto:feedback@koramessenger.com?subject=$subject&body=$body');
+    debugPrint('[Feedback] Constructed mailto URI: $uri');
     canLaunchUrl(uri).then((can) {
-      if (can) launchUrl(uri, mode: LaunchMode.externalApplication);
+      debugPrint('[Feedback] canLaunchUrl => $can');
+      if (can) {
+        launchUrl(uri, mode: LaunchMode.externalApplication);
+        debugPrint('[Feedback] Feedback email launched successfully');
+      } else {
+        debugPrint('[Feedback] ⚠️ Could not launch email client');
+      }
     });
+    debugPrint('[Feedback] Popping screen, returning to Help Center');
     Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('[Feedback] build() — FeedbackScreen rendered');
     final brightness = Theme.of(context).brightness;
     final bg = KoraColors.backgroundFor(brightness);
     final card = KoraColors.cardFor(brightness);
