@@ -86,6 +86,15 @@ class KoraApi {
   /// Each request includes a 'feature' field: 'writing' | 'reply_suggestions' | 'summarize'.
   static const String aiFeaturesEndpoint = '$baseUrl/koraAiFeatures';
 
+  /// Kora AI Orchestrator — centralized AI operation coordinator.
+  /// Routes requests by intent (conversation, translation, summarization, etc.)
+  /// Uses Model Adapter pattern for provider abstraction.
+  static const String aiOrchestratorEndpoint = '\$baseUrl/koraAiOrchestrator';
+
+  /// Kora AI Conversation Management — server-side conversation storage.
+  /// Handles: create, list, get, delete, rename conversations + messages.
+  static const String aiConversationEndpoint = '\$baseUrl/koraAiConversation';
+
   /// Legacy endpoint aliases (kept for compatibility with existing service code).
   static const String aiWritingEndpoint = aiFeaturesEndpoint;
   static const String aiReplySuggestionsEndpoint = aiFeaturesEndpoint;
