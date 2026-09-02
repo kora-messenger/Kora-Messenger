@@ -44,6 +44,25 @@ jobs:
             echo "WARNING: KORA_KEYSTORE_BASE64 secret not set. Falling back to debug signing."
           fi
 
+      - name: Build per-ABI APKs
+        env:
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        run: |
+          flutter build apk --release \
+            --target-platform android-arm,android-arm64,android-x64 \
+            --split-per-abi \
+            --dart-define=KORA_BACKEND_URL=${{ secrets.KORA_BACKEND_URL }} \
+            --dart-define=KORA_AI_AUTH_TOKEN=${{ secrets.KORA_AI_AUTH_TOKEN }}
+
+      - name: Save per-ABI APKs
+        run: |
+          mkdir -p /tmp/apk_backups
+          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk /tmp/apk_backups/
+          cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk /tmp/apk_backups/
+          cp build/app/outputs/flutter-apk/app-x86_64-release.apk /tmp/apk_backups/
+
       - name: Build universal APK
         env:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
@@ -54,11 +73,27 @@ jobs:
             --dart-define=KORA_BACKEND_URL=${{ secrets.KORA_BACKEND_URL }} \
             --dart-define=KORA_AI_AUTH_TOKEN=${{ secrets.KORA_AI_AUTH_TOKEN }}
 
-      - name: Upload APK artifact
+      - name: Prepare all APK files
+        run: |
+          cp /tmp/apk_backups/*.apk build/app/outputs/flutter-apk/
+          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk build/app/outputs/flutter-apk/Kora-Messenger-arm64-v8a.apk
+          cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk build/app/outputs/flutter-apk/Kora-Messenger-armeabi-v7a.apk
+          cp build/app/outputs/flutter-apk/app-x86_64-release.apk build/app/outputs/flutter-apk/Kora-Messenger-x86_64.apk
+          cp build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/Kora-Messenger-universal.apk
+
+      - name: Upload APK artifacts
         uses: actions/upload-artifact@v7
         with:
           name: kora-messenger-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          path: |
+            build/app/outputs/flutter-apk/Kora-Messenger-arm64-v8a.apk
+            build/app/outputs/flutter-apk/Kora-Messenger-armeabi-v7a.apk
+            build/app/outputs/flutter-apk/Kora-Messenger-x86_64.apk
+            build/app/outputs/flutter-apk/Kora-Messenger-universal.apk
+            build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+            build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
+            build/app/outputs/flutter-apk/app-x86_64-release.apk
+            build/app/outputs/flutter-apk/app-release.apk
           retention-days: 30
 
       - name: Publish public download release
@@ -69,9 +104,16 @@ jobs:
           body: |
             Automatically published on every push to main.
 
-            **Kora-Messenger-universal.apk** — Works on ALL Android devices.
+            **APK Variants:**
+            - **Kora-Messenger-arm64-v8a.apk**: Modern 64-bit ARM devices (most phones).
+            - **Kora-Messenger-armeabi-v7a.apk**: Older 32-bit ARM devices.
+            - **Kora-Messenger-x86_64.apk**: x86 emulators and tablets.
+            - **Kora-Messenger-universal.apk**: Works on ALL devices.
           files: |
-            build/app/outputs/flutter-apk/app-release.apk
+            build/app/outputs/flutter-apk/Kora-Messenger-arm64-v8a.apk
+            build/app/outputs/flutter-apk/Kora-Messenger-armeabi-v7a.apk
+            build/app/outputs/flutter-apk/Kora-Messenger-x86_64.apk
+            build/app/outputs/flutter-apk/Kora-Messenger-universal.apk
           prerelease: false
           make_latest: true
         env:
