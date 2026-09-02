@@ -28,6 +28,11 @@ import 'package:file_picker/file_picker.dart';
 import 'call_screen.dart';
 import 'message_action_menu.dart';
 import 'message_info_screen.dart';
+import '../../widgets/ai_chat_tools.dart';
+import '../../ai/streaming/ai_stream_client.dart';
+import '../../ai/streaming/ai_stream_event.dart';
+import '../../ai/model/ai_request.dart';
+import '../../widgets/ai_catch_me_up.dart';
 import 'media_gallery_screen.dart';
 import 'e2ee_verification_screen.dart';
 import 'disappearing_messages_screen.dart';
@@ -96,6 +101,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
   bool _isLoading = true;
   bool _screenshotBlocked = false;
   bool _isAiTyping = false;
+  String? _aiStreamingText;
   bool _isBlocked = false;
   bool _isSpammer = false;
   int _spamScore = 0;
@@ -491,6 +497,79 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
   Future<void> _getAiResponse(String userMessage) async {
     setState(() => _isAiTyping = true);
 
+    // Try streaming via the new orchestrator first; fall back to the old endpoint.
+    try {
+      final chatType = widget.chatId == 'kora_support' ? 'support' : 'ai';
+      final history = _messages
+          .where((m) => m.type != KoraMessageType.action && m.type != KoraMessageType.issueList)
+          .map((m) => {'text': m.text, 'isMe': m.isMe})
+          .toList();
+
+      final request = AIRequest(
+        conversationId: widget.chatId ?? 'kora_ai',
+        message: userMessage,
+        feature: chatType,
+        history: history,
+      );
+
+      final streamClient = AIStreamClient();
+      final stream = streamClient.streamMessage(request);
+      final fullResponse = StringBuffer();
+      bool streamed = false;
+
+      await for (final event in stream) {
+        if (!mounted) return;
+        if (event is AIStreamTextDelta) {
+          streamed = true;
+          fullResponse.write(event.text);
+          // Update the typing indicator with partial text
+          setState(() => _aiStreamingText = fullResponse.toString());
+        } else if (event is AIStreamMessageCompleted) {
+          streamed = true;
+          fullResponse.clear();
+          fullResponse.write(event.fullText);
+          break;
+        } else if (event is AIStreamError) {
+          // Fall through to legacy fallback
+          streamed = false;
+          break;
+        }
+      }
+
+      if (streamed && fullResponse.isNotEmpty) {
+        await _messageService.addIncomingMessage(
+          widget.chatId,
+          fullResponse.toString(),
+          isAi: true,
+        );
+        if (mounted) {
+          setState(() {
+            _isAiTyping = false;
+            _aiStreamingText = null;
+          });
+          _refreshMessages();
+        }
+        return;
+      }
+
+      // Legacy fallback — use the old non-streaming endpoint
+      await _getAiResponseLegacy(userMessage);
+    } catch (e) {
+      // Fall back to legacy on any error
+      await _getAiResponseLegacy(userMessage);
+    }
+
+    if (mounted) {
+      setState(() {
+        _isAiTyping = false;
+        _aiStreamingText = null;
+      });
+      _refreshMessages();
+    }
+  }
+
+  /// Legacy non-streaming AI response (fallback).
+  Future<void> _getAiResponseLegacy(String userMessage) async {
     try {
       final chatType = widget.chatId == 'kora_support' ? 'support' : 'ai';
       final history = _messages
@@ -499,7 +578,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
           .toList();
 
       final response = await http.post(
-        Uri.parse('${KoraApi.baseUrl}/koraAiChat'),
+        Uri.parse(KoraApi.aiChatSupportEndpoint),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'chatType': chatType,
@@ -508,27 +587,14 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
         }),
       ).timeout(const Duration(seconds: 120));
 
-      // Log HTTP status if not 200
-      if (response.statusCode != 200) {
-        debugPrint('[Kora AI] HTTP ${response.statusCode} — ${response.body.substring(0, (response.body.length > 300 ? 300 : response.body.length))}');
-      }
-
       final data = jsonDecode(response.body) as Map<String, dynamic>;
-      final success = data['success'] as bool? ?? true;
       final reply = data['reply'] as String? ??
           "I'm here to help! Could you tell me more?";
-
-      // Log the actual error for developers when the AI request fails
-      if (!success) {
-        final errorDetail = data['error'] as String? ?? 'Unknown error';
-        debugPrint('[Kora AI] Request failed — chatType=$chatType, error=$errorDetail');
-      }
       final isWebSearch = data['isWebSearch'] as bool? ?? false;
       final issueList = data['issueList'] as List?;
       final actionLabel = data['actionLabel'] as String?;
       final actionType = data['actionType'] as String?;
 
-      // If the AI returned an issue list, show it as an issueList message
       if (issueList != null && issueList.isNotEmpty) {
         final issues = issueList
             .map((e) => IssueOption(
@@ -544,7 +610,6 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
           issueOptions: issues,
         );
       } else if (actionLabel != null && actionType != null) {
-        // Guided response with an action button (e.g. "Contact Live Support")
         await _messageService.addIncomingMessage(
           widget.chatId,
           reply,
@@ -561,7 +626,6 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
         );
       }
     } catch (e) {
-      // Fallback response if the backend is unreachable
       await _messageService.addIncomingMessage(
         widget.chatId,
         widget.chatId == 'kora_support'
@@ -569,11 +633,6 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
             : "I'd be happy to help with that! Let me know a bit more about what you're looking for.",
         isAi: true,
       );
-    }
-
-    if (mounted) {
-      setState(() => _isAiTyping = false);
-      _refreshMessages();
     }
   }
 
@@ -829,6 +888,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
       onMessageInfo: message.isMe ? () => _showMessageInfo(message) : null,
       onDelete: () => _onDelete(message.id),
       onReportSpam: !message.isMe ? () => _showReportSpamDialog(message) : null,
+      onAskAI: _isAiChat ? null : () => AIChatTools.show(context, message.text),
     );
   }
 
@@ -2164,6 +2224,10 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
 
   Widget _buildTypingIndicator(BuildContext context) {
     final brightness = Theme.of(context).brightness;
+    final textPrimary = KoraColors.textPrimaryFor(brightness);
+
+    // When streaming, show the partial response instead of just dots
+    final hasStreamText = _aiStreamingText != null && _aiStreamingText!.isNotEmpty;
 
     return Align(
       alignment: Alignment.centerLeft,
@@ -2181,7 +2245,34 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
             ),
           ],
         ),
-        child: _TypingDots(color: KoraColors.purple.withValues(alpha: 0.6)),
+        child: hasStreamText
+            ? ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 240),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _aiStreamingText!,
+                      style: TextStyle(color: textPrimary, fontSize: 14),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _TypingDots(color: KoraColors.purple.withValues(alpha: 0.4)),
+                        const SizedBox(width: 6),
+                        Text('streaming', style: TextStyle(
+                          fontSize: 10,
+                          color: KoraColors.purple.withValues(alpha: 0.5),
+                          fontStyle: FontStyle.italic,
+                        )),
+                      ],
+                    ),
+                  ],
+                ),
+              )
+            : _TypingDots(color: KoraColors.purple.withValues(alpha: 0.6)),
       ),
     );
   }

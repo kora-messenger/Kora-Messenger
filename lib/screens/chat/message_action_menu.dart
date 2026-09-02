@@ -43,6 +43,7 @@ void showKoraMessageActionMenu(
   VoidCallback? onTranscribeVoice,
   VoidCallback? onTranslateVoice,
   VoidCallback? onPremiumUpsell,
+  VoidCallback? onAskAI,
 }) {
   final overlay = Overlay.of(context);
   late OverlayEntry entry;
@@ -59,6 +60,12 @@ void showKoraMessageActionMenu(
           ? () {
               entry.remove();
               onPremiumUpsell!();
+            }
+          : null,
+      onAskAI: onAskAI != null
+          ? () {
+              entry.remove();
+              onAskAI!();
             }
           : null,
       onDismiss: () => entry.remove(),
@@ -293,6 +300,8 @@ class _MessageActionOverlay extends StatelessWidget {
                     isStarred ? 'Unstar' : 'Star',
                     onStar, textPrimary,
                   ),
+                  if (onAskAI != null)
+                    _action(Icons.auto_awesome, 'Ask Kora AI', onAskAI!, textPrimary),
                   if (isMe && onMessageInfo != null)
                     _action(Icons.info_outline, 'Message info', onMessageInfo!, textPrimary),
                   if (!isMe && onReportSpam != null)
