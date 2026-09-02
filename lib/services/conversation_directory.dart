@@ -99,6 +99,53 @@ class ConversationDirectoryService {
     return Map.unmodifiable(_entries);
   }
 
+  /// Deterministic 1:1 chatId shared by BOTH participants:
+  /// 'dm__' + both emails sorted alphabetically and joined with '__'.
+  /// Alice and Bob each compute the same id for their shared thread,
+  /// so a conversation is one continuous chat on both sides — even
+  /// across reinstalls and devices.
+  static String deterministicChatId(String emailA, String emailB) {
+    final a = emailA.trim().toLowerCase();
+    final b = emailB.trim().toLowerCase();
+    final pair = [a, b]..sort();
+    return 'dm__${pair.join('__')}';
+  }
+
+  /// Finds the existing chatId for a 1:1 contact, if any — so tapping
+  /// a contact never forks a second thread for the same person.
+  Future<String?> findByRecipientEmail(String recipientEmail) async {
+    await _ensureLoaded();
+    final needle = recipientEmail.trim().toLowerCase();
+    for (final entry in _entries.entries) {
+      final re = (entry.value['recipientEmail'] as String?)?.toLowerCase();
+      if (re != null && re.isNotEmpty && re == needle) {
+        return entry.key;
+      }
+    }
+    return null;
+  }
+
+  /// Resolves the chatId to use when opening a 1:1 chat with a contact:
+  /// 1. Reuse the existing thread for that contact if one exists.
+  /// 2. Otherwise mint the deterministic shared chatId from both emails.
+  /// 3. Fall back to [fallback] (e.g. the contact's koraId) when the
+  ///    contact has no email (manual/phone-only contacts).
+  static Future<String> resolveDmChatId({
+    required String? recipientEmail,
+    required String myEmail,
+    required String fallback,
+  }) async {
+    if (recipientEmail == null ||
+        recipientEmail.trim().isEmpty ||
+        myEmail.trim().isEmpty) {
+      return fallback;
+    }
+    final existing =
+        await instance.findByRecipientEmail(recipientEmail.trim());
+    if (existing != null && existing.isNotEmpty) return existing;
+    return deterministicChatId(myEmail, recipientEmail);
+  }
+
   Future<Map<String, dynamic>?> get(String chatId) async {
     await _ensureLoaded();
     return _entries[chatId];

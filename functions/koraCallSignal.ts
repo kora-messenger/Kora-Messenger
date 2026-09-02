@@ -62,6 +62,18 @@ function cleanupExpiredCalls() {
   }
 }
 
+// Candidate lists are stored as JSON strings (entity fields are string-typed).
+function safeParseList(raw: any): any[] {
+  if (Array.isArray(raw)) return raw;
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, {
@@ -78,6 +90,7 @@ Deno.serve(async (req: Request) => {
     const { action } = body;
 
     const client = createClientFromRequest(req);
+    const db = client.asServiceRole;
 
     // ── 1:1 CALL SIGNALING ───────────────────────────────────────
 
@@ -88,15 +101,15 @@ Deno.serve(async (req: Request) => {
       }
 
       // Create call signal record
-      await client.entities.CallSignal.create({
+      await db.entities.CallSignal.create({
         callId,
         callerEmail: callerId,
         calleeEmail: calleeId,
         callType: callType || 'voice',
         offerSdp: JSON.stringify(sdp),
         answerSdp: null,
-        callerCandidates: [],
-        calleeCandidates: [],
+        callerCandidates: JSON.stringify([]),
+        calleeCandidates: JSON.stringify([]),
         status: 'ringing',
         createdAt: new Date().toISOString(),
       });
@@ -111,17 +124,18 @@ Deno.serve(async (req: Request) => {
       }
 
       // Find the call signal record and update with answer
-      const records = await client.entities.CallSignal.list({
-        filter: { callId },
-        limit: 1,
-      });
+      const records = await db.entities.CallSignal.filter(
+        { callId },
+        undefined,
+        1
+      );
 
       if (!records || records.length === 0) {
         return jsonResponse({ error: 'Call not found' }, 404);
       }
 
       const record = records[0];
-      await client.entities.CallSignal.update(record.id, {
+      await db.entities.CallSignal.update(record.id, {
         answerSdp: JSON.stringify(sdp),
         status: 'connected',
       });
@@ -135,28 +149,30 @@ Deno.serve(async (req: Request) => {
         return jsonResponse({ error: 'Missing callId, from, or candidate' }, 400);
       }
 
-      const records = await client.entities.CallSignal.list({
-        filter: { callId },
-        limit: 1,
-      });
+      const records = await db.entities.CallSignal.filter(
+        { callId },
+        undefined,
+        1
+      );
 
       if (!records || records.length === 0) {
         return jsonResponse({ error: 'Call not found' }, 404);
       }
 
       const record = records[0];
-      const callerCands = record.data.callerCandidates || [];
-      const calleeCands = record.data.calleeCandidates || [];
+      const data = record.data ?? record;
+      const callerCands = safeParseList(data.callerCandidates);
+      const calleeCands = safeParseList(data.calleeCandidates);
 
       if (from === 'caller') {
         callerCands.push(candidate);
-        await client.entities.CallSignal.update(record.id, {
-          callerCandidates: callerCands,
+        await db.entities.CallSignal.update(record.id, {
+          callerCandidates: JSON.stringify(callerCands),
         });
       } else {
         calleeCands.push(candidate);
-        await client.entities.CallSignal.update(record.id, {
-          calleeCandidates: calleeCands,
+        await db.entities.CallSignal.update(record.id, {
+          calleeCandidates: JSON.stringify(calleeCands),
         });
       }
 
@@ -169,33 +185,35 @@ Deno.serve(async (req: Request) => {
         return jsonResponse({ error: 'Missing callId' }, 400);
       }
 
-      const records = await client.entities.CallSignal.list({
-        filter: { callId },
-        limit: 1,
-      });
+      const records = await db.entities.CallSignal.filter(
+        { callId },
+        undefined,
+        1
+      );
 
       if (!records || records.length === 0) {
         return jsonResponse({ error: 'Call not found' }, 404);
       }
 
       const record = records[0];
-      const status = record.data.status || 'unknown';
+      const data = record.data ?? record;
+      const status = data.status || 'unknown';
 
       // Return relevant data based on who's polling
       const response: any = { status };
 
       if (from === 'caller') {
         // Caller wants the answer and callee candidates
-        if (record.data.answerSdp) {
-          response.answer = JSON.parse(record.data.answerSdp);
+        if (data.answerSdp) {
+          response.answer = JSON.parse(data.answerSdp);
         }
-        response.calleeCandidates = record.data.calleeCandidates || [];
+        response.calleeCandidates = safeParseList(data.calleeCandidates);
       } else {
         // Callee wants the offer and caller candidates
-        if (record.data.offerSdp) {
-          response.offer = JSON.parse(record.data.offerSdp);
+        if (data.offerSdp) {
+          response.offer = JSON.parse(data.offerSdp);
         }
-        response.callerCandidates = record.data.callerCandidates || [];
+        response.callerCandidates = safeParseList(data.callerCandidates);
       }
 
       return jsonResponse(response);
@@ -208,19 +226,21 @@ Deno.serve(async (req: Request) => {
         return jsonResponse({ error: 'Missing userId' }, 400);
       }
 
-      const records = await client.entities.CallSignal.list({
-        filter: { calleeEmail: userId, status: 'ringing' },
-        limit: 1,
-      });
+      const records = await db.entities.CallSignal.filter(
+        { calleeEmail: userId, status: 'ringing' },
+        undefined,
+        1
+      );
 
       if (records && records.length > 0) {
         const record = records[0];
+        const data = record.data ?? record;
         return jsonResponse({
           hasIncomingCall: true,
-          callId: record.data.callId,
-          callerId: record.data.callerEmail,
-          callType: record.data.callType || 'voice',
-          offer: record.data.offerSdp ? JSON.parse(record.data.offerSdp) : {},
+          callId: data.callId,
+          callerId: data.callerEmail,
+          callType: data.callType || 'voice',
+          offer: data.offerSdp ? JSON.parse(data.offerSdp) : {},
         });
       }
 
@@ -233,13 +253,14 @@ Deno.serve(async (req: Request) => {
         return jsonResponse({ error: 'Missing callId' }, 400);
       }
 
-      const records = await client.entities.CallSignal.list({
-        filter: { callId },
-        limit: 1,
-      });
+      const records = await db.entities.CallSignal.filter(
+        { callId },
+        undefined,
+        1
+      );
 
       if (records && records.length > 0) {
-        await client.entities.CallSignal.update(records[0].id, {
+        await db.entities.CallSignal.update(records[0].id, {
           status: 'ended',
         });
       }
@@ -253,13 +274,14 @@ Deno.serve(async (req: Request) => {
         return jsonResponse({ error: 'Missing callId' }, 400);
       }
 
-      const records = await client.entities.CallSignal.list({
-        filter: { callId },
-        limit: 1,
-      });
+      const records = await db.entities.CallSignal.filter(
+        { callId },
+        undefined,
+        1
+      );
 
       if (records && records.length > 0) {
-        await client.entities.CallSignal.update(records[0].id, {
+        await db.entities.CallSignal.update(records[0].id, {
           status: 'rejected',
         });
       }

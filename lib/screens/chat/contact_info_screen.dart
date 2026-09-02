@@ -12,6 +12,8 @@ import '../settings/default_chat_theme_screen.dart';
 import '../../utils/kora_page_routes.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/anti_screenshot_service.dart';
+import '../../services/accounts_manager.dart';
+import '../../services/conversation_directory.dart';
 
 /// Full-screen contact info — opens when the user taps the avatar or
 /// name in a chat. Mirrors WhatsApp's Contact Info screen.
@@ -295,10 +297,24 @@ class _ContactInfoScreenState extends State<ContactInfoScreen> {
             child: _actionCard(
               surface, textPrimary, textSecondary, border,
               Icons.chat_bubble_outline, 'Message',
-              () {
-                final chatId = (widget.koraId != null && widget.koraId!.isNotEmpty)
+              () async {
+                var chatId = (widget.koraId != null && widget.koraId!.isNotEmpty)
                     ? widget.koraId!
                     : (widget.username ?? widget.phone ?? widget.name);
+                // Deterministic shared chatId — same thread on both sides.
+                final myEmail =
+                    await AccountsManager.instance.getActiveEmail() ?? '';
+                if (widget.recipientEmail != null &&
+                    widget.recipientEmail!.isNotEmpty &&
+                    myEmail.isNotEmpty) {
+                  chatId = await ConversationDirectoryService.instance
+                      .resolveDmChatId(
+                    recipientEmail: widget.recipientEmail,
+                    myEmail: myEmail,
+                    fallback: chatId,
+                  );
+                }
+                if (!mounted) return;
                 pushSlideUp(
                   context,
                   KoraChatScreen(
@@ -309,6 +325,7 @@ class _ContactInfoScreenState extends State<ContactInfoScreen> {
                     badge: widget.badge,
                     isOnline: widget.isOnline,
                     lastSeen: widget.lastSeen,
+                    recipientEmail: widget.recipientEmail,
                   ),
                 );
               },

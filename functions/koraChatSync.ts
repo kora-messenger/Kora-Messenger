@@ -13,6 +13,12 @@
  * email restores all chats.
  *
  * Entity: Conversation, ChatMessage
+ *
+ * NOTE: The Base44 SDK entity API uses POSITIONAL params:
+ *   .filter(query, sort, limit, skip, fields)
+ *   .list(sort, limit, skip, fields)
+ * .list() has NO filter argument — passing an object as the first param
+ * silently returns zero records. Always use .filter(query) for reads.
  */
 
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
@@ -21,6 +27,7 @@ import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
 function mapConversation(c: any) {
   return {
     chatId: c.chatId,
+    recipientEmail: c.recipientEmail,
     name: c.name,
     avatarAsset: c.avatarAsset,
     avatarUrl: c.avatarUrl,
@@ -72,6 +79,7 @@ Deno.serve(async (req) => {
     }
 
     const base44 = createClientFromRequest(req);
+    const db = base44.asServiceRole;
 
     // ── ACTION: SYNC ──────────────────────────────────────────
     // Save messages and conversations to the database.
@@ -84,17 +92,15 @@ Deno.serve(async (req) => {
       if (messages && Array.isArray(messages) && messages.length > 0) {
         for (const msg of messages) {
           // Check if message already exists
-          const existing = await base44.entities.ChatMessage.list({
-            filter: {
-              userEmail: userEmail,
-              messageId: msg.messageId,
-            },
-            limit: 1,
-          });
+          const existing = await db.entities.ChatMessage.filter(
+            { userEmail: userEmail, messageId: msg.messageId },
+            undefined,
+            1
+          );
 
           if (existing && existing.length > 0) {
             // Update existing message (status, isSeen, etc.)
-            await base44.entities.ChatMessage.update(existing[0]._id, {
+            await db.entities.ChatMessage.update(existing[0].id, {
               status: msg.status,
               isSeen: msg.isSeen,
               isStarred: msg.isStarred ?? false,
@@ -102,7 +108,7 @@ Deno.serve(async (req) => {
             });
           } else {
             // Create new message
-            await base44.entities.ChatMessage.create({
+            await db.entities.ChatMessage.create({
               userEmail: userEmail,
               chatId: msg.chatId,
               messageId: msg.messageId,
@@ -131,6 +137,7 @@ Deno.serve(async (req) => {
       }
 
       // ── Cross-user delivery: copy messages to recipient's account ──
+      let deliveredNew = false;
       if (recipientEmail && messages && Array.isArray(messages) && messages.length > 0) {
         for (const msg of messages) {
           // Use a different messageId for the recipient's copy
@@ -138,16 +145,14 @@ Deno.serve(async (req) => {
           const recipientChatId = msg.chatId;
 
           // Check if recipient already has this message
-          const recvExisting = await base44.entities.ChatMessage.list({
-            filter: {
-              userEmail: recipientEmail,
-              messageId: recipientMsgId,
-            },
-            limit: 1,
-          });
+          const recvExisting = await db.entities.ChatMessage.filter(
+            { userEmail: recipientEmail, messageId: recipientMsgId },
+            undefined,
+            1
+          );
 
           if (!recvExisting || recvExisting.length === 0) {
-            await base44.entities.ChatMessage.create({
+            await db.entities.ChatMessage.create({
               userEmail: recipientEmail,
               chatId: recipientChatId,
               messageId: recipientMsgId,
@@ -170,22 +175,24 @@ Deno.serve(async (req) => {
               actionLabel: msg.actionLabel,
               actionType: msg.actionType,
             });
+            deliveredNew = true;
           }
         }
 
-        // Also create/update a conversation for the recipient
-        if (recipientName) {
+        // Also create/update a conversation for the recipient —
+        // but only if a NEW message was actually delivered (avoid
+        // incrementing unreadCount on re-syncs of the same message).
+        if (recipientName && deliveredNew) {
           const lastMsg = messages[messages.length - 1];
-          const recvConvExisting = await base44.entities.Conversation.list({
-            filter: {
-              userEmail: recipientEmail,
-              chatId: lastMsg.chatId,
-            },
-            limit: 1,
-          });
+          const recvConvExisting = await db.entities.Conversation.filter(
+            { userEmail: recipientEmail, chatId: lastMsg.chatId },
+            undefined,
+            1
+          );
 
           if (recvConvExisting && recvConvExisting.length > 0) {
-            await base44.entities.Conversation.update(recvConvExisting[0]._id, {
+            await db.entities.Conversation.update(recvConvExisting[0].id, {
+              recipientEmail: userEmail, // sender's email, so replies route back
               name: senderName || recvConvExisting[0].name,
               lastMessageText: lastMsg.text || "",
               lastMessageTimestamp: lastMsg.timestamp,
@@ -193,8 +200,9 @@ Deno.serve(async (req) => {
               unreadCount: (recvConvExisting[0].unreadCount || 0) + 1,
             });
           } else {
-            await base44.entities.Conversation.create({
+            await db.entities.Conversation.create({
               userEmail: recipientEmail,
+              recipientEmail: userEmail, // sender's email, so replies route back
               chatId: lastMsg.chatId,
               name: senderName || "Unknown",
               badge: 0,
@@ -211,17 +219,15 @@ Deno.serve(async (req) => {
       // Save/update conversations (batch)
       if (conversations && Array.isArray(conversations) && conversations.length > 0) {
         for (const conv of conversations) {
-          const existing = await base44.entities.Conversation.list({
-            filter: {
-              userEmail: userEmail,
-              chatId: conv.chatId,
-            },
-            limit: 1,
-          });
+          const existing = await db.entities.Conversation.filter(
+            { userEmail: userEmail, chatId: conv.chatId },
+            undefined,
+            1
+          );
 
           if (existing && existing.length > 0) {
             // Update conversation metadata
-            await base44.entities.Conversation.update(existing[0]._id, {
+            await db.entities.Conversation.update(existing[0].id, {
               name: conv.name,
               avatarAsset: conv.avatarAsset,
               avatarUrl: conv.avatarUrl,
@@ -235,7 +241,7 @@ Deno.serve(async (req) => {
             });
           } else {
             // Create new conversation
-            await base44.entities.Conversation.create({
+            await db.entities.Conversation.create({
               userEmail: userEmail,
               chatId: conv.chatId,
               name: conv.name || conv.chatId,
@@ -273,12 +279,12 @@ Deno.serve(async (req) => {
       let skipConv = 0;
       let hasMoreConv = true;
       while (hasMoreConv) {
-        const batch = await base44.entities.Conversation.list({
-          filter: { userEmail: userEmail },
-          limit: 500,
-          skip: skipConv,
-          sort: "-lastMessageTimestamp",
-        });
+        const batch = await db.entities.Conversation.filter(
+          { userEmail: userEmail },
+          "-lastMessageTimestamp",
+          500,
+          skipConv
+        );
         if (batch && batch.length > 0) {
           allConversations.push(...batch);
           skipConv += batch.length;
@@ -291,12 +297,12 @@ Deno.serve(async (req) => {
       let skipMsg = 0;
       let hasMoreMsg = true;
       while (hasMoreMsg) {
-        const batch = await base44.entities.ChatMessage.list({
-          filter: { userEmail: userEmail },
-          limit: 500,
-          skip: skipMsg,
-          sort: "timestamp",
-        });
+        const batch = await db.entities.ChatMessage.filter(
+          { userEmail: userEmail },
+          "timestamp",
+          500,
+          skipMsg
+        );
         if (batch && batch.length > 0) {
           allMessages.push(...batch);
           skipMsg += batch.length;
@@ -318,22 +324,22 @@ Deno.serve(async (req) => {
     // Fetch conversations + messages updated after sinceTimestamp.
     // Used for lightweight, efficient polling.
     if (action === "fetchNew") {
-      // Build filter for conversations updated after sinceTimestamp
-      const convFilter: Record<string, any> = { userEmail: userEmail };
+      // Build query for conversations updated after sinceTimestamp
+      const convQuery: Record<string, any> = { userEmail: userEmail };
       if (sinceTimestamp) {
-        convFilter.updated_date = { $gt: sinceTimestamp };
+        convQuery.updated_date = { $gt: sinceTimestamp };
       }
 
       const allConversations: any[] = [];
       let skipConv = 0;
       let hasMoreConv = true;
       while (hasMoreConv) {
-        const batch = await base44.entities.Conversation.list({
-          filter: convFilter,
-          limit: 500,
-          skip: skipConv,
-          sort: "-lastMessageTimestamp",
-        });
+        const batch = await db.entities.Conversation.filter(
+          convQuery,
+          "-lastMessageTimestamp",
+          500,
+          skipConv
+        );
         if (batch && batch.length > 0) {
           allConversations.push(...batch);
           skipConv += batch.length;
@@ -355,22 +361,22 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Build filter for messages created/updated after sinceTimestamp
-      const msgFilter: Record<string, any> = { userEmail: userEmail };
+      // Build query for messages created/updated after sinceTimestamp
+      const msgQuery: Record<string, any> = { userEmail: userEmail };
       if (sinceTimestamp) {
-        msgFilter.timestamp = { $gt: sinceTimestamp };
+        msgQuery.timestamp = { $gt: sinceTimestamp };
       }
 
       const allMessages: any[] = [];
       let skipMsg = 0;
       let hasMoreMsg = true;
       while (hasMoreMsg) {
-        const batch = await base44.entities.ChatMessage.list({
-          filter: msgFilter,
-          limit: 500,
-          skip: skipMsg,
-          sort: "timestamp",
-        });
+        const batch = await db.entities.ChatMessage.filter(
+          msgQuery,
+          "timestamp",
+          500,
+          skipMsg
+        );
         if (batch && batch.length > 0) {
           allMessages.push(...batch);
           skipMsg += batch.length;
@@ -408,11 +414,12 @@ Deno.serve(async (req) => {
       let skipConv = 0;
       let hasMoreConv = true;
       while (hasMoreConv) {
-        const batch = await base44.entities.Conversation.list({
-          filter: { userEmail: userEmail },
-          limit: 500,
-          skip: skipConv,
-        });
+        const batch = await db.entities.Conversation.filter(
+          { userEmail: userEmail },
+          undefined,
+          500,
+          skipConv
+        );
         if (batch && batch.length > 0) {
           allConversations.push(...batch);
           skipConv += batch.length;
@@ -424,11 +431,12 @@ Deno.serve(async (req) => {
       let skipMsg = 0;
       let hasMoreMsg = true;
       while (hasMoreMsg) {
-        const batch = await base44.entities.ChatMessage.list({
-          filter: { userEmail: userEmail },
-          limit: 500,
-          skip: skipMsg,
-        });
+        const batch = await db.entities.ChatMessage.filter(
+          { userEmail: userEmail },
+          undefined,
+          500,
+          skipMsg
+        );
         if (batch && batch.length > 0) {
           allMessages.push(...batch);
           skipMsg += batch.length;
@@ -459,17 +467,24 @@ Deno.serve(async (req) => {
         );
       }
 
-      const messages = await base44.entities.ChatMessage.list({
-        filter: { userEmail: userEmail, chatId: chatId },
-        limit: 500,
-      });
-
       let deleted = 0;
-      if (messages && messages.length > 0) {
-        for (const msg of messages) {
-          await base44.entities.ChatMessage.delete(msg._id);
-          deleted++;
+      let skip = 0;
+      let hasMore = true;
+      while (hasMore) {
+        const msgs = await db.entities.ChatMessage.filter(
+          { userEmail: userEmail, chatId: chatId },
+          undefined,
+          500,
+          skip
+        );
+        if (msgs && msgs.length > 0) {
+          for (const msg of msgs) {
+            await db.entities.ChatMessage.delete(msg.id);
+            deleted++;
+          }
+          skip += msgs.length;
         }
+        hasMore = msgs && msgs.length === 500;
       }
 
       return new Response(

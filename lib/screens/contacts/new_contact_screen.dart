@@ -16,6 +16,8 @@ import '../chat/contact_info_screen.dart';
 import '../chat/kora_chat_screen.dart';
 import '../../utils/kora_page_routes.dart';
 import '../../models/chat_models.dart';
+import '../../services/accounts_manager.dart';
+import '../../services/conversation_directory.dart';
 
 /// Kora's "New contact" screen — add someone by name, Kora username/ID,
 /// or phone number, with an optional toggle to sync them to the phone's
@@ -489,13 +491,22 @@ class _NewContactScreenState extends State<NewContactScreen> {
               ),
             ),
             GestureDetector(
-              onTap: () {
+              onTap: () async {
                 messenger.hideCurrentSnackBar();
+                // Deterministic shared chatId — same thread on both sides.
+                final myEmail =
+                    await AccountsManager.instance.getActiveEmail() ?? '';
+                final chatId = await ConversationDirectoryService.instance
+                    .resolveDmChatId(
+                  recipientEmail: recipientEmail,
+                  myEmail: myEmail,
+                  fallback: koraId.isNotEmpty ? koraId : username,
+                );
                 navigator.pop(); // Close NewContactScreen
                 navigator.push(
                   SlideUpPageRoute(
                     builder: (_) => KoraChatScreen(
-                      chatId: koraId.isNotEmpty ? koraId : username,
+                      chatId: chatId,
                       name: name,
                       badge: isPremium ? KoraBadgeType.premiumBlue : KoraBadgeType.none,
                       isOnline: false,
@@ -551,6 +562,8 @@ class _NewContactScreenState extends State<NewContactScreen> {
           koraId: koraId.isNotEmpty ? koraId : null,
           username: username.isNotEmpty ? username : null,
           phone: userPhone.isNotEmpty ? userPhone : null,
+          recipientEmail:
+              (user['email'] as String?)?.isNotEmpty == true ? user['email'] as String? : null,
           badge: isPremium ? KoraBadgeType.premiumBlue : KoraBadgeType.none,
           isOnline: true,
           about: 'Hey there! I\'m on Kora.',
