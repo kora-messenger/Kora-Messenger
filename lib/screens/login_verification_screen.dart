@@ -8,6 +8,7 @@ import '../services/auth_service.dart';
 import '../services/session_manager.dart';
 import '../services/accounts_manager.dart';
 import '../services/chat_sync_service.dart';
+import '../services/settings_sync_service.dart';
 import 'profile_setup_screen.dart';
 import 'kora_home_screen.dart';
 import '../services/crash_logger.dart';
@@ -247,6 +248,7 @@ class _LoginVerificationScreenState extends State<LoginVerificationScreen>
           );
           // Restore cloud chats/messages, then start live polling
           await ChatSyncService.instance.restoreFromCloud();
+          SettingsSyncService.instance.syncNow();
           ChatSyncService.instance.startPolling();
           // Register in multi-account list.
           await AccountsManager.instance.addOrUpdateAccount(session);

@@ -9,6 +9,7 @@ import '../theme/chat_theme_provider.dart';
 import '../services/auth_service.dart';
 import '../services/session_manager.dart';
 import '../services/chat_sync_service.dart';
+import '../services/settings_sync_service.dart';
 import '../services/crash_logger.dart';
 import '../widgets/kora_input.dart';
 import '../widgets/kora_button.dart';
@@ -333,6 +334,8 @@ class _LogInScreenState extends State<LogInScreen> {
             if (session != null && session['email'] != null) {
               ChatSyncService.instance.restoreFromCloud().then((_) {
                 ChatSyncService.instance.startPolling();
+                SettingsSyncService.instance.syncNow();
+                SettingsSyncService.instance.startPeriodicSync();
               });
             }
           }

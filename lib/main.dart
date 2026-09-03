@@ -22,6 +22,7 @@ import 'services/connectivity_service.dart';
 import 'services/status_service.dart';
 import 'services/status_trigger_service.dart';
 import 'services/chat_sync_service.dart';
+import 'services/settings_sync_service.dart';
 import 'services/offline_voice_sync.dart';
 import 'services/translation_service.dart';
 import 'services/message_service.dart';
@@ -400,6 +401,9 @@ class _SplashScreenState extends State<SplashScreen>
           );
           ChatSyncService.instance.restoreFromCloud().then((_) {
             ChatSyncService.instance.startPolling();
+            // Telegram-style cloud settings — pull prefs, then converge
+            SettingsSyncService.instance.syncNow();
+            SettingsSyncService.instance.startPeriodicSync();
           });
         }
       } else {

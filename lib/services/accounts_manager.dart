@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'session_manager.dart';
 import 'chat_sync_service.dart';
+import 'settings_sync_service.dart';
 import 'service_notification_service.dart';
 import '../theme/chat_theme_provider.dart';
 
@@ -139,6 +140,9 @@ class AccountsManager {
     // live polling under the new identity.
     await ChatSyncService.instance.restoreFromCloud();
     ChatSyncService.instance.startPolling();
+    // Telegram-style cloud settings for the switched account
+    await SettingsSyncService.instance.syncNow();
+    SettingsSyncService.instance.startPeriodicSync();
     ServiceNotificationService.instance.init();
 
     return match;

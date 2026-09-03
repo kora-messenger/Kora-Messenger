@@ -6,6 +6,7 @@ import '../services/auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/session_manager.dart';
 import '../services/chat_sync_service.dart';
+import '../services/settings_sync_service.dart';
 import '../services/crash_logger.dart';
 import '../widgets/kora_input.dart';
 import '../widgets/kora_button.dart';
@@ -126,6 +127,7 @@ class _PasskeyLoginScreenState extends State<PasskeyLoginScreen> {
             (session?['fullName'] as String?) ?? '',
           );
           await ChatSyncService.instance.restoreFromCloud();
+          SettingsSyncService.instance.syncNow();
           ChatSyncService.instance.startPolling();
         } // Refresh owner/premium status for badge + gating
 

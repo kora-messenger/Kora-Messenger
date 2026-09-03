@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'session_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/message_model.dart';
@@ -248,6 +249,39 @@ class MessageService {
   }
 
   /// Send a media message (image or video) with an optional caption.
+
+  /// Encodes a local media file as a `data:` URL for cloud sync
+  /// (Telegram-style cross-device media). Returns null when the file is
+  /// missing or too large to embed (~1.2 MB cap keeps sync payloads sane).
+  Future<String?> _encodeMediaAsDataUrl(String path) async {
+    try {
+      final file = File(path);
+      if (!await file.exists()) return null;
+      final bytes = await file.readAsBytes();
+      if (bytes.length > 1200 * 1024) return null; // too big to embed
+      final mime = _mimeForPath(path);
+      return 'data:$mime;base64,${base64Encode(bytes)}';
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String _mimeForPath(String path) {
+    final lower = path.toLowerCase();
+    if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
+    if (lower.endsWith('.png')) return 'image/png';
+    if (lower.endsWith('.webp')) return 'image/webp';
+    if (lower.endsWith('.gif')) return 'image/gif';
+    if (lower.endsWith('.heic')) return 'image/heic';
+    if (lower.endsWith('.m4a') || lower.endsWith('.aac')) return 'audio/aac';
+    if (lower.endsWith('.ogg')) return 'audio/ogg';
+    if (lower.endsWith('.mp3')) return 'audio/mpeg';
+    if (lower.endsWith('.wav')) return 'audio/wav';
+    if (lower.endsWith('.mp4')) return 'video/mp4';
+    if (lower.endsWith('.pdf')) return 'application/pdf';
+    return 'application/octet-stream';
+  }
+
   Future<void> sendMediaMessage(
     String chatId, {
     required String mediaPath,
@@ -271,6 +305,15 @@ class MessageService {
 
     final isOnline = ConnectivityService.instance.isOnline;
 
+    // Telegram-style cloud media: embed images as data URLs so they
+    // sync to the cloud and appear on every logged-in device.
+    // (Videos stay local — too large to embed; real file storage comes
+    // with the self-hosted koramessenger.com backend.)
+    String? mediaDataUrl;
+    if (!isVideo && !isVideoNote) {
+      mediaDataUrl = await _encodeMediaAsDataUrl(mediaPath);
+    }
+
     messages.add(KoraMessage(
       id: msgId,
       text: caption ?? '',
@@ -281,6 +324,7 @@ class MessageService {
           : (isVideo ? KoraMessageType.video : KoraMessageType.image),
       status: isOnline ? MessageStatus.sent : MessageStatus.unsent,
       mediaPath: mediaPath,
+      mediaUrl: mediaDataUrl,
       mediaCaption: caption,
       isViewOnce: isViewOnce,
       mediaWidth: width,
@@ -593,6 +637,13 @@ class MessageService {
 
     final status = isOnline ? MessageStatus.sent : MessageStatus.pendingOffline;
 
+    // Telegram-style cloud voice notes: embed as data URL so the voice
+    // note syncs and plays on every logged-in device.
+    String? voiceDataUrl;
+    if (filePath != null && filePath.isNotEmpty) {
+      voiceDataUrl = await _encodeMediaAsDataUrl(filePath);
+    }
+
     messages.add(KoraMessage(
       id: msgId,
       text: '',
@@ -602,6 +653,7 @@ class MessageService {
       status: status,
       voiceDuration: duration,
       voiceFilePath: filePath,
+      voiceFileUrl: voiceDataUrl,
       voiceTransferState:
           isOnline ? VoiceTransferState.uploading : VoiceTransferState.notSent,
       voiceTranscript: transcript,

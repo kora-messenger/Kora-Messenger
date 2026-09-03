@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 import '../config/kora_api.dart';
 import '../models/message_model.dart';
 import '../models/chat_models.dart';
@@ -126,33 +128,8 @@ class ChatSyncService {
           // Check if message already exists locally
           if (ms.hasMessage(chatId, messageId)) continue;
 
-          // Add message from cloud
-          final koraMsg = KoraMessage(
-            id: messageId,
-            text: msg['text'] as String? ?? '',
-            timestamp: DateTime.tryParse(msg['timestamp'] as String? ?? '') ?? DateTime.now(),
-            isMe: (msg['isMe'] as bool?) ?? false,
-            type: _parseType(msg['type'] as String?),
-            status: _parseStatus(msg['status'] as String?),
-            replyToId: msg['replyToId'] as String?,
-            replyToText: msg['replyToText'] as String?,
-            replyToName: msg['replyToName'] as String?,
-            replyToType: (msg['replyToType'] as String?) != null ? KoraMessageType.values.byName(msg['replyToType']!) : null,
-            reactions: msg['reactions'] != null ? (msg['reactions'] as List).cast<String>() : (msg['reaction'] != null ? [msg['reaction'] as String] : const <String>[]),
-            voiceDuration: msg['voiceDuration'] as String?,
-            voiceFilePath: msg['voiceFilePath'] as String?,
-            voiceFileUrl: msg['voiceFileUrl'] as String?,
-            isVoicePlayed: (msg['isVoicePlayed'] as bool?) ?? false,
-            voiceTranscript: msg['voiceTranscript'] as String?,
-            translatedLanguageCode: msg['translatedLanguageCode'] as String?,
-            translatedLanguageName: msg['translatedLanguageName'] as String?,
-            isAi: (msg['isAi'] as bool?) ?? false,
-            isWebSearch: (msg['isWebSearch'] as bool?) ?? false,
-            isSeen: (msg['isSeen'] as bool?) ?? true,
-            isStarred: (msg['isStarred'] as bool?) ?? false,
-            actionLabel: msg['actionLabel'] as String?,
-            actionType: msg['actionType'] as String?,
-          );
+          // Add message from cloud (with media hydration)
+          final koraMsg = await _koraMessageFromCloud(msg as Map<String, dynamic>);
 
           await ms.addRestoredMessage(chatId, koraMsg);
 
@@ -336,33 +313,8 @@ class ChatSyncService {
         // Check if message already exists locally
         if (ms.hasMessage(chatId, messageId)) continue;
 
-        // Add message from cloud
-        final koraMsg = KoraMessage(
-          id: messageId,
-          text: msg['text'] as String? ?? '',
-          timestamp: DateTime.tryParse(msg['timestamp'] as String? ?? '') ?? DateTime.now(),
-          isMe: (msg['isMe'] as bool?) ?? false,
-          type: _parseType(msg['type'] as String?),
-          status: _parseStatus(msg['status'] as String?),
-          replyToId: msg['replyToId'] as String?,
-          replyToText: msg['replyToText'] as String?,
-          replyToName: msg['replyToName'] as String?,
-          replyToType: (msg['replyToType'] as String?) != null ? KoraMessageType.values.byName(msg['replyToType']!) : null,
-          reactions: msg['reactions'] != null ? (msg['reactions'] as List).cast<String>() : (msg['reaction'] != null ? [msg['reaction'] as String] : const <String>[]),
-          voiceDuration: msg['voiceDuration'] as String?,
-          voiceFilePath: msg['voiceFilePath'] as String?,
-          voiceFileUrl: msg['voiceFileUrl'] as String?,
-          isVoicePlayed: (msg['isVoicePlayed'] as bool?) ?? false,
-          voiceTranscript: msg['voiceTranscript'] as String?,
-          translatedLanguageCode: msg['translatedLanguageCode'] as String?,
-          translatedLanguageName: msg['translatedLanguageName'] as String?,
-          isAi: (msg['isAi'] as bool?) ?? false,
-          isWebSearch: (msg['isWebSearch'] as bool?) ?? false,
-          isSeen: (msg['isSeen'] as bool?) ?? true,
-          isStarred: (msg['isStarred'] as bool?) ?? false,
-          actionLabel: msg['actionLabel'] as String?,
-          actionType: msg['actionType'] as String?,
-        );
+        // Add message from cloud (with media hydration)
+        final koraMsg = await _koraMessageFromCloud(msg as Map<String, dynamic>);
 
         await ms.addRestoredMessage(chatId, koraMsg);
         msgCount++;
@@ -434,7 +386,14 @@ class ChatSyncService {
       'reaction': msg.reaction,
       'voiceDuration': msg.voiceDuration,
       'voiceFilePath': msg.voiceFilePath,
+      'voiceFileUrl': msg.voiceFileUrl,
       'voiceTranscript': msg.voiceTranscript,
+      'mediaUrl': msg.mediaUrl,
+      'mediaCaption': msg.mediaCaption,
+      'isViewOnce': msg.isViewOnce,
+      'mediaWidth': msg.mediaWidth,
+      'mediaHeight': msg.mediaHeight,
+      'mediaDuration': msg.mediaDuration,
       'translatedLanguageCode': msg.translatedLanguageCode,
       'translatedLanguageName': msg.translatedLanguageName,
       'isAi': msg.isAi,
@@ -444,6 +403,126 @@ class ChatSyncService {
       'actionLabel': msg.actionLabel,
       'actionType': msg.actionType,
     };
+  }
+
+  /// Builds a [KoraMessage] from a cloud message record.
+  ///
+  /// Media sent as data URLs is hydrated to local files so images/voice
+  /// notes render on any device (Telegram-style cloud chats).
+  Future<KoraMessage> _koraMessageFromCloud(Map<String, dynamic> msg) async {
+    final messageId = msg['messageId'] as String;
+
+    final mediaUrl = msg['mediaUrl'] as String?;
+    final voiceFileUrl = msg['voiceFileUrl'] as String?;
+
+    // Hydrate data-URL media into local cache files when the referenced
+    // local file doesn't exist on this device.
+    String? localMediaPath;
+    if (mediaUrl != null && mediaUrl.startsWith('data:')) {
+      localMediaPath = await _hydrateMediaDataUrl(mediaUrl, messageId);
+    }
+    String? localVoicePath;
+    if (voiceFileUrl != null && voiceFileUrl.startsWith('data:')) {
+      localVoicePath =
+          await _hydrateMediaDataUrl(voiceFileUrl, messageId, isVoice: true);
+    }
+
+    return KoraMessage(
+      id: messageId,
+      text: msg['text'] as String? ?? '',
+      timestamp: DateTime.tryParse(msg['timestamp'] as String? ?? '') ?? DateTime.now(),
+      isMe: (msg['isMe'] as bool?) ?? false,
+      type: _parseType(msg['type'] as String?),
+      status: _parseStatus(msg['status'] as String?),
+      replyToId: msg['replyToId'] as String?,
+      replyToText: msg['replyToText'] as String?,
+      replyToName: msg['replyToName'] as String?,
+      replyToType: (msg['replyToType'] as String?) != null
+          ? KoraMessageType.values.byName(msg['replyToType']!)
+          : null,
+      reactions: msg['reactions'] != null
+          ? (msg['reactions'] as List).cast<String>()
+          : (msg['reaction'] != null ? [msg['reaction'] as String] : const <String>[]),
+      voiceDuration: msg['voiceDuration'] as String?,
+      voiceFilePath: localVoicePath ?? (msg['voiceFilePath'] as String?),
+      voiceFileUrl: voiceFileUrl,
+      isVoicePlayed: (msg['isVoicePlayed'] as bool?) ?? false,
+      voiceTranscript: msg['voiceTranscript'] as String?,
+      translatedLanguageCode: msg['translatedLanguageCode'] as String?,
+      translatedLanguageName: msg['translatedLanguageName'] as String?,
+      isAi: (msg['isAi'] as bool?) ?? false,
+      isWebSearch: (msg['isWebSearch'] as bool?) ?? false,
+      isSeen: (msg['isSeen'] as bool?) ?? true,
+      isStarred: (msg['isStarred'] as bool?) ?? false,
+      actionLabel: msg['actionLabel'] as String?,
+      actionType: msg['actionType'] as String?,
+      mediaPath: localMediaPath,
+      mediaUrl: mediaUrl,
+      mediaCaption: msg['mediaCaption'] as String?,
+      isViewOnce: (msg['isViewOnce'] as bool?) ?? false,
+      mediaWidth: (msg['mediaWidth'] as num?)?.toDouble(),
+      mediaHeight: (msg['mediaHeight'] as num?)?.toDouble(),
+      mediaDuration: (msg['mediaDuration'] as num?)?.toInt(),
+    );
+  }
+
+  /// Decodes a `data:` URL and writes it to the local media cache.
+  /// Returns the file path, or null on failure.
+  Future<String?> _hydrateMediaDataUrl(String dataUrl, String messageId,
+      {bool isVoice = false}) async {
+    try {
+      final commaIdx = dataUrl.indexOf(',');
+      if (commaIdx == -1) return null;
+      final meta = dataUrl.substring(5, commaIdx); // e.g. "image/png;base64"
+      final mime = meta.split(';').first;
+      final ext = _extForMime(mime);
+      final bytes = base64Decode(dataUrl.substring(commaIdx + 1));
+      final docs = await getApplicationDocumentsDirectory();
+      final dir = Directory('${docs.path}/KoraMedia');
+      if (!await dir.exists()) await dir.create(recursive: true);
+      final file = File(
+          '${dir.path}/${isVoice ? 'voice_' : ''}${_sanitizeFileId(messageId)}.$ext');
+      // Skip if already hydrated
+      if (!await file.exists()) {
+        await file.writeAsBytes(bytes, flush: true);
+      }
+      return file.path;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String _sanitizeFileId(String id) =>
+      id.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_');
+
+  String _extForMime(String mime) {
+    switch (mime) {
+      case 'image/jpeg':
+        return 'jpg';
+      case 'image/png':
+        return 'png';
+      case 'image/webp':
+        return 'webp';
+      case 'image/gif':
+        return 'gif';
+      case 'image/heic':
+        return 'heic';
+      case 'audio/aac':
+      case 'audio/mp4':
+        return 'm4a';
+      case 'audio/ogg':
+        return 'ogg';
+      case 'audio/mpeg':
+        return 'mp3';
+      case 'audio/wav':
+        return 'wav';
+      case 'video/mp4':
+        return 'mp4';
+      case 'application/pdf':
+        return 'pdf';
+      default:
+        return 'bin';
+    }
   }
 
   KoraMessageType _parseType(String? name) {

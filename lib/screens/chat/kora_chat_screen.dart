@@ -49,7 +49,6 @@ import '../../services/session_manager.dart';
 import '../../services/spam_protection_service.dart';
 import '../../services/conversation_directory.dart';
 import '../suspension_screen.dart';
-import '../settings/chat_backup_screen.dart';
 import 'ai_chat_summary_sheet.dart';
 
 /// Kora's main conversation screen.

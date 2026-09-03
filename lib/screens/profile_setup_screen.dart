@@ -14,6 +14,7 @@ import '../config/kora_api.dart';
 import '../services/session_manager.dart';
 import '../services/accounts_manager.dart';
 import '../services/chat_sync_service.dart';
+import '../services/settings_sync_service.dart';
 import 'kora_home_screen.dart';
 
 /// Profile Setup — shown after successful registration verification.
@@ -323,6 +324,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
             (session?['fullName'] as String?) ?? '',
           );
           await ChatSyncService.instance.restoreFromCloud();
+          SettingsSyncService.instance.syncNow();
           ChatSyncService.instance.startPolling();
           // Register in multi-account list.
           await AccountsManager.instance.addOrUpdateAccount(session);

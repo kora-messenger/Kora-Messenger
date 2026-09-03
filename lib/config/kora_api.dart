@@ -68,6 +68,11 @@ class KoraApi {
   /// Chat sync endpoint — persist messages & conversations to the database.
   static const String chatSyncEndpoint = '$baseUrl/koraChatSync';
 
+  /// Settings sync endpoint — Telegram-style cloud settings:
+  /// every preference (theme, notifications, privacy, wallpapers...)
+  /// follows the account to any device automatically.
+  static const String settingsSyncEndpoint = '$baseUrl/koraSettingsSync';
+
   /// Kora AI Server base URL — legacy local dev server.
   /// Only the writing/reply-suggestions/summarize/transcribe/analyze
   /// endpoints below still point here (they have client-side fallbacks).

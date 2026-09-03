@@ -3,7 +3,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../theme/kora_colors.dart';
 import '../../theme/chat_theme_provider.dart';
 import '../archived_chats_screen.dart';
-import 'chat_backup_screen.dart';
 import 'chat_transfer_screen.dart';
 import 'default_chat_theme_screen.dart';
 import 'wallpaper_screen.dart';
@@ -11,7 +10,7 @@ import 'wallpaper_screen.dart';
 /// Chat settings screen — matches WhatsApp's Settings > Chats layout.
 ///
 /// Sections: Display, Archived Chats, Chat History, Media Visibility,
-/// Messages, Calls, Backup.
+/// Messages, Calls.
 class ChatSettingsScreen extends StatefulWidget {
   const ChatSettingsScreen({super.key});
 
@@ -289,21 +288,6 @@ class _ChatSettingsScreenState extends State<ChatSettingsScreen> {
                 ),
 
                 const SizedBox(height: 24),
-
-                _sectionLabel('BACKUP', textMuted),
-                _navTile(
-                  context,
-                  icon: Icons.cloud_upload_outlined,
-                  title: 'Chat backup',
-                  card: card,
-                  textPrimary: textPrimary,
-                  textMuted: textMuted,
-                  border: border,
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const ChatBackupScreen()),
-                  ),
-                ),
               ],
             ),
     );

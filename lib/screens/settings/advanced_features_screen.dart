@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../theme/kora_colors.dart';
 
-export 'chat_backup_screen.dart';
 export 'chat_transfer_screen.dart';
 export 'qr_transfer_screen.dart';
 

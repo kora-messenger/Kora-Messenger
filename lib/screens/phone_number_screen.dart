@@ -5,6 +5,7 @@ import '../theme/chat_theme_provider.dart';
 import '../services/auth_service.dart';
 import '../services/session_manager.dart';
 import '../services/chat_sync_service.dart';
+import '../services/settings_sync_service.dart';
 import '../widgets/kora_button.dart';
 import 'profile_setup_screen.dart';
 
@@ -70,6 +71,7 @@ class _PhoneNumberScreenState extends State<PhoneNumberScreen> {
             (session?['fullName'] as String?) ?? '',
           );
           await ChatSyncService.instance.restoreFromCloud();
+          SettingsSyncService.instance.syncNow();
           ChatSyncService.instance.startPolling();
         } // Refresh owner/premium status for badge + gating
         }
