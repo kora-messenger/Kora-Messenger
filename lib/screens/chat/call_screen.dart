@@ -14,6 +14,7 @@ import 'group_call_participants.dart';
 import 'call_wallpaper_picker.dart';
 import 'call_effects_sheet.dart';
 import 'call_link_screen.dart';
+import '../../widgets/kora_badge.dart';
 
 /// WhatsApp-style call screen for Kora Messenger (2026 redesign).
 ///
@@ -156,7 +157,7 @@ class _CallScreenState extends State<CallScreen>
       _screenSize = size;
       _pipPosition = Offset(
         size.width - _pipSmallW - 16,
-        MediaQuery.of(context).padding.top + 60,
+        MediaQuery.of(context).padding.top + 190,
       );
       setState(() {});
     });
@@ -1195,10 +1196,10 @@ class _CallScreenState extends State<CallScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                widget.contactName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+              KoraNameWithBadge(
+                name: widget.contactName,
+                badge: widget.badge ?? KoraBadgeType.none,
+                badgeSize: 16,
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 20,
@@ -1342,6 +1343,103 @@ class _CallScreenState extends State<CallScreen>
     );
   }
 
+  /// Connected-call control pill: more (plain), camera/speaker/mute
+  /// toggles that fill solid white when actively "on" (matches the
+  /// reference — camera streaming & speaker on show a white circle,
+  /// muted mic shows a dark circle), and the red end-call inline at
+  /// the right end of the pill.
+  Widget _buildConnectedControlPill({required bool isVideo}) {
+    return Container(
+      height: 68,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(34),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          _pillPlainButton(Icons.more_vert, _showOverflowMenu),
+          if (isVideo)
+            _pillToggleButton(
+              icon: _isCameraOn ? Icons.videocam : Icons.videocam_off,
+              isOn: _isCameraOn,
+              onTap: _toggleCamera,
+            )
+          else
+            _pillToggleButton(
+              icon: Icons.videocam_outlined,
+              isOn: false,
+              onTap: _upgradeToVideoCall,
+            ),
+          _pillToggleButton(
+            icon: _isSpeakerOn ? Icons.volume_up : Icons.volume_off,
+            isOn: _isSpeakerOn,
+            onTap: _toggleSpeaker,
+          ),
+          _pillToggleButton(
+            icon: _isMuted ? Icons.mic_off : Icons.mic,
+            isOn: !_isMuted,
+            onTap: _toggleMute,
+          ),
+          GestureDetector(
+            onTap: _endCall,
+            child: Container(
+              width: 54,
+              height: 54,
+              decoration: const BoxDecoration(
+                color: Color(0xFFEF4444),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.call_end, color: Colors.white, size: 26),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Plain (non-toggle) icon button inside the connected-call pill.
+  Widget _pillPlainButton(IconData icon, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: SizedBox(
+        width: 40,
+        height: 52,
+        child: Icon(icon, color: Colors.white.withValues(alpha: 0.92), size: 24),
+      ),
+    );
+  }
+
+  /// Toggle icon button inside the connected-call pill. "On" fills solid
+  /// white with a dark glyph; "off" stays a subtle translucent dark
+  /// circle with a white glyph.
+  Widget _pillToggleButton({
+    required IconData icon,
+    required bool isOn,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        width: 46,
+        height: 46,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: isOn ? Colors.white : Colors.white.withValues(alpha: 0.16),
+        ),
+        child: Icon(
+          icon,
+          color: isOn ? const Color(0xFF1C1C1E) : Colors.white,
+          size: 22,
+        ),
+      ),
+    );
+  }
+
   /// Plain icon button inside the ringing-screen bottom pill.
   Widget _ringPillButton(IconData icon, VoidCallback onTap) {
     return GestureDetector(
@@ -1390,11 +1488,28 @@ class _CallScreenState extends State<CallScreen>
             ),
           ),
 
-        // Top bar
+        // Top bar: minimize, name + verified badge + duration, add-person
         if (_controlsVisible)
           Positioned(
             top: 0, left: 0, right: 0,
-            child: _buildVideoTopBar(),
+            child: _buildConnectedVideoTopBar(),
+          ),
+
+        // Right-side rail: flip camera, then effects — sits below the top
+        // bar, matching the reference layout. The self-view PiP defaults
+        // to the space just underneath this rail.
+        if (_controlsVisible)
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 68,
+            right: 18,
+            child: Column(
+              children: [
+                _ringRailButton(
+                    Icons.flip_camera_ios, () => _webrtcService.switchCamera()),
+                const SizedBox(height: 14),
+                _ringRailButton(Icons.auto_awesome, _openEffectsSheet),
+              ],
+            ),
           ),
 
         // Draggable self-view PiP
@@ -1413,7 +1528,7 @@ class _CallScreenState extends State<CallScreen>
                   _pipPosition = Offset(
                     _pipPosition.dx.clamp(4.0, _screenSize!.width - _pipW - 4),
                     _pipPosition.dy.clamp(
-                      MediaQuery.of(context).padding.top + 56,
+                      MediaQuery.of(context).padding.top + 190,
                       _screenSize!.height - _pipH - 100,
                     ),
                   );
@@ -1456,7 +1571,7 @@ class _CallScreenState extends State<CallScreen>
         // Hidden PiP restore button
         if (_localRenderer != null && _isCameraOn && _pipHidden)
           Positioned(
-            top: MediaQuery.of(context).padding.top + 60,
+            top: MediaQuery.of(context).padding.top + 190,
             right: 16,
             child: GestureDetector(
               onTap: () {
@@ -1466,7 +1581,7 @@ class _CallScreenState extends State<CallScreen>
                   if (_screenSize != null) {
                     _pipPosition = Offset(
                       _screenSize!.width - _pipSmallW - 16,
-                      MediaQuery.of(context).padding.top + 60,
+                      MediaQuery.of(context).padding.top + 190,
                     );
                   }
                 });
@@ -1499,14 +1614,14 @@ class _CallScreenState extends State<CallScreen>
             ),
           ),
 
-        // Floating island bar
+        // Connected call control pill (more, camera, speaker, mute,
+        // inline red end-call) — matches the reference call screen.
         if (_controlsVisible)
           Positioned(
-            bottom: 0, left: 0, right: 0,
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 28),
-              child: _buildFloatingIslandBar(true),
-            ),
+            left: 20,
+            right: 20,
+            bottom: MediaQuery.of(context).padding.bottom + 18,
+            child: _buildConnectedControlPill(isVideo: true),
           ),
       ],
     );
@@ -1925,8 +2040,54 @@ class _CallScreenState extends State<CallScreen>
     );
   }
 
-  Widget _buildVideoTopBar() {
-    return _buildGroupTopBar(true);
+  /// 1-on-1 connected video call top bar: minimize (top-left), contact
+  /// name + verified/premium badge + live duration (centered), and
+  /// add-person (top-right) — matches the reference call screen layout.
+  Widget _buildConnectedVideoTopBar() {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 4, right: 4,
+        top: MediaQuery.of(context).padding.top + 4,
+        bottom: 8,
+      ),
+      child: Row(
+        children: [
+          _topBarButton(
+            icon: Icons.close_fullscreen_rounded,
+            onTap: _minimizeCall,
+          ),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                KoraNameWithBadge(
+                  name: widget.contactName,
+                  badge: widget.badge ?? KoraBadgeType.none,
+                  badgeSize: 15,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _statusText,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.7),
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          _topBarButton(
+            icon: Icons.person_add_outlined,
+            onTap: _openAddPersonSheet,
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildTopBar({bool transparent = false}) {
@@ -2071,7 +2232,7 @@ class _CallScreenState extends State<CallScreen>
     final w = _pipW;
     final h = _pipH;
     const margin = 16.0;
-    final topSafe = MediaQuery.of(context).padding.top + 60;
+    final topSafe = MediaQuery.of(context).padding.top + 190;
 
     final centerX = _pipPosition.dx + w / 2;
     final centerY = _pipPosition.dy + h / 2;
