@@ -160,9 +160,18 @@ class _GroupChatInfoScreenState extends State<GroupChatInfoScreen> {
                       shape: BoxShape.circle,
                     ),
                     child: (widget.avatarUrl ?? '').isNotEmpty
-                      ? ClipOval(child: Image.network(widget.avatarUrl!, fit: BoxFit.cover))
+                      ? ClipOval(child: Image.network(widget.avatarUrl!, fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Center(child: Text(widget.groupName.isNotEmpty ? widget.groupName[0].toUpperCase() : 'G',
+                              style: const TextStyle(color: Colors.white, fontSize: 40, fontWeight: FontWeight.w700)))))
                       : (widget.avatarAsset ?? '').isNotEmpty
-                        ? ClipOval(child: Image.asset(widget.avatarAsset!, fit: BoxFit.cover))
+                        ? ClipOval(child: Image.asset(widget.avatarAsset!, fit: BoxFit.cover,
+                            // Cloud conversation records can reference asset paths
+                            // that the installed (older) APK build doesn't bundle —
+                            // e.g. a backend-created service chat avatar. Never crash
+                            // on those: fall back to the initial like every other
+                            // avatar widget already does.
+                            errorBuilder: (_, __, ___) => Center(child: Text(widget.groupName.isNotEmpty ? widget.groupName[0].toUpperCase() : 'G',
+                                style: const TextStyle(color: Colors.white, fontSize: 40, fontWeight: FontWeight.w700)))))
                         : Center(child: Text(widget.groupName.isNotEmpty ? widget.groupName[0].toUpperCase() : 'G',
                             style: const TextStyle(color: Colors.white, fontSize: 40, fontWeight: FontWeight.w700))),
                   ),
