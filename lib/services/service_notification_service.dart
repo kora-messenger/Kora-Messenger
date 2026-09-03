@@ -148,6 +148,14 @@ class ServiceNotificationService {
     );
   }
 
+  /// Advance the last-seen marker so the 30s poll doesn't re-alert
+  /// for notifications the user has already read. Called when the
+  /// Kora Notifications chat is opened (read-on-open, like Telegram's
+  /// 777000 service chat).
+  Future<void> syncLastSeen({String? to}) async {
+    await _saveLastSeen(to ?? DateTime.now().toIso8601String());
+  }
+
   /// Manually fetch notification history (for the Kora Notifications chat screen).
   Future<List<Map<String, dynamic>>> getHistory({int limit = 50, int skip = 0}) async {
     final email = SessionManager.instance.currentEmail;

@@ -21,6 +21,9 @@ class ChatListItem extends StatelessWidget {
   /// Fired when the avatar itself is long-pressed — opens a silent
   /// Chat Peek preview (no read receipts sent to the other user).
   final VoidCallback? onAvatarLongPress;
+  // WhatsApp home-screen behavior: tapping the contact's circle
+  // profile photo opens their PROFILE — not the chat.
+  final VoidCallback? onAvatarTap;
 
   final bool showLockIcon;
 
@@ -30,6 +33,7 @@ class ChatListItem extends StatelessWidget {
     this.onTap,
     this.onLongPress,
     this.onAvatarLongPress,
+    this.onAvatarTap,
     this.isSelected = false,
     this.showLockIcon = false,
   });
@@ -52,6 +56,7 @@ class ChatListItem extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               GestureDetector(
+                onTap: onAvatarTap,
                 onLongPress: onAvatarLongPress,
                 child: Stack(
                   clipBehavior: Clip.none,
