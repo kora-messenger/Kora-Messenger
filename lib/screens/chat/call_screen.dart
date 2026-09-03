@@ -15,6 +15,7 @@ import 'call_wallpaper_picker.dart';
 import 'call_effects_sheet.dart';
 import 'call_link_screen.dart';
 import '../../widgets/kora_badge.dart';
+import '../../widgets/kora_avatar.dart';
 
 /// WhatsApp-style call screen for Kora Messenger (2026 redesign).
 ///
@@ -883,125 +884,186 @@ class _CallScreenState extends State<CallScreen>
 
   // ── 1-on-1 Voice call view ──
 
+  /// 1-on-1 voice call screen — matches the reference recording: shared
+  /// top bar (minimize / name+badge+status / add-person), a large flat
+  /// avatar centered in the remaining space (no pulse animation, no
+  /// text underneath — the name+status already live in the top bar),
+  /// and the labeled 2x3 control grid card at the bottom.
   Widget _buildVoiceCallView() {
     return Container(
       decoration: _activeWallpaper.decoration,
       child: SafeArea(
         child: Column(
           children: [
-            _buildTopBar(),
+            _buildCallTopBar(),
             Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  AnimatedBuilder(
-                    animation: _pulseAnimation,
-                    builder: (context, child) {
-                      return Container(
-                        width: 140 * _pulseAnimation.value,
-                        height: 140 * _pulseAnimation.value,
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    KoraAvatar(
+                      name: widget.contactName,
+                      imageUrl: widget.avatarUrl,
+                      size: 168,
+                    ),
+                    if (_translationActive) ...[
+                      const SizedBox(height: 20),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                         decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: const LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [KoraColors.purple, KoraColors.blue],
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: KoraColors.purple.withValues(alpha: 0.3),
-                              blurRadius: 40,
-                              spreadRadius: 5,
-                            ),
+                          color: KoraColors.purple.withValues(alpha: 0.25),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.translate_rounded, color: Colors.white, size: 13),
+                            const SizedBox(width: 5),
+                            Text('Translation ON',
+                                style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.9),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600)),
                           ],
                         ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(4),
-                          child: CircleAvatar(
-                            backgroundColor: Colors.white.withValues(alpha: 0.1),
-                            backgroundImage: widget.avatarUrl != null
-                                ? (widget.avatarUrl!.startsWith('data:')
-                                    ? MemoryImage(base64Decode(widget.avatarUrl!.substring(widget.avatarUrl!.indexOf(',') + 1))) as ImageProvider
-                                    : NetworkImage(widget.avatarUrl!) as ImageProvider)
-                                : null,
-                            child: widget.avatarUrl == null
-                                ? Text(
-                                    widget.contactName.isNotEmpty
-                                        ? widget.contactName[0].toUpperCase()
-                                        : '?',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 48,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  )
-                                : null,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 28),
-                  Text(
-                    widget.contactName,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 26,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      if (_translationActive) ...[
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: KoraColors.purple.withValues(alpha: 0.25),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.translate_rounded, color: Colors.white, size: 12),
-                              const SizedBox(width: 4),
-                              Text('Translation ON',
-                                  style: TextStyle(
-                                      color: Colors.white.withValues(alpha: 0.9),
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600)),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                      ],
-                      Text(
-                        _statusText,
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.65),
-                          fontSize: 15,
-                        ),
                       ),
+                      if (_lastRecognized.isNotEmpty || _lastReceived.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Text(
+                            _lastReceived.isNotEmpty ? '🔊 $_lastReceived' : '🗣️ $_lastRecognized',
+                            style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 13),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
                     ],
-                  ),
-                  if (_translationActive && (_lastRecognized.isNotEmpty || _lastReceived.isNotEmpty))
-                    Padding(
-                      padding: const EdgeInsets.only(top: 6),
-                      child: Text(
-                        _lastReceived.isNotEmpty ? '🔊 $_lastReceived' : '🗣️ $_lastRecognized',
-                        style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 13),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                ],
+                  ],
+                ),
               ),
             ),
-            _buildFloatingIslandBar(false),
-            const SizedBox(height: 28),
+            Padding(
+              padding: EdgeInsets.only(
+                left: 20, right: 20,
+                bottom: MediaQuery.of(context).padding.bottom + 20,
+              ),
+              child: _buildVoiceControlGrid(),
+            ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// The rounded-rectangle 2x3 labeled control grid used by the voice
+  /// call screen: Speaker / Video / Mute on top, More / Share / End
+  /// below — matching the reference recording exactly.
+  Widget _buildVoiceControlGrid() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 20),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _gridButton(
+                icon: _isSpeakerOn ? Icons.volume_up : Icons.volume_off,
+                label: 'Speaker',
+                isOn: _isSpeakerOn,
+                onTap: _toggleSpeaker,
+              ),
+              _gridButton(
+                icon: Icons.videocam,
+                label: 'Video',
+                isOn: false,
+                onTap: _upgradeToVideoCall,
+              ),
+              _gridButton(
+                icon: _isMuted ? Icons.mic : Icons.mic_off,
+                label: _isMuted ? 'Unmute' : 'Mute',
+                isOn: _isMuted,
+                onTap: _toggleMute,
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _gridButton(
+                icon: Icons.more_horiz,
+                label: 'More',
+                isOn: false,
+                onTap: _showOverflowMenu,
+              ),
+              _gridButton(
+                icon: _isScreenSharing ? Icons.stop_screen_share : Icons.ios_share,
+                label: 'Share',
+                isOn: _isScreenSharing,
+                onTap: _toggleScreenShare,
+              ),
+              _gridButton(
+                icon: Icons.call_end,
+                label: 'End',
+                isOn: false,
+                isDestructive: true,
+                onTap: _endCall,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// A single icon-over-label button inside the voice call control
+  /// grid. Fills solid white with a dark glyph when the toggle it
+  /// represents is active; otherwise a subtle translucent dark circle
+  /// with a white glyph. The End button is always solid red.
+  Widget _gridButton({
+    required IconData icon,
+    required String label,
+    required bool isOn,
+    required VoidCallback onTap,
+    bool isDestructive = false,
+  }) {
+    final Color circleColor = isDestructive
+        ? const Color(0xFFEF4444)
+        : (isOn ? Colors.white : Colors.white.withValues(alpha: 0.16));
+    final Color iconColor = isDestructive
+        ? Colors.white
+        : (isOn ? const Color(0xFF1C1C1E) : Colors.white);
+
+    return SizedBox(
+      width: 78,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          GestureDetector(
+            onTap: onTap,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(shape: BoxShape.circle, color: circleColor),
+              child: Icon(icon, color: iconColor, size: 24),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.85),
+              fontSize: 12.5,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1492,7 +1554,7 @@ class _CallScreenState extends State<CallScreen>
         if (_controlsVisible)
           Positioned(
             top: 0, left: 0, right: 0,
-            child: _buildConnectedVideoTopBar(),
+            child: _buildCallTopBar(),
           ),
 
         // Right-side rail: flip camera, then effects — sits below the top
@@ -2040,10 +2102,11 @@ class _CallScreenState extends State<CallScreen>
     );
   }
 
-  /// 1-on-1 connected video call top bar: minimize (top-left), contact
-  /// name + verified/premium badge + live duration (centered), and
-  /// add-person (top-right) — matches the reference call screen layout.
-  Widget _buildConnectedVideoTopBar() {
+  /// Shared 1-on-1 call top bar (voice + video): minimize (top-left),
+  /// contact name + verified/premium badge + live status/duration
+  /// (centered), and add-person (top-right) — matches the reference
+  /// call screen layout.
+  Widget _buildCallTopBar() {
     return Padding(
       padding: EdgeInsets.only(
         left: 4, right: 4,
@@ -2091,7 +2154,7 @@ class _CallScreenState extends State<CallScreen>
   }
 
   Widget _buildTopBar({bool transparent = false}) {
-    return _buildGroupTopBar(false);
+    return _buildCallTopBar();
   }
 
   Widget _topBarButton({required IconData icon, required VoidCallback onTap}) {
