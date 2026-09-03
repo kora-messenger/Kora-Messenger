@@ -446,7 +446,17 @@ class _LockedChatsScreenState extends State<LockedChatsScreen> {
     final textPrimary = KoraColors.textPrimaryFor(brightness);
     final textSecondary = KoraColors.textSecondaryFor(brightness);
 
-    return Scaffold(
+    // WhatsApp behavior: back while chats are selected cancels the
+    // selection instead of leaving the screen.
+    return PopScope(
+      canPop: !_isSelecting,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (_isSelecting) {
+          setState(() => _selectedIds.clear());
+        }
+      },
+      child: Scaffold(
       backgroundColor: bg,
       appBar: AppBar(
         backgroundColor: surface,
@@ -513,6 +523,7 @@ class _LockedChatsScreenState extends State<LockedChatsScreen> {
                     );
                   },
                 ),
+    ),
     );
   }
 }

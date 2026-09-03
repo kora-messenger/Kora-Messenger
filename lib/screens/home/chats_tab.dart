@@ -916,7 +916,20 @@ class _ChatsTabState extends State<ChatsTab> {
     final textMuted = KoraColors.textMutedFor(brightness);
     final border = KoraColors.borderFor(brightness);
 
-    return Scaffold(
+    // System back (WhatsApp behavior): first back press cancels
+    // the chat selection, the next closes the inline search bar —
+    // only from a clean Home screen does back actually exit the app.
+    return PopScope(
+      canPop: !_isSelecting && !_showSearch,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (_isSelecting) {
+          _clearSelection();
+        } else if (_showSearch) {
+          _toggleSearch();
+        }
+      },
+      child: Scaffold(
       backgroundColor: bg,
       body: SafeArea(
         bottom: false,
@@ -1072,6 +1085,7 @@ class _ChatsTabState extends State<ChatsTab> {
               elevation: 4,
               child: const Icon(Icons.chat_bubble, color: Colors.white, size: 24),
             ),
+    ),
     );
   }
 
