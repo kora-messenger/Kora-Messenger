@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../theme/chat_theme_provider.dart';
+import '../../theme/kora_colors.dart';
 
 /// A single page the Preview screen can swipe through — either a bundled
 /// asset image, a picked gallery image, or a solid color. Chat-theme
@@ -94,8 +95,17 @@ class _ChatThemePreviewScreenState extends State<ChatThemePreviewScreen> {
   }
 
   Widget _buildBackground(PreviewBackground bg) {
-    if (bg.assetPath != null) {
-      return Image.asset(bg.assetPath!, fit: BoxFit.cover, width: double.infinity, height: double.infinity);
+    // Empty (but non-null) asset paths would throw "Unable to load asset: ''".
+    if (bg.assetPath != null && bg.assetPath!.isNotEmpty) {
+      return Image.asset(
+        bg.assetPath!,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+        errorBuilder: (_, __, ___) => Container(color: bg.color ?? KoraColors.purple),
+      );
+    } else if (bg.assetPath != null && bg.assetPath!.isEmpty) {
+      return Container(color: bg.color ?? KoraColors.purple);
     } else if (bg.imagePath != null) {
       return Image.file(File(bg.imagePath!), fit: BoxFit.cover, width: double.infinity, height: double.infinity);
     }

@@ -39,6 +39,11 @@ class WebRTCCallService {
   String? _currentCallId;
   String? _callLinkToken;
   bool _isInitiator = false;
+  /// True once this call has been torn down. Guards _endCall() against
+  /// re-entrancy — without it, screen._endCall() -> endCall() -> _endCall()
+  /// -> onCallStateChanged('ended') -> screen._endCall() recursed forever
+  /// and overflowed the stack (crash report 2026-09-03 15:24).
+  bool _callEnded = false;
   bool _isGroupCall = false;
   Timer? _pollTimer;
 
@@ -383,6 +388,7 @@ class WebRTCCallService {
     _isInitiator = true;
     _isGroupCall = false;
     _currentCallId = 'call_${DateTime.now().millisecondsSinceEpoch}';
+    _callEnded = false; // new call — re-arm the end-call guard
 
     await initLocalMedia(video: video);
     await _createPeerConnection();
@@ -422,6 +428,7 @@ class WebRTCCallService {
     _isInitiator = false;
     _isGroupCall = false;
     _currentCallId = callId;
+    _callEnded = false; // new call — re-arm the end-call guard
 
     await initLocalMedia(video: offer != null);
     await _createPeerConnection();
@@ -456,6 +463,7 @@ class WebRTCCallService {
     _isInitiator = true;
     _isGroupCall = true;
     _currentCallId = 'group_call_${DateTime.now().millisecondsSinceEpoch}';
+    _callEnded = false; // new call — re-arm the end-call guard
 
     await initLocalMedia(video: video);
 
@@ -486,6 +494,7 @@ class WebRTCCallService {
     _isGroupCall = true;
     _callLinkToken = callLinkToken;
     _currentCallId = 'group_link_$callLinkToken';
+    _callEnded = false; // new call — re-arm the end-call guard
 
     await initLocalMedia(video: video);
 
@@ -854,6 +863,13 @@ class WebRTCCallService {
   }
 
   void _endCall() {
+    // Idempotency guard — the call can only be torn down once. Every extra
+    // entry (recursive or duplicate) returns immediately instead of
+    // re-firing onCallStateChanged('ended'), which used to recurse
+    // screen._endCall() <-> service._endCall() until stack overflow.
+    if (_callEnded) return;
+    _callEnded = true;
+
     _pollTimer?.cancel();
     _pollTimer = null;
 

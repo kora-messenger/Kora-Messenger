@@ -339,8 +339,15 @@ class ChatThemeProvider extends ChangeNotifier {
     _customReceivedBubble = recvVal != null ? Color(recvVal) : null;
     final wallVal = prefs.getInt(_kWallpaperColor);
     _wallpaperColor = wallVal != null ? Color(wallVal) : null;
-    _wallpaperImagePath = prefs.getString(_kWallpaperImagePath);
-    _wallpaperAssetPath = prefs.getString(_kWallpaperAssetPath);
+    // Treat '' as null — a stored empty string would otherwise flow into
+    // AssetImage('') / Image.asset('') and throw "Unable to load asset: ''"
+    // (crash report 2026-09-03 15:22).
+    final storedImagePath = prefs.getString(_kWallpaperImagePath);
+    _wallpaperImagePath =
+        (storedImagePath != null && storedImagePath.isNotEmpty) ? storedImagePath : null;
+    final storedAssetPath = prefs.getString(_kWallpaperAssetPath);
+    _wallpaperAssetPath =
+        (storedAssetPath != null && storedAssetPath.isNotEmpty) ? storedAssetPath : null;
     _wallpaperDimLevel = prefs.getDouble(_kWallpaperDimLevel) ?? 0.0;
     final appVal = prefs.getInt(_kAppThemeColor);
     _appThemeColor = appVal != null ? Color(appVal) : const Color(0xFF8B5CF6);

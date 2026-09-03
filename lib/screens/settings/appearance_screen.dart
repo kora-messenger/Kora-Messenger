@@ -302,7 +302,11 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
       child: SizedBox(
         width: 32,
         height: 32,
-        child: Image.asset(icon.assetPath, fit: BoxFit.cover),
+        child: Image.asset(
+          icon.assetPath,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Container(color: KoraColors.purple),
+        ),
       ),
     );
   }

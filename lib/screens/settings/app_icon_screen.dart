@@ -320,6 +320,11 @@ class _AppIconScreenState extends State<AppIconScreen> {
                                       child: Image.asset(
                                         icon.assetPath,
                                         fit: BoxFit.cover,
+                                        errorBuilder: (_, __, ___) => Container(
+                                          decoration: const BoxDecoration(
+                                            gradient: KoraColors.brandGradient,
+                                          ),
+                                        ),
                                       ),
                                     ),
                                     if (isLocked)

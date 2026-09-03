@@ -431,8 +431,13 @@ class _DefaultChatThemeScreenState extends State<DefaultChatThemeScreen> {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            if (card.wallpaperAsset != null)
-              Image.asset(card.wallpaperAsset!, fit: BoxFit.cover)
+            if (card.wallpaperAsset != null && card.wallpaperAsset!.isNotEmpty)
+              Image.asset(
+                card.wallpaperAsset!,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) =>
+                    Container(color: card.wallpaperColor ?? const Color(0xFFECE5DD)),
+              )
             else
               Container(color: card.wallpaperColor ?? const Color(0xFFECE5DD)),
             Padding(

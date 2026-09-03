@@ -58,6 +58,16 @@ class _CallScreenState extends State<CallScreen>
   bool _isCameraOn = true;
   bool _isScreenSharing = false;
   DateTime? _callStartTime;
+
+  /// True once _endCall() has run for this call — makes it idempotent
+
+  /// against double-taps and the service's 'ended' callback racing the
+
+  /// user tapping the end button (the re-entrant pair that used to
+
+  /// recurse until stack overflow).
+
+  bool _endCallHandled = false;
   RTCVideoRenderer? _remoteRenderer;
   RTCVideoRenderer? _localRenderer;
 
@@ -787,6 +797,10 @@ class _CallScreenState extends State<CallScreen>
   }
 
   void _endCall() async {
+    // Idempotency guard — only run the teardown once per call.
+    if (_endCallHandled) return;
+    _endCallHandled = true;
+
     _timer?.cancel();
     _autoHideTimer?.cancel();
     _speakerCycleTimer?.cancel();
