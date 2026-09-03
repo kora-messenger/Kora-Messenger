@@ -108,12 +108,10 @@ jobs:
             - **Kora-Messenger-arm64-v8a.apk**: Modern 64-bit ARM devices (most phones).
             - **Kora-Messenger-armeabi-v7a.apk**: Older 32-bit ARM devices.
             - **Kora-Messenger-x86_64.apk**: x86 emulators and tablets.
-            - **Kora-Messenger-universal.apk**: Works on ALL devices.
           files: |
             build/app/outputs/flutter-apk/Kora-Messenger-arm64-v8a.apk
             build/app/outputs/flutter-apk/Kora-Messenger-armeabi-v7a.apk
             build/app/outputs/flutter-apk/Kora-Messenger-x86_64.apk
-            build/app/outputs/flutter-apk/Kora-Messenger-universal.apk
           prerelease: false
           make_latest: true
         env:
