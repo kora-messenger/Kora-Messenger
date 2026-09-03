@@ -294,6 +294,10 @@ class _CallScreenState extends State<CallScreen>
     return '$m:$s';
   }
 
+  /// True while the call hasn't been answered yet — the ringing phase.
+  bool get _isPreConnect =>
+      _callState == 'connecting' || _callState == 'ringing';
+
   String get _statusText {
     switch (_callState) {
       case 'connecting':
@@ -869,7 +873,9 @@ class _CallScreenState extends State<CallScreen>
     return Scaffold(
       backgroundColor: KoraColors.deepNavy,
       body: widget.isVideoCall
-          ? (isGroupCall ? _buildGroupVideoCallView() : _buildVideoCallView())
+          ? (isGroupCall
+              ? _buildGroupVideoCallView()
+              : (_isPreConnect ? _buildVideoRingingView() : _buildVideoCallView()))
           : (isGroupCall ? _buildGroupVoiceCallView() : _buildVoiceCallView()),
     );
   }
@@ -1107,6 +1113,247 @@ class _CallScreenState extends State<CallScreen>
   }
 
   // ── 1-on-1 Video call view ──
+
+  // ── 1-on-1 Video call RINGING view (pre-connect) ──
+  // Layout per reference video: full-screen self camera preview,
+  // name + end-to-end lock badge top-left, vertical 4-button rail on the
+  // right, and a full-width bottom pill with the red end-call inline.
+
+  Widget _buildVideoRingingView() {
+    final topPad = MediaQuery.of(context).padding.top;
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        // Full-screen local camera preview while waiting for the answer.
+        if (_localRenderer != null && _isCameraOn)
+          Positioned.fill(
+            child: _applyVideoFilter(
+              RTCVideoView(
+                _localRenderer!,
+                objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+                mirror: true,
+              ),
+            ),
+          )
+        else
+          Positioned.fill(
+            child: Container(
+              decoration: _activeWallpaper.decoration,
+              child: Center(
+                child: CircleAvatar(
+                  radius: 64,
+                  backgroundColor: KoraColors.purple.withValues(alpha: 0.3),
+                  backgroundImage: widget.avatarUrl != null
+                      ? (widget.avatarUrl!.startsWith('data:')
+                          ? MemoryImage(base64Decode(
+                              widget.avatarUrl!.substring(widget.avatarUrl!.indexOf(',') + 1))) as ImageProvider
+                          : NetworkImage(widget.avatarUrl!) as ImageProvider)
+                      : null,
+                  child: widget.avatarUrl == null
+                      ? Text(
+                          widget.contactName.isNotEmpty
+                              ? widget.contactName[0].toUpperCase()
+                              : '?',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 44,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        )
+                      : null,
+                ),
+              ),
+            ),
+          ),
+
+        // Subtle scrim so the chrome reads over bright previews
+        Positioned.fill(
+          child: Container(color: Colors.black.withValues(alpha: 0.18)),
+        ),
+
+        // Top gradient
+        Positioned(
+          top: 0, left: 0, right: 0,
+          child: Container(
+            height: 150,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Colors.black.withValues(alpha: 0.55), Colors.transparent],
+              ),
+            ),
+          ),
+        ),
+
+        // Top-left info: name + end-to-end encrypted badge + status
+        Positioned(
+          top: topPad + 14,
+          left: 16,
+          right: 100,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                widget.contactName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.45),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.lock_rounded,
+                        color: Colors.white.withValues(alpha: 0.85), size: 12),
+                    const SizedBox(width: 4),
+                    Text(
+                      'End-to-end encrypted',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.85),
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _statusText,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.7),
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Right-side vertical rail: minimize, effects, flip camera, add person
+        Positioned(
+          top: topPad + 14,
+          right: 18,
+          child: Column(
+            children: [
+              _ringRailButton(Icons.keyboard_arrow_down_rounded, _minimizeCall),
+              const SizedBox(height: 20),
+              _ringRailButton(Icons.auto_awesome, _openEffectsSheet),
+              const SizedBox(height: 20),
+              _ringRailButton(
+                  Icons.flip_camera_ios, () => _webrtcService.switchCamera()),
+              const SizedBox(height: 20),
+              _ringRailButton(Icons.person_add_outlined, _openAddPersonSheet),
+            ],
+          ),
+        ),
+
+        // Bottom gradient
+        Positioned(
+          bottom: 0, left: 0, right: 0,
+          child: Container(
+            height: 170,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.bottomCenter,
+                end: Alignment.topCenter,
+                colors: [Colors.black.withValues(alpha: 0.65), Colors.transparent],
+              ),
+            ),
+          ),
+        ),
+
+        // Bottom pill: more, camera, speaker, mute + inline red end-call
+        Positioned(
+          left: 20,
+          right: 20,
+          bottom: MediaQuery.of(context).padding.bottom + 18,
+          child: Container(
+            height: 68,
+            padding: const EdgeInsets.symmetric(horizontal: 18),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.62),
+              borderRadius: BorderRadius.circular(34),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _ringPillButton(Icons.more_vert, _showOverflowMenu),
+                _ringPillButton(
+                  _isCameraOn ? Icons.videocam : Icons.videocam_off,
+                  _toggleCamera,
+                ),
+                _ringPillButton(
+                  _isSpeakerOn ? Icons.volume_up : Icons.volume_off,
+                  _toggleSpeaker,
+                ),
+                _ringPillButton(
+                  _isMuted ? Icons.mic_off : Icons.mic,
+                  _toggleMute,
+                ),
+                // Inline red end-call button at the right end of the pill
+                GestureDetector(
+                  onTap: _endCall,
+                  child: Container(
+                    width: 54,
+                    height: 54,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFEF4444),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.call_end, color: Colors.white, size: 26),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Round translucent button for the ringing-screen right rail.
+  Widget _ringRailButton(IconData icon, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 52,
+        height: 52,
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.55),
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+        ),
+        child: Icon(icon, color: Colors.white.withValues(alpha: 0.92), size: 24),
+      ),
+    );
+  }
+
+  /// Plain icon button inside the ringing-screen bottom pill.
+  Widget _ringPillButton(IconData icon, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: SizedBox(
+        width: 46,
+        height: 52,
+        child: Icon(icon, color: Colors.white.withValues(alpha: 0.92), size: 26),
+      ),
+    );
+  }
 
   Widget _buildVideoCallView() {
     return Stack(
