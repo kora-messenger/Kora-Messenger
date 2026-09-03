@@ -12,6 +12,10 @@ const SMTP_PASS = Deno.env.get('SMTP_PASS') || '';
 const EMAIL_FROM = Deno.env.get('EMAIL_FROM') || 'Kora Messenger <koramessengerofficial@gmail.com>';
 const APP_NAME = 'Kora Messenger';
 
+// Set at the top of every request so the email helpers can reach the
+// Gmail connector token.
+let currentBase44: any = null;
+
 function generateCode(): string {
   return String(Math.floor(100000 + Math.random() * 900000));
 }
@@ -90,6 +94,93 @@ function premiumEmailTemplate(title: string, bodyHtml: string, codeBlock = ''): 
   `;
 }
 
+
+// ── Gmail API over HTTPS — primary channel ──────────────────
+// Plain HTTPS, so it's immune to the runtime's intermittent SMTP/DNS
+// failures. Sends from the connected koramessengerofficial@gmail.com.
+function utf8Base64(str: string): string {
+  const bytes = new TextEncoder().encode(str);
+  let bin = '';
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin);
+}
+
+function b64urlFromBinaryString(bin: string): string {
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+async function sendViaGmailApi(mailOptions: any) {
+  if (!currentBase44) throw new Error('Gmail API unavailable (no client)');
+  const conn = await currentBase44.asServiceRole.connectors.getConnection('gmail');
+  const accessToken = conn?.accessToken;
+  if (!accessToken) throw new Error('Gmail API unavailable (no token)');
+
+  const subjectEncoded = `=?UTF-8?B?${utf8Base64(mailOptions.subject)}?=`;
+  const bodyEncoded = utf8Base64(mailOptions.html);
+
+  const raw =
+    `From: ${mailOptions.from}\r\n` +
+    `To: ${mailOptions.to}\r\n` +
+    `Subject: ${subjectEncoded}\r\n` +
+    `MIME-Version: 1.0\r\n` +
+    `Content-Type: text/html; charset=UTF-8\r\n` +
+    `Content-Transfer-Encoding: base64\r\n` +
+    `Reply-To: ${mailOptions.from}\r\n` +
+    `\r\n` +
+    bodyEncoded;
+
+  const res = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ raw: b64urlFromBinaryString(raw) }),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Gmail API ${res.status}: ${text.slice(0, 150)}`);
+  }
+  return res.json();
+}
+
+
+// ── Multi-channel, retrying mail send ───────────────────────
+// Channel 1: Gmail API over HTTPS (primary)
+// Channel 2: SMTP (fallback, 3 attempts, fresh connection each time)
+async function sendMailWithRetry(mailOptions: any) {
+  const errors: string[] = [];
+
+  // Channel 1 — Gmail API (2 attempts)
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const info = await sendViaGmailApi(mailOptions);
+      console.log('Email delivered via Gmail API');
+      return info;
+    } catch (e: any) {
+      errors.push(`gmail-api: ${String(e?.message || e).slice(0, 120)}`);
+      if (attempt < 2) await new Promise(r => setTimeout(r, 500 * attempt));
+    }
+  }
+
+  // Channel 2 — SMTP (3 attempts)
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const info = await getTransporter().sendMail(mailOptions);
+      console.log(`Email delivered via SMTP (attempt ${attempt})`);
+      return info;
+    } catch (e: any) {
+      errors.push(`smtp-${attempt}: ${String(e?.message || e).slice(0, 120)}`);
+      if (attempt < 3) {
+        transporter = null; // force a fresh connection next attempt
+        await new Promise(r => setTimeout(r, attempt * 1500));
+      }
+    }
+  }
+
+  throw new Error(`All email channels failed: ${errors.join(' | ')}`);
+}
+
 async function sendVerificationEmail(toEmail: string, code: string, type = 'registration') {
   const subject = type === 'passwordReset'
     ? `${APP_NAME}: Password Reset Code`
@@ -114,7 +205,7 @@ async function sendVerificationEmail(toEmail: string, code: string, type = 'regi
 
   const html = premiumEmailTemplate(title, bodyHtml, code);
 
-  await getTransporter().sendMail({
+  await sendMailWithRetry({
     from: EMAIL_FROM,
     to: toEmail,
     subject,
@@ -233,6 +324,7 @@ function getUserFromRecord(record: any) {
 
 Deno.serve(async (req: Request) => {
   const base44 = createClientFromRequest(req);
+  currentBase44 = base44;
   const db = base44.asServiceRole;
   const body = await req.json();
   const { action } = body;
@@ -267,14 +359,18 @@ Deno.serve(async (req: Request) => {
         }
       }
 
-      await db.entities.VerificationCode.create({
-        email, code, type, expiresAt, used: false, attempts: 0,
-      });
-
-      // Send verification email — fire-and-forget
-      sendVerificationEmail(email, code, type).catch(emailErr => {
-        console.error('Failed to send verification email:', emailErr);
-      });
+      // SYNCHRONOUS email send — the platform cuts off background work
+      // once the response is returned, so verification emails MUST be
+      // fully delivered before we respond. The request takes ~1-2s.
+      try {
+        await sendVerificationEmail(email, code, type);
+        await db.entities.VerificationCode.create({
+          email, code, type, expiresAt, used: false, attempts: 0,
+        });
+      } catch (emailErr: any) {
+        console.error('Failed to send verification email:', String(emailErr?.message || emailErr).slice(0, 200));
+        return jsonResponse({ success: false, error: 'We could not send the code email right now. Please try again.' });
+      }
       return jsonResponse({ success: true, message: 'Verification code sent' });
     }
 
@@ -439,7 +535,7 @@ Deno.serve(async (req: Request) => {
         return dId && dId !== deviceId;
       });
 
-      let deliveryMethod: 'app' | 'email';
+      let deliveryMethod: 'app' | 'email' | 'app_and_email';
       let nextType: 'email' | null;
 
       if (otherActiveDevices.length > 0) {
@@ -485,7 +581,7 @@ Deno.serve(async (req: Request) => {
             lastMessageText: 'New device login code',
             lastMessageTimestamp: new Date().toISOString(),
             lastMessageType: 'service', unreadCount: 1, isOnline: false,
-            badge: '', recipientEmail: '', avatarAsset: '',
+            badge: 0, recipientEmail: '', avatarAsset: '',
           });
         }
 
@@ -496,17 +592,32 @@ Deno.serve(async (req: Request) => {
           console.error('Failed to push login code notification:', e);
         }
 
-        // Also send email as a backup (fire-and-forget, doesn't block)
-        sendVerificationEmail(email, code, 'login').catch(() => {});
+        // Email is ALSO sent synchronously in every branch — the same
+        // code arrives on all channels at once, and "code sent" is only
+        // reported once the email has actually been accepted.
+        deliveryMethod = 'app_and_email';
+        nextType = null;
+        try {
+          await sendVerificationEmail(email, code, 'login');
+        } catch (e: any) {
+          console.error('Failed to send login verification email:', String(e?.message || e).slice(0, 150));
+        }
 
       } else {
-        // PRIORITY 2: No other active sessions → email only
+        // PRIORITY 2: No other active sessions → email only (SYNCHRONOUS:
+        // if the email fails we must report it, since it's the only path)
         deliveryMethod = 'email';
         nextType = null;
 
-        sendVerificationEmail(email, code, 'login').catch(emailErr => {
-          console.error('Failed to send login verification email:', emailErr);
-        });
+        try {
+          await sendVerificationEmail(email, code, 'login');
+        } catch (emailErr: any) {
+          console.error('Failed to send login verification email:', String(emailErr?.message || emailErr).slice(0, 150));
+          return jsonResponse({
+            success: false,
+            error: 'We could not send your verification code right now. Please try again in a moment.',
+          });
+        }
       }
 
       // Store the code with the delivery method
@@ -520,8 +631,10 @@ Deno.serve(async (req: Request) => {
         deliveryMethod,
         nextType,
         timeout: codeTimeoutSeconds,
-        message: deliveryMethod === 'app'
-          ? 'Code sent to your other device. Check Kora Notifications.'
+        message: deliveryMethod === 'app_and_email'
+          ? `Verification code sent to your email and ${otherActiveDevices.length} of your other device${otherActiveDevices.length > 1 ? 's' : ''}`
+          : deliveryMethod === 'app'
+            ? 'Code sent to your other device. Check Kora Notifications.'
           : 'Verification code sent to your email',
       });
     }
@@ -558,11 +671,19 @@ Deno.serve(async (req: Request) => {
       let deliveryMethod: 'app' | 'email';
       let nextType: 'email' | null = null;
 
+      // In every branch the email is sent SYNCHRONOUSLY — background sends
+      // are cut off by the platform once the response returns, so a
+      // fire-and-forget code email here silently never arrives.
       if (currentMethod === 'app') {
         // Fallback from app → email
         deliveryMethod = 'email';
         nextType = null;
-        sendVerificationEmail(email, code, type).catch(() => {});
+        try {
+          await sendVerificationEmail(email, code, type);
+        } catch (emailErr: any) {
+          console.error('Failed to send code email:', String(emailErr?.message || emailErr).slice(0, 150));
+          return jsonResponse({ success: false, error: 'We could not send the code right now. Please try again.' });
+        }
       } else {
         // Fallback from email → try app (if sessions exist)
         const allDevices = await db.entities.TrustedDevice.filter({ userEmail: email, isActive: true });
@@ -584,11 +705,20 @@ Deno.serve(async (req: Request) => {
               status: 'sent', reaction: '', replyToId: '', replyToName: '', replyToText: '',
             });
           }
-          sendVerificationEmail(email, code, type).catch(() => {});
+          try {
+            await sendVerificationEmail(email, code, type);
+          } catch (emailErr: any) {
+            console.error('Failed to send code email:', String(emailErr?.message || emailErr).slice(0, 150));
+          }
         } else {
           deliveryMethod = 'email';
           nextType = null;
-          sendVerificationEmail(email, code, type).catch(() => {});
+          try {
+            await sendVerificationEmail(email, code, type);
+          } catch (emailErr: any) {
+            console.error('Failed to send code email:', String(emailErr?.message || emailErr).slice(0, 150));
+            return jsonResponse({ success: false, error: 'We could not send the code right now. Please try again.' });
+          }
         }
       }
 

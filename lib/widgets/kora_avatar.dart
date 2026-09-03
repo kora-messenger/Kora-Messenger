@@ -102,8 +102,16 @@ class KoraAvatar extends StatelessWidget {
   }
 
   Widget _buildContent() {
-    if (assetPath != null) {
-      return Image.asset(assetPath!, fit: BoxFit.cover);
+    // Guard: a null assetPath is fine, but an EMPTY assetPath (e.g. from
+    // a cloud conversation record stored as '') would make Flutter throw
+    // "Unable to load asset: ''" and crash the app. Treat empty strings
+    // exactly like null everywhere below.
+    if (assetPath != null && assetPath!.isNotEmpty) {
+      return Image.asset(
+        assetPath!,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _buildInitials(),
+      );
     }
     if (imageUrl != null && imageUrl!.isNotEmpty) {
       // Handle data URLs (base64) — used when backend file upload isn't available

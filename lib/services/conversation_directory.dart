@@ -51,7 +51,7 @@ class ConversationDirectoryService {
     await ChatSyncService.instance.syncConversation(
       chatId: chatId,
       name: meta['name'] as String? ?? chatId,
-      avatarAsset: meta['avatarAsset'] as String?,
+      avatarAsset: _nonEmpty(meta['avatarAsset'] as String?),
       avatarUrl: meta['avatarUrl'] as String?,
       badge: KoraBadgeType.values[meta['badge'] as int? ?? 0],
       isOnline: meta['isOnline'] as bool? ?? false,
@@ -217,7 +217,7 @@ class ConversationDirectoryService {
           'name': (target['name'] as String?)?.isNotEmpty == true
               ? target['name']
               : legacy['name'],
-          'avatarAsset': target['avatarAsset'] ?? legacy['avatarAsset'],
+          'avatarAsset': _nonEmpty(target['avatarAsset'] as String?) ?? _nonEmpty(legacy['avatarAsset'] as String?),
           'avatarUrl': target['avatarUrl'] ?? legacy['avatarUrl'],
           'badge': (target['badge'] as int?) ?? (legacy['badge'] as int?) ?? 0,
           'isOnline': (target['isOnline'] as bool?) ??
@@ -338,3 +338,8 @@ class ConversationDirectoryService {
     await _persist();
   }
 }
+
+
+/// Empty strings from cloud records mean "no value" — normalize to null
+/// so downstream image loaders never see an empty asset path.
+String? _nonEmpty(String? v) => (v != null && v.isNotEmpty) ? v : null;

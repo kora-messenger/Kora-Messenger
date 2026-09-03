@@ -159,9 +159,9 @@ class _GroupChatInfoScreenState extends State<GroupChatInfoScreen> {
                       gradient: KoraColors.brandGradient,
                       shape: BoxShape.circle,
                     ),
-                    child: widget.avatarUrl != null
+                    child: (widget.avatarUrl ?? '').isNotEmpty
                       ? ClipOval(child: Image.network(widget.avatarUrl!, fit: BoxFit.cover))
-                      : widget.avatarAsset != null
+                      : (widget.avatarAsset ?? '').isNotEmpty
                         ? ClipOval(child: Image.asset(widget.avatarAsset!, fit: BoxFit.cover))
                         : Center(child: Text(widget.groupName.isNotEmpty ? widget.groupName[0].toUpperCase() : 'G',
                             style: const TextStyle(color: Colors.white, fontSize: 40, fontWeight: FontWeight.w700))),

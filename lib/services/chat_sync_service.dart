@@ -123,7 +123,7 @@ class ChatSyncService {
           await ConversationDirectoryService.instance.upsert(
             chatId: chatId,
             name: conv['name'] as String? ?? chatId,
-            avatarAsset: conv['avatarAsset'] as String?,
+            avatarAsset: _nonEmpty(conv['avatarAsset'] as String?),
             avatarUrl: conv['avatarUrl'] as String?,
             recipientEmail: conv['recipientEmail'] as String?,
             badge: KoraBadgeType.values[(conv['badge'] as num?)?.toInt() ?? 0],
@@ -309,7 +309,7 @@ class ChatSyncService {
         await ConversationDirectoryService.instance.upsert(
           chatId: chatId,
           name: conv['name'] as String? ?? chatId,
-          avatarAsset: conv['avatarAsset'] as String?,
+          avatarAsset: _nonEmpty(conv['avatarAsset'] as String?),
           avatarUrl: conv['avatarUrl'] as String?,
           recipientEmail: conv['recipientEmail'] as String?,
           badge: KoraBadgeType.values[(conv['badge'] as num?)?.toInt() ?? 0],
@@ -595,3 +595,10 @@ class ChatSyncService {
     );
   }
 }
+
+
+/// Cloud conversation records may store empty strings (e.g. avatarAsset: '')
+/// for "no value". Passing those on as non-null empty strings crashes
+/// downstream image loaders ("Unable to load asset: ''"), so normalize
+/// them to null at the source.
+String? _nonEmpty(String? v) => (v != null && v.isNotEmpty) ? v : null;

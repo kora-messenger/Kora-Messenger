@@ -149,7 +149,7 @@ class ChatService {
       chats.add(ChatPreview(
         id: chatId,
         name: meta['name'] as String? ?? chatId,
-        avatarAsset: meta['avatarAsset'] as String?,
+        avatarAsset: (meta['avatarAsset'] as String?)?.isNotEmpty == true ? meta['avatarAsset'] as String? : null,
         avatarUrl: meta['avatarUrl'] as String?,
         recipientEmail: recipientEmail,
         lastMessage: lastMessageText,
