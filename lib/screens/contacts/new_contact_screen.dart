@@ -496,7 +496,7 @@ class _NewContactScreenState extends State<NewContactScreen> {
                 // Deterministic shared chatId — same thread on both sides.
                 final myEmail =
                     await AccountsManager.instance.getActiveEmail() ?? '';
-                final chatId = await ConversationDirectoryService.instance
+                final chatId = await ConversationDirectoryService
                     .resolveDmChatId(
                   recipientEmail: recipientEmail,
                   myEmail: myEmail,

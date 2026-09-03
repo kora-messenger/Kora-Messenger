@@ -307,7 +307,7 @@ class _ContactInfoScreenState extends State<ContactInfoScreen> {
                 if (widget.recipientEmail != null &&
                     widget.recipientEmail!.isNotEmpty &&
                     myEmail.isNotEmpty) {
-                  chatId = await ConversationDirectoryService.instance
+                  chatId = await ConversationDirectoryService
                       .resolveDmChatId(
                     recipientEmail: widget.recipientEmail,
                     myEmail: myEmail,

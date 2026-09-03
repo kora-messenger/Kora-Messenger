@@ -888,7 +888,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
       onMessageInfo: message.isMe ? () => _showMessageInfo(message) : null,
       onDelete: () => _onDelete(message.id),
       onReportSpam: !message.isMe ? () => _showReportSpamDialog(message) : null,
-      onAskAI: _isAiChat ? null : () => AIChatTools.show(context, message.text),
+      onAskAI: _isAiChat ? null : () => AiChatTools.show(context, message.text),
     );
   }
 

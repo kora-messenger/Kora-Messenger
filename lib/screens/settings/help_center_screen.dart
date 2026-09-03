@@ -329,7 +329,6 @@ class _ReportBugScreenState extends State<ReportBugScreen> {
     final textSecondary = KoraColors.textSecondaryFor(brightness);
     final textMuted = KoraColors.textMutedFor(brightness);
     final border = KoraColors.borderFor(brightness);
-    final bg = KoraColors.backgroundFor(brightness);
 
     return Scaffold(
       backgroundColor: bg,
@@ -490,7 +489,6 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
     final textPrimary = KoraColors.textPrimaryFor(brightness);
     final textMuted = KoraColors.textMutedFor(brightness);
     final border = KoraColors.borderFor(brightness);
-    final bg = KoraColors.backgroundFor(brightness);
 
     return Scaffold(
       backgroundColor: bg,
