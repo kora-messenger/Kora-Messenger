@@ -16,6 +16,7 @@ import '../../ai/conversation/conversation_message.dart';
 import '../../ai/model/ai_request.dart';
 import '../../ai/model/ai_error.dart';
 import '../../ai/premium/ai_entitlement.dart';
+import 'package:share_plus/share_plus.dart';
 
 /// Kora AI — Full AI assistant with streaming, conversation history,
 /// voice input, file analysis, and translation.

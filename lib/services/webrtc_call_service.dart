@@ -363,7 +363,7 @@ class WebRTCCallService {
   /// Triggers native Android Picture-in-Picture mode.
   Future<bool> enterPipMode() async {
     try {
-      if (kIsWeb) return;
+      if (kIsWeb) return false;
       final bool success = await _pipChannel.invokeMethod('enterPip');
       return success;
     } catch (e) {

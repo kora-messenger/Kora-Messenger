@@ -147,6 +147,7 @@ class _MessageActionOverlay extends StatelessWidget {
   final VoidCallback? onMessageInfo;
   final VoidCallback onDelete;
   final VoidCallback? onReportSpam;
+  final VoidCallback? onAskAI;
 
   const _MessageActionOverlay({
     required this.messageKey,
@@ -168,6 +169,7 @@ class _MessageActionOverlay extends StatelessWidget {
     this.onMessageInfo,
     required this.onDelete,
     this.onReportSpam,
+    this.onAskAI,
   });
 
   bool get _isVoice => messageType == KoraMessageType.voice;

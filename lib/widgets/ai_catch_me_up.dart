@@ -37,8 +37,14 @@ class AiCatchMeUp extends StatelessWidget {
 
           if (loading && result.isEmpty && error == null) {
             // Trigger AI summary
-            final messageTexts = messages.map((m) => '${m.isMe ? "You" : (m.isAi ? "Kora AI" : chatName)}: ${m.text}').toList();
-            AiFeaturesService.instance.summarizeChat(messages: messageTexts).then((summary) {
+            final messageMaps = messages
+                .map((m) => {
+                      'text': m.text,
+                      'isMe': m.isMe,
+                      'senderName': m.isMe ? 'You' : (m.isAi ? 'Kora AI' : chatName),
+                    })
+                .toList();
+            AiFeaturesService.instance.summarizeChat(messageMaps).then((summary) {
               if (summary != null) {
                 setState(() { result = summary; loading = false; });
               } else {

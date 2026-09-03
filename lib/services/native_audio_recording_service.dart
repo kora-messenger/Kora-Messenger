@@ -72,7 +72,7 @@ class NativeAudioRecordingService {
     try {
     if (kIsWeb) {
       // Web fallback: skip native channel call
-      return;
+      return '';
     }
 
       final result = await _methodChannel.invokeMethod<String>('startRecording');
@@ -100,7 +100,8 @@ class NativeAudioRecordingService {
     try {
     if (kIsWeb) {
       // Web fallback: skip native channel call
-      return;
+      _isRecording = false;
+      return null;
     }
 
       final path = await _methodChannel.invokeMethod<String>('stopRecording');

@@ -39,7 +39,8 @@ class VoiceVectorExtractor {
   /// Extract a VoiceVector from an existing audio file.
   Future<VoiceVector> extractFromAudio(String audioFilePath) async {
     try {
-      if (kIsWeb) return;
+      // Web has no native DSP — return a neutral voice vector.
+      if (kIsWeb) return const VoiceVector();
       final result = await _channel.invokeMethod<Map>('extractFromAudio', {
         'audioPath': audioFilePath,
       });

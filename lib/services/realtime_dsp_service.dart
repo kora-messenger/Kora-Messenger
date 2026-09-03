@@ -40,7 +40,7 @@ class RealtimeDspService {
   Future<String?> processAudioFile(String inputPath, String outputPath, {VoiceVector? vector}) async {
     try {
       final v = vector ?? _currentVoiceVector;
-      if (kIsWeb) return;
+      if (kIsWeb) return null;
       final result = await _channel.invokeMethod<String>('processAudioFile', {
         'inputPath': inputPath,
         'outputPath': outputPath,
@@ -82,7 +82,7 @@ class RealtimeDspService {
     final outputPath = '${ttsAudioPath.replaceAll(RegExp(r'\.[^.]+$'), '')}_dsp.wav';
     try {
       await applyVoiceVector(targetVoice);
-      if (kIsWeb) return;
+      if (kIsWeb) return ttsAudioPath;
       final result = await _channel.invokeMethod<String>('processTtsOutput', {
         'ttsAudioPath': ttsAudioPath,
         'outputPath': outputPath,

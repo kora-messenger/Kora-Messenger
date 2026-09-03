@@ -54,7 +54,7 @@ class OnDeviceTranslator {
     await ensureModelDownloaded(targetLang);
 
     try {
-      if (kIsWeb) return;
+      if (kIsWeb) return text;
       final result = await _channel.invokeMethod<String>('translate', {
         'text': text,
         'sourceLang': sourceLang,
@@ -81,7 +81,7 @@ class OnDeviceTranslator {
 
     _downloadingModels.add(langCode);
     try {
-      if (kIsWeb) return;
+      if (kIsWeb) return false;
       final success = await _channel.invokeMethod<bool>('downloadModel', {'langCode': langCode});
       if (success == true) {
         _downloadedModels.add(langCode);
@@ -99,7 +99,7 @@ class OnDeviceTranslator {
   Future<bool> isModelDownloaded(String langCode) async {
     if (_downloadedModels.contains(langCode)) return true;
     try {
-      if (kIsWeb) return;
+      if (kIsWeb) return false;
       final result = await _channel.invokeMethod<bool>('isModelDownloaded', {'langCode': langCode});
       if (result == true) _downloadedModels.add(langCode);
       return result ?? false;
@@ -112,7 +112,7 @@ class OnDeviceTranslator {
   /// Get list of all downloaded language models.
   Future<List<String>> downloadedLanguages() async {
     try {
-      if (kIsWeb) return;
+      if (kIsWeb) return <String>[];
       final result = await _channel.invokeMethod<List<dynamic>>('getDownloadedModels');
       if (result != null) {
         _downloadedModels.clear();
@@ -131,7 +131,7 @@ class OnDeviceTranslator {
   Future<String> detectLanguage(String text) async {
     if (text.trim().isEmpty) return 'en';
     try {
-      if (kIsWeb) return;
+      if (kIsWeb) return 'en';
       final result = await _channel.invokeMethod<String>('detectLanguage', {'text': text});
       return result ?? 'en';
     } on PlatformException catch (e) {
@@ -143,7 +143,7 @@ class OnDeviceTranslator {
   /// Delete a downloaded language model to free storage.
   Future<bool> deleteModel(String langCode) async {
     try {
-      if (kIsWeb) return;
+      if (kIsWeb) return false;
       final success = await _channel.invokeMethod<bool>('deleteModel', {'langCode': langCode});
       if (success == true) {
         _downloadedModels.remove(langCode);

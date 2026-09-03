@@ -91,7 +91,8 @@ class KoraRecordingService {
     try {
     if (kIsWeb) {
       // Web fallback: skip native channel call
-      return;
+      _isRecording = false;
+      return null;
     }
 
       final path = await _channel.invokeMethod<String>('stop');

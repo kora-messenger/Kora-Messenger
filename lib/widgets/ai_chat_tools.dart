@@ -49,24 +49,24 @@ class AiChatTools {
           const SizedBox(height: 8),
           // AI options
           _AiOption(icon: Icons.lightbulb_outline, label: 'Explain', color: KoraColors.purple,
-            onTap: () { Navigator.pop(ctx); _handleAiAction(context, 'explain', messageText); }),
+            onTap: () { Navigator.pop(ctx); _handleAiAction(context, 'explain', messageText, chatName: chatName); }),
           _AiOption(icon: Icons.translate, label: 'Translate', color: KoraColors.blue,
-            onTap: () { Navigator.pop(ctx); _handleAiAction(context, 'translate', messageText); }),
+            onTap: () { Navigator.pop(ctx); _handleAiAction(context, 'translate', messageText, chatName: chatName); }),
           _AiOption(icon: Icons.summarize, label: 'Summarize', color: KoraColors.purple,
-            onTap: () { Navigator.pop(ctx); _handleAiAction(context, 'summarize', messageText); }),
+            onTap: () { Navigator.pop(ctx); _handleAiAction(context, 'summarize', messageText, chatName: chatName); }),
           _AiOption(icon: Icons.edit, label: 'Rewrite', color: KoraColors.blue,
-            onTap: () { Navigator.pop(ctx); _handleAiAction(context, 'rewrite', messageText); }),
+            onTap: () { Navigator.pop(ctx); _handleAiAction(context, 'rewrite', messageText, chatName: chatName); }),
           _AiOption(icon: Icons.reply, label: 'Reply', color: KoraColors.purple,
-            onTap: () { Navigator.pop(ctx); _handleAiAction(context, 'reply', messageText); }),
+            onTap: () { Navigator.pop(ctx); _handleAiAction(context, 'reply', messageText, chatName: chatName); }),
           _AiOption(icon: Icons.auto_fix_high, label: 'Improve', color: KoraColors.blue,
-            onTap: () { Navigator.pop(ctx); _handleAiAction(context, 'improve', messageText); }),
+            onTap: () { Navigator.pop(ctx); _handleAiAction(context, 'improve', messageText, chatName: chatName); }),
           const SizedBox(height: 12),
         ]),
       ),
     );
   }
 
-  static void _handleAiAction(BuildContext context, String action, String messageText) async {
+  static void _handleAiAction(BuildContext context, String action, String messageText, {String? chatName}) async {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(children: [
@@ -90,19 +90,21 @@ class AiChatTools {
           );
           result = r.success ? r.response : r.error ?? 'Failed to explain';
         case 'translate':
-          final r = await AiFeaturesService.instance.rewriteText(text: messageText, mode: 'translate_to_french');
+          final r = await AiFeaturesService.instance.rewriteText(messageText, AiWritingMode.translate, targetLanguage: 'French');
           result = r ?? 'Translation failed';
         case 'summarize':
-          final r = await AiFeaturesService.instance.summarizeChat(messages: [messageText]);
+          final r = await AiFeaturesService.instance.summarizeChat([
+            {'text': messageText, 'isMe': false, 'senderName': chatName ?? 'Contact'},
+          ]);
           result = r ?? 'Summarization failed';
         case 'rewrite':
-          final r = await AiFeaturesService.instance.rewriteText(text: messageText);
+          final r = await AiFeaturesService.instance.rewriteText(messageText, AiWritingMode.rewrite);
           result = r ?? 'Rewrite failed';
         case 'reply':
-          final r = await AiFeaturesService.instance.getReplySuggestions(message: messageText);
+          final r = await AiFeaturesService.instance.getReplySuggestions(messageText);
           result = r?.join('\n\n') ?? 'No suggestions';
         case 'improve':
-          final r = await AiFeaturesService.instance.rewriteText(text: messageText, mode: 'improve');
+          final r = await AiFeaturesService.instance.rewriteText(messageText, AiWritingMode.improve);
           result = r ?? 'Improvement failed';
       }
 

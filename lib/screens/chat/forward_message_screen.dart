@@ -36,12 +36,12 @@ class _ForwardMessageScreenState extends State<ForwardMessageScreen> {
 
   Future<void> _loadConversations() async {
     try {
-      final conversations = await ChatService.getConversations();
+      final conversations = await ChatService.instance.getChats();
       _allContacts = conversations.map((c) => _ForwardContact(
         name: c.name,
-        lastMessage: c.lastMessageText ?? '',
-        isGroup: c.badge == 'group' || c.badge == 'community',
-        chatId: c.chatId,
+        lastMessage: c.lastMessage,
+        isGroup: c.isGroupChat,
+        chatId: c.id,
         avatarUrl: c.avatarUrl,
       )).toList();
     } catch (_) {
