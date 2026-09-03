@@ -424,12 +424,22 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                             onEmojiSelected: (emoji) {
                               final currentText = _nameController.text;
                               final selection = _nameController.selection;
-                              final newText = currentText.substring(0, selection.start) +
+                              // Clamp — an unset selection reports -1 and
+                              // substring(0, -1) throws a RangeError.
+                              var start = selection.start;
+                              var end = selection.end;
+                              if (start < 0 || start > currentText.length) {
+                                start = currentText.length;
+                              }
+                              if (end < start || end > currentText.length) {
+                                end = start;
+                              }
+                              final newText = currentText.substring(0, start) +
                                   emoji +
-                                  currentText.substring(selection.end);
+                                  currentText.substring(end);
                               _nameController.text = newText;
                               _nameController.selection = TextSelection.collapsed(
-                                offset: selection.start + emoji.length,
+                                offset: start + emoji.length,
                               );
                             },
                           ),

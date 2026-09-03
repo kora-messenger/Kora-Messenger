@@ -1499,9 +1499,15 @@ class _MessageComposerState extends State<MessageComposer>
             onEmojiSelected: (emoji) {
               final text = _controller.text;
               final sel = _controller.selection;
-              final start = sel.start ?? 0;
+              // Clamp selection indices — a cleared/unset selection reports
+              // -1, and text.substring(0, -1) threw a RangeError that crashed
+              // the composer when tapping an emoji (crash 2026-09-03 17:01).
+              var start = sel.start ?? -1;
+              var end = sel.end ?? start;
+              if (start < 0 || start > text.length) start = text.length;
+              if (end < start || end > text.length) end = start;
               _controller.value = TextEditingValue(
-                text: text.substring(0, start) + emoji + text.substring(sel.end ?? text.length),
+                text: text.substring(0, start) + emoji + text.substring(end),
                 selection: TextSelection.collapsed(offset: start + emoji.length),
               );
               setState(() {});

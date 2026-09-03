@@ -742,8 +742,16 @@ class _CallScreenState extends State<CallScreen>
     );
 
     if (result != null && mounted) {
-      final sourceLang = result['sourceLanguage'] as String;
-      final targetLang = result['targetLanguage'] as String;
+      // CallTranslationSheet pops a Dart record
+      // ({sourceLanguage, targetLanguage}) — not a Map. Reading it with
+      // result['sourceLanguage'] threw a NoSuchMethodError (crash
+      // 2026-09-03 17:13). Accept both shapes defensively.
+      final sourceLang = result is Map
+          ? result['sourceLanguage'] as String
+          : (result as dynamic).sourceLanguage as String;
+      final targetLang = result is Map
+          ? result['targetLanguage'] as String
+          : (result as dynamic).targetLanguage as String;
 
       _liveTranslation.onSpeechRecognized = (recognizedText) {
         if (mounted) setState(() => _lastRecognized = recognizedText);
