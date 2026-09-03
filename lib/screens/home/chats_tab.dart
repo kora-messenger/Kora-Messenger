@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import '../../config/subscription_pricing.dart';
 import '../../models/chat_models.dart';
 import '../../services/chat_service.dart';
@@ -13,7 +16,10 @@ import '../../widgets/chat_peek_overlay.dart';
 import '../../widgets/kora_empty_state.dart';
 import '../../widgets/kora_menu_sheet.dart';
 import '../../widgets/new_chat_sheet.dart';
+import '../chat/contact_info_screen.dart';
+import '../chat/group_chat_info_screen.dart';
 import '../chat/kora_chat_screen.dart';
+import '../../config/kora_api.dart';
 import '../new_group_screen.dart';
 import '../kora_notifications_screen.dart';
 import '../settings/privacy_screen.dart';
@@ -103,12 +109,16 @@ class _ChatsTabState extends State<ChatsTab> {
 
   void _openChat(ChatPreview chat) {
     if (chat.id == 'kora_notifications') {
+      // Refresh on return — the service chat marks itself read on
+      // open, so Home must rebuild the moment the user comes back.
       pushSlideUp(
         context,
         const KoraNotificationsScreen(),
-      );
+      ).then((_) => _refresh());
       return;
     }
+    // Refresh on return — opening the chat marks it viewed, and the
+    // stale unread badge would otherwise linger until a manual pull.
     pushSlideUp(
       context,
       KoraChatScreen(
@@ -134,8 +144,106 @@ class _ChatsTabState extends State<ChatsTab> {
       context,
       chat,
       onOpenChat: () => _openChat(chat),
-      onOpenProfile: () => _openChat(chat),
+      onOpenProfile: () => _openProfile(chat),
       onRefresh: _refresh,
+    );
+  }
+
+  /// WhatsApp home-screen behavior: tapping a contact's circle profile
+  /// photo on the chat list opens their PROFILE — the same Contact
+  /// Info screen you reach by tapping their name inside a chat.
+  /// Long-press still shows the silent chat peek.
+  Future<void> _openProfile(ChatPreview chat) async {
+    // Builtin system chats don't have a contact profile.
+    if (chat.id == 'kora_ai' ||
+        chat.id == 'kora_support' ||
+        chat.id == 'kora_notifications') {
+      return;
+    }
+
+    // Group chats open the group info screen, same as inside the chat.
+    if (chat.isGroupChat) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => GroupChatInfoScreen(
+            groupName: chat.name,
+            groupDescription: 'Group description',
+            avatarUrl: chat.avatarUrl,
+            avatarAsset: chat.avatarAsset,
+            participants: [
+              GroupParticipant(name: chat.name, koraId: 'me', isAdmin: true),
+              GroupParticipant(name: 'Member', koraId: 'member1', isAdmin: false),
+            ],
+            createdAt: DateTime.now().subtract(const Duration(days: 1)),
+            chatId: chat.id,
+          ),
+        ),
+      );
+      return;
+    }
+
+    // 1:1 chats — fetch the real profile from the backend using the
+    // same lookup the chat screen's "Contact info" flow uses.
+    String koraId = '';
+    String username = '';
+    String about = 'Hey there! I am using Kora Messenger.';
+    String? phone;
+    String fullName = chat.name;
+    String? avatarUrl = chat.avatarUrl;
+
+    if (chat.recipientEmail != null && chat.recipientEmail!.isNotEmpty) {
+      try {
+        final resp = await http.post(
+          Uri.parse(KoraApi.lookupByEmailEndpoint),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'email': chat.recipientEmail}),
+        );
+        if (resp.statusCode == 200) {
+          final data = jsonDecode(resp.body);
+          if (data['success'] == true &&
+              data['found'] == true &&
+              data['user'] != null) {
+            final user = data['user'] as Map<String, dynamic>;
+            koraId = user['koraId']?.toString() ?? '';
+            username = user['username']?.toString() ?? '';
+            fullName = user['fullName']?.toString() ?? chat.name;
+            about = user['bio']?.toString() ?? about;
+            phone = (user['phoneNumber'] != null &&
+                    user['phoneNumber'].toString().isNotEmpty)
+                ? user['phoneNumber'].toString()
+                : null;
+            if (user['avatarUrl'] != null &&
+                user['avatarUrl'].toString().isNotEmpty) {
+              avatarUrl = user['avatarUrl'].toString();
+            }
+          }
+        }
+      } catch (_) {
+        // Fall back to chat data if lookup fails
+      }
+    }
+
+    if (!mounted) return;
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ContactInfoScreen(
+          name: fullName,
+          chatId: chat.id,
+          avatarAsset: chat.avatarAsset,
+          avatarUrl: avatarUrl,
+          badge: chat.badge,
+          isOnline: chat.isOnline,
+          koraId: koraId.isNotEmpty ? koraId : null,
+          username: username.isNotEmpty ? username : null,
+          about: about,
+          phone: phone,
+          recipientEmail: chat.recipientEmail,
+          isAiChat: false,
+        ),
+      ),
     );
   }
 
@@ -315,6 +423,9 @@ class _ChatsTabState extends State<ChatsTab> {
   Future<void> _archiveSelected() async {
     final ids = List<String>.from(_selectedIds);
     if (ids.isEmpty) return;
+    // Telegram's service chat can't be archived.
+    ids.remove('kora_notifications');
+    if (ids.isEmpty) return;
     for (final id in ids) {
       await ConversationDirectoryService.instance.setArchived(id, true);
     }
@@ -364,6 +475,9 @@ class _ChatsTabState extends State<ChatsTab> {
 
   Future<void> _deleteSelected() async {
     final ids = List<String>.from(_selectedIds);
+    if (ids.isEmpty) return;
+    // Telegram's service chat can't be deleted.
+    ids.remove('kora_notifications');
     if (ids.isEmpty) return;
     final count = ids.length;
 
@@ -437,6 +551,8 @@ class _ChatsTabState extends State<ChatsTab> {
       if (!authed) return;
     }
 
+    // Telegram's service chat can't be locked away.
+    ids.remove('kora_notifications');
     for (final id in ids) {
       await ConversationDirectoryService.instance.setLocked(id, !unlock);
     }
@@ -544,6 +660,8 @@ class _ChatsTabState extends State<ChatsTab> {
     for (final c in _chats) {
       if (c.unreadCount > 0) {
         await MessageService.instance.markChatViewed(c.id);
+        // "Read all" also clears the Mark-as-unread flag.
+        await ConversationDirectoryService.instance.setForcedUnread(c.id, false);
       }
     }
     _chats = await ChatService.instance.getChats();
@@ -577,6 +695,7 @@ class _ChatsTabState extends State<ChatsTab> {
     });
     for (final c in _chats) {
       MessageService.instance.markChatViewed(c.id);
+      ConversationDirectoryService.instance.setForcedUnread(c.id, false);
     }
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -756,6 +875,30 @@ class _ChatsTabState extends State<ChatsTab> {
                                     child: const Icon(Icons.push_pin, color: Colors.white, size: 26),
                                   ),
                                   confirmDismiss: (direction) async {
+                                    // Telegram's service chat is a permanent
+                                    // system chat — it can't be archived.
+                                    if (chat.id == 'kora_notifications') {
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(context)
+                                            .clearSnackBars();
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          const SnackBar(
+                                            backgroundColor:
+                                                KoraColors.darkSurface,
+                                            duration:
+                                                Duration(seconds: 2),
+                                            content: Text(
+                                              'Kora Notifications can\u2019t be archived',
+                                              style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 13.5),
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                      return false;
+                                    }
                                     if (direction == DismissDirection.startToEnd) {
                                       // Swipe right → archive
                                       await ConversationDirectoryService.instance.setArchived(chat.id, true);
@@ -792,6 +935,7 @@ class _ChatsTabState extends State<ChatsTab> {
                                     onTap: () => _onChatTap(chat),
                                     onLongPress: (_) => _onChatLongPress(chat),
                                     onAvatarLongPress: () => _showChatPeek(chat),
+                                    onAvatarTap: () => _openProfile(chat),
                                   ),
                                 );
                               },

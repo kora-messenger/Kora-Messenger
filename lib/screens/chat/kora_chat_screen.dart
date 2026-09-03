@@ -191,6 +191,9 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
     _messages = await _messageService.loadMessages(widget.chatId);
     // Mark all incoming messages as viewed — clears the Home unread badge.
     await _messageService.markChatViewed(widget.chatId);
+    // Opening the chat also clears any "Mark as unread" flag so the
+    // Home badge disappears for real, not just until the next refresh.
+    await ConversationDirectoryService.instance.setForcedUnread(widget.chatId, false);
     // Auto-translate new messages if enabled (WhatsApp auto_translation)
     await _messageService.autoTranslateChat(widget.chatId);
     _messages = List.from(_messageService.getMessages(widget.chatId));
