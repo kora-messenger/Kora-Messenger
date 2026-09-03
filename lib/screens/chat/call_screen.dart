@@ -358,6 +358,39 @@ class _CallScreenState extends State<CallScreen>
     _resetAutoHideTimer();
   }
 
+  /// Confirms with the user before switching an ongoing voice call to
+  /// video — matches the reference recording: a white rounded dialog
+  /// with "Switch to video call?" and Cancel / Switch actions. Only
+  /// calls [_upgradeToVideoCall] if the user taps Switch.
+  void _confirmSwitchToVideo() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+        title: const Text(
+          'Switch to video call?',
+          style: TextStyle(color: Color(0xFF1C1C1E), fontSize: 17, fontWeight: FontWeight.w600),
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFF8E8E93), fontWeight: FontWeight.w600)),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _upgradeToVideoCall();
+            },
+            child: Text('Switch', style: TextStyle(color: KoraColors.purple, fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _upgradeToVideoCall() async {
     try {
       await _webrtcService.enableVideo();
@@ -981,7 +1014,7 @@ class _CallScreenState extends State<CallScreen>
                 icon: Icons.videocam,
                 label: 'Video',
                 isOn: false,
-                onTap: _upgradeToVideoCall,
+                onTap: _confirmSwitchToVideo,
               ),
               _gridButton(
                 icon: _isMuted ? Icons.mic : Icons.mic_off,
@@ -1433,7 +1466,7 @@ class _CallScreenState extends State<CallScreen>
             _pillToggleButton(
               icon: Icons.videocam_outlined,
               isOn: false,
-              onTap: _upgradeToVideoCall,
+              onTap: _confirmSwitchToVideo,
             ),
           _pillToggleButton(
             icon: _isSpeakerOn ? Icons.volume_up : Icons.volume_off,
@@ -1515,14 +1548,25 @@ class _CallScreenState extends State<CallScreen>
     );
   }
 
+  /// Whether the remote party in this 1-on-1 call currently has their
+  /// camera on. When false, the reference recording shows their avatar
+  /// centered on the wallpaper instead of a black/empty video surface.
+  bool get _remoteHasVideo {
+    final remote = _participants.firstWhere(
+      (p) => !p.isSelf,
+      orElse: () => _participants.first,
+    );
+    return _remoteRenderer != null && remote.isVideoOn;
+  }
+
   Widget _buildVideoCallView() {
     return Stack(
       children: [
-        // Background wallpaper or remote video
+        // Background wallpaper, or remote video when their camera is on
         Positioned.fill(
           child: GestureDetector(
             onTap: _toggleControls,
-            child: _remoteRenderer != null
+            child: _remoteHasVideo
                 ? _applyVideoFilter(
                     RTCVideoView(
                       _remoteRenderer!,
@@ -1533,6 +1577,20 @@ class _CallScreenState extends State<CallScreen>
                 : Container(decoration: _activeWallpaper.decoration),
           ),
         ),
+
+        // Remote's avatar, centered — shown while their camera is off
+        // (matches the reference: the contact's circular photo stays
+        // visible in the middle of the screen until they enable video).
+        if (!_remoteHasVideo)
+          Positioned.fill(
+            child: Center(
+              child: KoraAvatar(
+                name: widget.contactName,
+                imageUrl: widget.avatarUrl,
+                size: 168,
+              ),
+            ),
+          ),
 
         // Dark gradient at top
         if (_controlsVisible)
@@ -2206,7 +2264,7 @@ class _CallScreenState extends State<CallScreen>
                   icon: Icons.videocam_outlined,
                   label: 'Video',
                   isActive: false,
-                  onTap: _upgradeToVideoCall,
+                  onTap: _confirmSwitchToVideo,
                 )
               else
                 _islandButton(
