@@ -225,7 +225,19 @@ class _KoraHomeScreenState extends State<KoraHomeScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            KoraAvatar(name: _ownName, imageUrl: _ownAvatarUrl, size: 26),
+            // Reads live from SessionManager's shared profile notifier —
+            // the same source every other "your own" avatar in the app
+            // uses (Profile tab, Updates → My Status). Guarantees this
+            // icon can never show a stale name/photo after an edit or
+            // account switch.
+            ValueListenableBuilder<Map<String, dynamic>?>(
+              valueListenable: SessionManager.instance.profileNotifier,
+              builder: (context, session, _) {
+                final name = (session?['fullName'] as String?) ?? _ownName;
+                final avatarUrl = (session?['avatarUrl'] as String?) ?? _ownAvatarUrl;
+                return KoraAvatar(name: name, imageUrl: avatarUrl, size: 26);
+              },
+            ),
             const SizedBox(height: 5),
             Text(
               'Profile',

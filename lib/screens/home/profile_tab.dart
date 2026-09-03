@@ -58,6 +58,12 @@ class _ProfileTabState extends State<ProfileTab> {
     }
   }
 
+  /// Live profile from the shared notifier — same source the bottom nav
+  /// Profile icon and Updates → My Status read from, so this screen can
+  /// never drift out of sync with them (e.g. right after an edit).
+  Map<String, dynamic>? get _liveSession =>
+      SessionManager.instance.profileNotifier.value ?? _session;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -147,9 +153,10 @@ class _ProfileTabState extends State<ProfileTab> {
     final textSecondary = KoraColors.textSecondaryFor(brightness);
     final textMuted = KoraColors.textMutedFor(brightness);
 
-    final fullName = _session?['fullName']?.toString() ?? 'Kora User';
-    final username = _session?['username']?.toString() ?? 'user';
-    final koraId = _session?['koraId']?.toString() ?? '';
+    final fullName = _liveSession?['fullName']?.toString() ?? 'Kora User';
+    final avatarUrl = _liveSession?['avatarUrl']?.toString();
+    final username = _liveSession?['username']?.toString() ?? 'user';
+    final koraId = _liveSession?['koraId']?.toString() ?? '';
 
     return Scaffold(
       backgroundColor: bg,
@@ -203,7 +210,7 @@ class _ProfileTabState extends State<ProfileTab> {
                       )
                     : Row(
                         children: [
-                          KoraAvatar(name: fullName, size: 62),
+                          KoraAvatar(name: fullName, imageUrl: avatarUrl, size: 62),
                           const SizedBox(width: 14),
                           Expanded(
                             child: Column(

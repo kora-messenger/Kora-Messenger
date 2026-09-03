@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'auth_service.dart';
 import 'kora_encryption_service.dart';
@@ -25,12 +26,21 @@ class SessionManager {
   KoraUserSession? _cachedUser;
   KoraUserSession? get currentUser => _cachedUser;
 
+  /// Single source of truth for "your own" name/avatar, broadcast to
+  /// every screen that shows it — the bottom nav Profile tab, Updates
+  /// → My Status, and the Profile tab itself. Whenever the profile is
+  /// edited or the account is switched, this fires and ALL of those
+  /// screens update instantly and in lockstep, instead of each one
+  /// keeping its own snapshot that can drift out of sync.
+  final ValueNotifier<Map<String, dynamic>?> profileNotifier = ValueNotifier(null);
+
   /// Saves session and updates cache.
   Future<void> saveSession(Map<String, dynamic> userData) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_sessionKey, jsonEncode(userData));
     _cachedEmail = userData['email'] as String? ?? '';
     _cachedUser = KoraUserSession.fromMap(userData);
+    profileNotifier.value = userData;
     // Publish E2EE public keys so others can encrypt messages to this user
     final email = userData['email'] as String?;
     if (email != null && email.isNotEmpty) {
@@ -55,6 +65,7 @@ class SessionManager {
       final data = jsonDecode(raw) as Map<String, dynamic>;
       _cachedEmail = data['email'] as String? ?? '';
       _cachedUser = KoraUserSession.fromMap(data);
+      profileNotifier.value = data;
       return data;
     } catch (_) {
       return null;
@@ -67,6 +78,7 @@ class SessionManager {
     await prefs.remove(_sessionKey);
     _cachedEmail = '';
     _cachedUser = null;
+    profileNotifier.value = null;
   }
 
   /// Updates the existing session with new/changed fields.

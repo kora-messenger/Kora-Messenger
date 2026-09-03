@@ -78,6 +78,12 @@ class _StatusTabState extends State<StatusTab> {
     }
   }
 
+  /// Live profile from the shared notifier — same source the bottom nav
+  /// Profile icon and Profile tab read from, so "My Status" can never
+  /// show a different name/photo than the rest of the app.
+  Map<String, dynamic>? get _liveSession =>
+      SessionManager.instance.profileNotifier.value ?? _session;
+
   void _refresh() {
     setState(() {});
   }
@@ -258,10 +264,10 @@ class _StatusTabState extends State<StatusTab> {
     }
     final status = KoraStatus(
       id: 'my_status',
-      userEmail: _session?['email'] ?? '',
-      username: _session?['username'] ?? '',
-      fullName: _session?['fullName'] ?? 'You',
-      avatarUrl: _session?['avatarUrl'],
+      userEmail: _liveSession?['email'] ?? '',
+      username: _liveSession?['username'] ?? '',
+      fullName: _liveSession?['fullName'] ?? 'You',
+      avatarUrl: _liveSession?['avatarUrl'],
       items: items,
       lastUpdatedAt: items.last.createdAt,
       privacy: StatusService.instance.privacy,
@@ -594,8 +600,8 @@ class _StatusTabState extends State<StatusTab> {
     final textMuted = KoraColors.textMutedFor(brightness);
     final border = KoraColors.borderFor(brightness);
 
-    final fullName = _session?['fullName'] ?? 'You';
-    final avatarUrl = _session?['avatarUrl'] as String? ?? '';
+    final fullName = _liveSession?['fullName'] ?? 'You';
+    final avatarUrl = _liveSession?['avatarUrl'] as String? ?? '';
     final myItems = StatusService.instance.myStatusItems;
     final hasStatus = myItems.isNotEmpty;
     final allStatuses = StatusService.instance.contactStatuses;
