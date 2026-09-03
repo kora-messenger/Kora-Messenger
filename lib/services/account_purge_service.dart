@@ -75,6 +75,7 @@ class AccountPurgeService {
     'kora_call_translation',
 
     // Per-account service state
+    'kora_search_history',
     'kora_service_notif_last_seen',
     'kora_support_active_conversation',
     'kora_ai_active_conversation',

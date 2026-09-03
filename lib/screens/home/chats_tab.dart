@@ -1,10 +1,14 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../../config/subscription_pricing.dart';
 import '../../models/chat_models.dart';
+import '../../models/message_model.dart';
 import '../../services/chat_service.dart';
+import '../../services/chat_vault_service.dart';
+import '../../services/home_search_service.dart';
 import '../../services/conversation_directory.dart';
 import '../../services/session_manager.dart';
 import '../../services/message_service.dart';
@@ -13,6 +17,7 @@ import '../../theme/kora_colors.dart';
 import '../../utils/kora_page_routes.dart';
 import '../../widgets/chat_list_item.dart';
 import '../../widgets/chat_peek_overlay.dart';
+import '../../widgets/kora_avatar.dart';
 import '../../widgets/kora_empty_state.dart';
 import '../../widgets/kora_menu_sheet.dart';
 import '../../widgets/new_chat_sheet.dart';
@@ -58,6 +63,15 @@ class _ChatsTabState extends State<ChatsTab> {
   final _searchController = TextEditingController();
   String _searchQuery = '';
 
+  // ── Inline search state (WhatsApp-style) ──────────────────────
+  Timer? _searchDebounce;
+  List<HomeMessageHit> _messageHits = [];
+  bool _searchingMessages = false;
+  HomeSearchFilter _searchFilter = HomeSearchFilter.all;
+  List<String> _recentSearches = [];
+  bool _lockedRevealed = false;
+  List<ChatPreview> _revealedLockedChats = [];
+
   // ── Selection mode (long-press a chat) ──────────────────────
   final Set<String> _selectedIds = {};
   bool get _isSelecting => _selectedIds.isNotEmpty;
@@ -93,6 +107,7 @@ class _ChatsTabState extends State<ChatsTab> {
   @override
   void dispose() {
     ChatSyncService.instance.onNewMessages = null;
+    _searchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -652,8 +667,99 @@ class _ChatsTabState extends State<ChatsTab> {
       if (!_showSearch) {
         _searchController.clear();
         _searchQuery = '';
+        _messageHits = [];
+        _lockedRevealed = false;
+        _searchFilter = HomeSearchFilter.all;
+      } else {
+        _loadRecentSearches();
       }
     });
+  }
+
+  // ── Inline search (WhatsApp behavior) ─────────────────────────
+  // Debounced: waits 250ms after the last keystroke before scanning
+  // message contents across all chats.
+  void _onSearchChanged(String v) {
+    setState(() => _searchQuery = v);
+    _searchDebounce?.cancel();
+    if (v.trim().isEmpty) {
+      setState(() {
+        _messageHits = [];
+        _searchingMessages = false;
+        _lockedRevealed = false;
+      });
+      return;
+    }
+    _searchDebounce = Timer(const Duration(milliseconds: 250), _runMessageSearch);
+  }
+
+  Future<void> _runMessageSearch() async {
+    final q = _searchQuery.trim();
+    if (q.isEmpty || !mounted) return;
+    setState(() => _searchingMessages = true);
+
+    // WhatsApp-style secret code: typing the locked-chats code in the
+    // search bar reveals the locked chats right in the results.
+    bool revealed = false;
+    List<ChatPreview> locked = [];
+    try {
+      if (await ChatVaultService.instance.hasSecretCode() &&
+          await ChatVaultService.instance.verifySecretCode(q)) {
+        revealed = true;
+        locked = await ChatService.instance.getLockedChats();
+      }
+    } catch (_) {}
+
+    final hits = await HomeSearchService.instance.searchMessages(
+      q,
+      filter: _searchFilter,
+    );
+    if (!mounted) return;
+    setState(() {
+      _searchingMessages = false;
+      _messageHits = hits;
+      _lockedRevealed = revealed;
+      _revealedLockedChats = locked;
+    });
+  }
+
+  Future<void> _loadRecentSearches() async {
+    final recents = await HomeSearchService.instance.getRecentSearches();
+    if (mounted) setState(() => _recentSearches = recents);
+  }
+
+  void _clearSearchInput() {
+    _searchController.clear();
+    setState(() {
+      _searchQuery = '';
+      _messageHits = [];
+      _lockedRevealed = false;
+      _searchingMessages = false;
+    });
+  }
+
+  /// Opens a chat from a search hit, scrolls to the exact message and
+  /// highlights it. Records the query in Recent searches.
+  void _openMessageHit(HomeMessageHit hit) {
+    HomeSearchService.instance.addRecentSearch(_searchQuery.trim());
+    pushSlideUp(
+      context,
+      KoraChatScreen(
+        chatId: hit.chatId,
+        name: hit.chatName,
+        avatarAsset: hit.avatarAsset,
+        avatarUrl: hit.avatarUrl,
+        badge: hit.badge,
+        isGroupChat: hit.isGroupChat,
+        initialJumpMessageId: hit.message.id,
+      ),
+    ).then((_) => _refresh());
+  }
+
+  /// Opens a chat row from search results and records the query.
+  void _openChatFromSearch(ChatPreview chat) {
+    HomeSearchService.instance.addRecentSearch(_searchQuery.trim());
+    _openChat(chat);
   }
 
   Future<void> _readAll() async {
@@ -826,7 +932,11 @@ class _ChatsTabState extends State<ChatsTab> {
                   : RefreshIndicator(
                       color: KoraColors.purple,
                       onRefresh: _refresh,
-                      child: _filteredChats.isEmpty
+                      child: _showSearch && _searchQuery.trim().isNotEmpty
+                          ? _buildSearchResults(textPrimary, textSecondary, textMuted, border)
+                          : _showSearch && _recentSearches.isNotEmpty
+                          ? _buildRecentSearches(textPrimary, textSecondary, textMuted, border)
+                          : _filteredChats.isEmpty
                           ? ListView(
                               children: [
                                 const SizedBox(height: 120),
@@ -1169,7 +1279,7 @@ class _ChatsTabState extends State<ChatsTab> {
               child: TextField(
                 controller: _searchController,
                 autofocus: true,
-                onChanged: (v) => setState(() => _searchQuery = v),
+                onChanged: _onSearchChanged,
                 style: TextStyle(color: textPrimary, fontSize: 15),
                 decoration: InputDecoration(
                   hintText: 'Search messages, names, Kora IDs...',
@@ -1181,15 +1291,321 @@ class _ChatsTabState extends State<ChatsTab> {
             ),
             if (_searchQuery.isNotEmpty)
               GestureDetector(
-                onTap: () {
-                  _searchController.clear();
-                  setState(() => _searchQuery = '');
-                },
+                onTap: _clearSearchInput,
                 child: Icon(Icons.close, color: textMuted, size: 18),
               ),
           ],
         ),
       ),
+    );
+  }
+
+  // ── WhatsApp-style sectioned search results ───────────────────────
+  Widget _buildSearchResults(Color textPrimary, Color textSecondary,
+      Color textMuted, Color border) {
+    final chatHits = _searchFilter == HomeSearchFilter.all
+        ? _filteredChats
+        : const <ChatPreview>[];
+
+    final children = <Widget>[
+      // Media filter chips (WhatsApp: Photos, Videos, Links, GIFs...)
+      _buildFilterChips(textPrimary, textMuted, border),
+    ];
+
+    // Chats section
+    if (chatHits.isNotEmpty) {
+      children.add(_sectionHeader('Chats', textMuted));
+      for (final c in chatHits.take(5)) {
+        children.add(ChatListItem(
+          chat: c,
+          onTap: () => _openChatFromSearch(c),
+          onLongPress: (_) => _onChatLongPress(c),
+          onAvatarLongPress: () => _showChatPeek(c),
+        ));
+      }
+    }
+
+    // Locked chats revealed by the secret code (WhatsApp behavior)
+    if (_lockedRevealed && _revealedLockedChats.isNotEmpty && _searchFilter == HomeSearchFilter.all) {
+      children.add(_sectionHeader('Locked chats', textMuted));
+      for (final c in _revealedLockedChats) {
+        children.add(ChatListItem(
+          chat: c,
+          onTap: () => _openChatFromSearch(c),
+          onAvatarLongPress: () => _showChatPeek(c),
+        ));
+      }
+    }
+
+    // Messages section
+    if (_searchFilter != HomeSearchFilter.all) {
+      children
+          .add(_sectionHeader(kHomeSearchFilterLabels[_searchFilter] ?? 'Media', textMuted));
+    } else if (_messageHits.isNotEmpty || _searchingMessages) {
+      children.add(_sectionHeader('Messages', textMuted));
+    }
+    for (final hit in _messageHits) {
+      children.add(_buildMessageHitRow(hit, textPrimary, textSecondary, textMuted));
+    }
+
+    // Searching… / No results states
+    if (_searchingMessages && _messageHits.isEmpty) {
+      children.add(Padding(
+        padding: const EdgeInsets.only(top: 24),
+        child: Center(
+          child: SizedBox(
+            width: 22, height: 22,
+            child: CircularProgressIndicator(strokeWidth: 2, color: KoraColors.purple),
+          ),
+        ),
+      ));
+    } else if (chatHits.isEmpty && _messageHits.isEmpty && !_lockedRevealed) {
+      children.add(Padding(
+        padding: const EdgeInsets.only(top: 120),
+        child: Center(
+          child: Text(
+            'No results for "$_searchQuery"',
+            style: TextStyle(color: textSecondary, fontSize: 14),
+          ),
+        ),
+      ));
+    }
+
+    return ListView(
+      padding: const EdgeInsets.only(bottom: 90),
+      children: children,
+    );
+  }
+
+  Widget _sectionHeader(String label, Color textMuted) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 4),
+      child: Text(
+        label,
+        style: TextStyle(color: textMuted, fontSize: 12.5, fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+
+  Widget _buildFilterChips(Color textPrimary, Color textMuted, Color border) {
+    return SizedBox(
+      height: 40,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        children: [
+          for (final f in HomeSearchFilter.values)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: GestureDetector(
+                onTap: () {
+                  setState(() => _searchFilter = f);
+                  _runMessageSearch();
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: _searchFilter == f
+                        ? KoraColors.purple
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: _searchFilter == f ? KoraColors.purple : border,
+                      width: 0.8,
+                    ),
+                  ),
+                  child: Text(
+                    kHomeSearchFilterLabels[f]!,
+                    style: TextStyle(
+                      color: _searchFilter == f ? Colors.white : textMuted,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMessageHitRow(HomeMessageHit hit, Color textPrimary,
+      Color textSecondary, Color textMuted) {
+    final m = hit.message;
+    final snippet = _snippetFor(m);
+    return InkWell(
+      onTap: () => _openMessageHit(hit),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        child: Row(
+          children: [
+            KoraAvatar(
+              name: hit.chatName,
+              assetPath: hit.avatarAsset,
+              imageUrl: hit.avatarUrl,
+              size: 44,
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          hit.chatName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: textPrimary,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        _hitTimestamp(m.timestamp),
+                        style: TextStyle(color: textMuted, fontSize: 11.5),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  _highlighted(
+                    snippet,
+                    _searchQuery.trim(),
+                    TextStyle(color: textSecondary, fontSize: 13.5),
+                    TextStyle(
+                      color: KoraColors.purple,
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// WhatsApp-style snippet with the matched text highlighted in Kora
+  /// purple. First occurrence is highlighted.
+  Widget _highlighted(String text, String q, TextStyle base, TextStyle hl) {
+    final lower = text.toLowerCase();
+    final ql = q.toLowerCase();
+    final idx = ql.isEmpty ? -1 : lower.indexOf(ql);
+    if (idx < 0) {
+      return Text(text, maxLines: 1, overflow: TextOverflow.ellipsis, style: base);
+    }
+    return Text.rich(
+      TextSpan(children: [
+        TextSpan(text: text.substring(0, idx), style: base),
+        TextSpan(text: text.substring(idx, idx + ql.length), style: hl),
+        TextSpan(text: text.substring(idx + ql.length), style: base),
+      ]),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+
+  String _snippetFor(KoraMessage m) {
+    switch (m.type) {
+      case KoraMessageType.image:
+        return '[Photo] ${m.text}';
+      case KoraMessageType.video:
+        return '[Video] ${m.text}';
+      case KoraMessageType.videoNote:
+        return '[Video message]';
+      case KoraMessageType.voice:
+        return '[Voice message] ${m.voiceTranscript ?? ''}';
+      case KoraMessageType.document:
+      case KoraMessageType.file:
+        return '[Document] ${m.attachmentName ?? m.text}';
+      case KoraMessageType.sticker:
+        return '[Sticker]';
+      case KoraMessageType.contact:
+        return '[Contact] ${m.text}';
+      case KoraMessageType.location:
+        return '[Location] ${m.text}';
+      default:
+        return m.text;
+    }
+  }
+
+  String _hitTimestamp(DateTime t) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final d = DateTime(t.year, t.month, t.day);
+    if (d == today) {
+      final h = t.hour % 12 == 0 ? 12 : t.hour % 12;
+      final ampm = t.hour >= 12 ? 'PM' : 'AM';
+      return '$h:' + t.minute.toString().padLeft(2, '0') + ' $ampm';
+    }
+    return '${t.day.toString().padLeft(2, '0')}/${t.month.toString().padLeft(2, '0')}/${t.year}';
+  }
+
+  // ── Recent searches (shown when the search bar is empty) ──────────
+  Widget _buildRecentSearches(Color textPrimary, Color textSecondary,
+      Color textMuted, Color border) {
+    return ListView(
+      padding: const EdgeInsets.only(bottom: 90),
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 4),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Recent searches',
+                  style: TextStyle(color: textMuted, fontSize: 12.5, fontWeight: FontWeight.w600)),
+              GestureDetector(
+                onTap: () async {
+                  await HomeSearchService.instance.clearSearchHistory();
+                  _loadRecentSearches();
+                },
+                child: Text('Clear all',
+                    style: TextStyle(color: KoraColors.purple, fontSize: 12.5, fontWeight: FontWeight.w600)),
+              ),
+            ],
+          ),
+        ),
+        for (final q in _recentSearches)
+          InkWell(
+            onTap: () {
+              _searchController.text = q;
+              _onSearchChanged(q);
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 11),
+              child: Row(
+                children: [
+                  Icon(Icons.history, color: textMuted, size: 20),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Text(
+                      q,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: textPrimary, fontSize: 14.5),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  GestureDetector(
+                    onTap: () async {
+                      await HomeSearchService.instance.removeRecentSearch(q);
+                      _loadRecentSearches();
+                    },
+                    child: Icon(Icons.close, color: textMuted, size: 16),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

@@ -69,6 +69,10 @@ class KoraChatScreen extends StatefulWidget {
   final String? lastSeen;
   final String? recipientEmail;
 
+  /// Deep-link target: scroll to this message and highlight it when the
+  /// chat opens. Used by home-search message results (WhatsApp behavior).
+  final String? initialJumpMessageId;
+
   const KoraChatScreen({
     super.key,
     required this.chatId,
@@ -80,6 +84,7 @@ class KoraChatScreen extends StatefulWidget {
     this.isOnline = false,
     this.lastSeen,
     this.recipientEmail,
+    this.initialJumpMessageId,
   });
 
   @override
@@ -206,7 +211,17 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
       if (!_isAiChat && (widget.recipientEmail?.isNotEmpty ?? false)) {
         _checkSpamStatus();
       }
-      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scrollToBottom();
+        // Deep-linked from home search: scroll to the matched message
+        // and highlight it in the bubble (WhatsApp behavior).
+        final jumpId = widget.initialJumpMessageId;
+        if (jumpId != null && _messages.any((m) => m.id == jumpId)) {
+          Future.delayed(const Duration(milliseconds: 350), () {
+            if (mounted) _scrollToMessage(jumpId);
+          });
+        }
+      });
     }
   }
 
