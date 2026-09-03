@@ -107,71 +107,67 @@ class _NewGroupScreenState extends State<NewGroupScreen> {
         bottom: false,
         child: Column(
           children: [
-            // Header
+            // Header row — back arrow directly attached to the search
+            // field, plus a dial-pad icon on the right. There is no
+            // separate title text; the search bar itself is the header,
+            // exactly matching the reference recording.
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
               child: Row(
                 children: [
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
                     child: Icon(Icons.arrow_back, color: textPrimary, size: 24),
                   ),
-                  const SizedBox(width: 16),
+                  const SizedBox(width: 12),
                   Expanded(
-                    child: Text(
-                      _selectedIds.isEmpty
-                          ? 'New Group'
-                          : '${_selectedIds.length} selected',
-                      style: TextStyle(
-                        color: textPrimary,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
+                    child: Container(
+                      height: 44,
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      decoration: BoxDecoration(
+                        color: surface,
+                        borderRadius: BorderRadius.circular(22),
+                        border: Border.all(color: border, width: 0.5),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _searchController,
+                              onChanged: (v) => setState(() => _query = v),
+                              style: TextStyle(color: textPrimary, fontSize: 15),
+                              decoration: InputDecoration(
+                                hintText: 'Name, number, @username',
+                                hintStyle: TextStyle(color: textMuted, fontSize: 14),
+                                border: InputBorder.none,
+                                isDense: true,
+                              ),
+                            ),
+                          ),
+                          if (_query.isNotEmpty)
+                            GestureDetector(
+                              onTap: () {
+                                _searchController.clear();
+                                setState(() => _query = '');
+                              },
+                              child: Icon(Icons.close, color: textMuted, size: 18),
+                            ),
+                        ],
                       ),
                     ),
+                  ),
+                  const SizedBox(width: 12),
+                  GestureDetector(
+                    onTap: _openDialPadEntry,
+                    child: Icon(Icons.dialpad, color: textPrimary, size: 24),
                   ),
                 ],
               ),
             ),
-            // Search bar
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-              child: Container(
-                height: 46,
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                decoration: BoxDecoration(
-                  color: surface,
-                  borderRadius: BorderRadius.circular(23),
-                  border: Border.all(color: border, width: 0.5),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.search, color: textMuted, size: 20),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: TextField(
-                        controller: _searchController,
-                        onChanged: (v) => setState(() => _query = v),
-                        style: TextStyle(color: textPrimary, fontSize: 15),
-                        decoration: InputDecoration(
-                          hintText: 'Search by name, Kora ID, or @username',
-                          hintStyle: TextStyle(color: textMuted, fontSize: 14),
-                          border: InputBorder.none,
-                          isDense: true,
-                        ),
-                      ),
-                    ),
-                    if (_query.isNotEmpty)
-                      GestureDetector(
-                        onTap: () {
-                          _searchController.clear();
-                          setState(() => _query = '');
-                        },
-                        child: Icon(Icons.close, color: textMuted, size: 18),
-                      ),
-                  ],
-                ),
-              ),
-            ),
+            // Selected-members chip strip — appears once at least one
+            // contact is picked, each with an X to remove. Matches the
+            // reference: selection feedback lives here, not in a title.
+            if (_selectedIds.isNotEmpty) _buildSelectedChipStrip(textPrimary),
             // Contact list
             Expanded(child: _buildList(context, textPrimary, textSecondary, textMuted)),
             // Forward arrow — continues to group details
@@ -212,6 +208,148 @@ class _NewGroupScreenState extends State<NewGroupScreen> {
     );
   }
 
+  /// Horizontal strip of the currently selected contacts, shown right
+  /// below the search bar — each avatar has a small X badge to remove
+  /// that person from the selection. Matches the reference recording.
+  Widget _buildSelectedChipStrip(Color textPrimary) {
+    final selected = _contacts.where((c) => _selectedIds.contains(c['koraId'])).toList();
+    return SizedBox(
+      height: 76,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+        itemCount: selected.length,
+        itemBuilder: (context, index) {
+          final c = selected[index];
+          final name = c['name'] as String;
+          final koraId = c['koraId'] as String;
+          return Padding(
+            padding: const EdgeInsets.only(right: 14),
+            child: GestureDetector(
+              onTap: () => _toggleSelection(koraId),
+              child: SizedBox(
+                width: 52,
+                child: Column(
+                  children: [
+                    Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        KoraAvatar(name: name, size: 48, isPremium: c['premium'] == true),
+                        Positioned(
+                          right: -4,
+                          top: -4,
+                          child: Container(
+                            width: 18,
+                            height: 18,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF8E8E93),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.close, color: Colors.white, size: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      name.split(' ').first,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: textPrimary, fontSize: 11, fontWeight: FontWeight.w500),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  /// Dial-pad entry — lets the user type a phone number directly to
+  /// find and select someone, instead of scrolling the contact list.
+  /// Matches the dial-pad icon in the reference recording's search bar.
+  void _openDialPadEntry() {
+    final controller = TextEditingController();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        final brightness = Theme.of(sheetContext).brightness;
+        final card = KoraColors.cardFor(brightness);
+        final textPrimary = KoraColors.textPrimaryFor(brightness);
+        final textMuted = KoraColors.textMutedFor(brightness);
+        return Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(sheetContext).viewInsets.bottom),
+          child: Container(
+            decoration: BoxDecoration(
+              color: card,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Add by phone number',
+                    style: TextStyle(color: textPrimary, fontSize: 17, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: controller,
+                  autofocus: true,
+                  keyboardType: TextInputType.phone,
+                  style: TextStyle(color: textPrimary, fontSize: 16),
+                  decoration: InputDecoration(
+                    hintText: '+234...',
+                    hintStyle: TextStyle(color: textMuted, fontSize: 15),
+                    filled: true,
+                    fillColor: KoraColors.surfaceFor(brightness),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton(
+                    onPressed: () {
+                      final query = controller.text.trim();
+                      Navigator.pop(sheetContext);
+                      if (query.isEmpty) return;
+                      final match = _contacts.where((c) {
+                        final phone = (c['phoneNumber'] as String?) ?? (c['koraId'] as String);
+                        return phone.contains(query);
+                      }).toList();
+                      if (match.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('No Kora user found with that number'),
+                            backgroundColor: KoraColors.purple,
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      } else {
+                        setState(() => _selectedIds.add(match.first['koraId'] as String));
+                      }
+                    },
+                    style: TextButton.styleFrom(
+                      backgroundColor: KoraColors.purple,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('Next', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildList(BuildContext context, Color textPrimary, Color textSecondary, Color textMuted) {
     final recent = _filter(_recentContacts);
     final all = _filter(_allContacts);
@@ -242,12 +380,12 @@ class _NewGroupScreenState extends State<NewGroupScreen> {
         // Create from existing group (WhatsApp 2026 feature)
         _buildCreateFromGroupTile(textPrimary, textSecondary, textMuted),
         if (recent.isNotEmpty) ...[
-          _sectionLabel('RECENT', textMuted),
+          _sectionLabel('Frequently contacted', textMuted),
           ..._buildContactTiles(recent, textPrimary, textSecondary, textMuted),
           const SizedBox(height: 8),
         ],
         if (all.isNotEmpty) ...[
-          _sectionLabel('ALL CONTACTS', textMuted),
+          _sectionLabel('Contacts on Kora', textMuted),
           ..._buildContactTiles(all, textPrimary, textSecondary, textMuted),
         ],
       ],
@@ -346,15 +484,10 @@ class _NewGroupScreenState extends State<NewGroupScreen> {
 
   Widget _sectionLabel(String label, Color color) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 8),
       child: Text(
         label,
-        style: TextStyle(
-          color: color,
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.5,
-        ),
+        style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w600),
       ),
     );
   }
@@ -376,7 +509,7 @@ class _NewGroupScreenState extends State<NewGroupScreen> {
       return Column(
         children: [
           ListTile(
-            leading: _buildSelectableAvatar(contact['name'] as String, isSelected, isPremium),
+            leading: KoraAvatar(name: contact['name'] as String, size: 48, isPremium: isPremium),
             title: Text(
               contact['name'] as String,
               style: TextStyle(color: textPrimary, fontSize: 15, fontWeight: FontWeight.w600),
@@ -387,6 +520,7 @@ class _NewGroupScreenState extends State<NewGroupScreen> {
                   : koraId,
               style: TextStyle(color: textSecondary, fontSize: 13),
             ),
+            trailing: _buildSelectionCircle(isSelected, textMuted),
             onTap: () => _toggleSelection(koraId),
           ),
           if (!isLast)
@@ -399,36 +533,24 @@ class _NewGroupScreenState extends State<NewGroupScreen> {
     });
   }
 
-  Widget _buildSelectableAvatar(String name, bool isSelected, bool isPremium) {
-    return SizedBox(
-      width: 48,
-      height: 48,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          KoraAvatar(name: name, size: 48, isPremium: isPremium),
-          Positioned(
-            right: -2,
-            bottom: -2,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              width: 20,
-              height: 20,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isSelected ? KoraColors.purple : Colors.transparent,
-                border: Border.all(
-                  color: isSelected ? KoraColors.purple : Colors.white,
-                  width: 2,
-                ),
-              ),
-              child: isSelected
-                  ? const Icon(Icons.check, color: Colors.white, size: 13)
-                  : null,
-            ),
-          ),
-        ],
+  /// Trailing radio-style selection circle — outlined when unselected,
+  /// filled purple with a checkmark when selected. Matches the
+  /// reference recording exactly (selection lives at the row's edge,
+  /// not as a badge on the avatar).
+  Widget _buildSelectionCircle(bool isSelected, Color textMuted) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 150),
+      width: 24,
+      height: 24,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: isSelected ? KoraColors.purple : Colors.transparent,
+        border: Border.all(
+          color: isSelected ? KoraColors.purple : textMuted.withValues(alpha: 0.4),
+          width: 1.5,
+        ),
       ),
+      child: isSelected ? const Icon(Icons.check, color: Colors.white, size: 15) : null,
     );
   }
 }

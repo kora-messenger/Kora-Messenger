@@ -334,17 +334,25 @@ class _NewGroupDetailsScreenState extends State<NewGroupDetailsScreen> {
   // ── Create group ──────────────────────────────────────────────
 
   Future<void> _createGroup() async {
-    final name = _nameController.text.trim();
+    var name = _nameController.text.trim();
 
     if (name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Enter a group name to continue.'),
-          backgroundColor: KoraColors.purple,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
+      if (_members.isEmpty) {
+        // No members and no name — there's nothing to derive a name
+        // from, so a name is required in this state.
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Enter a group name to continue.'),
+            backgroundColor: KoraColors.purple,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+      // Members are present — the name is genuinely optional, matching
+      // WhatsApp: auto-generate one from the member names.
+      final firstNames = _members.take(3).map((m) => (m['name'] as String).split(' ').first);
+      name = firstNames.join(', ');
     }
 
     // No minimum member count required — creating solo is allowed;
@@ -505,7 +513,7 @@ class _NewGroupDetailsScreenState extends State<NewGroupDetailsScreen> {
                       maxLength: 100,
                       style: TextStyle(color: textPrimary, fontSize: 16, fontWeight: FontWeight.w600),
                       decoration: InputDecoration(
-                        hintText: 'Enter group name',
+                        hintText: _members.isEmpty ? 'Enter group name' : 'Group name (optional)',
                         hintStyle: TextStyle(color: hint, fontSize: 15, fontWeight: FontWeight.w400),
                         counterText: '',
                         isDense: true,
