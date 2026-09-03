@@ -20,7 +20,7 @@ import '../../widgets/chat_peek_overlay.dart';
 import '../../widgets/kora_avatar.dart';
 import '../../widgets/kora_empty_state.dart';
 import '../../widgets/kora_menu_sheet.dart';
-import '../../widgets/new_chat_sheet.dart';
+import '../contacts/new_chat_screen.dart';
 import '../chat/contact_info_screen.dart';
 import '../chat/group_chat_info_screen.dart';
 import '../chat/kora_chat_screen.dart';
@@ -949,7 +949,7 @@ class _ChatsTabState extends State<ChatsTab> {
                       title: 'No conversations yet',
                       message: 'Start a chat with friends, family, or Kora Support to see it here.',
                       actionLabel: 'Start a Chat',
-                      onAction: () => NewChatSheet.show(context),
+                      onAction: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NewChatScreen())),
                     )
                   : RefreshIndicator(
                       color: KoraColors.purple,
@@ -1080,7 +1080,7 @@ class _ChatsTabState extends State<ChatsTab> {
       floatingActionButton: (_chats.isEmpty || _isSelecting)
           ? null
           : FloatingActionButton(
-              onPressed: () => NewChatSheet.show(context),
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NewChatScreen())),
               backgroundColor: KoraColors.purple,
               elevation: 4,
               child: const Icon(Icons.chat_bubble, color: Colors.white, size: 24),
