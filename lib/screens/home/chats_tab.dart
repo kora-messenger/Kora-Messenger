@@ -615,7 +615,19 @@ class _ChatsTabState extends State<ChatsTab> {
     await _refresh();
   }
 
+  /// WhatsApp only ever shows the option that actually applies to the
+  /// current selection — never both "Mark as read" and "Mark as
+  /// unread", and never both "Lock" and "Unlock". Home's chat list
+  /// never contains locked chats (they're filtered into the dedicated
+  /// Locked Chats screen, which has its own Unlock action), so this
+  /// menu only ever offers "Lock chat".
   void _openSelectionOverflowMenu() {
+    // Any selected chat still carrying unread state (real or forced)
+    // means "Mark as read" is the relevant action; otherwise every
+    // selected chat is already read, so offer "Mark as unread".
+    final selectedChats = _chats.where((c) => _selectedIds.contains(c.id));
+    final anyUnread = selectedChats.any((c) => c.unreadCount > 0);
+
     KoraMenuSheet.show(context, [
       KoraMenuOption(
         icon: Icons.select_all,
@@ -626,25 +638,22 @@ class _ChatsTabState extends State<ChatsTab> {
           });
         },
       ),
-      KoraMenuOption(
-        icon: Icons.mark_chat_read_outlined,
-        label: 'Mark as read',
-        onTap: () => _markSelectedRead(true),
-      ),
-      KoraMenuOption(
-        icon: Icons.mark_chat_unread_outlined,
-        label: 'Mark as unread',
-        onTap: () => _markSelectedUnread(),
-      ),
+      if (anyUnread)
+        KoraMenuOption(
+          icon: Icons.mark_chat_read_outlined,
+          label: 'Mark as read',
+          onTap: () => _markSelectedRead(true),
+        )
+      else
+        KoraMenuOption(
+          icon: Icons.mark_chat_unread_outlined,
+          label: 'Mark as unread',
+          onTap: () => _markSelectedUnread(),
+        ),
       KoraMenuOption(
         icon: Icons.lock_outline,
         label: 'Lock chat',
         onTap: () => _lockSelected(unlock: false),
-      ),
-      KoraMenuOption(
-        icon: Icons.lock_open_outlined,
-        label: 'Unlock chat',
-        onTap: () => _lockSelected(unlock: true),
       ),
     ]);
   }
