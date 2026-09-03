@@ -208,6 +208,9 @@ class MainActivity : FlutterFragmentActivity() {
                         voiceRecorder?.cancel()
                         result.success(true)
                     }
+                    "amplitude" -> {
+                        result.success(voiceRecorder?.getAmplitude() ?: 0)
+                    }
                     else -> result.notImplemented()
                 }
             }

@@ -133,6 +133,11 @@ class _MessageComposerState extends State<MessageComposer>
   static const double _kTapMaxDrag = 18.0; // max movement to still count as a tap
   bool _gestureResolved = false;
 
+  // Guards against a double _startRecording() call — e.g. a very fast
+  // tap-release landing inside the haptic-settle delay below, before
+  // _state has flipped away from idle.
+  bool _startingRecording = false;
+
   // ── Translation state ──
   String? _selectedTranslateCode;
   String? _selectedTranslateName;
@@ -390,46 +395,63 @@ class _MessageComposerState extends State<MessageComposer>
 
   /// Core recording start — shared by both tap and hold paths.
   Future<void> _startRecording({required bool isHold}) async {
-    if (_hasText) return;
-
-    widget.onMicTap?.call();
-
-    final granted = await _ensureMicPermission();
-    if (!granted || !mounted) return;
-
-    _seconds = 0;
-    _isPaused = false;
-    _gestureResolved = false;
-    _waveformSamples.clear();
+    if (_hasText || _startingRecording) return;
+    _startingRecording = true;
 
     try {
-      _filePath = await _recordingService.startRecording();
-    } catch (_) {
-      return;
-    }
-    if (!mounted) return;
+      widget.onMicTap?.call();
 
-    // Listen to real amplitude data for the live waveform
-    _amplitudeSub?.cancel();
-    _amplitudeSub = _recordingService.amplitudeStream.listen((amp) {
-      if (!mounted || !_recordingService.isRecording || _isPaused) return;
-      setState(() {
-        _waveformSamples.add(amp);
-        if (_waveformSamples.length > 60) _waveformSamples.removeAt(0);
+      final granted = await _ensureMicPermission();
+      if (!granted || !mounted) return;
+
+      // Fire the tactile "recording started" buzz BEFORE opening the mic,
+      // then give the vibration motor a beat to physically settle. The
+      // motor's mechanical buzz transmits through the phone body straight
+      // into the microphone if it's already hot — that used to bake an
+      // audible "pop" into the very start of every voice note. Vibrating
+      // first keeps the touch feeling instant while keeping the actual
+      // captured audio clean.
+      if (isHold) {
+        HapticFeedback.heavyImpact();
+        await Future.delayed(const Duration(milliseconds: 90));
+        if (!mounted) return;
+      }
+
+      _seconds = 0;
+      _isPaused = false;
+      _gestureResolved = false;
+      _waveformSamples.clear();
+
+      try {
+        _filePath = await _recordingService.startRecording();
+      } catch (_) {
+        return;
+      }
+      if (!mounted) return;
+
+      // Listen to real amplitude data for the live waveform
+      _amplitudeSub?.cancel();
+      _amplitudeSub = _recordingService.amplitudeStream.listen((amp) {
+        if (!mounted || !_recordingService.isRecording || _isPaused) return;
+        setState(() {
+          _waveformSamples.add(amp);
+          if (_waveformSamples.length > 60) _waveformSamples.removeAt(0);
+        });
       });
-    });
 
-    // Start on-device STT capture alongside audio recording
-    VoiceNoteSttService.instance.start();
+      // Start on-device STT capture alongside audio recording
+      VoiceNoteSttService.instance.start();
 
-    if (isHold) {
-      HapticFeedback.heavyImpact();
-      setState(() => _state = _ComposerState.holding);
-      _pulseController.repeat(reverse: true);
-    } else {
-      setState(() => _state = _ComposerState.popup);
+      if (isHold) {
+        setState(() => _state = _ComposerState.holding);
+        _pulseController.repeat(reverse: true);
+      } else {
+        setState(() => _state = _ComposerState.popup);
+      }
+      _startTimer();
+    } finally {
+      _startingRecording = false;
     }
-    _startTimer();
   }
 
   void _startTimer() {
@@ -449,12 +471,13 @@ class _MessageComposerState extends State<MessageComposer>
   }
 
   void _cancelHolding() async {
-    HapticFeedback.mediumImpact();
     _timer?.cancel();
     _amplitudeSub?.cancel();
     _pulseController.stop();
     await VoiceNoteSttService.instance.stop();
     await _recordingService.cancelRecording();
+    // Vibrate only after the mic is fully closed — never while it's hot.
+    HapticFeedback.mediumImpact();
     _isPlayOnce = false;
     if (mounted) setState(() => _state = _ComposerState.idle);
   }
@@ -462,25 +485,30 @@ class _MessageComposerState extends State<MessageComposer>
   /// Swipe up to lock — opens the popup voice-note screen.
   /// Recording continues seamlessly, no audio is destroyed.
   void _lockRecording() {
-    HapticFeedback.heavyImpact();
+    // No haptic here — the mic is still actively recording through the
+    // lock transition, so vibrating now would bake an audible "pop"
+    // into the note (the motor's buzz gets picked up by the mic).
     _pulseController.stop();
     setState(() => _state = _ComposerState.popup);
   }
 
   /// Release hold without swiping — auto-sends the voice note.
   void _finishAndSend() async {
-    HapticFeedback.lightImpact();
     _timer?.cancel();
     _amplitudeSub?.cancel();
     _pulseController.stop();
 
     if (_seconds < 1) {
       await _recordingService.cancelRecording();
+      HapticFeedback.lightImpact();
       if (mounted) setState(() => _state = _ComposerState.idle);
       return;
     }
 
     final path = await _recordingService.stopRecording();
+    // Vibrate only once the mic is fully closed, so the buzz never
+    // leaks into the tail of the recorded audio.
+    HapticFeedback.lightImpact();
     final duration = _durationString;
     if (mounted) setState(() => _state = _ComposerState.idle);
 

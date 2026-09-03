@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../theme/kora_colors.dart';
+import '../../widgets/kora_waveform.dart';
 
 /// Replacement for the old VoiceLockedBar, matching the design
 /// from KoraVoiceNoteRecorder.kt.
@@ -78,7 +79,7 @@ class KoraVoiceLockedBar extends StatelessWidget {
         children: [
           // Top row: waveform + timer + translate
           SizedBox(
-            height: 56,
+            height: 40,
             child: Row(
               children: [
                 // Translate button (if selected)
@@ -118,15 +119,19 @@ class KoraVoiceLockedBar extends StatelessWidget {
                     constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
                   ),
                 const SizedBox(width: 6),
-                // Waveform
+                // Waveform — same compact, real-amplitude rendering as
+                // the holding-state bar and WhatsApp's own inline waveform.
                 Expanded(
-                  child: CustomPaint(
-                    painter: _LockedWaveformPainter(
-                      samples: waveformSamples,
-                      active: !isPaused,
-                      progress: previewProgress,
-                    ),
-                    child: const SizedBox(height: 48),
+                  child: KoraWaveform(
+                    isLive: !isPaused,
+                    liveAmplitudes: waveformSamples,
+                    progress: previewProgress,
+                    barCount: 42,
+                    height: 26,
+                    barWidth: 2.2,
+                    barGap: 2.2,
+                    playedColor: const Color(0xFF4A90D9),
+                    unplayedColor: KoraColors.purple.withValues(alpha: isPaused ? 0.6 : 0.28),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -223,53 +228,6 @@ class KoraVoiceLockedBar extends StatelessWidget {
     );
   }
 }
-
-class _LockedWaveformPainter extends CustomPainter {
-  final List<double> samples;
-  final bool active;
-  final double progress;
-
-  _LockedWaveformPainter({
-    required this.samples,
-    required this.active,
-    required this.progress,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final barCount = samples.isNotEmpty ? samples.length : 34;
-    final gap = size.width / (barCount + 1);
-    final center = size.height / 2;
-    final baseColor = active ? const Color(0xFF6C63FF) : const Color(0xFFD0D0D0);
-
-    for (int i = 0; i < barCount; i++) {
-      final value = samples.isNotEmpty
-          ? samples[i % samples.length]
-          : [0.25, 0.55, 0.35, 0.80, 0.42, 0.70, 0.32, 0.90, 0.50, 0.75, 0.38, 0.62][i % 12];
-      final height = size.height * value;
-      final x = gap * (i + 1);
-
-      final played = (i / barCount) <= progress;
-      final paint = Paint()
-        ..color = played ? const Color(0xFF4A90D9) : baseColor
-        ..strokeWidth = 3
-        ..strokeCap = StrokeCap.round;
-
-      canvas.drawLine(
-        Offset(x, center - height / 2),
-        Offset(x, center + height / 2),
-        paint,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(_LockedWaveformPainter oldDelegate) =>
-      samples != oldDelegate.samples ||
-      active != oldDelegate.active ||
-      progress != oldDelegate.progress;
-}
-
 
 /// Shows a bottom sheet explaining the "view once" voice note feature.
 void showPlayOnceInfoSheet(BuildContext context) {

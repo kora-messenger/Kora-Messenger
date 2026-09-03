@@ -10,8 +10,10 @@ import java.io.File
  *
  * A Kora-native voice-note recorder using Android's MediaRecorder.
  *
- * Captures microphone input only (MediaRecorder.AudioSource.MIC).
- * No system audio, notifications, or other app media.
+ * Captures microphone input only (MediaRecorder.AudioSource.VOICE_COMMUNICATION) —
+ * tuned for voice capture with built-in echo cancellation, automatic
+ * gain control and noise suppression, and isolated from system audio,
+ * notifications, and other app media.
  *
  * Interaction model (handled on the Flutter/Dart side):
  * 1. Tap microphone -> recording UI.
@@ -47,7 +49,7 @@ class KoraVoiceRecorder(
             }
 
             r.apply {
-                setAudioSource(MediaRecorder.AudioSource.MIC)
+                setAudioSource(MediaRecorder.AudioSource.VOICE_COMMUNICATION)
                 setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
                 setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
                 setAudioEncodingBitRate(64_000)
@@ -71,6 +73,18 @@ class KoraVoiceRecorder(
     fun pause() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             try { recorder?.pause() } catch (_: Exception) {}
+        }
+    }
+
+    /// Current mic input level (0-32767 raw), for the live waveform.
+    /// Real amplitude straight from the hardware — not a decorative
+    /// simulation — so the waveform actually reacts to how loud the
+    /// user is speaking or how noisy their surroundings are.
+    fun getAmplitude(): Int {
+        return try {
+            recorder?.maxAmplitude ?: 0
+        } catch (_: Exception) {
+            0
         }
     }
 
