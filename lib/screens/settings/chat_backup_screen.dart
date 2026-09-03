@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../services/backup_service.dart';
 import '../../theme/kora_colors.dart';
 
 /// Chat Backup Settings — full WhatsApp-style backup configuration.
@@ -36,10 +38,17 @@ class _ChatBackupScreenState extends State<ChatBackupScreen> {
   double _progress = 0;
   String _progressStatus = '';
 
+  // Local backups (real files on this device)
+  List<BackupMetadata> _backups = [];
+  bool _restoring = false;
+  double _restoreProgress = 0;
+  String _restoreStatus = '';
+
   @override
   void initState() {
     super.initState();
     _loadSettings();
+    _loadBackups();
   }
 
   @override
@@ -70,53 +79,258 @@ class _ChatBackupScreenState extends State<ChatBackupScreen> {
     await prefs.setBool('kora_backup_encrypt', _encrypt);
   }
 
+  Future<void> _loadBackups() async {
+    try {
+      final backups = await BackupService.instance.listBackups();
+      if (mounted) setState(() => _backups = backups);
+    } catch (_) {}
+  }
+
   Future<void> _startBackup() async {
+    // Resolve the backup password.
+    String? pin;
+    if (_encrypt) {
+      final typed = _passwordController.text.trim();
+      if (typed.isNotEmpty) {
+        pin = typed;
+        await BackupService.instance.setBackupPin(typed);
+      } else {
+        pin = await BackupService.instance.getStoredPin();
+      }
+      if (pin == null || pin.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Set a backup password under Encryption first'),
+            backgroundColor: KoraColors.purple,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+    }
+
     setState(() {
       _isBackingUp = true;
       _progress = 0;
-      _progressStatus = 'Preparing backup...';
+      _progressStatus = 'Preparing backup…';
     });
 
-    final steps = [
-      ('Preparing backup...', 0.1),
-      ('Reading chat history...', 0.25),
-      ('Reading media files...', 0.45),
-      (_includeVideos ? 'Including videos...' : 'Skipping videos...', 0.55),
-      ('Encrypting backup...', 0.75),
-      ('Writing backup file...', 0.90),
-      ('Finalizing...', 1.0),
-    ];
+    try {
+      final meta = await BackupService.instance.createBackup(
+        pin: pin,
+        includeVideos: _includeVideos,
+        encrypt: _encrypt,
+        onProgress: (p, status) {
+          if (mounted) {
+            setState(() {
+              _progress = p;
+              _progressStatus = status;
+            });
+          }
+        },
+      );
+      if (mounted) {
+        setState(() {
+          _isBackingUp = false;
+          _lastBackup = meta.createdAt;
+          _lastBackupSize = meta.formattedSize;
+          _lastBackupMessages = meta.messageCount;
+        });
+        await _loadBackups();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Backup complete — ${meta.chatCount} chats, ${meta.messageCount} messages'),
+            backgroundColor: KoraColors.purple,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isBackingUp = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Backup failed: $e'),
+            backgroundColor: Colors.red.shade700,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
 
-    for (final (status, progress) in steps) {
-      await Future.delayed(const Duration(milliseconds: 600));
-      setState(() {
-        _progressStatus = status;
-        _progress = progress;
-      });
+  Future<void> _restore(BackupMetadata meta) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: KoraColors.surfaceFor(Theme.of(ctx).brightness),
+        title: Text('Restore backup?', style: TextStyle(color: KoraColors.textPrimaryFor(Theme.of(ctx).brightness))),
+        content: Text(
+          'Your current chat history will be replaced with this backup '
+          '(${meta.createdAt.day}/${meta.createdAt.month}/${meta.createdAt.year}, '
+          '${meta.formattedSize}).',
+          style: TextStyle(color: KoraColors.textMutedFor(Theme.of(ctx).brightness)),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text('Restore', style: const TextStyle(color: KoraColors.purple))),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    // Encrypted backups need the password.
+    String? pin;
+    if (meta.encrypted) {
+      pin = await BackupService.instance.getStoredPin();
+      if (pin == null) pin = await _promptForPin();
+      if (pin == null) return;
     }
 
-    // Save backup metadata
-    final prefs = await SharedPreferences.getInstance();
-    final now = DateTime.now();
-    await prefs.setString('kora_backup_last_date', now.toIso8601String());
-    await prefs.setString('kora_backup_last_size', '${(2.4 + (_includeVideos ? 15.0 : 0)).toStringAsFixed(1)} MB');
-    await prefs.setInt('kora_backup_last_messages', 1247);
-
     setState(() {
-      _isBackingUp = false;
-      _lastBackup = now;
-      _lastBackupSize = '${(2.4 + (_includeVideos ? 15.0 : 0)).toStringAsFixed(1)} MB';
-      _lastBackupMessages = 1247;
+      _restoring = true;
+      _restoreProgress = 0;
+      _restoreStatus = 'Opening backup…';
     });
 
+    try {
+      await BackupService.instance.restoreBackup(meta, pin: pin, onProgress: (p, status) {
+        if (mounted) {
+          setState(() {
+            _restoreProgress = p;
+            _restoreStatus = status;
+          });
+        }
+      });
+      if (mounted) {
+        setState(() => _restoring = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Restore complete — ${_restoreStatus.replaceFirst('Restored ', '')}'),
+            backgroundColor: KoraColors.purple,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _restoring = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Restore failed: $e'),
+            backgroundColor: Colors.red.shade700,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<String?> _promptForPin() {
+    final controller = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: KoraColors.surfaceFor(Theme.of(ctx).brightness),
+        title: Text('Enter backup password', style: TextStyle(color: KoraColors.textPrimaryFor(Theme.of(ctx).brightness))),
+        content: TextField(
+          controller: controller,
+          obscureText: true,
+          autofocus: true,
+          decoration: const InputDecoration(hintText: 'Backup password'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, controller.text), child: Text('Restore', style: const TextStyle(color: KoraColors.purple))),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteBackup(BackupMetadata meta) async {
+    await BackupService.instance.deleteBackup(meta);
+    await _loadBackups();
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Backup complete'),
+          content: const Text('Backup deleted'),
           backgroundColor: KoraColors.purple,
           behavior: SnackBarBehavior.floating,
         ),
       );
+    }
+  }
+
+  Future<void> _restoreFromFile() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['korabak'],
+    );
+    if (result == null || result.files.single.path == null) return;
+    final path = result.files.single.path!;
+
+    // Check encryption — ask for the password when needed.
+    String? pin;
+    final magicCheck = await File(path).open();
+    List<int> magicBytes = [];
+    try {
+      magicBytes = await magicCheck.read(8);
+    } finally {
+      await magicCheck.close();
+    }
+    final magic = String.fromCharCodes(magicBytes);
+    if (magic == 'KORABAK1') {
+      pin = await BackupService.instance.getStoredPin() ?? await _promptForPin();
+      if (pin == null) return;
+    } else if (magic != 'KORABAK0') {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Not a Kora backup file'),
+            backgroundColor: Colors.red.shade700,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
+    }
+
+    setState(() {
+      _restoring = true;
+      _restoreProgress = 0;
+      _restoreStatus = 'Opening backup…';
+    });
+    try {
+      await BackupService.instance.restoreFromFile(path, pin: pin, onProgress: (p, status) {
+        if (mounted) {
+          setState(() {
+            _restoreProgress = p;
+            _restoreStatus = status;
+          });
+        }
+      });
+      if (mounted) {
+        setState(() => _restoring = false);
+        await _loadBackups();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Restore complete — $_restoreStatus'.replaceFirst('Restore complete — Restored ', 'Restored ')),
+            backgroundColor: KoraColors.purple,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _restoring = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Restore failed: $e'),
+            backgroundColor: Colors.red.shade700,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 
@@ -307,6 +521,74 @@ class _ChatBackupScreenState extends State<ChatBackupScreen> {
               ),
             ),
           ],
+
+          const Divider(height: 32),
+
+          // Local backups on this device
+          _sectionLabel('LOCAL BACKUPS', textMuted),
+          if (_restoring) ...[
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  LinearProgressIndicator(
+                    value: _restoreProgress,
+                    color: KoraColors.blue,
+                    backgroundColor: surface,
+                    minHeight: 8,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(_restoreStatus, style: TextStyle(color: textMuted, fontSize: 13)),
+                ],
+              ),
+            ),
+          ],
+          if (_backups.isEmpty && !_restoring)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Text(
+                'No local backups yet. Tap Back Up Now to create your first backup.',
+                style: TextStyle(color: textMuted, fontSize: 13, height: 1.4),
+              ),
+            ),
+          ..._backups.map((b) => ListTile(
+                leading: Icon(
+                  b.encrypted ? Icons.lock_outline : Icons.folder_zip_outlined,
+                  color: textPrimary,
+                  size: 24,
+                ),
+                title: Text(
+                  '${b.createdAt.day}/${b.createdAt.month}/${b.createdAt.year} at ${b.createdAt.hour}:${b.createdAt.minute.toString().padLeft(2, '0')}',
+                  style: TextStyle(color: textPrimary, fontSize: 15),
+                ),
+                subtitle: Text(
+                  '${b.formattedSize}${b.encrypted ? ' • encrypted' : ''}${b.hasMedia ? ' • with media' : ''}',
+                  style: TextStyle(color: textMuted, fontSize: 13),
+                ),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: Icon(Icons.restore, color: KoraColors.purple, size: 22),
+                      onPressed: _restoring ? null : () => _restore(b),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.delete_outline, color: textMuted, size: 22),
+                      onPressed: () => _deleteBackup(b),
+                    ),
+                  ],
+                ),
+              )),
+
+          // Restore from a .korabak file (e.g. moved from another device)
+          ListTile(
+            leading: Icon(Icons.upload_file_outlined, color: textPrimary, size: 24),
+            title: Text('Restore from file', style: TextStyle(color: textPrimary, fontSize: 15)),
+            subtitle: Text('Pick a .korabak backup from another device', style: TextStyle(color: textMuted, fontSize: 13)),
+            trailing: Icon(Icons.chevron_right, color: textMuted),
+            onTap: _restoring ? null : _restoreFromFile,
+          ),
 
           // Export chats
           ListTile(

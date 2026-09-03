@@ -1004,4 +1004,13 @@ class MessageService {
     _blockedChats.clear();
     _blockedLoaded = false;
   }
+
+  /// Drop all in-memory caches so the next read pulls fresh data from
+  /// local storage. Used after a backup restore rewrites the persisted
+  /// histories.
+  void invalidateCache() {
+    _cache.clear();
+    _blockedChats.clear();
+    _blockedLoaded = false;
+  }
 }

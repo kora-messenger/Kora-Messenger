@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/backup_service.dart';
 import '../theme/kora_colors.dart';
 import '../theme/chat_theme_provider.dart';
 import '../widgets/new_user_welcome_popup.dart';
@@ -50,6 +51,9 @@ class _KoraHomeScreenState extends State<KoraHomeScreen> {
     // Seed the multi-account list from the legacy single-session key the
     // first time a returning user hits Home after this feature ships.
     AccountsManager.instance.ensureMigrated();
+    // WhatsApp-style auto backup — runs silently when due (frequency + network
+    // settings from Chat Backup screen).
+    BackupService.instance.maybeRunAutoBackup();
     if (widget.isNewUser) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _showWelcomePopup();
