@@ -33,6 +33,12 @@ class _BusinessAwayMessageScreenState extends State<BusinessAwayMessageScreen> {
   }
 
   @override
+  void dispose() {
+    _msgCtrl.dispose();
+    super.dispose();
+  }
+
+@override
   Widget build(BuildContext context) {
     final b = Theme.of(context).brightness;
     return Scaffold(

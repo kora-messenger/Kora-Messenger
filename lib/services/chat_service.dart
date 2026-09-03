@@ -25,8 +25,8 @@ class ChatService {
   };
 
   static const Map<String, String> _builtinAiAvatars = {
-    'kora_support': 'assets/images/kora_support_avatar.webp',
-    'kora_ai': 'assets/images/kora_ai_avatar.webp',
+    'kora_support': 'assets/images/kora_ai_avatar.webp',
+    'kora_ai': 'assets/images/kora_support_avatar.webp',
     'kora_notifications': 'kora_icon',
   };
 

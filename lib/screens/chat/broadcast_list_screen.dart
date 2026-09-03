@@ -170,6 +170,12 @@ class _CreateBroadcastScreenState extends State<CreateBroadcastScreen> {
   }
 
   @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
+@override
   Widget build(BuildContext context) {
     final brightness = Theme.of(context).brightness;
     final bg = KoraColors.backgroundFor(brightness);
@@ -279,6 +285,12 @@ class _BroadcastComposeScreenState extends State<BroadcastComposeScreen> {
   }
 
   @override
+  void dispose() {
+    _textController.dispose();
+    super.dispose();
+  }
+
+@override
   Widget build(BuildContext context) {
     final brightness = Theme.of(context).brightness;
     final bg = KoraColors.backgroundFor(brightness);

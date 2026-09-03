@@ -166,6 +166,7 @@ class _LockedChatsScreenState extends State<LockedChatsScreen> {
         },
       ),
     );
+    controller.dispose();
     return result ?? false;
   }
 
@@ -327,6 +328,7 @@ class _LockedChatsScreenState extends State<LockedChatsScreen> {
       },
     );
 
+    controller.dispose();
     if (code != null && code.isNotEmpty) {
       await ChatVaultService.instance.setSecretCode(code);
       if (mounted) {

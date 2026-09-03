@@ -51,6 +51,16 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
   }
 
   @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _descCtrl.dispose();
+    _addrCtrl.dispose();
+    _emailCtrl.dispose();
+    _websiteCtrl.dispose();
+    super.dispose();
+  }
+
+@override
   Widget build(BuildContext context) {
     final brightness = Theme.of(context).brightness;
     final isDark = brightness == Brightness.dark;

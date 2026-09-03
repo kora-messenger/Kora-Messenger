@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../theme/kora_colors.dart';
@@ -257,7 +258,7 @@ class _CommunityInfoScreenState extends State<CommunityInfoScreen> {
 
     final nameController = TextEditingController();
 
-    showModalBottomSheet(
+    unawaited(showModalBottomSheet(
       context: context,
       backgroundColor: surface,
       shape: const RoundedRectangleBorder(
@@ -337,7 +338,7 @@ class _CommunityInfoScreenState extends State<CommunityInfoScreen> {
           ],
         ),
       ),
-    );
+    ).whenComplete(() => nameController.dispose()));
   }
 
   void _exitCommunity() {

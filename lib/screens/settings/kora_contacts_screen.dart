@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../theme/kora_colors.dart';
@@ -58,7 +59,7 @@ class _KoraContactsScreenState extends State<KoraContactsScreen> {
     final phoneController = TextEditingController();
     final koraIdController = TextEditingController();
 
-    showDialog(
+    unawaited(showDialog(
       context: context,
       builder: (ctx) {
         final brightness = Theme.of(context).brightness;
@@ -121,7 +122,7 @@ class _KoraContactsScreenState extends State<KoraContactsScreen> {
           ],
         );
       },
-    );
+    ).whenComplete(() { nameController.dispose(); phoneController.dispose(); koraIdController.dispose(); }));
   }
 
   void _removeContact(int index) {

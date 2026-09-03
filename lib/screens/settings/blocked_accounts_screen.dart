@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../theme/kora_colors.dart';
@@ -64,7 +65,7 @@ class _BlockedAccountsScreenState extends State<BlockedAccountsScreen> {
     final nameController = TextEditingController();
     final koraIdController = TextEditingController();
 
-    showDialog(
+    unawaited(showDialog(
       context: context,
       builder: (ctx) {
         final brightness = Theme.of(context).brightness;
@@ -128,7 +129,7 @@ class _BlockedAccountsScreenState extends State<BlockedAccountsScreen> {
           ],
         );
       },
-    );
+    ).whenComplete(() { nameController.dispose(); koraIdController.dispose(); }));
   }
 
   @override

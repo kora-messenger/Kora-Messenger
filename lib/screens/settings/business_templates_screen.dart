@@ -52,6 +52,13 @@ class _BusinessTemplatesScreenState extends State<BusinessTemplatesScreen> {
   }
 
   @override
+  void dispose() {
+    _shortcutCtrl.dispose();
+    _messageCtrl.dispose();
+    super.dispose();
+  }
+
+@override
   Widget build(BuildContext context) {
     final b = Theme.of(context).brightness;
     return Scaffold(

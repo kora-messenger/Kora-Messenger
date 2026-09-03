@@ -150,6 +150,7 @@ class _ChatLockScreenState extends State<ChatLockScreen> {
         );
       },
     );
+controller.dispose();
 
     if (code != null && code.isNotEmpty) {
       await ChatVaultService.instance.setSecretCode(code);

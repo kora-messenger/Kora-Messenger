@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../theme/kora_colors.dart';
@@ -51,7 +52,7 @@ class _ScheduledCallsScreenState extends State<ScheduledCallsScreen> {
     DateTime selectedDate = DateTime.now().add(const Duration(hours: 1));
     TimeOfDay selectedTime = TimeOfDay.fromDateTime(selectedDate);
 
-    showDialog(
+    unawaited(showDialog(
       context: context,
       builder: (ctx) {
         final brightness = Theme.of(context).brightness;
@@ -160,7 +161,7 @@ class _ScheduledCallsScreenState extends State<ScheduledCallsScreen> {
           },
         );
       },
-    );
+    ).whenComplete(() { titleController.dispose(); }));
   }
 
   void _deleteCall(int index) {

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../theme/kora_colors.dart';
@@ -72,7 +73,7 @@ class _LiveLocationScreenState extends State<LiveLocationScreen> {
   void _showAddSharingDialog() {
     final controller = TextEditingController();
     String duration = '8 hours';
-    showDialog(
+    unawaited(showDialog(
       context: context,
       builder: (ctx) {
         final brightness = Theme.of(context).brightness;
@@ -143,7 +144,7 @@ class _LiveLocationScreenState extends State<LiveLocationScreen> {
           },
         );
       },
-    );
+    ).whenComplete(() { controller.dispose(); }));
   }
 
   @override

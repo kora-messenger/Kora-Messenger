@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../theme/kora_colors.dart';
 
@@ -32,7 +33,7 @@ class _CommunityPreviewScreenState extends State<CommunityPreviewScreen> {
     final nameController = TextEditingController();
     final descController = TextEditingController();
 
-    showDialog(
+    unawaited(showDialog(
       context: context,
       barrierDismissible: true,
       builder: (dialogContext) {
@@ -166,7 +167,7 @@ class _CommunityPreviewScreenState extends State<CommunityPreviewScreen> {
           ),
         );
       },
-    );
+    ).whenComplete(() { nameController.dispose(); descController.dispose(); }));
   }
 
   void _openMenu() {

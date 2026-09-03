@@ -29,6 +29,12 @@ class _BusinessGreetingMessageScreenState extends State<BusinessGreetingMessageS
   }
 
   @override
+  void dispose() {
+    _msgCtrl.dispose();
+    super.dispose();
+  }
+
+@override
   Widget build(BuildContext context) {
     final b = Theme.of(context).brightness;
     return Scaffold(
