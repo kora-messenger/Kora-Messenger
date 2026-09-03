@@ -177,6 +177,40 @@ class MessageService {
     );
   }
 
+  /// Migrates every message from a legacy 1:1 thread [oldChatId]
+  /// into [newChatId] — the deterministic shared chatId both
+  /// participants compute. Merges by messageId (no duplicates),
+  /// keeps the result timestamp-sorted, moves the send-retry queue
+  /// across, and deletes the old local thread. Idempotent: safe to
+  /// call repeatedly, and a no-op when both ids match.
+  Future<void> migrateChat(String oldChatId, String newChatId) async {
+    if (oldChatId == newChatId || oldChatId.isEmpty || newChatId.isEmpty) {
+      return;
+    }
+    final oldMsgs = await loadMessages(oldChatId);
+    final newMsgs = await loadMessages(newChatId);
+    final existingIds = newMsgs.map((m) => m.id).toSet();
+    for (final m in oldMsgs) {
+      if (!existingIds.contains(m.id)) {
+        newMsgs.add(m);
+        existingIds.add(m.id);
+      }
+    }
+    newMsgs.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      '$_kPrefix$newChatId',
+      jsonEncode(newMsgs.map((m) => m.toJson()).toList()),
+    );
+    // Move any queued retries for the legacy thread onto the new one.
+    final queued = _unsentQueue.remove(oldChatId);
+    if (queued != null && queued.isNotEmpty) {
+      _unsentQueue.putIfAbsent(newChatId, () => <String>{}).addAll(queued);
+    }
+    await prefs.remove('$_kPrefix$oldChatId');
+    _cache.remove(oldChatId);
+  }
+
   // ── Send / React / Delete ─────────────────────────────────
 
   Future<void> sendMessage(

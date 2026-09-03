@@ -94,9 +94,31 @@ class ChatSyncService {
 
         // Restore/update conversations in the directory
         final conversations = data['conversations'] as List? ?? [];
+        final dmRemap = <String, String>{};
         for (final conv in conversations) {
-          final chatId = conv['chatId'] as String;
+          var chatId = conv['chatId'] as String;
           if (chatId == 'kora_support' || chatId == 'kora_ai') continue;
+
+          // A conversation arriving under a legacy chatId for a known
+          // contact belongs to that contact's deterministic thread —
+          // upgrade it so the thread never forks again.
+          final re = (conv['recipientEmail'] as String?)?.trim();
+          if (re != null && re.isNotEmpty) {
+            final target = ConversationDirectoryService.deterministicChatId(
+              _userEmail!,
+              re,
+            );
+            if (chatId != target) {
+              dmRemap[chatId] = target;
+              chatId = target;
+              await ConversationDirectoryService.instance
+                  .migrateLegacyDmToDeterministic(
+                myEmail: _userEmail!,
+                recipientEmail: re,
+                targetChatId: target,
+              );
+            }
+          }
 
           await ConversationDirectoryService.instance.upsert(
             chatId: chatId,
@@ -114,11 +136,14 @@ class ChatSyncService {
         final ms = MessageService.instance;
 
         for (final msg in messages) {
-          final chatId = msg['chatId'] as String;
+          var chatId = msg['chatId'] as String;
           final messageId = msg['messageId'] as String;
 
           // Skip AI chat messages — seeded locally, never restore from cloud
           if (chatId == 'kora_support' || chatId == 'kora_ai') continue;
+
+          // Legacy 1:1 threads land on their deterministic chatId.
+          chatId = dmRemap[chatId] ?? chatId;
 
           // Load existing messages for this chat if not cached
           if (!ms.isChatCached(chatId)) {
@@ -286,6 +311,7 @@ class ChatSyncService {
           name: conv['name'] as String? ?? chatId,
           avatarAsset: conv['avatarAsset'] as String?,
           avatarUrl: conv['avatarUrl'] as String?,
+          recipientEmail: conv['recipientEmail'] as String?,
           badge: KoraBadgeType.values[(conv['badge'] as num?)?.toInt() ?? 0],
           isOnline: (conv['isOnline'] as bool?) ?? false,
           isGroupChat: (conv['isGroupChat'] as bool?) ?? false,
@@ -293,17 +319,47 @@ class ChatSyncService {
         convCount++;
       }
 
+      // Upgrade any legacy 1:1 threads to the deterministic shared
+      // chatIds so both participants converge on ONE thread, even if
+      // the thread predates deterministic ids. Also remember the
+      // legacyId → deterministicId remap so messages in this same
+      // response are stored directly under the target thread.
+      final dmRemap = <String, String>{};
+      for (final conv in conversations) {
+        final chatId = conv['chatId'] as String;
+        if (chatId == 'kora_support' || chatId == 'kora_ai') continue;
+        if ((conv['isGroupChat'] as bool?) ?? false) continue;
+        final re = (conv['recipientEmail'] as String?)?.trim();
+        if (re == null || re.isEmpty) continue;
+        final target = ConversationDirectoryService.deterministicChatId(
+          _userEmail!,
+          re,
+        );
+        if (chatId != target) {
+          dmRemap[chatId] = target;
+          await ConversationDirectoryService.instance
+              .migrateLegacyDmToDeterministic(
+            myEmail: _userEmail!,
+            recipientEmail: re,
+            targetChatId: target,
+          );
+        }
+      }
+
       // Restore messages to local storage (merge, don't overwrite)
       final messages = data['messages'] as List? ?? [];
       final ms = MessageService.instance;
 
       for (final msg in messages) {
-        final chatId = msg['chatId'] as String;
+        var chatId = msg['chatId'] as String;
         final messageId = msg['messageId'] as String;
 
         // Skip AI chat messages — they're seeded locally by MessageService.init()
         // and should never be re-introduced from the cloud with stale isSeen state.
         if (chatId == 'kora_support' || chatId == 'kora_ai') continue;
+
+        // Legacy 1:1 threads land on their deterministic chatId.
+        chatId = dmRemap[chatId] ?? chatId;
 
         // Load existing messages for this chat if not cached
         if (!ms.isChatCached(chatId)) {

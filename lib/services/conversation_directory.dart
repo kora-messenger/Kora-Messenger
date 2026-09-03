@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/chat_models.dart';
 import 'chat_sync_service.dart';
+import 'message_service.dart';
 
 /// Lightweight directory mapping a chatId → the display metadata needed
 /// to render it as a Home screen row (name, avatar, badge, online state)
@@ -125,11 +126,20 @@ class ConversationDirectoryService {
     return null;
   }
 
-  /// Resolves the chatId to use when opening a 1:1 chat with a contact:
-  /// 1. Reuse the existing thread for that contact if one exists.
-  /// 2. Otherwise mint the deterministic shared chatId from both emails.
-  /// 3. Fall back to [fallback] (e.g. the contact's koraId) when the
-  ///    contact has no email (manual/phone-only contacts).
+  /// Resolves the chatId to use when opening a 1:1 chat with a contact.
+  ///
+  /// The deterministic shared chatId is ALWAYS authoritative: both
+  /// participants independently compute the same id, so a conversation
+  /// is one continuous thread on both sides — even across reinstalls
+  /// and devices. Any legacy thread previously created for the same
+  /// contact (under a random/legacy chatId) is migrated into the
+  /// deterministic thread first: messages merge (no duplicates), the
+  /// chat's pinned/muted/archived/locked preferences carry over, and
+  /// the old local + cloud copies are cleared.
+  ///
+  /// Falls back to [fallback] (e.g. the contact's koraId) only when the
+  /// contact has no email (manual/phone-only contacts) — a
+  /// deterministic id can't be computed then.
   static Future<String> resolveDmChatId({
     required String? recipientEmail,
     required String myEmail,
@@ -140,10 +150,112 @@ class ConversationDirectoryService {
         myEmail.trim().isEmpty) {
       return fallback;
     }
-    final existing =
-        await instance.findByRecipientEmail(recipientEmail.trim());
-    if (existing != null && existing.isNotEmpty) return existing;
-    return deterministicChatId(myEmail, recipientEmail);
+    final target = deterministicChatId(myEmail, recipientEmail);
+    await instance.migrateLegacyDmToDeterministic(
+      myEmail: myEmail,
+      recipientEmail: recipientEmail,
+      targetChatId: target,
+    );
+    return target;
+  }
+
+  /// Upgrades every legacy 1:1 thread for [recipientEmail] onto the
+  /// deterministic [targetChatId]:
+  /// - merges the legacy thread's messages into the target thread
+  ///   (by messageId, so nothing duplicates),
+  /// - carries over the legacy thread's display metadata and
+  ///   pinned/muted/archived/locked/favorite preferences,
+  /// - deletes the legacy directory entry and its cloud copy,
+  /// - re-syncs the merged thread to the cloud.
+  ///
+  /// Idempotent and safe to call on every DM open / poll restore.
+  static const _reservedChatIds = {
+    'kora_support',
+    'kora_ai',
+    'kora_notifications',
+  };
+
+  Future<void> migrateLegacyDmToDeterministic({
+    required String myEmail,
+    required String recipientEmail,
+    required String targetChatId,
+  }) async {
+    await _ensureLoaded();
+    final needle = recipientEmail.trim().toLowerCase();
+    if (needle.isEmpty) return;
+    // Consistency guard: the target must be exactly the id both
+    // participants compute from the same email pair.
+    if (targetChatId != deterministicChatId(myEmail, recipientEmail)) {
+      return;
+    }
+
+    final legacyIds = <String>[];
+    for (final entry in _entries.entries) {
+      if (_reservedChatIds.contains(entry.key)) continue;
+      if (entry.key == targetChatId) continue;
+      if ((entry.value['isGroupChat'] as bool?) ?? false) continue;
+      final re = (entry.value['recipientEmail'] as String?)?.toLowerCase();
+      if (re != null && re.isNotEmpty && re == needle) {
+        legacyIds.add(entry.key);
+      }
+    }
+    if (legacyIds.isEmpty) return;
+
+    // Merge every legacy thread into the deterministic one.
+    for (final legacyId in legacyIds) {
+      final legacy = _entries[legacyId];
+      if (legacy != null) {
+        await MessageService.instance.migrateChat(legacyId, targetChatId);
+
+        // Carry metadata + preferences over into the target entry.
+        final target = _entries[targetChatId] ?? <String, dynamic>{};
+        _entries[targetChatId] = {
+          ...legacy,
+          ...target,
+          // Prefer the target's display fields; inherit from legacy
+          // only when the target never set them.
+          'name': (target['name'] as String?)?.isNotEmpty == true
+              ? target['name']
+              : legacy['name'],
+          'avatarAsset': target['avatarAsset'] ?? legacy['avatarAsset'],
+          'avatarUrl': target['avatarUrl'] ?? legacy['avatarUrl'],
+          'badge': (target['badge'] as int?) ?? (legacy['badge'] as int?) ?? 0,
+          'isOnline': (target['isOnline'] as bool?) ??
+              (legacy['isOnline'] as bool?) ??
+              false,
+          'recipientEmail': legacy['recipientEmail'],
+          // Preferences: keep whichever thread had them turned on.
+          'isPinned': (target['isPinned'] as bool? ?? false) ||
+              (legacy['isPinned'] as bool? ?? false),
+          'isMuted': (target['isMuted'] as bool? ?? false) ||
+              (legacy['isMuted'] as bool? ?? false),
+          'mutedUntil': target['mutedUntil'] ?? legacy['mutedUntil'],
+          'isArchived': (target['isArchived'] as bool? ?? false) ||
+              (legacy['isArchived'] as bool? ?? false),
+          'isLocked': (target['isLocked'] as bool? ?? false) ||
+              (legacy['isLocked'] as bool? ?? false),
+          'isFavorite': (target['isFavorite'] as bool? ?? false) ||
+              (legacy['isFavorite'] as bool? ?? false),
+          'forcedUnread': (target['forcedUnread'] as bool? ?? false) ||
+              (legacy['forcedUnread'] as bool? ?? false),
+          'isGroupChat': false,
+        };
+        _entries.remove(legacyId);
+      }
+    }
+    await _persist();
+
+    // Clear the legacy cloud copies (this user's side; the contact's
+    // device runs this same deterministic migration and clears theirs).
+    for (final legacyId in legacyIds) {
+      await ChatSyncService.instance.clearChatOnCloud(legacyId);
+    }
+
+    // Push the merged thread's metadata to the cloud.
+    final merged = _entries[targetChatId];
+    if (merged != null) {
+      await _syncToCloud(targetChatId, merged);
+    }
   }
 
   Future<Map<String, dynamic>?> get(String chatId) async {
