@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'session_manager.dart';
 import 'chat_sync_service.dart';
 import 'settings_sync_service.dart';
+import 'account_purge_service.dart';
 import 'service_notification_service.dart';
 import '../theme/chat_theme_provider.dart';
 
@@ -126,6 +127,12 @@ class AccountsManager {
     // Stop services for the outgoing account before swapping session data.
     ChatSyncService.instance.stopPolling();
     ServiceNotificationService.instance.dispose();
+
+    // Wipe the outgoing account's local data (chats, messages,
+    // contacts, premium state, theme) BEFORE restoring the incoming
+    // account's cloud data — otherwise the two accounts' conversation
+    // lists merge on this device.
+    await AccountPurgeService.instance.purgeActiveAccount();
 
     await _setActiveEmail(normalized);
     await SessionManager.instance.saveSession(match);

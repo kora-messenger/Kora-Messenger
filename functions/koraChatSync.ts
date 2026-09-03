@@ -23,6 +23,37 @@
 
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
 
+// Badge derivation — see KoraBadgeType in lib/models/chat_models.dart.
+// Owner accounts get the purple "official" badge — must stay in sync
+// with kOwnerEmails in lib/theme/chat_theme_provider.dart.
+const OWNER_EMAILS = new Set([
+  'goodluckijezie9@gmail.com',
+  'ijeziegoodluck7@gmail.com',
+  'ijeziegoodluck4@gmail.com',
+  'ijeziegoodluck96@gmail.com',
+]);
+
+// Badge enum mirrors KoraBadgeType in lib/models/chat_models.dart:
+// 0 = none, 1 = officialPurple (owner), 2 = premiumBlue (premium).
+async function deriveBadgeFor(db: any, email: any): Promise<number> {
+  try {
+    const normalized = String(email ?? '').toLowerCase().trim();
+    if (!normalized) return 0;
+    if (OWNER_EMAILS.has(normalized)) return 1;
+    const users = await db.entities.KoraUser.filter(
+      { email: normalized },
+      undefined,
+      1,
+    );
+    if (!users || users.length === 0) return -1; // user not found
+    const u = users[0];
+    const isPremium = (u.data?.isPremium ?? u.isPremium ?? false) === true;
+    return isPremium ? 2 : 0;
+  } catch (_) {
+    return 0;
+  }
+}
+
 // Helper functions to map entity records to standard response schema
 function mapConversation(c: any) {
   return {
@@ -215,9 +246,16 @@ Deno.serve(async (req) => {
           );
 
           if (recvConvExisting && recvConvExisting.length > 0) {
+            // Keep the badge fresh — the sender may have become premium
+            // (or an owner) after this conversation was created.
+            const senderBadge = Math.max(
+              0,
+              await deriveBadgeFor(db, userEmail),
+            );
             await db.entities.Conversation.update(recvConvExisting[0].id, {
               recipientEmail: userEmail, // sender's email, so replies route back
               name: senderName || recvConvExisting[0].name,
+              badge: senderBadge,
               lastMessageText: lastMsg.text || "",
               lastMessageTimestamp: lastMsg.timestamp,
               lastMessageType: lastMsg.type || "text",
@@ -229,7 +267,7 @@ Deno.serve(async (req) => {
               recipientEmail: userEmail, // sender's email, so replies route back
               chatId: lastMsg.chatId,
               name: senderName || "Unknown",
-              badge: 0,
+              badge: await deriveBadgeFor(db, userEmail),
               isOnline: true,
               lastMessageText: lastMsg.text || "",
               lastMessageTimestamp: lastMsg.timestamp,
@@ -250,12 +288,24 @@ Deno.serve(async (req) => {
           );
 
           if (existing && existing.length > 0) {
-            // Update conversation metadata
+            // Update conversation metadata. If the client didn't know
+            // the other user's badge, derive it from their profile so
+            // badges propagate to every device. Never downgrade.
+            const derivedBadge = await deriveBadgeFor(
+              db,
+              conv.recipientEmail ?? existing[0].recipientEmail,
+            );
+            // Authoritative when the recipient's profile was found
+            // (also handles premium revocation); otherwise keep the
+            // client's value (group chats / channels).
+            const finalBadge = derivedBadge >= 0
+              ? derivedBadge
+              : (conv.badge ?? 0);
             await db.entities.Conversation.update(existing[0].id, {
               name: conv.name,
               avatarAsset: conv.avatarAsset,
               avatarUrl: conv.avatarUrl,
-              badge: conv.badge ?? 0,
+              badge: finalBadge,
               isOnline: conv.isOnline ?? false,
               lastMessageText: conv.lastMessageText,
               lastMessageTimestamp: conv.lastMessageTimestamp,
@@ -264,14 +314,19 @@ Deno.serve(async (req) => {
               unreadCount: conv.unreadCount ?? 0,
             });
           } else {
-            // Create new conversation
+            // Create new conversation. Derive the other user's badge
+            // from their profile when the client couldn't know it.
+            const derivedBadge = await deriveBadgeFor(db, conv.recipientEmail);
+            const finalBadge = derivedBadge >= 0
+              ? derivedBadge
+              : (conv.badge ?? 0);
             await db.entities.Conversation.create({
               userEmail: userEmail,
               chatId: conv.chatId,
               name: conv.name || conv.chatId,
               avatarAsset: conv.avatarAsset,
               avatarUrl: conv.avatarUrl,
-              badge: conv.badge ?? 0,
+              badge: finalBadge,
               isOnline: conv.isOnline ?? false,
               lastMessageText: conv.lastMessageText,
               lastMessageTimestamp: conv.lastMessageTimestamp,

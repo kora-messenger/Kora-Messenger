@@ -56,6 +56,7 @@ flutter:
     - assets/images/world_map_glow.webp
     - assets/images/kora_support_avatar.webp
     - assets/images/kora_ai_avatar.webp
+    - assets/images/kora_notifications_avatar.webp
     - assets/icons/icon_default_circle.webp
     - assets/icons/icon_aurora_circle.webp
     - assets/icons/icon_gold_elite.webp

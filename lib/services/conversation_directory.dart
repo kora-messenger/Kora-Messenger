@@ -46,6 +46,17 @@ class ConversationDirectoryService {
     await prefs.setString(_kKey, jsonEncode(_entries));
   }
 
+  /// Clears ALL local directory state — disk + memory. Used on logout
+  /// and account switch so the next account starts from a clean slate
+  /// instead of inheriting the previous account's conversations. The
+  /// new account's chats are pulled fresh from the cloud.
+  Future<void> reset() async {
+    _entries.clear();
+    _loaded = false;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_kKey);
+  }
+
   /// Sync all conversations to the cloud (called after upsert).
   Future<void> _syncToCloud(String chatId, Map<String, dynamic> meta) async {
     await ChatSyncService.instance.syncConversation(
@@ -83,7 +94,12 @@ class ConversationDirectoryService {
       'avatarAsset': avatarAsset,
       'avatarUrl': avatarUrl,
       'recipientEmail': recipientEmail ?? existing['recipientEmail'],
-      'badge': badge.index,
+      // A caller that doesn't know the badge (e.g. opening a chat from
+      // search) passes none — keep whatever badge the directory already
+      // has instead of silently wiping it. An explicit badge always wins.
+      'badge': badge == KoraBadgeType.none
+          ? (existing['badge'] as num? ?? badge.index)
+          : badge.index,
       'isOnline': isOnline,
       'isPinned': existing?['isPinned'] as bool? ?? false,
       'isMuted': existing?['isMuted'] as bool? ?? false,

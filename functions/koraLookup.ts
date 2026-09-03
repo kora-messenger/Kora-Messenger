@@ -17,6 +17,11 @@ function getUserFromRecord(record: any) {
     bio: record.data?.bio ?? record.bio ?? '',
     avatarUrl: record.data?.avatarUrl ?? record.avatarUrl ?? '',
     isVerified: record.data?.isVerified ?? record.isVerified ?? true,
+    // Required by the client to show the premium badge next to the
+    // user's name when opening a chat with them. Without this field the
+    // client always sees a non-premium user and never shows the badge.
+    isPremium: (record.data?.isPremium ?? record.isPremium ?? false) === true,
+    isSuspended: (record.data?.isSuspended ?? record.isSuspended ?? false) === true,
     profileCompleted: record.data?.profileCompleted ?? record.profileCompleted ?? false,
     phoneNumber: record.data?.phoneNumber ?? record.phoneNumber ?? '',
   };

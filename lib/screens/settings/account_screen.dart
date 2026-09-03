@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../theme/kora_colors.dart';
 import '../../services/session_manager.dart';
 import '../../services/accounts_manager.dart';
+import '../../services/account_purge_service.dart';
 import '../../config/kora_api.dart';
 import 'passkeys_screen.dart';
 import 'two_factor_screen.dart';
@@ -283,6 +284,7 @@ class _AccountScreenState extends State<AccountScreen> {
 
       if (result['success'] == true) {
         await SessionManager.instance.clearSession();
+        await AccountPurgeService.instance.purgeActiveAccount();
 
         if (!mounted) return;
 
@@ -458,6 +460,11 @@ class _AccountScreenState extends State<AccountScreen> {
 
     try {
       await SessionManager.instance.clearSession();
+      // Wipe ALL of this account's local data (chats, messages,
+      // contacts, premium state, business profile, theme) so the next
+      // account on this device starts from a clean slate. Without this,
+      // the previous account's data bleeds into the next login.
+      await AccountPurgeService.instance.purgeActiveAccount();
       // Remove this account from the multi-account list.
       if (email.isNotEmpty) {
         await AccountsManager.instance.removeAccount(email);

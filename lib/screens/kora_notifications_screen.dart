@@ -1,25 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../services/message_service.dart';
+import '../services/conversation_directory.dart';
+import '../widgets/kora_avatar.dart';
 import '../services/service_notification_service.dart';
 import '../theme/kora_colors.dart';
 
-/// Kora Notifications chat screen.
+/// Kora Notifications — Telegram-style service chat (their account
+/// 777000 "Telegram").
 ///
-/// Displays all service notifications from Kora (like Telegram's
-/// user 777000 "Telegram Notifications" chat). Service notifications
-/// are server-pushed messages about account security, updates,
-/// and important account events.
+/// Rebuilt to mirror how Telegram presents service notifications:
+/// a REAL chat transcript — service messages arrive as incoming
+/// chat bubbles with day dividers and timestamps, there is no
+/// composer (you can't reply to the service account), the chat is
+/// a permanent system chat with the official badge, and opening it
+/// marks everything as read.
 class KoraNotificationsScreen extends StatefulWidget {
   const KoraNotificationsScreen({super.key});
 
   @override
-  State<KoraNotificationsScreen> createState() => _KoraNotificationsScreenState();
+  State<KoraNotificationsScreen> createState() =>
+      _KoraNotificationsScreenState();
 }
 
 class _KoraNotificationsScreenState extends State<KoraNotificationsScreen> {
   bool _loading = true;
   List<Map<String, dynamic>> _notifications = [];
-  bool _hasMore = false;
+
+  final _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -27,52 +35,74 @@ class _KoraNotificationsScreenState extends State<KoraNotificationsScreen> {
     _load();
   }
 
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
   Future<void> _load() async {
     setState(() => _loading = true);
-    final notifs = await ServiceNotificationService.instance.getHistory(limit: 50);
+    final notifs =
+        await ServiceNotificationService.instance.getHistory(limit: 100);
+    // Oldest first — a chat transcript reads top-to-bottom, newest at
+    // the bottom, exactly like the Telegram service chat.
+    notifs.sort((a, b) {
+      final at = DateTime.tryParse(a['timestamp'] as String? ?? '');
+      final bt = DateTime.tryParse(b['timestamp'] as String? ?? '');
+      return (at ?? DateTime.fromMillisecondsSinceEpoch(0))
+          .compareTo(bt ?? DateTime.fromMillisecondsSinceEpoch(0));
+    });
     if (mounted) {
       setState(() {
         _notifications = notifs;
         _loading = false;
       });
-      // Mark all as seen
+      // Read-on-open — Telegram's service chat clears its unread
+      // badge the moment you open it.
       ServiceNotificationService.instance.markAllSeen();
+      // Also clear the local unread badge immediately, so the Home
+      // row doesn't stay bold until the next cloud restore.
+      await MessageService.instance.loadMessages('kora_notifications');
+      await MessageService.instance.markChatViewed('kora_notifications');
+      // Clear any "Mark as unread" flag so the Home badge is truly gone.
+      await ConversationDirectoryService.instance
+          .setForcedUnread('kora_notifications', false);
+      // Let the service update its last-seen marker so polling
+      // doesn't re-alert for what was just read.
+      ServiceNotificationService.instance.syncLastSeen();
     }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      }
+    });
   }
 
-  String _formatTime(String? timestamp) {
-    if (timestamp == null || timestamp.isEmpty) return '';
-    try {
-      final dt = DateTime.parse(timestamp);
-      final now = DateTime.now();
-      final diff = now.difference(dt);
-      if (diff.inMinutes < 1) return 'Just now';
-      if (diff.inHours < 24) return DateFormat('h:mm a').format(dt);
-      if (diff.inDays < 7) return DateFormat('EEE, h:mm a').format(dt);
-      return DateFormat('MMM d, h:mm a').format(dt);
-    } catch (_) {
-      return '';
-    }
+  DateTime? _parseDate(String? timestamp) =>
+      DateTime.tryParse(timestamp ?? '');
+
+  String _dayLabel(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final day = DateTime(date.year, date.month, date.day);
+    final diff = today.difference(day).inDays;
+    if (diff == 0) return 'Today';
+    if (diff == 1) return 'Yesterday';
+    return DateFormat('MMMM d, yyyy').format(date);
   }
 
-  IconData _iconForType(String type) {
-    if (type.contains('security') || type.contains('login')) return Icons.security_rounded;
-    if (type.contains('update') || type.contains('version')) return Icons.system_update_rounded;
-    if (type.contains('warning') || type.contains('suspicious')) return Icons.warning_amber_rounded;
-    if (type.contains('premium') || type.contains('subscription')) return Icons.star_rounded;
-    if (type.contains('device')) return Icons.devices_rounded;
-    return Icons.notifications_rounded;
-  }
+  String _timeLabel(DateTime date) => DateFormat('h:mm a').format(date);
 
   @override
   Widget build(BuildContext context) {
     final brightness = Theme.of(context).brightness;
     final bg = KoraColors.backgroundFor(brightness);
     final textPrimary = KoraColors.textPrimaryFor(brightness);
-    final textSecondary = KoraColors.textSecondaryFor(brightness);
     final textMuted = KoraColors.textMutedFor(brightness);
-    final card = KoraColors.cardFor(brightness);
+    final surface = KoraColors.surfaceFor(brightness);
     final border = KoraColors.borderFor(brightness);
+    final card = KoraColors.cardFor(brightness);
 
     return Scaffold(
       backgroundColor: bg,
@@ -81,13 +111,10 @@ class _KoraNotificationsScreenState extends State<KoraNotificationsScreen> {
         elevation: 0,
         title: Row(
           children: [
-            Container(
-              width: 36, height: 36,
-              decoration: const BoxDecoration(
-                gradient: KoraColors.brandGradient,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.notifications_rounded, color: Colors.white, size: 20),
+            KoraAvatar(
+              name: 'Kora Notifications',
+              assetPath: 'assets/images/kora_notifications_avatar.webp',
+              size: 36,
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -96,13 +123,20 @@ class _KoraNotificationsScreenState extends State<KoraNotificationsScreen> {
                 children: [
                   Row(
                     children: [
-                      Text(
-                        'Kora Notifications',
-                        style: TextStyle(color: textPrimary, fontSize: 16, fontWeight: FontWeight.w700),
+                      Flexible(
+                        child: Text(
+                          'Kora Notifications',
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              color: textPrimary,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700),
+                        ),
                       ),
                       const SizedBox(width: 6),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 1),
                         decoration: BoxDecoration(
                           color: KoraColors.purple.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(4),
@@ -119,7 +153,7 @@ class _KoraNotificationsScreenState extends State<KoraNotificationsScreen> {
                     ],
                   ),
                   Text(
-                    'Service messages from Kora',
+                    'service notifications',
                     style: TextStyle(color: textMuted, fontSize: 12),
                   ),
                 ],
@@ -132,38 +166,152 @@ class _KoraNotificationsScreenState extends State<KoraNotificationsScreen> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
+      // No composer — Telegram's service chat has no input. This slim
+      // bar communicates that replies aren't supported.
+      bottomNavigationBar: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: card,
+          border: Border(
+            top: BorderSide(color: border, width: 0.5),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.lock_outline_rounded, color: textMuted, size: 14),
+            const SizedBox(width: 6),
+            Text(
+              'Replies aren\u2019t available in this chat',
+              style: TextStyle(color: textMuted, fontSize: 12.5),
+            ),
+          ],
+        ),
+      ),
       body: SafeArea(
+        top: false,
         child: _loading
-            ? const Center(child: CircularProgressIndicator(color: KoraColors.purple))
+            ? const Center(
+                child: CircularProgressIndicator(color: KoraColors.purple))
             : _notifications.isEmpty
                 ? _buildEmptyState(textMuted)
                 : RefreshIndicator(
                     onRefresh: _load,
                     color: KoraColors.purple,
                     child: ListView.builder(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+                      controller: _scrollController,
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                       itemCount: _notifications.length,
                       itemBuilder: (context, index) {
                         final notif = _notifications[index];
+                        final date = _parseDate(notif['timestamp'] as String?);
                         final text = notif['text'] as String? ?? '';
-                        final timestamp = notif['timestamp'] as String? ?? '';
-                        final type = notif['type'] as String? ?? '';
-                        final isSeen = notif['isSeen'] == true;
 
-                        return _buildNotificationCard(
-                          text: text,
-                          timestamp: timestamp,
-                          type: type,
-                          isSeen: isSeen,
-                          card: card,
-                          border: border,
-                          textPrimary: textPrimary,
-                          textSecondary: textSecondary,
-                          textMuted: textMuted,
+                        // Day divider when the date changes — same as
+                        // every Kora/Telegram chat transcript.
+                        final previous = index > 0
+                            ? _parseDate(_notifications[index - 1]
+                                ['timestamp'] as String?)
+                            : null;
+                        final showDivider = date != null &&
+                            (previous == null ||
+                                DateTime(previous.year, previous.month,
+                                        previous.day) !=
+                                    DateTime(
+                                        date.year, date.month, date.day));
+
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (showDivider && date != null)
+                              _buildDayDivider(date, surface, textMuted),
+                            _buildServiceBubble(
+                              text: text,
+                              date: date,
+                              surface: surface,
+                              textPrimary: textPrimary,
+                              textMuted: textMuted,
+                            ),
+                          ],
                         );
                       },
                     ),
                   ),
+      ),
+    );
+  }
+
+  Widget _buildDayDivider(DateTime date, Color surface, Color textMuted) {
+    return Container(
+      margin: const EdgeInsets.only(top: 12, bottom: 8),
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          decoration: BoxDecoration(
+            color: surface.withValues(alpha: 0.9),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            _dayLabel(date),
+            style: TextStyle(
+                color: textMuted,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// A service message rendered as an incoming chat bubble — exactly
+  /// how Telegram's 777000 messages appear in the chat transcript.
+  Widget _buildServiceBubble({
+    required String text,
+    required DateTime? date,
+    required Color surface,
+    required Color textPrimary,
+    required Color textMuted,
+  }) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.only(top: 4, bottom: 4),
+        padding: const EdgeInsets.fromLTRB(14, 10, 12, 8),
+        constraints: const BoxConstraints(maxWidth: 320),
+        decoration: BoxDecoration(
+          color: surface,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(18),
+            topRight: Radius.circular(18),
+            bottomRight: Radius.circular(18),
+            bottomLeft: Radius.circular(4),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            // Message text — service notifications keep their emoji
+            // and line breaks (login codes, device alerts, etc.).
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                text,
+                style: TextStyle(
+                  color: textPrimary,
+                  fontSize: 14.5,
+                  height: 1.5,
+                ),
+              ),
+            ),
+            if (date != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                _timeLabel(date),
+                style: TextStyle(color: textMuted, fontSize: 10.5),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -182,88 +330,8 @@ class _KoraNotificationsScreenState extends State<KoraNotificationsScreen> {
           const SizedBox(height: 4),
           Text(
             'Important account updates will appear here',
-            style: TextStyle(color: textMuted.withValues(alpha: 0.7), fontSize: 12.5),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNotificationCard({
-    required String text,
-    required String timestamp,
-    required String type,
-    required bool isSeen,
-    required Color card,
-    required Color border,
-    required Color textPrimary,
-    required Color textSecondary,
-    required Color textMuted,
-  }) {
-    final icon = _iconForType(type);
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: card,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: border, width: 0.5),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Icon
-          Container(
-            width: 40, height: 40,
-            decoration: BoxDecoration(
-              color: KoraColors.purple.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: KoraColors.purple, size: 22),
-          ),
-          const SizedBox(width: 14),
-
-          // Content
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Time
-                Row(
-                  children: [
-                    Icon(Icons.schedule_rounded, color: textMuted, size: 12),
-                    const SizedBox(width: 4),
-                    Text(
-                      _formatTime(timestamp),
-                      style: TextStyle(color: textMuted, fontSize: 11.5),
-                    ),
-                    if (!isSeen) ...[
-                      const SizedBox(width: 6),
-                      Container(
-                        width: 6, height: 6,
-                        decoration: const BoxDecoration(
-                          color: KoraColors.purple,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: 8),
-
-                // Message text
-                Text(
-                  text,
-                  style: TextStyle(
-                    color: textPrimary,
-                    fontSize: 14,
-                    height: 1.5,
-                    fontWeight: isSeen ? FontWeight.w400 : FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
+            style: TextStyle(
+                color: textMuted.withValues(alpha: 0.7), fontSize: 12.5),
           ),
         ],
       ),

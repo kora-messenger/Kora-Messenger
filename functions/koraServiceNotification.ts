@@ -40,7 +40,7 @@ Deno.serve(async (req: Request) => {
         userEmail: lowerEmail,
         chatId: 'kora_notifications',
         type: 'service',
-      });
+      }, '-timestamp', 100);
 
       if (recent && recent.length > 0) {
         const fifteenMinAgo = Date.now() - DEDUP_WINDOW_MS;
@@ -99,6 +99,9 @@ Deno.serve(async (req: Request) => {
           lastMessageType: 'service',
           unreadCount: (existingConv[0].data?.unreadCount ?? 0) + 1,
           isOnline: false,
+          // Self-heal the official badge — some legacy records (and the
+          // koraAuth login-code path) were created with badge 0.
+          badge: 1,
         });
       } else {
         await db.entities.Conversation.create({
@@ -106,8 +109,8 @@ Deno.serve(async (req: Request) => {
           chatId: 'kora_notifications',
           name: 'Kora Notifications',
           avatarUrl: '',
-          avatarAsset: 'kora_icon',
-          badge: 'official',
+          avatarAsset: 'assets/images/kora_notifications_avatar.webp',
+          badge: 1, // official purple (KoraBadgeType.officialPurple)
           isOnline: false,
           lastMessageText: message,
           lastMessageTimestamp: now,
@@ -173,7 +176,7 @@ Deno.serve(async (req: Request) => {
 
       const lowerEmail = email.toLowerCase().trim();
 
-      if (notificationIds && Array.isArray(notificationIds)) {
+      if (notificationIds && Array.isArray(notificationIds) && notificationIds.length > 0) {
         for (const nid of notificationIds) {
           try {
             const msgs = await db.entities.ChatMessage.filter({
@@ -184,6 +187,28 @@ Deno.serve(async (req: Request) => {
               await db.entities.ChatMessage.update(msgs[0].id, { isSeen: true });
             }
           } catch (_) {}
+        }
+      } else {
+        // Empty list = mark ALL service messages as seen (the client
+        // calls this when the user opens the Kora Notifications chat,
+        // mirroring Telegram's read-on-open behavior for 777000).
+        let skip = 0;
+        let hasMore = true;
+        while (hasMore) {
+          const batch = await db.entities.ChatMessage.filter({
+            userEmail: lowerEmail,
+            chatId: 'kora_notifications',
+            type: 'service',
+          }, undefined, 500, skip);
+          if (batch && batch.length > 0) {
+            for (const msg of batch) {
+              if (!(msg.data?.isSeen ?? msg.isSeen ?? false)) {
+                await db.entities.ChatMessage.update(msg.id, { isSeen: true });
+              }
+            }
+            skip += batch.length;
+          }
+          hasMore = batch && batch.length === 500;
         }
       }
 

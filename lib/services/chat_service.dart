@@ -27,7 +27,7 @@ class ChatService {
   static const Map<String, String> _builtinAiAvatars = {
     'kora_support': 'assets/images/kora_ai_avatar.webp',
     'kora_ai': 'assets/images/kora_support_avatar.webp',
-    'kora_notifications': 'kora_icon',
+    'kora_notifications': 'assets/images/kora_notifications_avatar.webp',
   };
 
   static const Map<String, String> _builtinAiPlaceholders = {
@@ -58,20 +58,34 @@ class ChatService {
   /// locked chats are excluded — see [getArchivedChats]/[getLockedChats].
   Future<List<ChatPreview>> getChats() async {
     final chats = await _buildChats(_ChatListFilter.main);
+    _sortForDisplay(chats);
     cachedChats = chats;
     return chats;
+  }
+
+  /// Display order (WhatsApp-style): pinned chats first (most recent
+  /// pinned on top), then everything else by most recent message.
+  void _sortForDisplay(List<ChatPreview> chats) {
+    chats.sort((a, b) {
+      if (a.isPinned != b.isPinned) return a.isPinned ? -1 : 1;
+      return b.timestamp.compareTo(a.timestamp);
+    });
   }
 
   /// Returns chats the user has archived, most recent first. Locked
   /// chats never show here even if also archived — Lock always wins.
   Future<List<ChatPreview>> getArchivedChats() async {
-    return _buildChats(_ChatListFilter.archived);
+    final chats = await _buildChats(_ChatListFilter.archived);
+    _sortForDisplay(chats);
+    return chats;
   }
 
   /// Returns chats the user has locked — only reachable through the
   /// biometric-gated Locked Chats screen, regardless of archive state.
   Future<List<ChatPreview>> getLockedChats() async {
-    return _buildChats(_ChatListFilter.locked);
+    final chats = await _buildChats(_ChatListFilter.locked);
+    _sortForDisplay(chats);
+    return chats;
   }
 
   /// A mute set with a duration (8 hours / 1 week) can expire. This

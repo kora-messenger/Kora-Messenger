@@ -581,7 +581,7 @@ Deno.serve(async (req: Request) => {
             lastMessageText: 'New device login code',
             lastMessageTimestamp: new Date().toISOString(),
             lastMessageType: 'service', unreadCount: 1, isOnline: false,
-            badge: 0, recipientEmail: '', avatarAsset: '',
+            badge: 1, recipientEmail: '', avatarAsset: '', // official purple
           });
         }
 
