@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../services/auth_service.dart';
+import '../../services/session_manager.dart';
 import '../../theme/kora_colors.dart';
 
 /// Screen to edit username with validation (min 3 chars, alphanumeric + underscore).
@@ -58,14 +60,31 @@ class _EditUsernameScreenState extends State<EditUsernameScreen> {
     if (_errorText != null) return;
 
     setState(() => _isSaving = true);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('kora_username', text);
+    // Persist server-side so other users can actually search for it.
+    final user = SessionManager.instance.currentUser;
+    final result = await AuthService().saveProfile(
+      userId: user?.id ?? '',
+      fullName: user?.fullName ?? '',
+      username: text,
+      bio: user?.bio ?? '',
+    );
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Username saved successfully')),
-      );
-      Navigator.pop(context, text);
+    if (result.success) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('kora_username', text);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Username saved successfully')),
+        );
+        Navigator.pop(context, text);
+      }
+    } else {
+      if (mounted) {
+        setState(() => _isSaving = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result.error ?? 'Could not save username. Try again.')),
+        );
+      }
     }
   }
 
@@ -84,7 +103,7 @@ class _EditUsernameScreenState extends State<EditUsernameScreen> {
         backgroundColor: bg,
         elevation: 0,
         title: Text(
-          'Edit username',
+          'Enter Username',
           style: TextStyle(color: textPrimary, fontSize: 18, fontWeight: FontWeight.w700),
         ),
         leading: IconButton(

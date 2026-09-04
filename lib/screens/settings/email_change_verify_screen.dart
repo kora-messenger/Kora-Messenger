@@ -384,7 +384,7 @@ class _EmailChangeVerifyScreenState extends State<EmailChangeVerifyScreen> {
             children: [
               const SizedBox(height: 8),
               Text(
-                _step == 1 ? 'Verify your email' : 'Confirm new email',
+                _step == 1 ? 'Verify your email address' : 'Verify your new email',
                 style: TextStyle(
                   color: textPrimary,
                   fontSize: 26,
@@ -415,10 +415,6 @@ class _EmailChangeVerifyScreenState extends State<EmailChangeVerifyScreen> {
               ),
               if (_step == 2) ...[
                 const SizedBox(height: 8),
-                Text(
-                  'Step 2 of 2 — Final step',
-                  style: TextStyle(color: KoraColors.purple, fontSize: 13, fontWeight: FontWeight.w600),
-                ),
               ],
               const SizedBox(height: 32),
 
@@ -508,7 +504,7 @@ class _EmailChangeVerifyScreenState extends State<EmailChangeVerifyScreen> {
                   child: Text(
                     _resendCountdown > 0
                         ? 'Resend code in ${_resendCountdown}s'
-                        : 'Resend code',
+                        : 'Resend email',
                     style: TextStyle(
                       color: _resendCountdown > 0 ? textSecondary : KoraColors.purple,
                       fontSize: 14,

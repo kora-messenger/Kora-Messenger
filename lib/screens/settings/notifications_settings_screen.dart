@@ -413,8 +413,63 @@ class _NotificationsSettingsScreenState extends State<NotificationsSettingsScree
                     _setBool('notif_recommended_channels', v);
                   },
                 ),
+
+                _divider(border),
+                _sectionLabel('RESET', textMuted),
+                _actionRow(
+                  title: 'Reset notification settings',
+                  subtitle: 'Restore all notification preferences to their defaults',
+                  textPrimary: textPrimary,
+                  textSecondary: textSecondary,
+                  onTap: _resetNotificationSettings,
+                ),
               ],
             ),
+    );
+  }
+
+  Future<void> _resetNotificationSettings() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: KoraColors.cardFor(Theme.of(context).brightness),
+        title: Text('Reset notification settings?',
+            style: TextStyle(color: KoraColors.textPrimaryFor(Theme.of(context).brightness), fontSize: 17, fontWeight: FontWeight.w700)),
+        content: Text('This will restore all notification preferences to their default values.',
+            style: TextStyle(color: KoraColors.textSecondaryFor(Theme.of(context).brightness), fontSize: 14, height: 1.4)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Reset')),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final keys = prefs.getKeys().where((k) => k.startsWith('notif_')).toList();
+    for (final k in keys) {
+      await prefs.remove(k);
+    }
+    await _loadPrefs();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Notification settings reset')),
+      );
+    }
+  }
+
+  Widget _actionRow({
+    required String title,
+    required String subtitle,
+    required Color textPrimary,
+    required Color textSecondary,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      onTap: onTap,
+      title: Text(title, style: TextStyle(color: textPrimary, fontSize: 15)),
+      subtitle: Text(subtitle, style: TextStyle(color: textSecondary, fontSize: 12.5)),
+      dense: true,
     );
   }
 

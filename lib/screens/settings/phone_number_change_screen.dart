@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../services/auth_service.dart';
+import '../../services/session_manager.dart';
 import '../../theme/kora_colors.dart';
 
 /// 2-step phone number change screen: enter new number -> auto-verify code.
@@ -18,7 +20,6 @@ class _PhoneNumberChangeScreenState extends State<PhoneNumberChangeScreen> {
   String? _phoneError;
   String? _codeError;
   bool _isVerifying = false;
-  static const String _demoCode = '123456';
 
   @override
   void dispose() {
@@ -35,33 +36,57 @@ class _PhoneNumberChangeScreenState extends State<PhoneNumberChangeScreen> {
     }
     setState(() {
       _phoneError = null;
-      _step = 2;
+      _isVerifying = true;
     });
 
-    // Store generated verification code in SharedPreferences for demo
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('demo_phone_verify_code', _demoCode);
+    // Send a real verification code to the account's email address.
+    final email = SessionManager.instance.currentEmail;
+    final result = await AuthService().sendVerificationCode(email, type: 'phone_change');
+    if (!mounted) return;
+    if (result.success) {
+      setState(() {
+        _isVerifying = false;
+        _step = 2;
+      });
+    } else {
+      setState(() {
+        _isVerifying = false;
+        _phoneError = result.error ?? 'Could not send the code. Try again.';
+      });
+    }
   }
 
   void _onCodeChanged(String val) async {
     if (val.length == 6) {
       setState(() => _isVerifying = true);
-      final prefs = await SharedPreferences.getInstance();
-      final expectedCode = prefs.getString('demo_phone_verify_code') ?? _demoCode;
+      final email = SessionManager.instance.currentEmail;
+      final auth = AuthService();
+      final verify = await auth.verifyCode(email: email, code: val, type: 'phone_change');
 
-      if (val == expectedCode || val == '123456') {
-        // Auto-verified successfully
-        await prefs.setString('kora_phone_number', _phoneController.text.trim());
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Phone number changed successfully!')),
-          );
-          Navigator.pop(context, _phoneController.text.trim());
+      if (verify.success) {
+        final user = SessionManager.instance.currentUser;
+        final save = await auth.savePhoneNumber(
+          userId: user?.id ?? '', phoneNumber: _phoneController.text.trim());
+        if (!mounted) return;
+        if (save.success) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('kora_phone_number', _phoneController.text.trim());
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Phone number changed successfully!')),
+            );
+            Navigator.pop(context, _phoneController.text.trim());
+          }
+        } else {
+          setState(() {
+            _isVerifying = false;
+            _codeError = save.error ?? 'Could not save the new number. Try again.';
+          });
         }
       } else {
         setState(() {
           _isVerifying = false;
-          _codeError = 'Invalid code. Try 123456';
+          _codeError = 'Invalid code. Try again';
         });
       }
     } else {
@@ -86,7 +111,7 @@ class _PhoneNumberChangeScreenState extends State<PhoneNumberChangeScreen> {
         backgroundColor: bg,
         elevation: 0,
         title: Text(
-          'Change phone number',
+          'Change number',
           style: TextStyle(color: textPrimary, fontSize: 18, fontWeight: FontWeight.w700),
         ),
         leading: IconButton(
@@ -119,7 +144,7 @@ class _PhoneNumberChangeScreenState extends State<PhoneNumberChangeScreen> {
         ),
         const SizedBox(height: 8),
         Text(
-          'Changing your phone number will migrate your account info, groups, and settings.',
+          'Changing your phone number will migrate your account info, groups & settings.',
           style: TextStyle(color: textSecondary, fontSize: 13, height: 1.4),
         ),
         const SizedBox(height: 24),
@@ -172,7 +197,7 @@ class _PhoneNumberChangeScreenState extends State<PhoneNumberChangeScreen> {
         ),
         const SizedBox(height: 8),
         Text(
-          'Enter the 6-digit code sent to ${_phoneController.text.trim()}. (Use code 123456 for demo)',
+          'Enter the 6-digit code we sent to ${SessionManager.instance.currentEmail}. Wrong number?',
           style: TextStyle(color: textSecondary, fontSize: 13, height: 1.4),
         ),
         const SizedBox(height: 24),

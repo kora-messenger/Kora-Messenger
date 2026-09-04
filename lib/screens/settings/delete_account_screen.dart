@@ -27,14 +27,27 @@ class DeleteAccountScreen extends StatefulWidget {
 class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
+  final _feedbackController = TextEditingController();
   bool _isLoading = false;
   bool _checkboxAccepted = false;
   String? _errorMessage;
+  String? _reason;
+
+  static const _reasons = [
+    'Select a reason',
+    'I no longer want to use Kora',
+    'I found a better alternative',
+    'I have privacy concerns',
+    'I created a duplicate account',
+    'Kora is not what I expected',
+    'Other',
+  ];
 
   @override
   void dispose() {
     _passwordController.dispose();
     _confirmController.dispose();
+    _feedbackController.dispose();
     super.dispose();
   }
 
@@ -42,7 +55,7 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Delete Account'),
+        title: const Text('Delete my account'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
@@ -105,6 +118,36 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
                   ],
                 ),
               ),
+              const SizedBox(height: 16),
+
+              // Permanent-deletion warning (WhatsApp wording)
+              const Text(
+                'Deleting your account is permanent',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.red),
+              ),
+              const SizedBox(height: 16),
+
+              // Reason (optional)
+              DropdownButtonFormField<String>(
+                value: _reason,
+                decoration: InputDecoration(
+                  labelText: 'Reason (optional)',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                items: _reasons
+                    .map((r) => DropdownMenuItem(value: r, child: Text(r, style: const TextStyle(fontSize: 13))))
+                    .toList(),
+                onChanged: (v) => setState(() => _reason = v),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _feedbackController,
+                maxLines: 3,
+                decoration: InputDecoration(
+                  hintText: 'Tell us more (optional)',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
               const SizedBox(height: 24),
 
               // Password confirmation
@@ -146,7 +189,7 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
                     child: Padding(
                       padding: const EdgeInsets.only(top: 12),
                       child: Text(
-                        'I understand this action is irreversible and all my data will be permanently removed.',
+                        'Deleting your account is permanent. Your account, message history and backups will be erased.',
                         style: TextStyle(fontSize: 13, color: Colors.grey[700]),
                       ),
                     ),
@@ -183,7 +226,7 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
                           child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                         )
                       : const Text(
-                          'Delete Account Permanently',
+                          'Delete my account',
                           style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white),
                         ),
                 ),

@@ -24,6 +24,7 @@ import '../settings/billing_screen.dart';
 import '../../config/subscription_pricing.dart';
 import '../settings/storage_data_screen.dart';
 import '../settings/app_language_screen.dart';
+import '../settings/devices_screen.dart';
 import '../ai/kora_support_screen.dart';
 import '../search_screen.dart';
 import '../contacts/qr_code_screen.dart';
@@ -164,7 +165,7 @@ class _ProfileTabState extends State<ProfileTab> {
         backgroundColor: bg,
         elevation: 0,
         title: Text(
-          'Profile',
+          'Settings',
           style: TextStyle(
             color: textPrimary,
             fontSize: 20,
@@ -258,6 +259,14 @@ class _ProfileTabState extends State<ProfileTab> {
               title: 'Privacy',
               subtitle: 'Last seen, read receipts, blocked contacts, app lock',
               screen: const PrivacyScreen(),
+            ),
+            _navTile(
+              context,
+              icon: Icons.devices_outlined,
+              iconColor: KoraColors.purple,
+              title: 'Linked devices',
+              subtitle: 'Device sessions, remote log out',
+              screen: const DevicesScreen(),
             ),
             _navTile(
               context,

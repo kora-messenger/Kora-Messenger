@@ -17,7 +17,6 @@ class _ManageStorageScreenState extends State<ManageStorageScreen> {
   final List<_StorageItem> _items = [];
   final List<_StorageCategory> _categories = [];
   int _totalUsed = 0;
-  int _deviceTotal = 0;
 
   @override
   void initState() {
@@ -74,7 +73,6 @@ class _ManageStorageScreenState extends State<ManageStorageScreen> {
     } catch (_) {}
 
     _totalUsed = imageSize + videoSize + voiceSize + docSize + otherSize;
-    _deviceTotal = 64000000000;
 
     _categories.clear();
     _categories.add(_StorageCategory('Images', imageSize, Icons.photo_outlined, KoraColors.purple));
@@ -194,8 +192,6 @@ class _ManageStorageScreenState extends State<ManageStorageScreen> {
                             Text(_formatSize(_totalUsed),
                                 style: TextStyle(
                                     color: textPrimary, fontSize: 28, fontWeight: FontWeight.w700)),
-                            Text('of ${_formatSize(_deviceTotal)}',
-                                style: TextStyle(color: textMuted, fontSize: 13)),
                           ],
                         ),
                         const SizedBox(height: 14),

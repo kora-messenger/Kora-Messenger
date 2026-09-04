@@ -153,7 +153,7 @@ class _ChatSettingsScreenState extends State<ChatSettingsScreen> {
                 _toggleTile(
                   icon: Icons.lock_outline_rounded,
                   title: 'Keep chats archived',
-                  subtitle: 'Archived chats will stay archived when new messages arrive',
+                  subtitle: 'Keep archived chats muted',
                   value: _keepArchived,
                   card: card,
                   textPrimary: textPrimary,
@@ -182,7 +182,7 @@ class _ChatSettingsScreenState extends State<ChatSettingsScreen> {
                 _navTile(
                   context,
                   icon: Icons.ios_share_rounded,
-                  title: 'Export chat',
+                  title: 'Export chats',
                   card: card,
                   textPrimary: textPrimary,
                   textMuted: textMuted,
@@ -706,7 +706,7 @@ class _ChatSettingsScreenState extends State<ChatSettingsScreen> {
             const SizedBox(height: 8),
             Container(width: 36, height: 4, decoration: BoxDecoration(color: textMuted.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(2))),
             const SizedBox(height: 16),
-            Text('Export Chat', style: TextStyle(color: textPrimary, fontSize: 18, fontWeight: FontWeight.w700)),
+            Text('Export chats', style: TextStyle(color: textPrimary, fontSize: 18, fontWeight: FontWeight.w700)),
             const SizedBox(height: 8),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),

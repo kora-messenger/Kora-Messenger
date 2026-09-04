@@ -98,10 +98,8 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
         final List<dynamic> parsed = jsonDecode(rawBlocked);
         blockedCount = parsed.length;
       } catch (_) {
-        blockedCount = 1;
+        blockedCount = 0;
       }
-    } else {
-      blockedCount = 1;
     }
 
     setState(() {
@@ -470,7 +468,7 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
             _simpleNavTile(
               icon: Icons.block_rounded,
               title: 'Blocked accounts',
-              subtitle: _blockedCount == 0 ? 'None' : '$_blockedCount account${_blockedCount == 1 ? '' : 's'}',
+              subtitle: _blockedCount == 0 ? '0 blocked contacts' : '$_blockedCount blocked contact${_blockedCount == 1 ? '' : 's'}',
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const BlockedAccountsScreen()),

@@ -236,7 +236,7 @@ class _AddEmailVerifyScreenState extends State<AddEmailVerifyScreen> {
             children: [
               const SizedBox(height: 8),
               Text(
-                'Confirm your email',
+                'Verify your email address',
                 style: TextStyle(
                   color: textPrimary,
                   fontSize: 26,
@@ -339,7 +339,7 @@ class _AddEmailVerifyScreenState extends State<AddEmailVerifyScreen> {
                   child: Text(
                     _resendCountdown > 0
                         ? 'Resend code in ${_resendCountdown}s'
-                        : 'Resend code',
+                        : 'Resend email',
                     style: TextStyle(
                       color: _resendCountdown > 0 ? textSecondary : KoraColors.purple,
                       fontSize: 14,

@@ -38,13 +38,9 @@ class _KoraContactsScreenState extends State<KoraContactsScreen> {
       } catch (_) {}
     }
 
-    // Default sample contacts if empty
+    // No fake seed contacts — show the honest empty state instead.
     setState(() {
-      _contacts = [
-        {'name': 'Alice Johnson', 'phone': '+1 555 0192', 'koraId': 'alice_j', 'status': 'Hey there! Using Kora.'},
-        {'name': 'Bob Smith', 'phone': '+1 555 0143', 'koraId': 'bob_smith', 'status': 'Available'},
-        {'name': 'Carol Williams', 'phone': '+1 555 0188', 'koraId': 'carol_w', 'status': 'At work'},
-      ];
+      _contacts = [];
       _isLoading = false;
     });
   }
@@ -110,7 +106,7 @@ class _KoraContactsScreenState extends State<KoraContactsScreen> {
                       'name': name,
                       'phone': phoneController.text.trim(),
                       'koraId': koraIdController.text.trim(),
-                      'status': 'Hey there! Using Kora.',
+                      'status': '',
                     });
                   });
                   _saveContacts();

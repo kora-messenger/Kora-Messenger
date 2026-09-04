@@ -89,8 +89,6 @@ class AiImageGenScreen extends StatefulWidget {
 
 class _AiImageGenScreenState extends State<AiImageGenScreen> {
   final _promptController = TextEditingController();
-  final List<_GeneratedImage> _history = [];
-  bool _isGenerating = false;
   String _selectedStyle = 'Realistic';
   final _styles = ['Realistic', 'Anime', '3D', 'Watercolor', 'Pixel Art', 'Cyberpunk'];
 
@@ -102,21 +100,10 @@ class _AiImageGenScreenState extends State<AiImageGenScreen> {
 
   void _generate() {
     if (_promptController.text.trim().isEmpty) return;
-    setState(() => _isGenerating = true);
-    // Simulate generation (production: call AI image API)
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() {
-          _isGenerating = false;
-          _history.insert(0, _GeneratedImage(
-            prompt: _promptController.text.trim(),
-            style: _selectedStyle,
-            timestamp: DateTime.now(),
-          ));
-          _promptController.clear();
-        });
-      }
-    });
+    // Real generation is not available yet — be honest instead of faking a result.
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('AI image generation is coming soon')),
+    );
   }
 
   @override
@@ -194,61 +181,26 @@ class _AiImageGenScreenState extends State<AiImageGenScreen> {
               ),
               const SizedBox(width: 8),
               IconButton(
-                onPressed: _isGenerating ? null : _generate,
-                icon: _isGenerating
-                  ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: KoraColors.purple))
-                  : Icon(Icons.send, color: KoraColors.purple),
+                onPressed: _generate,
+                icon: Icon(Icons.send, color: KoraColors.purple),
               ),
             ]),
           ),
           const SizedBox(height: 8),
-          // History grid
           Expanded(
-            child: _history.isEmpty
-              ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  Icon(Icons.image_outlined, size: 48, color: textMuted.withValues(alpha: 0.3)),
-                  const SizedBox(height: 8),
-                  Text('No images yet', style: TextStyle(color: textMuted, fontSize: 14)),
-                ]))
-              : GridView.builder(
-                  padding: const EdgeInsets.all(8),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 8, mainAxisSpacing: 8),
-                  itemCount: _history.length,
-                  itemBuilder: (ctx, i) {
-                    final img = _history[i];
-                    return Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(colors: [KoraColors.purple.withValues(alpha: 0.15), KoraColors.blue.withValues(alpha: 0.15)]),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: KoraColors.borderFor(brightness), width: 0.5),
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.auto_awesome, size: 32, color: KoraColors.purple.withValues(alpha: 0.5)),
-                          const SizedBox(height: 4),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                            child: Text(img.prompt, style: TextStyle(color: textMuted, fontSize: 11), maxLines: 2, overflow: TextOverflow.ellipsis),
-                          ),
-                          Text(img.style, style: TextStyle(color: KoraColors.purple, fontSize: 10, fontWeight: FontWeight.w500)),
-                        ],
-                      ),
-                    );
-                  },
-                ),
+            child: Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Icon(Icons.image_outlined, size: 48, color: textMuted.withValues(alpha: 0.3)),
+                const SizedBox(height: 8),
+                Text('No images yet', style: TextStyle(color: textMuted, fontSize: 14)),
+                const SizedBox(height: 4),
+                Text('Generated images will appear here once the feature launches.',
+                    style: TextStyle(color: textMuted.withValues(alpha: 0.6), fontSize: 12), textAlign: TextAlign.center),
+              ])),
           ),
         ],
       ),
     );
   }
-}
-
-class _GeneratedImage {
-  final String prompt;
-  final String style;
-  final DateTime timestamp;
-  _GeneratedImage({required this.prompt, required this.style, required this.timestamp});
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -424,8 +376,6 @@ class _OnDeviceAiScreenState extends State<OnDeviceAiScreen> {
   bool _sentimentAnalysis = false;
   bool _textClassification = true;
   String _modelSize = 'Small (45 MB)';
-  bool _isDownloading = false;
-  double _downloadProgress = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -477,32 +427,14 @@ class _OnDeviceAiScreenState extends State<OnDeviceAiScreen> {
               onChanged: (v) => setState(() => _modelSize = v ?? _modelSize),
             ),
           ),
-          if (_isDownloading) ...[
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: LinearProgressIndicator(value: _downloadProgress, backgroundColor: surface, color: KoraColors.purple),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: Text('${(_downloadProgress * 100).round()}%', style: TextStyle(color: textMuted, fontSize: 12)),
-            ),
-          ] else
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: ElevatedButton.icon(
                 onPressed: () {
-                  setState(() { _isDownloading = true; _downloadProgress = 0; });
-                  // Simulate download
-                  Future.delayed(const Duration(milliseconds: 500), () {
-                    if (mounted) setState(() => _downloadProgress = 0.3);
-                  });
-                  Future.delayed(const Duration(seconds: 1), () {
-                    if (mounted) setState(() => _downloadProgress = 0.7);
-                  });
-                  Future.delayed(const Duration(seconds: 2), () {
-                    if (mounted) setState(() { _downloadProgress = 1; _isDownloading = false; });
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Model downloaded'), backgroundColor: KoraColors.purple));
-                  });
+                  // Real model download is not available yet — be honest.
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('On-device model downloads are coming soon')),
+                  );
                 },
                 icon: Icon(Icons.download, color: Colors.white, size: 18),
                 label: const Text('Download Model', style: TextStyle(color: Colors.white, fontSize: 14)),
@@ -556,9 +488,6 @@ class WearOsScreen extends StatefulWidget {
 
 class _WearOsScreenState extends State<WearOsScreen> {
   bool _wearEnabled = false;
-  bool _voiceReply = true;
-  bool _quickReplies = true;
-  bool _notificationsOnly = false;
   String _connectedWatch = 'No watch connected';
 
   @override
@@ -593,61 +522,31 @@ class _WearOsScreenState extends State<WearOsScreen> {
                 Icon(Icons.watch, size: 48, color: _wearEnabled ? KoraColors.purple : textMuted),
                 const SizedBox(height: 8),
                 Text(_connectedWatch, style: TextStyle(color: textPrimary, fontSize: 15, fontWeight: FontWeight.w500)),
+                const SizedBox(height: 4),
+                Text(
+                  'Kora for watches is coming soon.',
+                  style: TextStyle(color: textMuted, fontSize: 13),
+                  textAlign: TextAlign.center,
+                ),
                 const SizedBox(height: 12),
                 ElevatedButton(
                   onPressed: () {
-                    setState(() {
-                      _wearEnabled = !_wearEnabled;
-                      _connectedWatch = _wearEnabled ? 'Galaxy Watch 6' : 'No watch connected';
-                    });
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Watch pairing will be available in a future update')),
+                    );
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _wearEnabled ? surface : KoraColors.purple,
-                    foregroundColor: _wearEnabled ? textPrimary : Colors.white,
+                    backgroundColor: surface,
+                    foregroundColor: textPrimary,
                     minimumSize: const Size(double.infinity, 44),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    side: _wearEnabled ? BorderSide(color: KoraColors.borderFor(brightness)) : null,
+                    side: BorderSide(color: KoraColors.borderFor(brightness)),
                   ),
-                  child: Text(_wearEnabled ? 'Disconnect' : 'Pair Watch'),
+                  child: const Text('Pair Watch'),
                 ),
               ],
             ),
           ),
-          if (_wearEnabled) ...[
-            _sectionLabel('COMPANION SETTINGS', textMuted),
-            SwitchListTile(
-              secondary: Icon(Icons.mic, color: KoraColors.purple),
-              title: Text('Voice Reply', style: TextStyle(color: textPrimary, fontSize: 15)),
-              subtitle: Text('Dicticate replies from your watch', style: TextStyle(color: textMuted, fontSize: 13)),
-              value: _voiceReply,
-              onChanged: (v) => setState(() => _voiceReply = v),
-              activeTrackColor: KoraColors.purple.withValues(alpha: 0.3),
-              activeColor: KoraColors.purple,
-            ),
-            SwitchListTile(
-              secondary: Icon(Icons.quickreply, color: KoraColors.purple),
-              title: Text('Quick Replies', style: TextStyle(color: textPrimary, fontSize: 15)),
-              subtitle: Text('Show canned reply suggestions', style: TextStyle(color: textMuted, fontSize: 13)),
-              value: _quickReplies,
-              onChanged: (v) => setState(() => _quickReplies = v),
-              activeTrackColor: KoraColors.purple.withValues(alpha: 0.3),
-              activeColor: KoraColors.purple,
-            ),
-            SwitchListTile(
-              secondary: Icon(Icons.notifications, color: KoraColors.purple),
-              title: Text('Notifications Only', style: TextStyle(color: textPrimary, fontSize: 15)),
-              subtitle: Text('Only show notifications, no replies', style: TextStyle(color: textMuted, fontSize: 13)),
-              value: _notificationsOnly,
-              onChanged: (v) => setState(() => _notificationsOnly = v),
-              activeTrackColor: KoraColors.purple.withValues(alpha: 0.3),
-              activeColor: KoraColors.purple,
-            ),
-            const SizedBox(height: 12),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text('Kora for Wear OS supports viewing messages, voice replies, and quick replies. Full chat composition requires your phone.', style: TextStyle(color: textMuted, fontSize: 12)),
-            ),
-          ],
         ],
       ),
     );

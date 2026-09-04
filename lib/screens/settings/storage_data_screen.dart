@@ -26,6 +26,11 @@ class _StorageDataScreenState extends State<StorageDataScreen> {
   String _docsCellular = 'Off';
   String _audioWifi = 'On';
   String _audioCellular = 'Off';
+  String _photosRoaming = 'Off';
+  String _videosRoaming = 'Off';
+  String _docsRoaming = 'Off';
+  String _audioRoaming = 'Off';
+  bool _lessDataCalls = false;
 
   bool _loading = true;
 
@@ -47,6 +52,11 @@ class _StorageDataScreenState extends State<StorageDataScreen> {
         _docsCellular = prefs.getString('auto_dl_docs_cellular') ?? 'Off';
         _audioWifi = prefs.getString('auto_dl_audio_wifi') ?? 'On';
         _audioCellular = prefs.getString('auto_dl_audio_cellular') ?? 'Off';
+        _photosRoaming = prefs.getString('auto_dl_photos_roaming') ?? 'Off';
+        _videosRoaming = prefs.getString('auto_dl_videos_roaming') ?? 'Off';
+        _docsRoaming = prefs.getString('auto_dl_docs_roaming') ?? 'Off';
+        _audioRoaming = prefs.getString('auto_dl_audio_roaming') ?? 'Off';
+        _lessDataCalls = prefs.getBool('use_less_data_calls') ?? false;
         _loading = false;
       });
     }
@@ -55,6 +65,11 @@ class _StorageDataScreenState extends State<StorageDataScreen> {
   Future<void> _setPref(String key, String value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(key, value);
+  }
+
+  Future<void> _setBool(String key, bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(key, value);
   }
 
   @override
@@ -119,6 +134,28 @@ class _StorageDataScreenState extends State<StorageDataScreen> {
 
                   const SizedBox(height: 24),
 
+                  // ── CALL section ──
+                  _sectionLabel('CALL', textMuted),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: card,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: SwitchListTile(
+                      value: _lessDataCalls,
+                      onChanged: (v) {
+                        setState(() => _lessDataCalls = v);
+                        _setBool('use_less_data_calls', v);
+                      },
+                      activeColor: KoraColors.purple,
+                      title: Text('Use less data for calls', style: TextStyle(color: textPrimary, fontSize: 16)),
+                      subtitle: Text('Reduce the data used during calls',
+                          style: TextStyle(color: textSecondary, fontSize: 13)),
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
                   // ── MEDIA AUTO-DOWNLOAD section ──
                   _sectionLabel('MEDIA AUTO-DOWNLOAD', textMuted),
                   Text(
@@ -131,9 +168,10 @@ class _StorageDataScreenState extends State<StorageDataScreen> {
                   _autoDownloadCard(
                     card, textPrimary, textSecondary, textMuted, border,
                     'Photos',
-                    _photosWifi, _photosCellular,
+                    _photosWifi, _photosCellular, _photosRoaming,
                     (v) { setState(() => _photosWifi = v); _setPref('auto_dl_photos_wifi', v); },
                     (v) { setState(() => _photosCellular = v); _setPref('auto_dl_photos_cellular', v); },
+                    (v) { setState(() => _photosRoaming = v); _setPref('auto_dl_photos_roaming', v); },
                   ),
                   const SizedBox(height: 10),
 
@@ -141,9 +179,10 @@ class _StorageDataScreenState extends State<StorageDataScreen> {
                   _autoDownloadCard(
                     card, textPrimary, textSecondary, textMuted, border,
                     'Videos',
-                    _videosWifi, _videosCellular,
+                    _videosWifi, _videosCellular, _videosRoaming,
                     (v) { setState(() => _videosWifi = v); _setPref('auto_dl_videos_wifi', v); },
                     (v) { setState(() => _videosCellular = v); _setPref('auto_dl_videos_cellular', v); },
+                    (v) { setState(() => _videosRoaming = v); _setPref('auto_dl_videos_roaming', v); },
                   ),
                   const SizedBox(height: 10),
 
@@ -151,9 +190,10 @@ class _StorageDataScreenState extends State<StorageDataScreen> {
                   _autoDownloadCard(
                     card, textPrimary, textSecondary, textMuted, border,
                     'Audio',
-                    _audioWifi, _audioCellular,
+                    _audioWifi, _audioCellular, _audioRoaming,
                     (v) { setState(() => _audioWifi = v); _setPref('auto_dl_audio_wifi', v); },
                     (v) { setState(() => _audioCellular = v); _setPref('auto_dl_audio_cellular', v); },
+                    (v) { setState(() => _audioRoaming = v); _setPref('auto_dl_audio_roaming', v); },
                   ),
                   const SizedBox(height: 10),
 
@@ -161,9 +201,10 @@ class _StorageDataScreenState extends State<StorageDataScreen> {
                   _autoDownloadCard(
                     card, textPrimary, textSecondary, textMuted, border,
                     'Documents',
-                    _docsWifi, _docsCellular,
+                    _docsWifi, _docsCellular, _docsRoaming,
                     (v) { setState(() => _docsWifi = v); _setPref('auto_dl_docs_wifi', v); },
                     (v) { setState(() => _docsCellular = v); _setPref('auto_dl_docs_cellular', v); },
+                    (v) { setState(() => _docsRoaming = v); _setPref('auto_dl_docs_roaming', v); },
                   ),
 
                   const SizedBox(height: 20),
@@ -210,9 +251,10 @@ class _StorageDataScreenState extends State<StorageDataScreen> {
   Widget _autoDownloadCard(
     Color card, Color textPrimary, Color textSecondary, Color textMuted, Color border,
     String label,
-    String wifiValue, String cellularValue,
+    String wifiValue, String cellularValue, String roamingValue,
     ValueChanged<String> onWifiChanged,
     ValueChanged<String> onCellularChanged,
+    ValueChanged<String> onRoamingChanged,
   ) {
     return Container(
       decoration: BoxDecoration(
@@ -231,7 +273,7 @@ class _StorageDataScreenState extends State<StorageDataScreen> {
               size: 24,
             ),
             title: Text(label, style: TextStyle(color: textPrimary, fontSize: 16)),
-            subtitle: Text('Wi-Fi: $wifiValue  ·  Cellular: $cellularValue',
+            subtitle: Text('Wi-Fi: $wifiValue  ·  Cellular: $cellularValue  ·  Roaming: $roamingValue',
                 style: TextStyle(color: textSecondary, fontSize: 13)),
           ),
           Divider(height: 1, indent: 16, color: border),
@@ -240,6 +282,17 @@ class _StorageDataScreenState extends State<StorageDataScreen> {
           Divider(height: 1, indent: 16, color: border),
           // Cellular toggle row
           _downloadToggleRow('When using cellular', cellularValue, onCellularChanged, textPrimary, textSecondary),
+          Divider(height: 1, indent: 16, color: border),
+          // Roaming toggle row
+          _downloadToggleRow('When roaming', roamingValue, onRoamingChanged, textPrimary, textSecondary),
+          if (label == 'Videos' && roamingValue == 'On')
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+              child: Text(
+                'Warning: Automatic video download while roaming may result in higher than expected carrier charges. Be careful!',
+                style: TextStyle(color: Colors.orange[800], fontSize: 12, height: 1.4),
+              ),
+            ),
         ],
       ),
     );

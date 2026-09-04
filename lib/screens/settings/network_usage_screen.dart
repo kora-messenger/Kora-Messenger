@@ -65,7 +65,7 @@ class _NetworkUsageScreenState extends State<NetworkUsageScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: KoraColors.cardFor(Theme.of(context).brightness),
-        title: Text('Reset network usage?',
+        title: Text('Reset network usage statistics?',
             style: TextStyle(color: KoraColors.textPrimaryFor(Theme.of(context).brightness))),
         content: Text('This will reset all network usage statistics to zero.',
             style: TextStyle(

@@ -349,7 +349,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
                 // Name
                 _buildField(
-                  label: 'Name',
+                  label: 'Your name',
+                  placeholder: 'Your name',
                   controller: _nameController,
                   card: card,
                   textPrimary: textPrimary,
@@ -372,7 +373,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
                 // Bio
                 _buildField(
-                  label: 'Bio',
+                  label: 'About',
+                  placeholder: 'Add your About',
                   controller: _bioController,
                   maxLines: 3,
                   card: card,
@@ -436,6 +438,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Widget _buildField({
     required String label,
     required TextEditingController controller,
+    String? placeholder,
     String? prefix,
     int maxLines = 1,
     required Color card,
@@ -473,7 +476,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               prefixStyle: TextStyle(color: textMuted, fontSize: 15),
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               border: InputBorder.none,
-              hintText: label,
+              hintText: placeholder ?? label,
               hintStyle: TextStyle(color: textMuted, fontSize: 15),
             ),
           ),

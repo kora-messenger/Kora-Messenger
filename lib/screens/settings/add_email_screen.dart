@@ -162,7 +162,7 @@ class _AddEmailScreenState extends State<AddEmailScreen> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
-          'Add your email',
+          'Add email address',
           style: TextStyle(color: textPrimary, fontSize: 19, fontWeight: FontWeight.w700),
         ),
       ),

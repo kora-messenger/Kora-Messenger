@@ -7,7 +7,8 @@ import '../../config/kora_api.dart';
 class AboutKoraScreen extends StatelessWidget {
   const AboutKoraScreen({super.key});
 
-  static const String _version = '1.0.0';
+  // Synced with pubspec.yaml version. Update both together.
+  static const String _version = '1.0.0 (Build 1)';
 
   Future<void> _launchUrl(String url) async {
     final uri = Uri.parse(url);

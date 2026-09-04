@@ -188,7 +188,7 @@ class _AccountScreenState extends State<AccountScreen> {
                     const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 28),
                     const SizedBox(width: 10),
                     Text(
-                      'Delete Account?',
+                      'Delete my account?',
                       style: TextStyle(
                         color: textPrimary,
                         fontSize: 18,
@@ -653,7 +653,7 @@ class _AccountScreenState extends State<AccountScreen> {
                   children: [
                     Icon(Icons.download_outlined, color: KoraColors.purple, size: 20),
                     const SizedBox(width: 12),
-                    Text('Request Account Info',
+                    Text('Request account info',
                         style: TextStyle(color: textPrimary, fontSize: 14)),
                   ],
                 ),
@@ -664,7 +664,7 @@ class _AccountScreenState extends State<AccountScreen> {
                   children: [
                     const Icon(Icons.delete_forever_outlined, color: Colors.red, size: 20),
                     const SizedBox(width: 12),
-                    Text('Delete Account',
+                    Text('Delete my account',
                         style: TextStyle(color: Colors.red.shade400, fontSize: 14)),
                   ],
                 ),
@@ -703,7 +703,7 @@ class _AccountScreenState extends State<AccountScreen> {
                     context,
                     icon: Icons.shield_outlined,
                     iconColor: KoraColors.purple,
-                    title: '2FA Verification',
+                    title: 'Two-step verification',
                     subtitle: 'Two-factor authentication for extra security',
                     onTap: _openTwoFactor,
                     trailing: Icon(Icons.chevron_right, color: textMuted),
@@ -749,7 +749,7 @@ class _AccountScreenState extends State<AccountScreen> {
                     context,
                     icon: Icons.phone_outlined,
                     iconColor: KoraColors.purple,
-                    title: 'Change Phone Number',
+                    title: 'Change number',
                     subtitle: _session?['phoneNumber']?.toString() ?? 'Not set',
                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PhoneNumberChangeScreen())),
                     trailing: Icon(Icons.chevron_right, color: textMuted),

@@ -117,11 +117,11 @@ class _DevicesScreenState extends State<DevicesScreen> {
         });
       } else {
         setState(() => _terminating.remove(device.id));
-        _showSnack('Could not terminate that session');
+        _showSnack('Could not log out that device');
       }
     } catch (_) {
       setState(() => _terminating.remove(device.id));
-      _showSnack('Could not terminate that session');
+      _showSnack('Could not log out that device');
     }
   }
 
@@ -164,7 +164,7 @@ class _DevicesScreenState extends State<DevicesScreen> {
         backgroundColor: card,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
-          isAll ? 'Terminate all other sessions?' : 'Terminate this session?',
+          isAll ? 'Log out of all other devices?' : 'Log out of this device?',
           style: TextStyle(color: textPrimary, fontSize: 17, fontWeight: FontWeight.w700),
         ),
         content: Text(
@@ -180,7 +180,7 @@ class _DevicesScreenState extends State<DevicesScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Terminate', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w700)),
+            child: const Text('Log out', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -253,7 +253,7 @@ class _DevicesScreenState extends State<DevicesScreen> {
         backgroundColor: bg,
         elevation: 0,
         title: Text(
-          'Devices',
+          'Linked devices',
           style: TextStyle(color: textPrimary, fontSize: 18, fontWeight: FontWeight.w700),
         ),
         leading: IconButton(
@@ -324,7 +324,7 @@ class _DevicesScreenState extends State<DevicesScreen> {
                               onPressed: _terminateAllOthers,
                               icon: const Icon(Icons.logout_rounded, color: Colors.redAccent, size: 20),
                               label: const Text(
-                                'Terminate all other sessions',
+                                'Log out of all other devices',
                                 style: TextStyle(color: Colors.redAccent, fontSize: 15, fontWeight: FontWeight.w600),
                               ),
                               style: TextButton.styleFrom(
@@ -521,7 +521,8 @@ class _DevicesScreenState extends State<DevicesScreen> {
                         children: [
                           Container(width: 6, height: 6, decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle)),
                           const SizedBox(width: 6),
-                          Text('Online', style: TextStyle(color: Colors.green.shade300, fontSize: 11, fontWeight: FontWeight.w600)),
+                          Text('This device',
+                              style: TextStyle(color: Colors.green.shade300, fontSize: 11, fontWeight: FontWeight.w600)),
                         ],
                       ),
                     ),
