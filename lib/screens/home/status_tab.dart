@@ -720,7 +720,8 @@ class _StatusTabState extends State<StatusTab> {
                     Padding(
                       padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
                       child: Text(
-                        'No status updates yet. Contacts\' status updates will appear here.',
+                        // Exact string from the reference APK (2.26.32.83)
+                        'New statuses will appear here',
                         style: TextStyle(color: textSecondary, fontSize: 13.5, height: 1.4),
                       ),
                     ),

@@ -255,39 +255,11 @@ class _CallsTabState extends State<CallsTab> {
                                 );
                               }),
                             ] else if (!_loading && _query.isEmpty)
-                              // Empty state — the reference app's exact
-                              // treatment: outlined circle + phone icon,
-                              // "No calls yet", and a muted subtitle.
-                              Padding(
-                                padding: const EdgeInsets.fromLTRB(20, 36, 20, 8),
-                                child: Column(
-                                  children: [
-                                    Container(
-                                      width: 88, height: 88,
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        border: Border.all(color: border, width: 1.5),
-                                      ),
-                                      child: Icon(Icons.call_outlined, size: 36, color: textSecondary),
-                                    ),
-                                    const SizedBox(height: 16),
-                                    Text(
-                                      'No calls yet',
-                                      style: TextStyle(
-                                        color: textPrimary,
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    Text(
-                                      "Contacts' calls to you will appear here. To make a call, tap the + button below.",
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(color: textSecondary, fontSize: 13, height: 1.4),
-                                    ),
-                                  ],
-                                ),
-                              ),
+                              // No empty-state text here — the current
+                              // reference build shows no "No calls yet"
+                              // text; the Start a call contact section
+                              // below fills the empty history.
+                              const SizedBox.shrink(),
                             const SizedBox(height: 8),
                             if (_startCallHidden)
                               _buildEncryptedNote(textSecondary)
