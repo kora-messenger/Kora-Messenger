@@ -81,15 +81,15 @@ class LocationPlugin(private val context: Context) : MethodChannel.MethodCallHan
         // 2. Otherwise request one fresh fix (with a timeout).
         var settled = false
         var listener: LocationListener? = null
-        val finish: (Location?) -> Unit = { loc ->
+        fun finish(loc: Location?) {
             val alreadySettled = synchronized(this) {
                 if (settled) return@synchronized true
                 settled = true
                 false
             }
-            if (alreadySettled) return@finish
+            if (alreadySettled) return
             try {
-                lm.removeUpdates(listener)
+                listener?.let { lm.removeUpdates(it) }
             } catch (_: Exception) {}
             if (loc != null) result.success(payload(loc))
             else result.error("unavailable", "No location available. Make sure location services are on.", null)
@@ -105,7 +105,7 @@ class LocationPlugin(private val context: Context) : MethodChannel.MethodCallHan
         for (provider in listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER)) {
             try {
                 if (lm.isProviderEnabled(provider)) {
-                    lm.requestLocationUpdates(provider, 0L, 0f, listener, Looper.getMainLooper())
+                    lm.requestLocationUpdates(provider, 0L, 0f, listener!!, Looper.getMainLooper())
                     requested = true
                 }
             } catch (_: SecurityException) {
@@ -128,7 +128,7 @@ class LocationPlugin(private val context: Context) : MethodChannel.MethodCallHan
                 }
             }
             if (alreadySettled) return@postDelayed
-            try { lm.removeUpdates(listener) } catch (_: Exception) {}
+            try { listener?.let { lm.removeUpdates(it) } } catch (_: Exception) {}
             if (best != null) result.success(payload(best))
             else result.error("timeout", "Could not get a location fix in time.", null)
         }, FRESH_TIMEOUT_MS)
