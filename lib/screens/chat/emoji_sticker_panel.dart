@@ -479,7 +479,7 @@ class _KoraEmojiPanelState extends State<KoraEmojiPanel>
           decoration: InputDecoration(
             // Exact hints from the reference APK: a single shared
             // hint for emoji/stickers; plain 'Search' for GIFs.
-            hintText: _activeTab == _PanelTab.gifs
+            hintText: _activeTab == _PanelTab.gif
                 ? 'Search'
                 : 'Search emoji and stickers',
             hintStyle: TextStyle(color: KoraColors.textMutedFor(brightness), fontSize: 14),
