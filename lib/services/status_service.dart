@@ -264,6 +264,7 @@ class StatusService {
             backgroundColor: const Color(0xFF22C55E),
             textColor: Colors.white,
             createdAt: DateTime.now().subtract(const Duration(hours: 5)),
+            isReshared: true,
           ),
         ],
         lastUpdatedAt: DateTime.now().subtract(const Duration(hours: 5)),

@@ -14,6 +14,7 @@ import '../status/status_audience_selector.dart';
 import '../chat/kora_media_editor_screen.dart';
 import '../status/text_status_screen.dart';
 import '../status/status_viewer_screen.dart';
+import '../status/my_status_list_screen.dart';
 import '../status/status_layout_screen.dart';
 import '../status/status_privacy_screen.dart';
 import '../channel_landing_screen.dart';
@@ -260,28 +261,31 @@ class _StatusTabState extends State<StatusTab> {
 
   // ── Status viewing ─────────────────────────────────────────────
 
-  void _openMyStatus() {
+  void _openMyStatus() async {
     final items = StatusService.instance.myStatusItems;
     if (items.isEmpty) {
       // WhatsApp: tapping an empty My status jumps straight to the camera.
       _captureFromCamera();
       return;
     }
-    final status = KoraStatus(
-      id: 'my_status',
-      userEmail: _liveSession?['email'] ?? '',
-      username: _liveSession?['username'] ?? '',
-      fullName: _liveSession?['fullName'] ?? 'You',
-      avatarUrl: _liveSession?['avatarUrl'],
-      items: items,
-      lastUpdatedAt: items.last.createdAt,
-      privacy: StatusService.instance.privacy,
-    );
-    Navigator.of(context).push(
+    // WhatsApp: "My status" opens an intermediate list of your posted
+    // items (each with its own view count) before the full viewer.
+    final action = await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => StatusViewerScreen(status: status, isMyStatus: true),
+        builder: (_) => MyStatusListScreen(
+          fullName: _liveSession?['fullName'] ?? 'You',
+          avatarUrl: _liveSession?['avatarUrl'],
+          userEmail: _liveSession?['email'],
+          username: _liveSession?['username'],
+        ),
       ),
-    ).then((_) => _refresh());
+    );
+    if (action == 'text') {
+      _openTextStatus();
+    } else if (action == 'camera') {
+      _captureFromCamera();
+    }
+    _refresh();
   }
 
   void _openContactStatus(KoraStatus status) {
@@ -613,7 +617,6 @@ class _StatusTabState extends State<StatusTab> {
     final viewedStatuses = allStatuses.where((s) => s.isViewed && !s.isMuted).toList();
     final mutedUpdates = allStatuses.where((s) => s.isMuted).toList();
     final followed = _suggestions.where((s) => s.following).toList();
-    final notFollowing = _suggestions.where((s) => !s.following).toList();
 
     return Scaffold(
       backgroundColor: bg,
@@ -621,7 +624,7 @@ class _StatusTabState extends State<StatusTab> {
         bottom: false,
         child: Column(
           children: [
-            // Header — WhatsApp Updates tab: title + camera icon.
+            // Header — WhatsApp Updates tab: title + search + 3-dot.
             // The 3-dot keeps Kora's extras (triggers, privacy, music,
             // cross-posting) reachable.
             Padding(
@@ -632,9 +635,11 @@ class _StatusTabState extends State<StatusTab> {
                     style: TextStyle(color: textPrimary, fontSize: 24, fontWeight: FontWeight.w800)),
                   const Spacer(),
                   IconButton(
-                    icon: Icon(Icons.photo_camera_outlined, color: textPrimary, size: 24),
-                    tooltip: 'Camera',
-                    onPressed: _captureFromCamera,
+                    icon: Icon(Icons.search, color: textPrimary, size: 24),
+                    tooltip: 'Search',
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const ChannelLandingScreen()),
+                    ),
                   ),
                   IconButton(
                     icon: Icon(Icons.more_vert, color: textPrimary, size: 22),
@@ -663,37 +668,80 @@ class _StatusTabState extends State<StatusTab> {
                     _sectionLabel('Muted updates', textMuted),
                     _buildMutedRow(mutedUpdates, textSecondary),
                   ],
-                  // Channels — WhatsApp: "Channels" label with a "+"
-                  // to find channels, followed channels with preview +
-                  // time + unread pill, then the Find channels row.
+                  // Channels — WhatsApp's real pattern: "Channels" header
+                  // with an "Explore" pill. Followed channels show with a
+                  // last-update preview, time, and unread pill. With
+                  // nothing followed, just the short explainer text —
+                  // no suggestion tiles or search row on the main tab.
                   _channelsHeader(textPrimary, textSecondary),
-                  ...followed.map((s) => _followedChannelTile(s, textPrimary, textSecondary)),
-                  _findChannelsRow(surface, textSecondary),
-                  if (notFollowing.isNotEmpty) ...[
-                    ...notFollowing.map((s) => _channelTile(s, textPrimary, textSecondary)),
-                    _pillButton(
-                      icon: Icons.grid_view_rounded,
-                      label: 'Explore more',
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const ChannelLandingScreen()),
+                  if (followed.isNotEmpty)
+                    ...followed.map((s) => _followedChannelTile(s, textPrimary, textSecondary))
+                  else
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                      child: Text(
+                        'Stay updated on topics that matter to you. The channels you follow will appear here.',
+                        style: TextStyle(color: textSecondary, fontSize: 13.5, height: 1.4),
                       ),
                     ),
-                  ],
                 ],
               ),
             ),
           ],
         ),
       ),
-      // FAB — WhatsApp: a single pencil that opens the text editor.
-      floatingActionButton: GestureDetector(
-        onLongPress: _openCreationSheet,
-        child: FloatingActionButton(
-          onPressed: _openTextStatus,
-          backgroundColor: KoraColors.purple,
-          elevation: 4,
-          child: const Icon(Icons.edit, color: Colors.white, size: 24),
-        ),
+      // FAB — WhatsApp's real double FAB: pencil (text status) above
+      // camera (with a small "+" badge, opens the status camera directly).
+      // Long-press the camera FAB for Kora's full creation sheet
+      // (Camera / Gallery / Layout).
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 46, height: 46,
+            margin: const EdgeInsets.only(bottom: 14),
+            decoration: BoxDecoration(color: surface, shape: BoxShape.circle),
+            child: IconButton(
+              icon: Icon(Icons.edit_outlined, color: textPrimary, size: 20),
+              onPressed: _openTextStatus,
+            ),
+          ),
+          GestureDetector(
+            onLongPress: _openCreationSheet,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: KoraColors.brandGradient,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(color: KoraColors.purple.withValues(alpha: 0.35), blurRadius: 16, offset: const Offset(0, 6)),
+                ],
+              ),
+              child: FloatingActionButton(
+                onPressed: _captureFromCamera,
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    const Icon(Icons.photo_camera, color: Colors.white, size: 24),
+                    Positioned(
+                      bottom: -2, right: -4,
+                      child: Container(
+                        width: 15, height: 15,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: KoraColors.purple, width: 1.5),
+                        ),
+                        child: const Icon(Icons.add, color: KoraColors.purple, size: 10),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -883,36 +931,6 @@ class _StatusTabState extends State<StatusTab> {
     );
   }
 
-  Widget _findChannelsRow(Color surface, Color textSecondary) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-      child: GestureDetector(
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const ChannelLandingScreen()),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 44, height: 44,
-              decoration: BoxDecoration(
-                color: surface,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: textSecondary.withValues(alpha: 0.2), width: 0.5),
-              ),
-              child: Icon(Icons.search, color: textSecondary, size: 22),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Text('Find channels to follow',
-                  style: TextStyle(color: textSecondary, fontSize: 15)),
-            ),
-            Icon(Icons.chevron_right, color: textSecondary, size: 22),
-          ],
-        ),
-      ),
-    );
-  }
-
   /// Followed channel row — WhatsApp style: avatar, bold name, last
   /// update preview, timestamp, and an unread-count pill on the right.
   Widget _followedChannelTile(_ChannelSuggestion s, Color textPrimary, Color textSecondary) {
@@ -955,56 +973,6 @@ class _StatusTabState extends State<StatusTab> {
     );
   }
 
-  Widget _channelTile(_ChannelSuggestion s, Color textPrimary, Color textSecondary) {
-    return ListTile(
-      leading: Container(
-        width: 48, height: 48,
-        decoration: BoxDecoration(
-          color: s.color,
-          borderRadius: BorderRadius.circular(24),
-        ),
-        child: Icon(s.icon, color: Colors.white, size: 24),
-      ),
-      title: Text(s.name, style: TextStyle(color: textPrimary, fontSize: 15, fontWeight: FontWeight.w600)),
-      subtitle: Text(s.followers, style: TextStyle(color: textSecondary, fontSize: 13)),
-      trailing: TextButton(
-        onPressed: () => setState(() => s.following = true),
-        style: TextButton.styleFrom(
-          backgroundColor: KoraColors.purple.withValues(alpha: 0.1),
-        ),
-        child: Text('Follow', style: TextStyle(color: KoraColors.purple, fontSize: 13, fontWeight: FontWeight.w600)),
-      ),
-    );
-  }
-
-  Widget _pillButton({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    final brightness = Theme.of(context).brightness;
-    final textPrimary = KoraColors.textPrimaryFor(brightness);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 4, 20, 4),
-      child: GestureDetector(
-        onTap: onTap,
-        child: Row(
-          children: [
-            Container(
-              width: 44, height: 44,
-              decoration: BoxDecoration(
-                color: KoraColors.purple.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: KoraColors.purple, size: 22),
-            ),
-            const SizedBox(width: 16),
-            Text(label, style: TextStyle(color: textPrimary, fontSize: 15, fontWeight: FontWeight.w500)),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 class _ChannelSuggestion {

@@ -33,6 +33,8 @@ class StatusItem {
   final int likeCount;
   final int replyCount;
   final bool isDeleted;
+  final bool isReshared;
+  final String? resharedFromName;
 
   StatusItem({
     required this.id,
@@ -53,6 +55,8 @@ class StatusItem {
     this.likeCount = 0,
     this.replyCount = 0,
     this.isDeleted = false,
+    this.isReshared = false,
+    this.resharedFromName,
   }) : viewedBy = viewedBy ?? [];
 
   DateTime get expiresAt => createdAt.add(const Duration(hours: 24));
@@ -76,6 +80,8 @@ class StatusItem {
     int? likeCount,
     int? replyCount,
     bool? isDeleted,
+    bool? isReshared,
+    String? resharedFromName,
   }) {
     return StatusItem(
       id: id ?? this.id,
@@ -96,6 +102,8 @@ class StatusItem {
       likeCount: likeCount ?? this.likeCount,
       replyCount: replyCount ?? this.replyCount,
       isDeleted: isDeleted ?? this.isDeleted,
+      isReshared: isReshared ?? this.isReshared,
+      resharedFromName: resharedFromName ?? this.resharedFromName,
     );
   }
 
@@ -118,6 +126,8 @@ class StatusItem {
       'likeCount': likeCount,
       'replyCount': replyCount,
       'isDeleted': isDeleted,
+      'isReshared': isReshared,
+      'resharedFromName': resharedFromName,
     };
   }
 
@@ -149,6 +159,8 @@ class StatusItem {
       likeCount: json['likeCount'] as int? ?? 0,
       replyCount: json['replyCount'] as int? ?? 0,
       isDeleted: json['isDeleted'] as bool? ?? false,
+      isReshared: json['isReshared'] as bool? ?? false,
+      resharedFromName: json['resharedFromName'] as String?,
     );
   }
 }

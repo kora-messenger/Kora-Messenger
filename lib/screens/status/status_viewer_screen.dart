@@ -21,11 +21,13 @@ import '../../widgets/kora_avatar.dart';
 class StatusViewerScreen extends StatefulWidget {
   final KoraStatus status;
   final bool isMyStatus;
+  final int initialIndex;
 
   const StatusViewerScreen({
     super.key,
     required this.status,
     this.isMyStatus = false,
+    this.initialIndex = 0,
   });
 
   @override
@@ -38,7 +40,8 @@ class _StatusViewerScreenState extends State<StatusViewerScreen>
   int _currentIndex = 0;
   bool _isPaused = false;
   Timer? _timer;
-  bool _showReplyBar = false;
+  final TextEditingController _replyController = TextEditingController();
+  final FocusNode _replyFocusNode = FocusNode();
 
   // Animation for progress bars
   late AnimationController _animController;
@@ -50,13 +53,20 @@ class _StatusViewerScreenState extends State<StatusViewerScreen>
   @override
   void initState() {
     super.initState();
-    _currentIndex = 0;
-    _pageController = PageController(initialPage: 0);
+    _currentIndex = widget.initialIndex.clamp(0, widget.status.items.length - 1);
+    _pageController = PageController(initialPage: _currentIndex);
     _animController = AnimationController(
       vsync: this,
       duration: _textDuration,
     );
     _startPlayback();
+    _replyFocusNode.addListener(() {
+      if (_replyFocusNode.hasFocus) {
+        _pausePlayback();
+      } else if (_replyController.text.isEmpty) {
+        _resumePlayback();
+      }
+    });
   }
 
   @override
@@ -64,6 +74,8 @@ class _StatusViewerScreenState extends State<StatusViewerScreen>
     _timer?.cancel();
     _animController.dispose();
     _pageController.dispose();
+    _replyController.dispose();
+    _replyFocusNode.dispose();
     super.dispose();
   }
 
@@ -95,20 +107,15 @@ class _StatusViewerScreenState extends State<StatusViewerScreen>
 
   void _resumePlayback() {
     if (_isPaused) {
-      setState(() {
-        _isPaused = false;
-        _showReplyBar = false;
-      });
+      setState(() => _isPaused = false);
       _animController.forward();
     }
   }
 
   void _nextItem() {
     if (_currentIndex < widget.status.items.length - 1) {
-      setState(() {
-        _currentIndex++;
-        _showReplyBar = false;
-      });
+      _replyController.clear();
+      setState(() => _currentIndex++);
       _pageController.nextPage(
         duration: const Duration(milliseconds: 250),
         curve: Curves.easeInOut,
@@ -122,10 +129,8 @@ class _StatusViewerScreenState extends State<StatusViewerScreen>
 
   void _previousItem() {
     if (_currentIndex > 0) {
-      setState(() {
-        _currentIndex--;
-        _showReplyBar = false;
-      });
+      _replyController.clear();
+      setState(() => _currentIndex--);
       _pageController.previousPage(
         duration: const Duration(milliseconds: 250),
         curve: Curves.easeInOut,
@@ -144,15 +149,6 @@ class _StatusViewerScreenState extends State<StatusViewerScreen>
     _nextItem();
   }
 
-  void _toggleReplyBar() {
-    setState(() => _showReplyBar = !_showReplyBar);
-    if (_showReplyBar) {
-      _pausePlayback();
-    } else {
-      _resumePlayback();
-    }
-  }
-
   void _react(int emojiCodePoint) {
     // Send emoji reaction
     if (!widget.isMyStatus) {
@@ -163,7 +159,14 @@ class _StatusViewerScreenState extends State<StatusViewerScreen>
       );
     }
     HapticFeedback.lightImpact();
-    _nextItem();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Reacted to ${widget.status.fullName}\'s status'),
+        backgroundColor: KoraColors.purple,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 1),
+      ),
+    );
   }
 
   void _sendReply(String reply) {
@@ -175,7 +178,9 @@ class _StatusViewerScreenState extends State<StatusViewerScreen>
         reply.trim(),
       );
     }
-    Navigator.of(context).pop();
+    _replyController.clear();
+    _replyFocusNode.unfocus();
+    _resumePlayback();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Reply sent to ${widget.status.fullName}'),
@@ -277,9 +282,16 @@ class _StatusViewerScreenState extends State<StatusViewerScreen>
             }),
           ),
           const SizedBox(height: 12),
-          // User info row
+          // User info row — back arrow, avatar, name + time (+ reshared tag), 3-dot
           Row(
             children: [
+              IconButton(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                icon: const Icon(Icons.arrow_back, color: Colors.white, size: 22),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+              const SizedBox(width: 6),
               KoraAvatar(
                 name: widget.status.fullName,
                 imageUrl: widget.status.avatarUrl,
@@ -298,12 +310,25 @@ class _StatusViewerScreenState extends State<StatusViewerScreen>
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    Text(
-                      _formatTime(item.createdAt),
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.6),
-                        fontSize: 12,
-                      ),
+                    Row(
+                      children: [
+                        Text(
+                          _formatTime(item.createdAt),
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.6),
+                            fontSize: 12,
+                          ),
+                        ),
+                        if (item.isReshared) ...[
+                          Text(' • ', style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 12)),
+                          Icon(Icons.repeat, color: Colors.white.withValues(alpha: 0.6), size: 13),
+                          const SizedBox(width: 3),
+                          Text(
+                            'Reshared',
+                            style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 12),
+                          ),
+                        ],
+                      ],
                     ),
                   ],
                 ),
@@ -503,110 +528,92 @@ class _StatusViewerScreenState extends State<StatusViewerScreen>
     );
   }
 
+  /// Persistent bottom bar — WhatsApp's exact Updates viewer pattern:
+  /// a single always-visible reply field with two quick-emoji reactions,
+  /// a reshare icon, and a heart (like) icon in one row. No toggle
+  /// between a reaction grid and a reply field.
   Widget _buildContactFooter(StatusItem item) {
-    if (_showReplyBar) {
-      return _buildReplyInput();
-    }
-
-    // Emoji reaction bar
+    final hasText = _replyController.text.trim().isNotEmpty;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          _emojiReaction(0x1F44D), // 👍
-          _emojiReaction(0x2764), // ❤️
-          _emojiReaction(0x1F606), // 😆
-          _emojiReaction(0x1F622), // 😢
-          _emojiReaction(0x1F44F), // 👏
-          _emojiReaction(0x1F680), // 🚀
-          const SizedBox(width: 8),
-          GestureDetector(
-            onTap: _toggleReplyBar,
+          Expanded(
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              constraints: const BoxConstraints(minHeight: 44),
+              padding: const EdgeInsets.symmetric(horizontal: 6),
               decoration: BoxDecoration(
-                color: Colors.white24,
+                color: Colors.white.withValues(alpha: 0.14),
                 borderRadius: BorderRadius.circular(24),
               ),
               child: Row(
-                mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.reply, color: Colors.white70, size: 18),
-                  const SizedBox(width: 6),
-                  const Text('Reply', style: TextStyle(color: Colors.white70, fontSize: 14)),
+                  Expanded(
+                    child: TextField(
+                      controller: _replyController,
+                      focusNode: _replyFocusNode,
+                      style: const TextStyle(color: Colors.white, fontSize: 15),
+                      decoration: InputDecoration(
+                        hintText: 'Reply',
+                        hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 15),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                      ),
+                      onChanged: (_) => setState(() {}),
+                      onSubmitted: _sendReply,
+                    ),
+                  ),
+                  if (hasText)
+                    GestureDetector(
+                      onTap: () => _sendReply(_replyController.text),
+                      child: Container(
+                        width: 32, height: 32,
+                        margin: const EdgeInsets.only(right: 4),
+                        decoration: const BoxDecoration(
+                          gradient: KoraColors.brandGradient,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.send, color: Colors.white, size: 15),
+                      ),
+                    )
+                  else ...[
+                    _quickEmojiButton(0x1F60D), // 😍
+                    _quickEmojiButton(0x1F602), // 😂
+                  ],
                 ],
               ),
             ),
           ),
+          const SizedBox(width: 10),
+          _footerIconButton(Icons.repeat, onTap: () => _forwardToChat(item)),
+          const SizedBox(width: 6),
+          _footerIconButton(Icons.favorite_border, onTap: () => _react(0x2764)),
         ],
       ),
     );
   }
 
-  Widget _emojiReaction(int codePoint) {
+  Widget _quickEmojiButton(int codePoint) {
     return GestureDetector(
       onTap: () => _react(codePoint),
-      child: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: Colors.white12,
-          shape: BoxShape.circle,
-        ),
-        child: Center(
-          child: Text(
-            String.fromCharCode(codePoint),
-            style: const TextStyle(fontSize: 22),
-          ),
-        ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 5),
+        child: Text(String.fromCharCode(codePoint), style: const TextStyle(fontSize: 20)),
       ),
     );
   }
 
-  Widget _buildReplyInput() {
-    final controller = TextEditingController();
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
-      child: Row(
-        children: [
-          IconButton(
-            icon: Icon(Icons.close, color: Colors.white.withValues(alpha: 0.7), size: 20),
-            onPressed: _toggleReplyBar,
-          ),
-          Expanded(
-            child: TextField(
-              controller: controller,
-              style: const TextStyle(color: Colors.white, fontSize: 15),
-              decoration: InputDecoration(
-                hintText: 'Reply to ${widget.status.fullName}...',
-                hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 14),
-                filled: true,
-                fillColor: Colors.white12,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(24),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              ),
-              onSubmitted: _sendReply,
-              autofocus: true,
-            ),
-          ),
-          const SizedBox(width: 8),
-          GestureDetector(
-            onTap: () => _sendReply(controller.text),
-            child: Container(
-              width: 44,
-              height: 44,
-              decoration: const BoxDecoration(
-                gradient: KoraColors.brandGradient,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.send, color: Colors.white, size: 18),
-            ),
-          ),
-        ],
+  Widget _footerIconButton(IconData icon, {required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 44, height: 44,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.14),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: Colors.white, size: 20),
       ),
     );
   }
