@@ -19,7 +19,7 @@ const userSchema = new mongoose.Schema(
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     passwordHash: { type: String, default: '' },
     fullName: { type: String, default: '' },
-    username: { type: String, unique: true, sparse: true, trim: true },
+    username: { type: String, sparse: true, trim: true },
     koraId: { type: String, required: true, unique: true },
     bio: { type: String, default: '' },
     avatarUrl: { type: String, default: '' },
@@ -39,7 +39,7 @@ const userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-userSchema.index({ username: 1 }, { collation: { locale: 'en', strength: 2 } });
+userSchema.index({ username: 1 }, { unique: true, sparse: true, collation: { locale: 'en', strength: 2 } });
 
 // Shape the app expects in KoraUserSession.fromMap / saveSession.
 userSchema.methods.toClient = function toClient() {
