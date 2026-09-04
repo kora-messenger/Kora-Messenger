@@ -263,7 +263,7 @@ class _ProfileTabState extends State<ProfileTab> {
               context,
               icon: Icons.chat_bubble_outline,
               title: 'Chats',
-              subtitle: 'Display, archived chats, history, media, backup',
+              subtitle: 'Theme, wallpapers, chat history',
               screen: const ChatSettingsScreen(),
             ),
             _appearanceTile(context),
@@ -279,7 +279,7 @@ class _ProfileTabState extends State<ProfileTab> {
               icon: Icons.storage_outlined,
               iconColor: KoraColors.purple,
               title: 'Storage and data',
-              subtitle: 'Manage storage, network usage, auto-download',
+              subtitle: 'Network usage, auto-download',
               screen: const StorageDataScreen(),
             ),
             _navTile(

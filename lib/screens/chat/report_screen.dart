@@ -40,9 +40,8 @@ class _ReportScreenState extends State<ReportScreen> {
     Navigator.pop(context);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(_alsoBlock
-            ? '${widget.userName} has been reported and blocked'
-            : '${widget.userName} has been reported'),
+        // Exact success string from the reference APK
+        content: Text('Thank you for reporting'),
         backgroundColor: KoraColors.purple,
       ),
     );
@@ -146,7 +145,7 @@ class _ReportScreenState extends State<ReportScreen> {
                         Text('Also block ${widget.userName}',
                             style: TextStyle(
                                 color: textPrimary, fontSize: 15, fontWeight: FontWeight.w500)),
-                        Text('Blocked contacts cannot send you messages or calls.',
+                        Text('People you blocked will no longer be able to call you or send you messages.',
                             style: TextStyle(color: textMuted, fontSize: 12)),
                       ],
                     ),

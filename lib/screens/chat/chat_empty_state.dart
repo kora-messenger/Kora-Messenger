@@ -103,7 +103,7 @@ class ChatEmptyState extends StatelessWidget {
                         ),
                         children: [
                           const TextSpan(
-                            text: 'Messages and calls are end-to-end encrypted. No one outside this chat, not even Kora, can read or listen to them. ',
+                            text: 'Messages and calls are end-to-end encrypted. No one outside of this chat, not even Kora, can read or listen to them. ',
                           ),
                           WidgetSpan(
                             child: GestureDetector(
@@ -114,7 +114,7 @@ class ChatEmptyState extends StatelessWidget {
                                 }
                               },
                               child: Text(
-                                'Learn more',
+                                'Tap to learn more',
                                 style: TextStyle(
                                   color: brightness == Brightness.dark
                                       ? const Color(0xFF6B9BD8)

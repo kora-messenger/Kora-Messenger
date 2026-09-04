@@ -144,7 +144,7 @@ class _QrCodeScreenState extends State<QrCodeScreen>
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('No QR code found in that image'),
+              content: Text('No valid QR code detected'),
               backgroundColor: KoraColors.purple,
               behavior: SnackBarBehavior.floating,
             ),
@@ -176,7 +176,7 @@ class _QrCodeScreenState extends State<QrCodeScreen>
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('QR code reset. Old code will no longer work.'),
+          content: Text('The previous QR code has been reset and a new QR code has been created.'),
           backgroundColor: KoraColors.purple,
           behavior: SnackBarBehavior.floating,
         ),
@@ -198,8 +198,7 @@ class _QrCodeScreenState extends State<QrCodeScreen>
           ),
         ),
         content: Text(
-          'Your current QR code will stop working and a new one will be generated. '
-          'Anyone who had your old code will need the new one to add you.',
+          'Your existing QR code will no longer work.',
           style: TextStyle(
             color: KoraColors.textSecondaryFor(Theme.of(context).brightness),
             fontSize: 14,
@@ -295,7 +294,7 @@ class _QrCodeScreenState extends State<QrCodeScreen>
           username: username.isNotEmpty ? username : null,
           badge: isPremium ? KoraBadgeType.premiumBlue : KoraBadgeType.none,
           isOnline: true,
-          about: 'Hey there! I\'m on Kora.',
+          about: 'Hey there! I am using Kora.',
         ),
       ),
     );
@@ -321,7 +320,7 @@ class _QrCodeScreenState extends State<QrCodeScreen>
 
       await Share.shareXFiles(
         [XFile(file.path)],
-        text: 'Scan my Kora QR code to add me!',
+        text: 'Add me as a contact on Kora.',
       );
     } catch (_) {
       if (mounted) {
@@ -404,8 +403,8 @@ class _QrCodeScreenState extends State<QrCodeScreen>
               labelStyle: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, letterSpacing: 0.6),
               unselectedLabelStyle: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, letterSpacing: 0.6),
               tabs: const [
-                Tab(text: 'MY CODE'),
-                Tab(text: 'SCAN CODE'),
+                Tab(text: 'My code'),
+                Tab(text: 'Scan code'),
               ],
             ),
           ),

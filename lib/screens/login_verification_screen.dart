@@ -431,7 +431,7 @@ class _LoginVerificationScreenState extends State<LoginVerificationScreen>
                   GestureDetector(
                     onTap: () => Navigator.of(context).pop(),
                     child: const Text(
-                      'Change',
+                      'Wrong email?',
                       style: TextStyle(color: KoraColors.purple, fontSize: 13, fontWeight: FontWeight.w600),
                     ),
                   ),
@@ -567,7 +567,7 @@ class _LoginVerificationScreenState extends State<LoginVerificationScreen>
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Text(
-              "Didn't get the code? ",
+              "Didn't receive code?",
               style: TextStyle(color: Color(0xFFA0A0B8), fontSize: 14),
             ),
             if (_countdown > 0)

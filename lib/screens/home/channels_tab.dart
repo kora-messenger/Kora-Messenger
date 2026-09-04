@@ -183,7 +183,7 @@ class _ChannelsTabState extends State<ChannelsTab> {
                 style: TextStyle(color: textPrimary, fontSize: 20, fontWeight: FontWeight.w700),
                 textAlign: TextAlign.center),
             const SizedBox(height: 10),
-            Text('Communities bring members together in topic-based groups. Create a community to get started.',
+            Text("Communities bring members together in topic-based groups, and make it easy to get admin announcements. Any community you're added to will appear here.",
                 style: TextStyle(color: textSecondary, fontSize: 14, height: 1.5),
                 textAlign: TextAlign.center),
             const SizedBox(height: 32),
@@ -260,7 +260,7 @@ class _ChannelsTabState extends State<ChannelsTab> {
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
               child: GestureDetector(
                 onTap: () => _openCommunity(community),
-                child: Text('View all ${community.groups.length} groups',
+                child: Text('See all ${community.groups.length} groups',
                     style: TextStyle(color: KoraColors.purple, fontSize: 13, fontWeight: FontWeight.w600)),
               ),
             ),
@@ -325,7 +325,7 @@ class _ChannelsTabState extends State<ChannelsTab> {
                 color: KoraColors.purple.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(4),
               ),
-              child: Text('Announcement',
+              child: Text('Announcement group',
                   style: TextStyle(color: KoraColors.purple, fontSize: 10, fontWeight: FontWeight.w600)),
             ),
           Expanded(
@@ -338,7 +338,7 @@ class _ChannelsTabState extends State<ChannelsTab> {
       subtitle: group.lastMessage != null
           ? Text(group.lastMessage!, style: TextStyle(color: textMuted, fontSize: 12),
               maxLines: 1, overflow: TextOverflow.ellipsis)
-          : Text('Tap to start chatting', style: TextStyle(color: textMuted, fontSize: 12)),
+          : Text('Start chatting', style: TextStyle(color: textMuted, fontSize: 12)),
       trailing: group.lastTime != null
           ? Text(group.lastTime!, style: TextStyle(color: textMuted, fontSize: 11))
           : null,

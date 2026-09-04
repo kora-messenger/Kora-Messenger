@@ -24,7 +24,7 @@ class _CommunityPreviewScreenState extends State<CommunityPreviewScreen> {
   List<Map<String, dynamic>> _groups = [
     {
       'name': 'General',
-      'description': '👤+ Add message to start chatting',
+      'description': 'Any new community members will automatically be added here',
       'createdAt': DateTime.now().toString().substring(0, 16),
     },
   ];
@@ -53,7 +53,7 @@ class _CommunityPreviewScreenState extends State<CommunityPreviewScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'New Group',
+                  'New group',
                   style: TextStyle(
                     color: textPrimary,
                     fontSize: 18,
@@ -193,7 +193,7 @@ class _CommunityPreviewScreenState extends State<CommunityPreviewScreen> {
           ListTile(
             leading: Icon(Icons.edit_outlined, color: KoraColors.textPrimaryFor(Theme.of(context).brightness)),
             title: Text(
-              'Edit Community',
+              'Edit community',
               style: TextStyle(color: KoraColors.textPrimaryFor(Theme.of(context).brightness)),
             ),
             onTap: () => Navigator.pop(context),
@@ -201,14 +201,14 @@ class _CommunityPreviewScreenState extends State<CommunityPreviewScreen> {
           ListTile(
             leading: Icon(Icons.share_outlined, color: KoraColors.textPrimaryFor(Theme.of(context).brightness)),
             title: Text(
-              'Share Invite',
+              'Invite to community',
               style: TextStyle(color: KoraColors.textPrimaryFor(Theme.of(context).brightness)),
             ),
             onTap: () => Navigator.pop(context),
           ),
           ListTile(
             leading: Icon(Icons.delete_outline, color: Colors.redAccent),
-            title: const Text('Delete Community', style: TextStyle(color: Colors.redAccent)),
+            title: const Text('Delete community', style: TextStyle(color: Colors.redAccent)),
             onTap: () => Navigator.pop(context),
           ),
           const SizedBox(height: 16),
@@ -364,7 +364,7 @@ class _CommunityPreviewScreenState extends State<CommunityPreviewScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Announcement',
+                                  'Announcement group',
                                   style: TextStyle(
                                     color: textPrimary,
                                     fontSize: 15,
@@ -478,7 +478,7 @@ class _CommunityPreviewScreenState extends State<CommunityPreviewScreen> {
                               Icon(Icons.add, color: Colors.white, size: 22),
                               const SizedBox(width: 8),
                               Text(
-                                'Add Group',
+                                'Add group',
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 15,

@@ -148,7 +148,7 @@ class _SuspensionScreenState extends State<SuspensionScreen> {
 
                 // Title
                 Text(
-                  'Account Suspended',
+                  "This account can't use Kora",
                   style: TextStyle(
                     color: textPrimary,
                     fontSize: 26,
@@ -159,7 +159,7 @@ class _SuspensionScreenState extends State<SuspensionScreen> {
 
                 // Subtitle — community guidelines violation
                 Text(
-                  'You have violated Kora Messenger Community Guidelines. As a result, your account has been suspended.',
+                  "Some activity on your account may not have followed our Terms of Service.",
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: textSecondary,
@@ -236,7 +236,7 @@ class _SuspensionScreenState extends State<SuspensionScreen> {
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  'Your account will be automatically unsuspended after the suspension period ends.',
+                                  "You'll be able to use Kora soon.",
                                   style: TextStyle(
                                     color: textSecondary,
                                     fontSize: 12.5,
@@ -277,7 +277,7 @@ class _SuspensionScreenState extends State<SuspensionScreen> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Your appeal has been received. Please allow up to 24 hours for our team to review your request before your account can be unsuspended.',
+                          'Your review request has been received. Most reviews are completed within 24 hours.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: textSecondary,
@@ -312,8 +312,8 @@ class _SuspensionScreenState extends State<SuspensionScreen> {
                         const SizedBox(height: 8),
                         Text(
                           widget.isPermanent
-                              ? 'Your appeal has been denied. This suspension is permanent.'
-                              : 'Your appeal has been denied. You must wait for your suspension period to expire before your account is reactivated.',
+                              ? "We've completed your review and found this account's activity did not follow our terms of service."
+                              : "We've completed your review and found this account's activity did not follow our terms of service.",
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: textSecondary,
@@ -327,7 +327,7 @@ class _SuspensionScreenState extends State<SuspensionScreen> {
                 ] else ...[
                   // Appeal form
                   Text(
-                    'Believe this is a mistake?',
+                    'You can request a review if you think there has been a mistake.',
                     style: TextStyle(
                       color: textSecondary,
                       fontSize: 14,
@@ -393,7 +393,7 @@ class _SuspensionScreenState extends State<SuspensionScreen> {
                               ),
                             )
                           : const Text(
-                              'Submit Appeal',
+                              'Request a review',
                               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                             ),
                     ),

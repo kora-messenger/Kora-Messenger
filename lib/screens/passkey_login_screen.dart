@@ -97,7 +97,7 @@ class _PasskeyLoginScreenState extends State<PasskeyLoginScreen> {
       if (!available) {
         setState(() {
           _authenticating = false;
-          _errorMessage = 'Biometric authentication is not available on this device.';
+          _errorMessage = "Your device doesn't support passkeys.";
         });
         return;
       }
@@ -146,13 +146,13 @@ class _PasskeyLoginScreenState extends State<PasskeyLoginScreen> {
         } else {
           setState(() {
             _authenticating = false;
-            _errorMessage = result.error ?? 'Passkey login failed. This device may not have a passkey for this account.';
+            _errorMessage = result.error ?? "Couldn't log in with your passkey. Please use another verification method.";
           });
         }
       } else {
         setState(() {
           _authenticating = false;
-          _errorMessage = 'Authentication failed. Please try again.';
+          _errorMessage = 'Something went wrong. Try again later.';
         });
       }
     } catch (e, stack) {
@@ -160,7 +160,7 @@ class _PasskeyLoginScreenState extends State<PasskeyLoginScreen> {
       if (mounted) {
         setState(() {
           _authenticating = false;
-          _errorMessage = 'Authentication error. Please try again.';
+          _errorMessage = 'Something went wrong. Try again later.';
         });
       }
     }
@@ -174,7 +174,7 @@ class _PasskeyLoginScreenState extends State<PasskeyLoginScreen> {
         backgroundColor: KoraColors.trueBlack,
         elevation: 0,
         title: const Text(
-          'Sign in with Passkey',
+          'Use passkey',
           style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
         ),
         leading: IconButton(
@@ -203,7 +203,7 @@ class _PasskeyLoginScreenState extends State<PasskeyLoginScreen> {
                     ),
                     const SizedBox(height: 24),
                     const Text(
-                      'Enter your email and authenticate with your device to sign in instantly.',
+                      'Access Kora the same way you unlock your phone: with your fingerprint, face or screen lock.',
                       textAlign: TextAlign.center,
                       style: TextStyle(color: Color(0xFFA0A0B8), fontSize: 14, height: 1.5),
                     ),
@@ -240,7 +240,7 @@ class _PasskeyLoginScreenState extends State<PasskeyLoginScreen> {
                         child: CircularProgressIndicator(color: KoraColors.purple, strokeWidth: 3),
                       ),
                       const SizedBox(height: 12),
-                      Text('Authenticating...',
+                      Text('Verifying your passkey…',
                         style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 14)),
                     ],
                   )

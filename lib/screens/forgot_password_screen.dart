@@ -26,9 +26,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   }
 
   String? _validateEmail(String? value) {
-    if (value == null || value.trim().isEmpty) return 'Please enter your email';
+    if (value == null || value.trim().isEmpty) return 'Enter your email address';
     if (!RegExp(r'^[\w.+-]+@[\w-]+\.[\w.-]+$').hasMatch(value.trim())) {
-      return 'Please enter a valid email address';
+      return 'Please enter a valid email address.';
     }
     return null;
   }
@@ -89,7 +89,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               children: [
                 const SizedBox(height: 8),
                 const Text(
-                  'Forgot Password',
+                  'Forgot password',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 26,
@@ -99,7 +99,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'Enter your email address and we\'ll send you a verification code to reset your password.',
+                  'We\'ll send a verification code to this email address.',
                   style: TextStyle(color: Color(0xFFA0A0B8), fontSize: 15, height: 1.4),
                 ),
                 if (_errorMessage != null) ...[
@@ -128,7 +128,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 const SizedBox(height: 32),
 
                 KoraInput(
-                  label: 'Email',
+                  label: 'Email Address',
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
                   validator: _validateEmail,
@@ -140,7 +140,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 const SizedBox(height: 28),
 
                 KoraButton(
-                  label: 'Send Code',
+                  label: 'Send code',
                   onPressed: _submit,
                   isLoading: _isLoading,
                 ),

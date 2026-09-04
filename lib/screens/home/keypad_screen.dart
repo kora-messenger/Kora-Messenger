@@ -38,7 +38,7 @@ class _KeypadScreenState extends State<KeypadScreen> {
     if (_dialedNumber.isEmpty) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Calling $_dialedNumber...'),
+        content: Text('Calling $_dialedNumber…'),
         backgroundColor: KoraColors.waGreen,
         behavior: SnackBarBehavior.floating,
       ),

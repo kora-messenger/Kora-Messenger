@@ -296,7 +296,7 @@ class _SelectCountryScreenState extends State<SelectCountryScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Select a country',
+          'Choose a country',
           style: TextStyle(color: textPrimary, fontSize: 19, fontWeight: FontWeight.w700),
         ),
         actions: [

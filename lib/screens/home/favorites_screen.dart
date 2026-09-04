@@ -54,7 +54,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                   const SizedBox(height: 16),
                   Text('No favorites yet', style: TextStyle(color: textMuted, fontSize: 16)),
                   const SizedBox(height: 8),
-                  Text('Tap and hold a contact to add them to favorites', style: TextStyle(color: textMuted, fontSize: 13)),
+                  Text('Tap and hold a contact to add them to Favorites', style: TextStyle(color: textMuted, fontSize: 13)),
                 ],
               ),
             )

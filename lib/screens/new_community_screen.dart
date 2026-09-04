@@ -94,7 +94,7 @@ class _NewCommunityScreenState extends State<NewCommunityScreen> {
                     child: Icon(Icons.arrow_back, color: textPrimary, size: 24),
                   ),
                   const SizedBox(width: 16),
-                  Text('New Community',
+                  Text('New community',
                       style: TextStyle(color: textPrimary, fontSize: 20, fontWeight: FontWeight.w700)),
                 ],
               ),
@@ -128,7 +128,7 @@ class _NewCommunityScreenState extends State<NewCommunityScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    Text('Tap to add photo', style: TextStyle(color: textMuted, fontSize: 13)),
+                    Text('Add photo', style: TextStyle(color: textMuted, fontSize: 13)),
                     const SizedBox(height: 36),
                     // Community name field
                     Container(
@@ -276,7 +276,7 @@ class _AddGroupsScreenState extends State<_AddGroupsScreen> {
                 children: [
                   Icon(Icons.add, color: textPrimary, size: 24),
                   const SizedBox(width: 12),
-                  Text('Add new group',
+                  Text('Create new group',
                       style: TextStyle(color: textPrimary, fontSize: 18, fontWeight: FontWeight.w700)),
                 ],
               ),
@@ -359,7 +359,7 @@ class _AddGroupsScreenState extends State<_AddGroupsScreen> {
                 children: [
                   Icon(Icons.group_outlined, color: textPrimary, size: 24),
                   const SizedBox(width: 12),
-                  Text('Add existing group',
+                  Text('Add existing groups',
                       style: TextStyle(color: textPrimary, fontSize: 18, fontWeight: FontWeight.w700)),
                   const Spacer(),
                   GestureDetector(
@@ -493,7 +493,7 @@ class _AddGroupsScreenState extends State<_AddGroupsScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('Announcement',
+                                Text('Announcement group',
                                     style: TextStyle(color: textPrimary, fontSize: 15, fontWeight: FontWeight.w700)),
                                 Text('Only admins can send messages',
                                     style: TextStyle(color: textSecondary, fontSize: 13)),

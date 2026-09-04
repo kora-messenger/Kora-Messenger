@@ -306,7 +306,7 @@ class _VerificationScreenState extends State<VerificationScreen>
         ),
       );
     } else {
-      setState(() => _errorMessage = result.error ?? 'Invalid verification code');
+      setState(() => _errorMessage = result.error ?? 'The verification code is invalid.');
       _clearInputs();
     }
   }
@@ -394,11 +394,11 @@ class _VerificationScreenState extends State<VerificationScreen>
   String get _title {
     switch (widget.type) {
       case VerificationType.registration:
-        return 'Verify Your Email';
+        return 'Verify your email';
       case VerificationType.login:
-        return 'Verify Your Account';
+        return 'Verify your account';
       case VerificationType.passwordReset:
-        return 'Verify Your Email';
+        return 'Verify your email';
     }
   }
 
@@ -464,7 +464,7 @@ class _VerificationScreenState extends State<VerificationScreen>
                   GestureDetector(
                     onTap: _changeEmail,
                     child: const Text(
-                      'Change',
+                      'Wrong email?',
                       style: TextStyle(color: KoraColors.purple, fontSize: 13, fontWeight: FontWeight.w600),
                     ),
                   ),
@@ -577,7 +577,7 @@ class _VerificationScreenState extends State<VerificationScreen>
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         const Text(
-          "Didn't get the code? ",
+          "Didn't receive code?",
           style: TextStyle(color: Color(0xFFA0A0B8), fontSize: 14),
         ),
         if (_countdown > 0)

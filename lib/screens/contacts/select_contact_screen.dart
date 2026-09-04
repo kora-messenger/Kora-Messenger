@@ -147,7 +147,7 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
           chatId: contact.koraId.isNotEmpty ? contact.koraId : contact.username,
           koraId: contact.koraId.isNotEmpty ? contact.koraId : null,
           username: contact.username.isNotEmpty ? contact.username : null,
-          about: 'Hey there! I\'m on Kora.',
+          about: 'Hey there! I am using Kora.',
           badge: KoraBadgeType.none,
           isOnline: true,
           phone: contact.phoneNumber.isNotEmpty ? contact.phoneNumber : null,
@@ -333,7 +333,7 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
                             const SizedBox(height: 12),
                             Text(
                               _isSearching || _query.isNotEmpty
-                                  ? 'No contacts found'
+                                  ? 'No contacts'
                                   : 'No recently added Kora contacts yet',
                               style: TextStyle(color: textSecondary, fontSize: 14),
                             ),

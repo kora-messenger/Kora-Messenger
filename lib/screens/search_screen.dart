@@ -239,7 +239,7 @@ class _SearchScreenState extends State<SearchScreen> {
     if (!hasResults) {
       return Center(
         child: Text(
-          'No results for "$_query"',
+          'No results found for "$_query"',
           style: TextStyle(color: textSecondary, fontSize: 14),
         ),
       );
@@ -276,7 +276,7 @@ class _SearchScreenState extends State<SearchScreen> {
         // ── Messages section ──
         if (_messageResults.isNotEmpty) ...[
           const SizedBox(height: 16),
-          _sectionHeader(context, 'MESSESSAGES ($_totalMessageHits)'),
+          _sectionHeader(context, 'MESSAGES ($_totalMessageHits)'),
           ..._messageResults.entries.expand((entry) {
             final chatId = entry.key;
             final messages = entry.value;
@@ -285,7 +285,7 @@ class _SearchScreenState extends State<SearchScreen> {
             return messages.map((msg) {
               final snippet = msg.text.isNotEmpty
                   ? msg.text
-                  : (msg.mediaCaption ?? '[${msg.type.name}]');
+                  : (msg.mediaCaption ?? _typeLabel(msg.type));
               return ListTile(
                 leading: KoraAvatar(
                   name: chat?.name ?? chatId,
@@ -332,5 +332,28 @@ class _SearchScreenState extends State<SearchScreen> {
         ),
       ),
     );
+  }
+
+  /// WhatsApp-style labels for non-text search-result snippets.
+  String _typeLabel(KoraMessageType type) {
+    switch (type) {
+      case KoraMessageType.image:
+        return 'Photo';
+      case KoraMessageType.video:
+      case KoraMessageType.videoNote:
+        return 'Video';
+      case KoraMessageType.voice:
+        return 'Voice message';
+      case KoraMessageType.document:
+        return 'Document';
+      case KoraMessageType.contact:
+        return 'Contact';
+      case KoraMessageType.location:
+        return 'Location';
+      case KoraMessageType.sticker:
+        return 'Sticker';
+      default:
+        return 'Message';
+    }
   }
 }

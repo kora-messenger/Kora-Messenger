@@ -158,7 +158,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               const SizedBox(height: 20),
               _sheetOption(
                 icon: Icons.photo_library_outlined,
-                label: 'Choose from Gallery',
+                label: 'Choose from gallery',
                 onTap: () {
                   Navigator.pop(context);
                   _pickFromGallery();
@@ -166,7 +166,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               ),
               _sheetOption(
                 icon: Icons.camera_alt_outlined,
-                label: 'Take Photo',
+                label: 'Take photo',
                 onTap: () {
                   Navigator.pop(context);
                   _pickFromCamera();
@@ -175,7 +175,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               if (_photo != null)
                 _sheetOption(
                   icon: Icons.delete_outline,
-                  label: 'Remove Photo',
+                  label: 'Remove photo',
                   color: Colors.redAccent,
                   onTap: () {
                     Navigator.pop(context);
@@ -252,7 +252,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
   String? _validateName(String? value) {
     if (value == null || value.trim().isEmpty) {
-      return 'Please enter your full name';
+      return 'Enter your name to continue.';
     }
     if (value.trim().length < 2) {
       return 'Name must be at least 2 characters';
@@ -375,7 +375,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
               // Heading
                         Text(
-                'Set Up Your Profile',
+                'Profile info',
                 style: TextStyle(
                   color: _textPrimary,
                   fontSize: 26,
@@ -385,7 +385,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               ),
               const SizedBox(height: 8),
                         Text(
-                'Tell people a little about you. You can change these details later in Settings.',
+                'Please add your name and an optional profile picture.',
                 style: TextStyle(color: _textSecondary, fontSize: 15, height: 1.4),
               ),
               const SizedBox(height: 32),
@@ -395,10 +395,11 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               const SizedBox(height: 32),
 
               // Full name (required)
-              _buildSectionLabel('Full Name', required: true),
+              _buildSectionLabel('Your name', required: true),
               const SizedBox(height: 8),
               KoraInput(
-                label: 'Full Name',
+                label: 'Your name',
+                hintText: 'Type your name here',
                 controller: _nameController,
                 keyboardType: TextInputType.name,
                 validator: _validateName,
@@ -465,7 +466,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               const SizedBox(height: 20),
 
               // Bio (optional)
-              _buildSectionLabel('Bio', required: false),
+              _buildSectionLabel('About', required: false),
               const SizedBox(height: 8),
               _buildBioField(),
               const SizedBox(height: 28),
@@ -580,7 +581,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                 ),
                 const SizedBox(width: 6),
                           Text(
-                  _photo != null ? 'Change Photo' : 'Add Photo',
+                  _photo != null ? 'Change photo' : 'Add photo',
                   style: const TextStyle(
                     color: KoraColors.purple,
                     fontSize: 14,
@@ -775,13 +776,13 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
   Widget _buildBioField() {
     return KoraInput(
-      label: 'Bio',
+      label: 'About',
       controller: _bioController,
       keyboardType: TextInputType.multiline,
       adaptive: true,
       maxLines: 3,
       maxLength: _bioLimit,
-      hintText: 'Write a short description about yourself...',
+      hintText: 'Hey there! I am using Kora.',
       prefixIcon: Padding(
         padding: const EdgeInsets.only(left: 14, right: 10, top: 14),
         child: Icon(Icons.edit_outlined, color: _textMuted, size: 22),

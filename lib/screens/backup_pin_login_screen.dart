@@ -186,7 +186,7 @@ class _BackupPinLoginScreenState extends State<BackupPinLoginScreen> {
     // Confirmation pass
     if (pin != _confirmPin) {
       setState(() {
-        _errorMessage = 'PINs do not match. Please try again.';
+        _errorMessage = 'PINs do not match. Try again.';
         _isConfirming = false;
         _confirmPin = null;
       });
@@ -207,7 +207,7 @@ class _BackupPinLoginScreenState extends State<BackupPinLoginScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Backup encryption PIN set successfully'),
+          content: Text('Your backup PIN has been successfully created'),
           backgroundColor: KoraColors.purple,
           behavior: SnackBarBehavior.floating,
         ),
@@ -245,7 +245,7 @@ class _BackupPinLoginScreenState extends State<BackupPinLoginScreen> {
     } else {
       setState(() {
         _isLoading = false;
-        _errorMessage = 'Incorrect PIN. Please try again.';
+        _errorMessage = 'Incorrect PIN. Try again.';
       });
       _clearInputs();
     }
@@ -334,7 +334,7 @@ class _BackupPinLoginScreenState extends State<BackupPinLoginScreen> {
       } else {
         setState(() {
           _isLoading = false;
-          _errorMessage = result.error ?? 'Login failed. Please try again.';
+          _errorMessage = result.error ?? "Couldn't verify your PIN. Please try again.";
           _autoLoginTriggered = false;
         });
         _clearInputs();
@@ -344,7 +344,7 @@ class _BackupPinLoginScreenState extends State<BackupPinLoginScreen> {
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _errorMessage = 'Something went wrong. Please try again.';
+          _errorMessage = 'Something went wrong. Try again later.';
           _autoLoginTriggered = false;
         });
         _clearInputs();
@@ -361,12 +361,12 @@ class _BackupPinLoginScreenState extends State<BackupPinLoginScreen> {
             : 'Enter Encryption PIN';
 
     final subTitleText = widget.mode == BackupPinMode.login
-        ? 'Enter your email and 6-digit backup PIN to log in.'
+        ? 'Enter your email and 6-digit backup PIN to log in securely.'
         : widget.mode == BackupPinMode.setupEncryption
             ? (_isConfirming
                 ? 'Re-enter your 6-digit PIN to confirm.'
-                : 'Create a 6-digit PIN to secure your encrypted backup. If you lose this PIN, Kora cannot recover your backup.')
-            : 'Enter your 6-digit PIN to verify your identity and decrypt your backup.';
+                : 'Create a 6-digit PIN that only you know. If you forget this PIN and lose your phone, Kora cannot help you recover your backup.')
+            : 'Enter your PIN to verify your identity.';
 
     return Scaffold(
       backgroundColor: KoraColors.trueBlack,
@@ -519,7 +519,7 @@ class _BackupPinLoginScreenState extends State<BackupPinLoginScreen> {
                     ),
                     child: Text(
                       widget.mode == BackupPinMode.login
-                          ? 'Log In'
+                          ? 'Log in securely'
                           : (widget.mode == BackupPinMode.setupEncryption
                               ? (_isConfirming ? 'Confirm PIN' : 'Next')
                               : 'Verify PIN'),

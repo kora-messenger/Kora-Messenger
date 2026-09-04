@@ -29,7 +29,10 @@ class GroupChatInfoScreen extends StatefulWidget {
   final String? avatarAsset;
   final String? avatarUrl;
   final List<GroupParticipant> participants;
-  final DateTime createdAt;
+
+  /// When the group was actually created. Null when unknown —
+  /// the "Created ..." row is hidden rather than showing a fabricated date.
+  final DateTime? createdAt;
   final String? chatId;
 
   const GroupChatInfoScreen({
@@ -39,7 +42,7 @@ class GroupChatInfoScreen extends StatefulWidget {
     this.avatarAsset,
     this.avatarUrl,
     this.participants = const [],
-    required this.createdAt,
+    this.createdAt,
     this.chatId,
   });
 
@@ -184,8 +187,10 @@ class _GroupChatInfoScreenState extends State<GroupChatInfoScreen> {
                       child: Text(widget.groupDescription!, style: TextStyle(color: textSecondary, fontSize: 14), textAlign: TextAlign.center),
                     ),
                   ],
-                  const SizedBox(height: 4),
-                  Text('Created ${_formatDate(widget.createdAt)}', style: TextStyle(color: textMuted, fontSize: 13)),
+                  if (widget.createdAt != null) ...[
+                    const SizedBox(height: 4),
+                    Text('Created ${_formatDate(widget.createdAt!)}', style: TextStyle(color: textMuted, fontSize: 13)),
+                  ],
                 ],
               ),
             ),

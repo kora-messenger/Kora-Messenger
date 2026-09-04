@@ -173,7 +173,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
               // Subtitle
               const Text(
-                'Connect with anyone, anywhere, anytime.',
+                'Connect with friends and family anywhere, anytime.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 15,
@@ -299,7 +299,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                         await launchUrl(uri, mode: LaunchMode.externalApplication);
                       },
                       child: Text(
-                        'Terms & Privacy Policy',
+                        'Terms of Service and Privacy Policy',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 12.5,

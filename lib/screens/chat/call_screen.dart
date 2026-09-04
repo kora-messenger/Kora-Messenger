@@ -313,7 +313,7 @@ class _CallScreenState extends State<CallScreen>
       case 'failed':
         return 'Call failed';
       case 'rejected':
-        return 'Call rejected';
+        return 'Declined';
       case 'ended':
         return 'Call ended';
       default:
@@ -640,7 +640,7 @@ class _CallScreenState extends State<CallScreen>
               const SizedBox(height: 12),
               _overflowItem(
                 icon: Icons.person_add_outlined,
-                label: 'Add Person (${_participants.length}/32)',
+                label: 'Add people',
                 onTap: () {
                   Navigator.pop(ctx);
                   _openAddPersonSheet();
@@ -672,7 +672,7 @@ class _CallScreenState extends State<CallScreen>
               ),
               _overflowItem(
                 icon: Icons.link_rounded,
-                label: 'Call Links',
+                label: 'Call link',
                 onTap: () {
                   Navigator.pop(ctx);
                   _openCallLinkScreen();
@@ -697,7 +697,7 @@ class _CallScreenState extends State<CallScreen>
               ),
               _overflowItem(
                 icon: _noiseSuppression ? Icons.noise_control_off : Icons.graphic_eq_outlined,
-                label: 'Noise Suppression',
+                label: 'Noise cancellation',
                 isActive: _noiseSuppression,
                 onTap: () {
                   Navigator.pop(ctx);
@@ -820,7 +820,7 @@ class _CallScreenState extends State<CallScreen>
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(_noiseSuppression ? 'Noise suppression on' : 'Noise suppression off'),
+          content: Text(_noiseSuppression ? 'Noise cancellation turned on' : 'Noise cancellation turned off'),
           backgroundColor: KoraColors.purple,
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 1),

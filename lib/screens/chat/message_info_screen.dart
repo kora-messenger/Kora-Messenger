@@ -135,7 +135,7 @@ class MessageInfoScreen extends StatelessWidget {
               ),
           ] else ...[
             // Group: list of participants who read it
-            _sectionHeader(context, 'READ BY'),
+            _sectionHeader(context, 'Read by'),
             _infoRow(
               context,
               icon: Icons.done_all,
@@ -148,7 +148,7 @@ class MessageInfoScreen extends StatelessWidget {
                   : KoraColors.textMutedFor(brightness),
             ),
             const SizedBox(height: 16),
-            _sectionHeader(context, 'DELIVERED TO'),
+            _sectionHeader(context, 'Delivered to'),
             _infoRow(
               context,
               icon: Icons.check,

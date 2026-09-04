@@ -281,11 +281,11 @@ class _KoraAiScreenState extends State<KoraAiScreen>
       builder: (ctx) => AlertDialog(
         backgroundColor: KoraColors.darkCard,
         title: Text(
-          'Clear AI chat?',
+          'Clear chat?',
           style: TextStyle(color: KoraColors.textPrimaryFor(Brightness.dark)),
         ),
         content: Text(
-          'This will remove all messages from this conversation.',
+          "All messages in this chat will be deleted. This can't be undone.",
           style: TextStyle(color: KoraColors.textSecondaryFor(Brightness.dark)),
         ),
         actions: [
@@ -340,7 +340,7 @@ class _KoraAiScreenState extends State<KoraAiScreen>
                 Clipboard.setData(ClipboardData(text: content));
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Message copied to clipboard'),
+                    content: Text('Copied to clipboard'),
                     duration: Duration(seconds: 2),
                   ),
                 );
@@ -817,7 +817,7 @@ class _KoraAiScreenState extends State<KoraAiScreen>
                   focusNode: _focusNode,
                   style: const TextStyle(color: Colors.white, fontSize: 15),
                   decoration: InputDecoration(
-                    hintText: 'Ask Kora AI anything...',
+                    hintText: 'Ask Kora AI…',
                     hintStyle: TextStyle(color: KoraColors.hintFor(Brightness.dark)),
                     border: InputBorder.none,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),

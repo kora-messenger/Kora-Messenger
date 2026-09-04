@@ -327,7 +327,7 @@ class _KoraAiScreenV2State extends State<KoraAiScreenV2>
             },
             itemBuilder: (_) => [
               const PopupMenuItem(value: 'new', child: Text('New conversation')),
-              const PopupMenuItem(value: 'clear', child: Text('Clear messages')),
+              const PopupMenuItem(value: 'clear', child: Text('Clear chat')),
             ],
           ),
         ],

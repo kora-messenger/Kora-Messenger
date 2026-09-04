@@ -81,7 +81,7 @@ class _ChatSearchBarState extends State<ChatSearchBar> {
                               onChanged: widget.onQueryChanged,
                               style: TextStyle(color: textPrimary, fontSize: 15),
                               decoration: InputDecoration(
-                                hintText: 'Search in this chat…',
+                                hintText: 'Search',
                                 hintStyle: TextStyle(color: textMuted, fontSize: 14),
                                 border: InputBorder.none,
                                 isDense: true,

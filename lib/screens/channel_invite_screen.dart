@@ -74,7 +74,7 @@ class _ChannelInviteScreenState extends State<ChannelInviteScreen> {
       backgroundColor: bg,
       appBar: AppBar(
         backgroundColor: bg,
-        title: Text('Invite via Link',
+        title: Text('Invite via link',
             style: TextStyle(color: textPrimary, fontSize: 17, fontWeight: FontWeight.w600)),
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: textPrimary),
@@ -148,7 +148,7 @@ class _ChannelInviteScreenState extends State<ChannelInviteScreen> {
                   child: ElevatedButton.icon(
                     onPressed: _copyLink,
                     icon: const Icon(Icons.copy, size: 18),
-                    label: const Text('Copy Link'),
+                    label: const Text('Copy link'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: KoraColors.purple,
                       foregroundColor: Colors.white,
@@ -198,7 +198,7 @@ class _ChannelInviteScreenState extends State<ChannelInviteScreen> {
             TextButton.icon(
               onPressed: _resetLink,
               icon: Icon(Icons.refresh, color: textMuted, size: 18),
-              label: Text('Reset Link', style: TextStyle(color: textMuted, fontSize: 14)),
+              label: Text('Reset link', style: TextStyle(color: textMuted, fontSize: 14)),
             ),
           ] else ...[
             Center(

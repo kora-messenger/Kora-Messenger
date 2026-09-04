@@ -58,7 +58,7 @@ class _BroadcastListScreenState extends State<BroadcastListScreen> {
       appBar: AppBar(
         backgroundColor: bg,
         elevation: 0,
-        title: Text('Broadcast Lists',
+        title: Text('Broadcast lists',
             style: TextStyle(color: textPrimary, fontSize: 17, fontWeight: FontWeight.w600)),
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: textPrimary),

@@ -421,7 +421,7 @@ class _NewContactScreenState extends State<NewContactScreen> {
           children: [
             Expanded(
               child: Text(
-                '$label added to contacts',
+                '$label was added to your contacts',
                 style: const TextStyle(fontSize: 14),
               ),
             ),
@@ -486,7 +486,7 @@ class _NewContactScreenState extends State<NewContactScreen> {
           children: [
             Expanded(
               child: Text(
-                '$label was added to your Kora contact.',
+                '$label was added to your Kora contacts.',
                 style: const TextStyle(fontSize: 14),
               ),
             ),
@@ -566,7 +566,7 @@ class _NewContactScreenState extends State<NewContactScreen> {
               (user['email'] as String?)?.isNotEmpty == true ? user['email'] as String? : null,
           badge: isPremium ? KoraBadgeType.premiumBlue : KoraBadgeType.none,
           isOnline: true,
-          about: 'Hey there! I\'m on Kora.',
+          about: 'Hey there! I am using Kora.',
         ),
       ),
     );
@@ -829,7 +829,7 @@ class _NewContactScreenState extends State<NewContactScreen> {
                   Icon(Icons.person, color: KoraColors.purple, size: 15),
                   const SizedBox(width: 6),
                   Text(
-                    'This person is already in your Kora contact.',
+                    'This person is already in your Kora contacts.',
                     style: TextStyle(
                       color: KoraColors.purple,
                       fontSize: 12.5,
@@ -840,7 +840,7 @@ class _NewContactScreenState extends State<NewContactScreen> {
                   GestureDetector(
                     onTap: () => _viewContactProfile(_matchedUsernameUser!),
                     child: Text(
-                      'View User Contact',
+                      'View contact',
                       style: TextStyle(
                         color: KoraColors.purple,
                         fontSize: 12.5,
@@ -935,7 +935,7 @@ class _NewContactScreenState extends State<NewContactScreen> {
               Icon(Icons.check_circle, color: Colors.green.shade600, size: 15),
               const SizedBox(width: 6),
               Text(
-                'This phone number is on Kora Messenger',
+                'This phone number is on Kora Messenger.',
                 style: TextStyle(
                   color: Colors.green.shade600,
                   fontSize: 12.5,
@@ -951,7 +951,7 @@ class _NewContactScreenState extends State<NewContactScreen> {
                 Icon(Icons.person, color: KoraColors.purple, size: 15),
                 const SizedBox(width: 6),
                 Text(
-                  'This person is already in your Kora contact.',
+                  'This person is already in your Kora contacts.',
                   style: TextStyle(
                     color: KoraColors.purple,
                     fontSize: 12.5,
@@ -962,7 +962,7 @@ class _NewContactScreenState extends State<NewContactScreen> {
                 GestureDetector(
                   onTap: () => _viewContactProfile(_matchedPhoneUser!),
                   child: Text(
-                    'View User Contact',
+                    'View contact',
                     style: TextStyle(
                       color: KoraColors.purple,
                       fontSize: 12.5,

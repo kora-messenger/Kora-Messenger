@@ -92,7 +92,7 @@ class _ForwardMessageScreenState extends State<ForwardMessageScreen> {
         backgroundColor: card, elevation: 0.5,
         leading: IconButton(icon: Icon(Icons.arrow_back, color: textPrimary), onPressed: () => Navigator.pop(context)),
         title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Forward to', style: TextStyle(color: textPrimary, fontSize: 18, fontWeight: FontWeight.w700)),
+          Text('Forward to…', style: TextStyle(color: textPrimary, fontSize: 18, fontWeight: FontWeight.w700)),
           if (_selectedIndices.isNotEmpty) Text('${_selectedIndices.length} selected', style: TextStyle(color: textSecondary, fontSize: 12)),
         ]),
         bottom: PreferredSize(

@@ -771,7 +771,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Copied to clipboard'),
+          content: Text('Message copied'),
           duration: Duration(seconds: 1),
           backgroundColor: KoraColors.purple,
           behavior: SnackBarBehavior.floating,
@@ -1000,14 +1000,19 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
         MaterialPageRoute(
           builder: (_) => GroupChatInfoScreen(
             groupName: widget.name,
-            groupDescription: 'Group description',
+            // Real description/participants aren't modeled yet — show the
+            // honest empty state instead of fabricated placeholder people.
+            groupDescription: '',
             avatarUrl: widget.avatarUrl,
             avatarAsset: widget.avatarAsset,
             participants: [
-              GroupParticipant(name: widget.name, koraId: 'me', isAdmin: true),
-              GroupParticipant(name: 'Member', koraId: 'member1', isAdmin: false),
+              GroupParticipant(
+                name: SessionManager.instance.currentUser?.fullName ?? 'You',
+                koraId: SessionManager.instance.currentUser?.koraId ?? 'me',
+                isAdmin: true,
+              ),
             ],
-            createdAt: DateTime.now().subtract(const Duration(days: 1)),
+            createdAt: null,
             chatId: widget.chatId,
           ),
         ),
@@ -1095,7 +1100,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
     if (mediaMessages.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('No media in this chat yet.'),
+          content: Text('No media in this chat'),
           backgroundColor: KoraColors.purple,
           behavior: SnackBarBehavior.floating,
           duration: Duration(seconds: 2),
@@ -1184,7 +1189,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
                 autofocus: true,
                 onChanged: _doSearch,
                 decoration: InputDecoration(
-                  hintText: 'Search messages...',
+                  hintText: 'Search',
                   hintStyle: TextStyle(color: textSecondary, fontSize: 14),
                   prefixIcon: Icon(Icons.search, color: textSecondary, size: 20),
                   filled: true,
@@ -1300,7 +1305,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Text(
-                      'All messages in this chat will be deleted. This cannot be undone.',
+                      'All messages in this chat will be deleted. This can\'t be undone.',
                       style: TextStyle(color: textSecondary, fontSize: 15, height: 1.4),
                     ),
                   ),
@@ -1409,7 +1414,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  'Report this user for spam or abuse. Kora will review the report and take action if needed. They won\'t know you reported them.',
+                  'The last 5 messages in this chat will be sent to Kora. This person won\'t know you reported or blocked them.',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: textSecondary, fontSize: 13.5, height: 1.4),
                 ),
@@ -1547,7 +1552,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  "This person won't be able to message or call you. They won't know you blocked or reported them.",
+                  "This person won't be able to message or call you.",
                   textAlign: TextAlign.center,
                   style: TextStyle(color: textSecondary, fontSize: 14, height: 1.4),
                 ),
@@ -1577,7 +1582,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  'The last 5 messages in this chat will be sent to Kora.',
+                                  "The last 5 messages in this chat will be sent to Kora. This person won't know you reported or blocked them.",
                                   style: TextStyle(color: textSecondary, fontSize: 12, height: 1.3),
                                 ),
                                 GestureDetector(
@@ -1704,10 +1709,10 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Delete this chat?', style: TextStyle(color: textPrimary, fontSize: 18, fontWeight: FontWeight.w700)),
+              Text('Delete chat?', style: TextStyle(color: textPrimary, fontSize: 18, fontWeight: FontWeight.w700)),
               const SizedBox(height: 10),
               Text(
-                'This will permanently delete all messages in this chat. This cannot be undone.',
+                'All messages in this chat will be permanently deleted.',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: textSecondary, fontSize: 14, height: 1.4),
               ),
@@ -1901,7 +1906,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
               menuOptions: [
                 KoraMenuOption(icon: Icons.person_outline, label: 'Contact info', onTap: () => _showContactInfo()),
                 KoraMenuOption(icon: Icons.search, label: 'Search', onTap: () => _showChatSearch()),
-                KoraMenuOption(icon: Icons.photo_library_outlined, label: 'Media & files', onTap: () => _showMediaGallery()),
+                KoraMenuOption(icon: Icons.photo_library_outlined, label: 'Media, links, and docs', onTap: () => _showMediaGallery()),
                 KoraMenuOption(icon: Icons.notifications_outlined, label: 'Mute notifications', onTap: () => _showMuteDialog()),
                 KoraMenuOption(icon: Icons.timer_outlined, label: 'Disappearing messages', onTap: () {
                   Navigator.push(context, MaterialPageRoute(

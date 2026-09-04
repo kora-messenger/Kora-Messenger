@@ -144,7 +144,10 @@ class _ChatsTabState extends State<ChatsTab> {
         badge: chat.badge,
         isOnline: chat.isOnline,
         isGroupChat: chat.isGroupChat,
-        lastSeen: chat.isOnline ? null : 'last seen recently',
+        // No real presence data in the model yet — pass null and let
+        // the chat header hide the last-seen line, like WhatsApp does
+        // when last seen is unavailable or hidden by privacy settings.
+        lastSeen: null,
       ),
     );
   }
@@ -183,14 +186,19 @@ class _ChatsTabState extends State<ChatsTab> {
         MaterialPageRoute(
           builder: (_) => GroupChatInfoScreen(
             groupName: chat.name,
-            groupDescription: 'Group description',
+            // Real description/participants aren't modeled yet — show the
+            // honest empty state instead of fabricated placeholder people.
+            groupDescription: '',
             avatarUrl: chat.avatarUrl,
             avatarAsset: chat.avatarAsset,
             participants: [
-              GroupParticipant(name: chat.name, koraId: 'me', isAdmin: true),
-              GroupParticipant(name: 'Member', koraId: 'member1', isAdmin: false),
+              GroupParticipant(
+                name: SessionManager.instance.currentUser?.fullName ?? 'You',
+                koraId: SessionManager.instance.currentUser?.koraId ?? 'me',
+                isAdmin: true,
+              ),
             ],
-            createdAt: DateTime.now().subtract(const Duration(days: 1)),
+            createdAt: null,
             chatId: chat.id,
           ),
         ),
@@ -455,7 +463,7 @@ class _ChatsTabState extends State<ChatsTab> {
           behavior: SnackBarBehavior.fixed,
           duration: const Duration(seconds: 4),
           content: Text(
-            count == 1 ? '1 chat archived' : '$count chats archived',
+            count == 1 ? 'Chat archived' : '$count chats archived',
             style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500),
           ),
           action: SnackBarAction(
@@ -512,7 +520,7 @@ class _ChatsTabState extends State<ChatsTab> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                count == 1 ? 'Delete this chat?' : 'Delete $count chats?',
+                count == 1 ? 'Delete chat?' : 'Delete chats?',
                 style: TextStyle(color: textPrimary, fontSize: 18, fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 10),

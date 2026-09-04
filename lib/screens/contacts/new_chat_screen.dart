@@ -319,7 +319,7 @@ class _NewChatScreenState extends State<NewChatScreen> {
                           children: [
                             Icon(Icons.person_search_outlined, size: 40, color: textMuted),
                             const SizedBox(height: 12),
-                            Text('No contacts found', style: TextStyle(color: textSecondary, fontSize: 14)),
+                            Text('No contacts', style: TextStyle(color: textSecondary, fontSize: 14)),
                           ],
                         ),
                       ),

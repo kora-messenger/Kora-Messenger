@@ -336,7 +336,7 @@ class _KoraVideoNoteScreenState extends State<KoraVideoNoteScreen>
                             Icon(Icons.delete_outline_rounded,
                                 color: Colors.white, size: 48),
                             SizedBox(height: 8),
-                            Text('Slide left to cancel',
+                            Text('Slide to cancel',
                                 style: TextStyle(
                                     color: Colors.white, fontSize: 12)),
                           ],
@@ -346,7 +346,7 @@ class _KoraVideoNoteScreenState extends State<KoraVideoNoteScreen>
                 ),
               ),
             ),
-            // Lock hint — "Slide up to lock" (only while recording,
+            // Lock hint — "Slide up to lock recording" (only while recording,
             // not locked, and not currently dragging to cancel)
             if (_state == _NoteState.recording && !_dragCancelling)
               Positioned(
@@ -361,7 +361,7 @@ class _KoraVideoNoteScreenState extends State<KoraVideoNoteScreen>
                       children: [
                         Icon(Icons.keyboard_arrow_up_rounded,
                             color: Colors.white70),
-                        Text('Slide up to lock',
+                        Text('Slide up to lock recording',
                             style:
                                 TextStyle(color: Colors.white70, fontSize: 12)),
                       ],
@@ -369,7 +369,7 @@ class _KoraVideoNoteScreenState extends State<KoraVideoNoteScreen>
                   ),
                 ),
               ),
-            // Cancel hint — "Slide left to cancel" (shows while recording)
+            // Cancel hint — "Slide to cancel" (shows while recording)
             if (_state == _NoteState.recording && !_dragLocking)
               Positioned(
                 bottom: 120,
@@ -383,7 +383,7 @@ class _KoraVideoNoteScreenState extends State<KoraVideoNoteScreen>
                       children: [
                         Icon(Icons.keyboard_arrow_left_rounded,
                             color: Colors.white70),
-                        Text('Slide left to cancel',
+                        Text('Slide to cancel',
                             style:
                                 TextStyle(color: Colors.white70, fontSize: 12)),
                       ],

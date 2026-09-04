@@ -183,7 +183,7 @@ class _StatusViewerScreenState extends State<StatusViewerScreen>
     _resumePlayback();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Reply sent to ${widget.status.fullName}'),
+        content: const Text('Reply sent'),
         backgroundColor: KoraColors.purple,
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 2),
@@ -766,7 +766,7 @@ class _StatusViewerScreenState extends State<StatusViewerScreen>
       // For text status, share the text
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Sharing: \${item.text ?? ''}'),
+          content: Text('Sharing: ${item.text ?? ''}'),
           backgroundColor: KoraColors.purple,
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 1),

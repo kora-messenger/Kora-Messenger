@@ -55,7 +55,7 @@ class _CommunityInfoScreenState extends State<CommunityInfoScreen> {
         _groups.add(_GroupInfo(
           name: communityGroups[i].name as String,
           isAnnouncement: false,
-          description: 'Tap to start chatting',
+          description: 'Start chatting',
         ));
       }
     }
@@ -92,7 +92,7 @@ class _CommunityInfoScreenState extends State<CommunityInfoScreen> {
           ),
           ListTile(
             leading: Icon(Icons.link, color: textPrimary),
-            title: Text('Invite via link', style: TextStyle(color: textPrimary)),
+            title: Text('Invite to community via link', style: TextStyle(color: textPrimary)),
             onTap: () { Navigator.pop(context); _shareInvite(); },
           ),
           ListTile(
@@ -352,7 +352,7 @@ class _CommunityInfoScreenState extends State<CommunityInfoScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Exit "$_name"?', style: TextStyle(color: textPrimary, fontSize: 18, fontWeight: FontWeight.w700)),
+        title: Text('Exit community: "$_name"?', style: TextStyle(color: textPrimary, fontSize: 18, fontWeight: FontWeight.w700)),
         content: Text('You will no longer be able to send or receive messages in this community.',
             style: TextStyle(color: textSecondary, fontSize: 14)),
         actions: [
@@ -482,7 +482,7 @@ class _CommunityInfoScreenState extends State<CommunityInfoScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('Announcement',
+                                Text('Announcement group',
                                     style: TextStyle(color: textPrimary, fontSize: 15, fontWeight: FontWeight.w700)),
                                 const SizedBox(height: 2),
                                 Text('Only admins can send messages',
@@ -527,7 +527,7 @@ class _CommunityInfoScreenState extends State<CommunityInfoScreen> {
                             children: [
                               Icon(Icons.add, color: Colors.white, size: 22),
                               const SizedBox(width: 8),
-                              Text('Add Group', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700)),
+                              Text('Add group', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700)),
                             ],
                           ),
                         ),

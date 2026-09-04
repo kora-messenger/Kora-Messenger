@@ -27,7 +27,7 @@ class LanguagePickerScreen extends StatefulWidget {
   const LanguagePickerScreen({
     super.key,
     this.selectedCode,
-    this.title = 'Select Language',
+    this.title = 'Choose language',
     this.hideDuplicatesInAllLanguages = true,
   });
 
@@ -112,7 +112,7 @@ class _LanguagePickerScreenState extends State<LanguagePickerScreen> {
               onChanged: _onSearch,
               autofocus: false,
               decoration: InputDecoration(
-                hintText: 'Search languages...',
+                hintText: 'Search',
                 hintStyle: TextStyle(color: textMuted, fontSize: 14),
                 prefixIcon: Icon(Icons.search_rounded, color: textMuted, size: 20),
                 filled: true,

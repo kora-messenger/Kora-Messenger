@@ -69,7 +69,7 @@ class _StatusPrivacyScreenState extends State<StatusPrivacyScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Choose who can see your status updates. Changes apply to all future status updates.',
+            "Changes to your privacy settings won't affect statuses you've sent already.",
             style: TextStyle(color: textSecondary, fontSize: 14, height: 1.4),
           ),
           const SizedBox(height: 24),
@@ -82,7 +82,7 @@ class _StatusPrivacyScreenState extends State<StatusPrivacyScreen> {
             border: border,
           ),
           _privacyOption(
-            title: 'My contacts except...',
+            title: 'My contacts except…',
             subtitle: 'All contacts except those you exclude',
             value: StatusPrivacy.myContactsExcept,
             textPrimary: textPrimary,
@@ -90,7 +90,7 @@ class _StatusPrivacyScreenState extends State<StatusPrivacyScreen> {
             border: border,
           ),
           _privacyOption(
-            title: 'Only share with...',
+            title: 'Only share with…',
             subtitle: 'Only selected contacts can see your status',
             value: StatusPrivacy.onlyShareWith,
             textPrimary: textPrimary,

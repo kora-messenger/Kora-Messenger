@@ -216,11 +216,11 @@ class _LogInScreenState extends State<LogInScreen> {
     final password = _passwordController.text;
 
     if (email.isEmpty) {
-      setState(() => _errorMessage = 'Please enter your email');
+      setState(() => _errorMessage = 'Enter your email address');
       return;
     }
     if (!RegExp(r'^[\w.+-]+@[\w-]+\.[\w.-]+$').hasMatch(email)) {
-      setState(() => _errorMessage = 'Please enter a valid email address');
+      setState(() => _errorMessage = 'Please enter a valid email address.');
       return;
     }
     if (password.isEmpty) {
@@ -352,7 +352,7 @@ class _LogInScreenState extends State<LogInScreen> {
         }
       } else {
         setState(() {
-          _errorMessage = result.error ?? 'Unable to login. Please check your connection and try again.';
+          _errorMessage = result.error ?? 'A network error occurred. Please check your connection and try again.';
           _isLoading = false;
         });
         print('[LoginScreen] login failed: success=\${result.success}, needsVerification=\${result.needsDeviceVerification}, error=\${result.error}');
@@ -447,7 +447,7 @@ class _LogInScreenState extends State<LogInScreen> {
               const SizedBox(height: 32),
 
               KoraInput(
-                label: 'Email',
+                label: 'Email Address',
                 controller: _emailController,
                 focusNode: _emailFocus,
                 keyboardType: TextInputType.emailAddress,

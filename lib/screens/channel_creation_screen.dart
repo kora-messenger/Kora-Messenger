@@ -42,7 +42,7 @@ class _ChannelCreationScreenState extends State<ChannelCreationScreen> {
       appBar: AppBar(
         backgroundColor: bg,
         elevation: 0,
-        title: Text('New Channel',
+        title: Text('New channel',
             style: TextStyle(color: textPrimary, fontSize: 17, fontWeight: FontWeight.w600)),
         leading: IconButton(
           icon: Icon(Icons.close, color: textPrimary),
@@ -89,13 +89,13 @@ class _ChannelCreationScreenState extends State<ChannelCreationScreen> {
             ),
           ),
           const SizedBox(height: 24),
-          Text('Channel Name', style: TextStyle(color: textPrimary, fontSize: 15, fontWeight: FontWeight.w600)),
+          Text('Channel name', style: TextStyle(color: textPrimary, fontSize: 15, fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
           TextField(
             controller: _nameController,
             style: TextStyle(color: textPrimary, fontSize: 16),
             decoration: InputDecoration(
-              hintText: 'Enter channel name',
+              hintText: 'Provide a channel name',
               hintStyle: TextStyle(color: textMuted),
               filled: true,
               fillColor: surface,
@@ -132,7 +132,7 @@ class _ChannelCreationScreenState extends State<ChannelCreationScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Channels are a one-way broadcast tool. Only admins can post. Followers can react and share.',
+                    'Channels are public, so anyone can find them and see 30 days of history before following.',
                     style: TextStyle(color: KoraColors.purple, fontSize: 12, height: 1.4),
                   ),
                 ),
@@ -202,7 +202,7 @@ class _ChannelCreationScreenState extends State<ChannelCreationScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('Public Channel', style: TextStyle(color: textPrimary, fontSize: 15, fontWeight: FontWeight.w600)),
-                      Text('Anyone can find and follow your channel', style: TextStyle(color: textMuted, fontSize: 13)),
+                      Text('Channels are public, so anyone can find them and see 30 days of history before following.', style: TextStyle(color: textMuted, fontSize: 13)),
                     ],
                   ),
                 ),
@@ -277,7 +277,7 @@ class _ChannelCreationScreenState extends State<ChannelCreationScreen> {
               await launchUrl(uri, mode: LaunchMode.externalApplication);
             },
             child: Text(
-              'Read our Channels Guidelines',
+              'See Channels Guidelines',
               style: TextStyle(
                 color: KoraColors.purple,
                 fontSize: 13,

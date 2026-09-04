@@ -50,7 +50,9 @@ class _ArchivedChatsScreenState extends State<ArchivedChatsScreen> {
         avatarUrl: chat.avatarUrl,
         badge: chat.badge,
         isOnline: chat.isOnline,
-        lastSeen: chat.isOnline ? null : 'last seen recently',
+        // No real presence data yet — hide the line like WhatsApp
+        // does when last seen is unavailable.
+        lastSeen: null,
       ),
     );
   }
@@ -130,7 +132,7 @@ class _ArchivedChatsScreenState extends State<ArchivedChatsScreen> {
                 style: TextStyle(color: textPrimary, fontSize: 20, fontWeight: FontWeight.w700),
               )
             : Text(
-                'Archived Chats',
+                'Archived chats',
                 style: TextStyle(
                   color: textPrimary,
                   fontSize: 17,
@@ -144,7 +146,7 @@ class _ArchivedChatsScreenState extends State<ArchivedChatsScreen> {
         actions: _isSelecting
             ? [
                 IconButton(
-                  tooltip: 'Unarchive',
+                  tooltip: 'Unarchive chat',
                   icon: Icon(Icons.unarchive_outlined, color: textPrimary),
                   onPressed: _unarchiveSelected,
                 ),
@@ -161,7 +163,7 @@ class _ArchivedChatsScreenState extends State<ArchivedChatsScreen> {
                 )
               : ListView.separated(
                   padding: const EdgeInsets.only(top: 4),
-                  itemCount: _chats.length,
+                  itemCount: _chats.length + 1,
                   separatorBuilder: (_, __) => Padding(
                     padding: const EdgeInsets.only(left: 84),
                     child: Divider(
@@ -170,7 +172,18 @@ class _ArchivedChatsScreenState extends State<ArchivedChatsScreen> {
                     ),
                   ),
                   itemBuilder: (context, index) {
-                    final chat = _chats[index];
+                    // Exact banner string from the reference APK, shown at
+                    // the top of Archived chats like WhatsApp.
+                    if (index == 0) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        child: Text(
+                          'These chats stay archived when new messages are received. Tap to change',
+                          style: TextStyle(color: textSecondary, fontSize: 12.5, height: 1.35),
+                        ),
+                      );
+                    }
+                    final chat = _chats[index - 1];
                     return ChatListItem(
                       chat: chat,
                       isSelected: _selectedIds.contains(chat.id),

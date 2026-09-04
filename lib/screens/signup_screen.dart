@@ -154,7 +154,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     String? error;
 
     if (name.isEmpty) {
-      error = 'Please enter your full name';
+      error = 'Enter your name to continue.';
     } else if (name.length < 2) {
       error = 'Name must be at least 2 characters';
     } else if (username.isEmpty) {
@@ -164,9 +164,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
     } else if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(username)) {
       error = 'Username: only letters, numbers and underscores';
     } else if (email.isEmpty) {
-      error = 'Please enter your email';
+      error = 'Enter your email address';
     } else if (!RegExp(r'^[\w.+-]+@[\w-]+\.[\w.-]+$').hasMatch(email)) {
-      error = 'Please enter a valid email address';
+      error = 'Please enter a valid email address.';
     } else if (password.isEmpty) {
       error = 'Please enter a password';
     } else if (password.length < 8) {
@@ -356,7 +356,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
               // Email
               KoraInput(
-                label: 'Email',
+                label: 'Email Address',
                 controller: _emailController,
                 focusNode: _emailFocus,
                 keyboardType: TextInputType.emailAddress,
@@ -371,7 +371,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
               // Password
               KoraInput(
-                label: 'Password',
+                label: 'Create password',
                 controller: _passwordController,
                 focusNode: _passwordFocus,
                 obscureText: true,

@@ -23,7 +23,7 @@ class _StarredMessagesScreenState extends State<StarredMessagesScreen> {
         backgroundColor: bg,
         elevation: 0,
         title: Text(
-          'Starred Messages',
+          'Starred messages',
           style: TextStyle(
             color: textPrimary,
             fontSize: 17,
@@ -38,7 +38,7 @@ class _StarredMessagesScreenState extends State<StarredMessagesScreen> {
       body: const KoraEmptyState(
         icon: Icons.star_outline,
         title: 'No starred messages',
-        message: 'Long-press a message and tap the star icon to save it here.',
+        message: 'Tap and hold on any message in any chat to star it, so you can easily find it later.',
       ),
     );
   }

@@ -140,11 +140,11 @@ class _ChannelRolesScreenState extends State<ChannelRolesScreen> {
         onSelected: (value) => _handleRoleAction(value, member),
         itemBuilder: (context) => [
           if (member.role == ChannelRole.member)
-            const PopupMenuItem(value: 'promote', child: Text('Promote to Admin')),
+            const PopupMenuItem(value: 'promote', child: Text('Promote')),
           if (member.role == ChannelRole.admin)
-            const PopupMenuItem(value: 'demote', child: Text('Demote to Member')),
+            const PopupMenuItem(value: 'demote', child: Text('Dismiss as admin')),
           if (member.role == ChannelRole.admin || member.role == ChannelRole.owner)
-            const PopupMenuItem(value: 'remove', child: Text('Remove Admin')),
+            const PopupMenuItem(value: 'remove', child: Text('Dismiss as admin')),
         ],
       ),
     );

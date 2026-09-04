@@ -477,11 +477,11 @@ class _KoraEmojiPanelState extends State<KoraEmojiPanel>
           onChanged: _onSearchChanged,
           style: TextStyle(color: KoraColors.textPrimaryFor(brightness), fontSize: 14),
           decoration: InputDecoration(
-            hintText: _activeTab == _PanelTab.emoji
-                ? 'Search emoji'
-                : _activeTab == _PanelTab.stickers
-                    ? 'Search stickers'
-                    : 'Search GIFs',
+            // Exact hints from the reference APK: a single shared
+            // hint for emoji/stickers; plain 'Search' for GIFs.
+            hintText: _activeTab == _PanelTab.gifs
+                ? 'Search'
+                : 'Search emoji and stickers',
             hintStyle: TextStyle(color: KoraColors.textMutedFor(brightness), fontSize: 14),
             prefixIcon: Icon(Icons.search, size: 20, color: KoraColors.textMutedFor(brightness)),
             suffixIcon: _searchQuery.isNotEmpty
@@ -516,7 +516,7 @@ class _KoraEmojiPanelState extends State<KoraEmojiPanel>
       return _buildGifContent(brightness, isDark);
     }
     if (_searchResults.isEmpty) {
-      return Center(child: Text('No emojis found',
+      return Center(child: Text('No emoji found',
         style: TextStyle(color: KoraColors.textMutedFor(brightness), fontSize: 14)));
     }
     return GridView.builder(
@@ -595,7 +595,7 @@ class _KoraEmojiPanelState extends State<KoraEmojiPanel>
         children: [
           Padding(
             padding: const EdgeInsets.only(left: 4, top: 4),
-            child: Text('Recent', style: TextStyle(
+            child: Text('Recents', style: TextStyle(
               color: KoraColors.textMutedFor(brightness), fontSize: 11, fontWeight: FontWeight.w500)),
           ),
           Expanded(

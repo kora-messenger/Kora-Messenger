@@ -76,10 +76,28 @@ class _MyStatusListScreenState extends State<MyStatusListScreen> {
             ListTile(
               leading: Icon(Icons.delete, color: Colors.red),
               title: Text('Delete', style: TextStyle(color: textPrimary)),
-              onTap: () {
+              onTap: () async {
                 Navigator.pop(context);
-                StatusService.instance.deleteStatusItem(item.id);
-                setState(() {});
+                // WhatsApp asks "Delete status?" before deleting.
+                final brightness = Theme.of(context).brightness;
+                final confirmed = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    backgroundColor: KoraColors.surfaceFor(brightness),
+                    title: Text('Delete status?', style: TextStyle(color: textPrimary, fontSize: 18, fontWeight: FontWeight.w700)),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, true),
+                        child: const Text('Delete', style: TextStyle(color: Colors.red)),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirmed == true) {
+                  StatusService.instance.deleteStatusItem(item.id);
+                  setState(() {});
+                }
               },
             ),
             const SizedBox(height: 8),
@@ -118,7 +136,7 @@ class _MyStatusListScreenState extends State<MyStatusListScreen> {
             Expanded(
               child: items.isEmpty
                   ? Center(
-                      child: Text('No status updates yet', style: TextStyle(color: textSecondary, fontSize: 14)),
+                      child: Text('Tap to add status', style: TextStyle(color: textSecondary, fontSize: 14)),
                     )
                   : ListView(
                       children: [

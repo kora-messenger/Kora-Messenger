@@ -113,11 +113,11 @@ class _KoraSupportScreenState extends State<KoraSupportScreen>
       builder: (ctx) => AlertDialog(
         backgroundColor: KoraColors.darkCard,
         title: Text(
-          'Clear support chat?',
+          'Clear chat?',
           style: TextStyle(color: KoraColors.textPrimaryFor(Brightness.dark)),
         ),
         content: Text(
-          'This will remove all messages from this conversation.',
+          "All messages in this chat will be deleted. This can't be undone.",
           style: TextStyle(color: KoraColors.textSecondaryFor(Brightness.dark)),
         ),
         actions: [

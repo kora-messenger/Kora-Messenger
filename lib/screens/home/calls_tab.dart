@@ -89,7 +89,7 @@ class _CallsTabState extends State<CallsTab> {
     if (diff.inMinutes < 1) return 'just now';
     if (diff.inHours < 1) return '${diff.inMinutes} min ago';
     if (diff.inDays < 1) return '${diff.inHours} h ago';
-    if (diff.inDays == 1) return 'yesterday';
+    if (diff.inDays == 1) return 'Yesterday';
     if (diff.inDays < 7) return '${diff.inDays} days ago';
     return '${dt.day}/${dt.month}/${dt.year}';
   }
@@ -231,8 +231,8 @@ class _CallsTabState extends State<CallsTab> {
                   : (filteredLogs.isEmpty && startCallContacts.isEmpty && _query.isNotEmpty)
                       ? KoraEmptyState(
                           icon: Icons.search_off,
-                          title: 'No matches',
-                          message: 'Nothing found for "$_query".',
+                          title: 'No results',
+                          message: 'No results found for "$_query".',
                         )
                       : ListView(
                           padding: const EdgeInsets.only(bottom: 100),

@@ -61,7 +61,7 @@ class _ChannelLandingScreenState extends State<ChannelLandingScreen> {
                         child: const Icon(Icons.groups_rounded, color: Colors.white, size: 44),
                       ),
                       const SizedBox(height: 28),
-                      Text('Create a Community',
+                      Text('Create a new community',
                           style: TextStyle(color: textPrimary, fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
                       const SizedBox(height: 12),
                       Text('Bring people together around topics you care about. Organize multiple groups under one community, share announcements, and keep conversations structured.',
@@ -69,7 +69,7 @@ class _ChannelLandingScreenState extends State<ChannelLandingScreen> {
                           style: TextStyle(color: textSecondary, fontSize: 15, height: 1.5)),
                       const SizedBox(height: 40),
                       // Feature highlights
-                      _featureRow(Icons.campaign_outlined, 'Announcement channel for updates'),
+                      _featureRow(Icons.campaign_outlined, 'Announcement group for updates'),
                       const SizedBox(height: 16),
                       _featureRow(Icons.group_outlined, 'Organize up to 50 groups'),
                       const SizedBox(height: 16),
@@ -93,7 +93,7 @@ class _ChannelLandingScreenState extends State<ChannelLandingScreen> {
                             ],
                           ),
                           child: Center(
-                            child: Text('Get Started',
+                            child: Text('Get started',
                                 style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
                           ),
                         ),

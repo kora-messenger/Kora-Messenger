@@ -104,7 +104,7 @@ class _LockedChatsScreenState extends State<LockedChatsScreen> {
             backgroundColor: card,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             title: Text(
-              'Enter Secret Code',
+              'Enter your secret code',
               style: TextStyle(color: textPrimary, fontSize: 18, fontWeight: FontWeight.bold),
             ),
             content: Column(
@@ -155,7 +155,7 @@ class _LockedChatsScreenState extends State<LockedChatsScreen> {
                     Navigator.pop(dialogCtx, true);
                   } else {
                     setDialogState(() {
-                      error = 'Incorrect secret code';
+                      error = "That's not the right secret code. Try again.";
                     });
                   }
                 },
@@ -192,7 +192,9 @@ class _LockedChatsScreenState extends State<LockedChatsScreen> {
           avatarUrl: chat.avatarUrl,
           badge: chat.badge,
           isOnline: chat.isOnline,
-          lastSeen: chat.isOnline ? null : 'last seen recently',
+          // No real presence data yet — hide the line like WhatsApp does
+        // when last seen is unavailable.
+        lastSeen: null,
         ),
       ),
     );
@@ -264,7 +266,7 @@ class _LockedChatsScreenState extends State<LockedChatsScreen> {
               backgroundColor: card,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
               title: Text(
-                hasCode ? 'Change Secret Code' : 'Set Secret Code',
+                hasCode ? 'Change secret code' : 'Set up your secret code',
                 style: TextStyle(color: textPrimary, fontSize: 18, fontWeight: FontWeight.bold),
               ),
               content: Column(
@@ -313,7 +315,7 @@ class _LockedChatsScreenState extends State<LockedChatsScreen> {
                     final text = controller.text.trim();
                     if (text.length < 4 || text.length > 8) {
                       setDialogState(() {
-                        errorMessage = 'Code must be 4 to 8 characters';
+                        errorMessage = 'Secret code must be 4 to 8 characters.';
                       });
                       return;
                     }
@@ -467,7 +469,7 @@ class _LockedChatsScreenState extends State<LockedChatsScreen> {
                 style: TextStyle(color: textPrimary, fontSize: 20, fontWeight: FontWeight.w700),
               )
             : Text(
-                'Locked Chats',
+                'Locked chats',
                 style: TextStyle(
                   color: textPrimary,
                   fontSize: 17,
@@ -481,7 +483,7 @@ class _LockedChatsScreenState extends State<LockedChatsScreen> {
         actions: _isSelecting
             ? [
                 IconButton(
-                  tooltip: 'Unlock',
+                  tooltip: 'Unlock chat',
                   icon: Icon(Icons.lock_open_outlined, color: textPrimary),
                   onPressed: _unlockSelected,
                 ),
@@ -500,7 +502,7 @@ class _LockedChatsScreenState extends State<LockedChatsScreen> {
               ? const KoraEmptyState(
                   icon: Icons.lock_outline,
                   title: 'No locked chats',
-                  message: 'Long-press a chat on the Home screen and select "Lock chat" to hide it here, behind biometric authentication.',
+                  message: 'A secret code lets you find locked chats in the search bar.',
                 )
               : ListView.separated(
                   padding: const EdgeInsets.only(top: 4),

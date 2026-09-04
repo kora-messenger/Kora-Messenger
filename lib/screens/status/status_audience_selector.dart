@@ -53,7 +53,7 @@ class _StatusAudienceSelectorState extends State<StatusAudienceSelector> {
       backgroundColor: bg,
       appBar: AppBar(
         backgroundColor: bg,
-        title: Text('Status Audience',
+        title: Text('Audience',
             style: TextStyle(color: textPrimary, fontSize: 17, fontWeight: FontWeight.w600)),
         leading: IconButton(
           icon: Icon(Icons.close, color: textPrimary),
@@ -76,7 +76,7 @@ class _StatusAudienceSelectorState extends State<StatusAudienceSelector> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          Text('Who can see this status?',
+          Text('Choose who can see your status',
               style: TextStyle(color: textPrimary, fontSize: 16, fontWeight: FontWeight.w600)),
           const SizedBox(height: 4),
           Text('This applies to this status only. Your default privacy is separate.',
@@ -93,7 +93,7 @@ class _StatusAudienceSelectorState extends State<StatusAudienceSelector> {
           ),
           _privacyOption(
             icon: Icons.contacts_outlined,
-            title: 'My contacts except...',
+            title: 'My contacts except…',
             subtitle: _excluded.isEmpty
                 ? 'Exclude specific contacts'
                 : '${_excluded.length} contact${_excluded.length == 1 ? "" : "s"} excluded',
@@ -103,7 +103,7 @@ class _StatusAudienceSelectorState extends State<StatusAudienceSelector> {
           ),
           _privacyOption(
             icon: Icons.person_outline,
-            title: 'Only share with...',
+            title: 'Only share with…',
             subtitle: _included.isEmpty
                 ? 'Select specific contacts'
                 : '${_included.length} contact${_included.length == 1 ? "" : "s"} selected',

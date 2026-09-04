@@ -165,7 +165,7 @@ class _IncomingCallScreenState extends State<IncomingCallScreen>
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Reply sent: "$message"'),
+          content: Text('Reply sent'),
           backgroundColor: KoraColors.purple,
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 2),
@@ -424,8 +424,8 @@ class _IncomingCallScreenState extends State<IncomingCallScreen>
   Widget _buildReplySheet(bool isVideo) {
     final quickMessages = [
       "Can't talk now. What's up?",
-      "I'll call you back soon.",
-      "I'm in a meeting. Call later?",
+      "I'll call you right back.",
+      "Can't talk now. Call me later?",
       "Can't talk right now, sorry.",
       "Give me a few minutes.",
     ];
@@ -545,7 +545,7 @@ class _IncomingCallScreenState extends State<IncomingCallScreen>
                 fontSize: 15,
               ),
               decoration: InputDecoration(
-                hintText: 'Type a custom message…',
+                hintText: 'Custom message…',
                 hintStyle: TextStyle(
                   color: Colors.white.withValues(alpha: 0.3),
                   fontSize: 15,

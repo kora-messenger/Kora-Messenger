@@ -117,7 +117,7 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
               children: [
                 const SizedBox(height: 8),
                 const Text(
-                  'Create New Password',
+                  'Create new password',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 26,
@@ -168,7 +168,7 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
                 const SizedBox(height: 16),
 
                 KoraInput(
-                  label: 'Confirm new password',
+                  label: 'Re-enter new password',
                   controller: _confirmController,
                   obscureText: true,
                   validator: _validateConfirm,
@@ -215,7 +215,7 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
                 ),
                 const SizedBox(height: 28),
                 const Text(
-                  'Password Updated',
+                  'New password saved.',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 24,
