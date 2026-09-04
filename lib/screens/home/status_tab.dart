@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -22,13 +24,19 @@ import '../channel_landing_screen.dart';
 /// "Updates" screen — Kora's Updates tab, rebuilt to match WhatsApp's
 /// actual Updates screen structure:
 ///
-/// - Header: "Updates" title + camera icon (jumps straight into the
-///   status camera) + 3-dot menu (Kora extras: status privacy, status
-///   triggers, muted updates, music settings, cross-posting).
-/// - Status area (no section label — straight to My status):
-///   My status row → Recent updates (gradient ring) → Viewed updates
-///   (gray ring) → Muted updates (label + inline row of small avatars).
-///   Status rows show name + relative time right-aligned, no subtitle.
+/// - Header: "Updates" title + search (inline) + 3-dot menu (Kora
+///   extras: status privacy, status triggers, muted updates, music
+///   settings, cross-posting).
+/// - Status section (WhatsApp's current design, confirmed from the
+///   reference recordings): a "Status" label above a horizontal
+///   carousel of portrait preview cards. Each card shows the latest
+///   status media as its background, a small ringed avatar at the
+///   top-center (brand gradient ring = unviewed, gray = viewed), and
+///   the name in white at the bottom-left. The My status card carries
+///   a green "+" badge on its avatar and opens the status camera
+///   directly when empty.
+/// - Muted updates: label + inline row of small avatars below the
+///   carousel.
 /// - Channels: "Channels" label with a "+" (find channels), followed
 ///   channels with last-update preview + time + unread pill, a
 ///   "Find channels" row, and follow suggestions when none are followed.
@@ -45,6 +53,9 @@ class StatusTab extends StatefulWidget {
 class _StatusTabState extends State<StatusTab> {
   Map<String, dynamic>? _session;
   bool _isLoaded = false;
+  bool _isSearching = false;
+  final _searchController = TextEditingController();
+  String _searchQuery = '';
 
   final List<_ChannelSuggestion> _suggestions = [
     _ChannelSuggestion(name: 'Kora Tech News', followers: '842K followers', color: KoraColors.purple, icon: Icons.bolt, lastUpdate: 'Kora 4.0 rolls out HD video calls for everyone', time: '10:42', unread: 3),
@@ -63,6 +74,7 @@ class _StatusTabState extends State<StatusTab> {
 
   @override
   void dispose() {
+    _searchController.dispose();
     StatusTriggerService.instance.removeListener(_refresh);
     super.dispose();
   }
@@ -613,10 +625,10 @@ class _StatusTabState extends State<StatusTab> {
     final myItems = StatusService.instance.myStatusItems;
     final hasStatus = myItems.isNotEmpty;
     final allStatuses = StatusService.instance.contactStatuses;
-    final recentStatuses = allStatuses.where((s) => !s.isViewed && !s.isMuted).toList();
-    final viewedStatuses = allStatuses.where((s) => s.isViewed && !s.isMuted).toList();
     final mutedUpdates = allStatuses.where((s) => s.isMuted).toList();
-    final followed = _suggestions.where((s) => s.following).toList();
+    final followed = _suggestions
+        .where((s) => s.following && (_searchQuery.isEmpty || s.name.toLowerCase().contains(_searchQuery.toLowerCase())))
+        .toList();
 
     return Scaffold(
       backgroundColor: bg,
@@ -625,46 +637,83 @@ class _StatusTabState extends State<StatusTab> {
         child: Column(
           children: [
             // Header — WhatsApp Updates tab: title + search + 3-dot.
-            // The 3-dot keeps Kora's extras (triggers, privacy, music,
-            // cross-posting) reachable.
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 8, 4),
-              child: Row(
-                children: [
-                  Text('Updates',
-                    style: TextStyle(color: textPrimary, fontSize: 24, fontWeight: FontWeight.w800)),
-                  const Spacer(),
-                  IconButton(
-                    icon: Icon(Icons.search, color: textPrimary, size: 24),
-                    tooltip: 'Search',
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const ChannelLandingScreen()),
+            // Search toggles an inline search bar (statuses/channels);
+            // the 3-dot keeps Kora's extras reachable.
+            if (!_isSearching)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 12, 4),
+                child: Row(
+                  children: [
+                    Text('Updates',
+                      style: TextStyle(color: textPrimary, fontSize: 24, fontWeight: FontWeight.w800)),
+                    const Spacer(),
+                    IconButton(
+                      icon: Icon(Icons.search, color: textPrimary, size: 24),
+                      tooltip: 'Search',
+                      onPressed: () => setState(() => _isSearching = true),
                     ),
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.more_vert, color: textPrimary, size: 22),
-                    onPressed: _showMoreOptions),
-                ],
+                    IconButton(
+                      icon: Icon(Icons.more_vert, color: textPrimary, size: 22),
+                      onPressed: _showMoreOptions),
+                  ],
+                ),
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 12, 12, 4),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: Icon(Icons.arrow_back, color: textPrimary, size: 22),
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() { _isSearching = false; _searchQuery = ''; });
+                      },
+                    ),
+                    Expanded(
+                      child: TextField(
+                        controller: _searchController,
+                        autofocus: true,
+                        style: TextStyle(color: textPrimary, fontSize: 16),
+                        decoration: InputDecoration(
+                          hintText: 'Search status and channels',
+                          hintStyle: TextStyle(color: textSecondary, fontSize: 15),
+                          filled: true,
+                          fillColor: surface,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          prefixIcon: Icon(Icons.search, color: textSecondary, size: 20),
+                          suffixIcon: _searchQuery.isNotEmpty
+                              ? IconButton(
+                                  icon: Icon(Icons.clear, color: textSecondary, size: 20),
+                                  onPressed: () { _searchController.clear(); setState(() => _searchQuery = ''); },
+                                )
+                              : null,
+                        ),
+                        onChanged: (val) => setState(() => _searchQuery = val.trim()),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                ),
               ),
-            ),
             // Body
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.only(bottom: 110),
                 children: [
-                  // Status area — no section label, straight to My status
-                  _buildMyStatusRow(fullName, avatarUrl, hasStatus, myItems, bg, textPrimary, textSecondary),
-                  if (recentStatuses.isNotEmpty) ...[
-                    _sectionLabel('Recent updates', textMuted),
-                    ...recentStatuses.map((s) =>
-                        _buildContactStatusTile(s, bg, textPrimary, textSecondary, isUnviewed: true)),
-                  ],
-                  if (viewedStatuses.isNotEmpty) ...[
-                    _sectionLabel('Viewed updates', textMuted),
-                    ...viewedStatuses.map((s) =>
-                        _buildContactStatusTile(s, bg, textPrimary, textSecondary, isUnviewed: false)),
-                  ],
-                  if (mutedUpdates.isNotEmpty) ...[
+                  // Status — WhatsApp's current design: "Status" label
+                  // above a horizontal carousel of portrait preview
+                  // cards. My status first, then unviewed (gradient
+                  // ring), then viewed (gray ring).
+                  _sectionLabel('Status', textPrimary),
+                  _buildStatusCarousel(
+                    fullName, avatarUrl, hasStatus, myItems, allStatuses,
+                    surface, textPrimary, textSecondary),
+                  if (mutedUpdates.isNotEmpty && _searchQuery.isEmpty) ...[
                     _sectionLabel('Muted updates', textMuted),
                     _buildMutedRow(mutedUpdates, textSecondary),
                   ],
@@ -759,21 +808,34 @@ class _StatusTabState extends State<StatusTab> {
     );
   }
 
-  /// "Channels" header with the "+" that opens channel discovery —
-  /// WhatsApp's exact pattern.
+  /// "Channels" header with the "Explore" pill on the right — the
+  /// reference app's current design (grey pill: grid icon + "Explore").
   Widget _channelsHeader(Color textPrimary, Color textSecondary) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 22, 8, 4),
+      padding: const EdgeInsets.fromLTRB(20, 22, 20, 4),
       child: Row(
         children: [
           Text('Channels',
             style: TextStyle(color: textPrimary, fontSize: 18, fontWeight: FontWeight.w700)),
           const Spacer(),
-          IconButton(
-            icon: Icon(Icons.add, color: textSecondary, size: 24),
-            tooltip: 'Find channels',
-            onPressed: () => Navigator.of(context).push(
+          GestureDetector(
+            onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const ChannelLandingScreen()),
+            ),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              decoration: BoxDecoration(
+                color: textSecondary.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.grid_view_rounded, color: textSecondary, size: 15),
+                  const SizedBox(width: 6),
+                  Text('Explore',
+                    style: TextStyle(color: textSecondary, fontSize: 13, fontWeight: FontWeight.w600)),
+                ],
+              ),
             ),
           ),
         ],
@@ -781,128 +843,275 @@ class _StatusTabState extends State<StatusTab> {
     );
   }
 
-  Widget _buildMyStatusRow(
+  // ── Status carousel (current WhatsApp design) ────────────────
+  //
+  // A horizontal strip of portrait preview cards. Confirmed details
+  // from the reference recordings (native resolution):
+  //   • card ≈ 104×184, corner radius 14, ~10px gap, ~16px side padding
+  //   • card background = the contact's latest status media
+  //   • small circular avatar at the top-center with a white gap
+  //     ring (brand gradient = unviewed, gray = viewed)
+  //   • name in white, bottom-left, bold, with a soft shadow
+  //   • My status card: same layout + a "+" badge on the avatar;
+  //     when there is no status yet the card shows the avatar centered
+  //     on a plain card and opens the camera directly.
+
+  Widget _buildStatusCarousel(
     String fullName,
     String avatarUrl,
     bool hasStatus,
     List<StatusItem> myItems,
-    Color bg,
+    List<KoraStatus> allStatuses,
+    Color surface,
     Color textPrimary,
     Color textSecondary,
   ) {
-    final totalViews = myItems.fold(0, (sum, item) => sum + item.viewedBy.length);
-    final trigger = StatusTriggerService.instance.getActiveTrigger();
+    final q = _searchQuery.toLowerCase();
+    final recent = allStatuses
+        .where((s) => !s.isViewed && !s.isMuted)
+        .where((s) => q.isEmpty || s.fullName.toLowerCase().contains(q))
+        .toList();
+    final viewed = allStatuses
+        .where((s) => s.isViewed && !s.isMuted)
+        .where((s) => q.isEmpty || s.fullName.toLowerCase().contains(q))
+        .toList();
 
-    return ListTile(
-      onTap: _openMyStatus,
-      leading: hasStatus
-          ? Container(
-              padding: const EdgeInsets.all(2),
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: KoraColors.brandGradient,
-              ),
-              child: Container(
-                padding: const EdgeInsets.all(2),
-                decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
-                child: KoraAvatar(name: fullName, imageUrl: avatarUrl.isEmpty ? null : avatarUrl, size: 48),
-              ),
-            )
-          : Stack(
-              clipBehavior: Clip.none,
-              children: [
-                KoraAvatar(name: fullName, imageUrl: avatarUrl.isEmpty ? null : avatarUrl, size: 52),
-                Positioned(
-                  bottom: -2, right: -2,
-                  child: Container(
-                    width: 20, height: 20,
-                    decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
-                    padding: const EdgeInsets.all(2),
-                    child: Container(
-                      decoration: const BoxDecoration(
-                        gradient: KoraColors.brandGradient,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.add, color: Colors.white, size: 13),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-      title: Row(
-        children: [
-          Text(
-            'My status',
-            style: TextStyle(color: textPrimary, fontSize: 15, fontWeight: FontWeight.w600),
-          ),
-          if (trigger != null) ...[
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                gradient: KoraColors.brandGradient,
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: const Text(
-                'auto',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
-      subtitle: Text(
-        trigger != null
-            ? '${trigger.emoji} ${trigger.statusText}'
-            : (hasStatus
-                ? (totalViews > 0 ? '$totalViews ${totalViews == 1 ? 'view' : 'views'}' : 'Tap to view')
-                : 'Tap to add status update'),
-        style: TextStyle(
-          color: trigger != null ? KoraColors.purple : textSecondary,
-          fontSize: 13,
-          fontWeight: trigger != null ? FontWeight.w500 : FontWeight.normal,
-        ),
-        overflow: TextOverflow.ellipsis,
+    final cards = <Widget>[
+      _myStatusCard(fullName, avatarUrl, hasStatus, myItems, surface, textPrimary),
+      ...recent.map((s) => _contactStatusCard(s, surface, unviewed: true)),
+      ...viewed.map((s) => _contactStatusCard(s, surface, unviewed: false)),
+    ];
+
+    return SizedBox(
+      height: 186,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
+        itemCount: cards.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        itemBuilder: (context, i) => cards[i],
       ),
     );
   }
 
-  /// Contact status row — WhatsApp style: ringed avatar, name, and the
-  /// relative time right-aligned. No subtitle.
-  Widget _buildContactStatusTile(
-    KoraStatus status,
-    Color bg,
+  /// My status card — always the first card in the carousel.
+  Widget _myStatusCard(
+    String fullName,
+    String avatarUrl,
+    bool hasStatus,
+    List<StatusItem> myItems,
+    Color surface,
     Color textPrimary,
-    Color textSecondary, {
-    required bool isUnviewed,
-  }) {
-    return ListTile(
+  ) {
+    final latest = hasStatus
+        ? myItems.lastWhere((i) => !i.isDeleted, orElse: () => myItems.last)
+        : null;
+    return _statusCard(
+      background: latest != null ? _statusPreview(latest, surface) : null,
+      fallbackColor: surface,
+      avatar: _cardAvatar(
+        name: fullName,
+        imageUrl: avatarUrl,
+        ring: hasStatus,
+        ringColor: Colors.grey,
+        plusBadge: true,
+        avatarSize: hasStatus ? 30 : 54,
+      ),
+      avatarCentered: !hasStatus,
+      label: 'My status',
+      labelColor: hasStatus ? Colors.white : textPrimary,
+      onTap: _openMyStatus,
+    );
+  }
+
+  /// Contact status card — media preview background, ringed avatar at
+  /// the top-center, white name at the bottom-left.
+  Widget _contactStatusCard(KoraStatus status, Color surface, {required bool unviewed}) {
+    final latest = status.items.isNotEmpty ? status.items.last : null;
+    return _statusCard(
+      background: latest != null ? _statusPreview(latest, surface) : null,
+      fallbackColor: surface,
+      avatar: _cardAvatar(
+        name: status.fullName,
+        imageUrl: status.avatarUrl,
+        ring: unviewed,
+        ringColor: Colors.grey,
+      ),
+      avatarCentered: false,
+      label: status.fullName,
+      labelColor: Colors.white,
       onTap: () => _openContactStatus(status),
-      leading: Container(
-        padding: const EdgeInsets.all(2),
+    );
+  }
+
+  /// The shared portrait card: 104×184, radius 14, avatar at the
+  /// top-center, name at the bottom-left.
+  Widget _statusCard({
+    Widget? background,
+    required Color fallbackColor,
+    required Widget avatar,
+    required bool avatarCentered,
+    required String label,
+    required Color labelColor,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 104,
+        height: 184,
+        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: isUnviewed ? KoraColors.brandGradient : null,
-          color: isUnviewed ? null : textSecondary.withValues(alpha: 0.3),
+          color: fallbackColor,
+          borderRadius: BorderRadius.circular(14),
         ),
-        child: Container(
-          padding: const EdgeInsets.all(2),
-          decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
-          child: KoraAvatar(name: status.fullName, imageUrl: status.avatarUrl, size: 48),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (background != null) Positioned.fill(child: background),
+            // Soft scrim behind the avatar so it reads on any media.
+            Positioned(
+              top: 0, left: 0, right: 0, height: 60,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.black.withValues(alpha: background != null ? 0.25 : 0.0),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            if (avatarCentered)
+              Center(child: avatar)
+            else
+              Positioned(
+                top: 8, left: 0, right: 0,
+                child: Center(child: avatar),
+              ),
+            Positioned(
+              left: 8, right: 8, bottom: 8,
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: labelColor,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  shadows: [
+                    Shadow(color: Colors.black.withValues(alpha: 0.45), blurRadius: 4),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
-      title: Text(
-        status.fullName,
-        style: TextStyle(color: textPrimary, fontSize: 15, fontWeight: FontWeight.w500),
+    );
+  }
+
+  /// Small ringed avatar used on the status cards: white gap between
+  /// the ring and the avatar, with an optional "+" badge (My status).
+  Widget _cardAvatar({
+    required String name,
+    String? imageUrl,
+    required bool ring,
+    required Color ringColor,
+    bool plusBadge = false,
+    double avatarSize = 30,
+  }) {
+    final avatar = Container(
+      padding: const EdgeInsets.all(2),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: ring ? KoraColors.brandGradient : null,
+        color: ring ? null : ringColor,
       ),
-      trailing: Text(
-        _timeAgo(status.lastUpdatedAt),
-        style: TextStyle(color: textSecondary, fontSize: 12.5),
+      child: Container(
+        padding: const EdgeInsets.all(2),
+        decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+        child: KoraAvatar(
+          name: name,
+          imageUrl: (imageUrl ?? '').isEmpty ? null : imageUrl,
+          size: avatarSize,
+        ),
+      ),
+    );
+    if (!plusBadge) return avatar;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        avatar,
+        Positioned(
+          bottom: -3, right: -3,
+          child: Container(
+            width: 17, height: 17,
+            padding: const EdgeInsets.all(2),
+            decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+            child: Container(
+              decoration: const BoxDecoration(
+                gradient: KoraColors.brandGradient,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.add, color: Colors.white, size: 10),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Card background from a status item: the media preview for
+  /// photo/video, the colored text canvas for text statuses. All file
+  /// loads are guarded — a missing file falls back to a soft brand
+  /// gradient instead of crashing (see the earlier avatar-path crash).
+  Widget _statusPreview(StatusItem item, Color surface) {
+    if (item.type == StatusType.text) {
+      return Container(
+        color: item.backgroundColor ?? KoraColors.purple,
+        alignment: Alignment.center,
+        padding: const EdgeInsets.all(10),
+        child: Text(
+          item.text ?? '',
+          maxLines: 4,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: item.textColor ?? Colors.white,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      );
+    }
+
+    final path = item.mediaThumbnailPath ?? item.mediaPath;
+    if (path != null && File(path).existsSync()) {
+      return Image.file(
+        File(path),
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _previewFallback(surface),
+      );
+    }
+    return _previewFallback(surface);
+  }
+
+  Widget _previewFallback(Color surface) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            KoraColors.purple.withValues(alpha: 0.35),
+            KoraColors.blue.withValues(alpha: 0.25),
+            surface,
+          ],
+        ),
       ),
     );
   }
