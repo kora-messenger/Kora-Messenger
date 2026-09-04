@@ -18,12 +18,9 @@ class ChannelRolesScreen extends StatefulWidget {
 }
 
 class _ChannelRolesScreenState extends State<ChannelRolesScreen> {
+  // Only the owner is real until the channel-membership backend ships.
   final List<_ChannelMember> _members = [
     _ChannelMember(name: 'You', email: 'you@kora.com', role: ChannelRole.owner, isYou: true),
-    _ChannelMember(name: 'Admin User', email: 'admin@kora.com', role: ChannelRole.admin),
-    _ChannelMember(name: 'Member One', email: 'm1@kora.com', role: ChannelRole.member),
-    _ChannelMember(name: 'Member Two', email: 'm2@kora.com', role: ChannelRole.member),
-    _ChannelMember(name: 'Member Three', email: 'm3@kora.com', role: ChannelRole.member),
   ];
 
   @override
@@ -90,7 +87,15 @@ class _ChannelRolesScreenState extends State<ChannelRolesScreen> {
 
           // Admins section
           _sectionHeader('ADMINS (${admins.length})', textMuted),
-          ...admins.map((m) => _memberTile(m, surface, textPrimary, textMuted)),
+          if (admins.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 72, vertical: 12),
+              child: Text('No other admins yet',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: textMuted, fontSize: 13)),
+            )
+          else
+            ...admins.map((m) => _memberTile(m, surface, textPrimary, textMuted)),
           // Add admin button
           ListTile(
             leading: Container(
@@ -107,7 +112,15 @@ class _ChannelRolesScreenState extends State<ChannelRolesScreen> {
 
           // Members section
           _sectionHeader('FOLLOWERS (${members.length})', textMuted),
-          ...members.map((m) => _memberTile(m, surface, textPrimary, textMuted)),
+          if (members.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 72, vertical: 12),
+              child: Text('No followers yet',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: textMuted, fontSize: 13)),
+            )
+          else
+            ...members.map((m) => _memberTile(m, surface, textPrimary, textMuted)),
         ],
       ),
     );

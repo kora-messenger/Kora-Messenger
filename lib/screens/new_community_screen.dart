@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../theme/kora_colors.dart';
 import 'community_preview_screen.dart';
+import '../services/chat_service.dart';
 
 /// New Community screen — setup community profile, name, and description.
 ///
@@ -333,11 +334,19 @@ class _AddGroupsScreenState extends State<_AddGroupsScreen> {
     );
   }
 
-  void _addExistingGroup() {
+  Future<void> _addExistingGroup() async {
     final brightness = Theme.of(context).brightness;
     final textPrimary = KoraColors.textPrimaryFor(brightness);
     final textMuted = KoraColors.textMutedFor(brightness);
     final surface = KoraColors.surfaceFor(brightness);
+
+    // Real groups the user is in — no demo data.
+    final allChats = await ChatService.instance.getChats();
+    final groupNames = allChats
+        .where((c) => c.isGroupChat)
+        .map((c) => c.name)
+        .where((n) => !_selectedGroups.any((g) => g['name'] == n))
+        .toList();
 
     showModalBottomSheet(
       context: context,
@@ -371,11 +380,25 @@ class _AddGroupsScreenState extends State<_AddGroupsScreen> {
             ),
             const Divider(height: 1),
             Expanded(
-              child: ListView.builder(
+              child: groupNames.isEmpty
+                  ? SizedBox(
+                      height: 240,
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.group_outlined, size: 40, color: textMuted),
+                            const SizedBox(height: 12),
+                            Text('No groups yet',
+                                style: TextStyle(color: textMuted, fontSize: 14)),
+                          ],
+                        ),
+                      ),
+                    )
+                  : ListView.builder(
                 controller: scrollController,
-                itemCount: 5,
+                itemCount: groupNames.length,
                 itemBuilder: (ctx, i) {
-                  final groupNames = ['Kora Beta Testers', 'Design Team', 'Naija Devs', 'Friends Chat', 'Family Group'];
                   final isSelected = _selectedGroups.any((g) => g['name'] == groupNames[i]);
                   return ListTile(
                     leading: Container(
@@ -406,7 +429,7 @@ class _AddGroupsScreenState extends State<_AddGroupsScreen> {
                           ),
                   );
                 },
-              ),
+                  ),
             ),
           ],
         ),

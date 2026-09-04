@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme/kora_colors.dart';
 import '../config/kora_api.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 /// Channel Invite Screen — manage and share channel invite link.
 /// Mirrors WhatsApp's channel invite/link management.
@@ -175,22 +176,29 @@ class _ChannelInviteScreenState extends State<ChannelInviteScreen> {
               ],
             ),
             const SizedBox(height: 16),
-            // QR Code placeholder
+            // QR Code — real, scannable, built from the invite link
             Center(
               child: Container(
-                width: 160, height: 160,
+                width: 176, height: 176,
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: surface,
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: KoraColors.purple.withValues(alpha: 0.2)),
                 ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.qr_code_2, size: 80, color: KoraColors.purple),
-                    const SizedBox(height: 4),
-                    Text('Scan to join', style: TextStyle(color: textMuted, fontSize: 12)),
-                  ],
+                child: QrImageView(
+                  data: _inviteLink,
+                  version: QrVersions.auto,
+                  errorCorrectionLevel: QrErrorCorrectLevel.H,
+                  backgroundColor: Colors.white,
+                  eyeStyle: const QrEyeStyle(
+                    eyeShape: QrEyeShape.square,
+                    color: KoraColors.deepNavy,
+                  ),
+                  dataModuleStyle: const QrDataModuleStyle(
+                    dataModuleShape: QrDataModuleShape.square,
+                    color: KoraColors.deepNavy,
+                  ),
                 ),
               ),
             ),

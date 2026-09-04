@@ -22,15 +22,8 @@ class _CommunityDirectoryScreenState extends State<CommunityDirectoryScreen> {
 
   static const _categories = ['All', 'Tech', 'Gaming', 'Education', 'Entertainment', 'Sports', 'Business'];
 
-  final List<_Community> _communities = [
-    _Community(name: 'Kora Developers', members: 1200, category: 'Tech', icon: 'K', isJoined: true),
-    _Community(name: 'Flutter Community', members: 5400, category: 'Tech', icon: 'F'),
-    _Community(name: 'Mobile Gaming Hub', members: 8900, category: 'Gaming', icon: 'G'),
-    _Community(name: 'Learn Together', members: 2300, category: 'Education', icon: 'L'),
-    _Community(name: 'Movie Fans', members: 4500, category: 'Entertainment', icon: 'M'),
-    _Community(name: 'Football League', members: 6700, category: 'Sports', icon: 'F'),
-    _Community(name: 'Startup Network', members: 3100, category: 'Business', icon: 'S'),
-  ];
+  // No demo data — a real community registry (backend entity) will feed this.
+  final List<_Community> _communities = [];
 
   List<_Community> get _filtered {
     final q = _searchController.text.toLowerCase();
