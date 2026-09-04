@@ -183,15 +183,27 @@ class StatusService {
     await prefs.setString(_kContactStatusesKey, json);
   }
 
+  /// Legacy demo entries seeded by early builds ('status_001'..'status_003',
+  /// @kora.app emails). Purged on load so upgrading installs never show
+  /// fake contacts — the reference app shows only real contact statuses.
+  static const _legacyDemoIds = {'status_001', 'status_002', 'status_003'};
+
   Future<void> _loadContactStatuses() async {
     final prefs = await SharedPreferences.getInstance();
     final str = prefs.getString(_kContactStatusesKey);
     if (str != null) {
-      final list = jsonDecode(str) as List;
-      _contactStatuses = list.map((j) => KoraStatus.fromJson(j as Map<String, dynamic>)).toList();
+      try {
+        final list = jsonDecode(str) as List;
+        _contactStatuses = list.map((j) => KoraStatus.fromJson(j as Map<String, dynamic>)).toList();
+      } catch (_) {
+        _contactStatuses = [];
+      }
     }
-    if (_contactStatuses.isEmpty) {
-      _seedDemoStatuses();
+    // One-time purge of demo statuses from older builds.
+    if (_contactStatuses.any((s) => _legacyDemoIds.contains(s.id) || s.userEmail.endsWith('@kora.app'))) {
+      _contactStatuses.removeWhere(
+          (s) => _legacyDemoIds.contains(s.id) || s.userEmail.endsWith('@kora.app'));
+      await _persistContactStatuses();
     }
   }
 
@@ -219,77 +231,5 @@ class StatusService {
     }
   }
 
-  // ── Demo data ─────────────────────────────────────────────────
 
-  void _seedDemoStatuses() {
-    _contactStatuses = [
-      KoraStatus(
-        id: 'status_001',
-        userEmail: 'ada@kora.app',
-        username: '@ada',
-        fullName: 'Ada Nwosu',
-        avatarUrl: null,
-        items: [
-          StatusItem(
-            id: 'si_001',
-            type: StatusType.text,
-            text: 'Good morning, Kora! ☀️',
-            backgroundColor: KoraColors.purple,
-            textColor: Colors.white,
-            createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-          ),
-          StatusItem(
-            id: 'si_002',
-            type: StatusType.text,
-            text: 'Building something great today 💜',
-            backgroundColor: KoraColors.blue,
-            textColor: Colors.white,
-            createdAt: DateTime.now().subtract(const Duration(hours: 1, minutes: 50)),
-          ),
-        ],
-        lastUpdatedAt: DateTime.now().subtract(const Duration(hours: 2)),
-        privacy: StatusPrivacy.myContacts,
-      ),
-      KoraStatus(
-        id: 'status_002',
-        userEmail: 'tunde@kora.app',
-        username: '@tunde',
-        fullName: 'Tunde Okafor',
-        avatarUrl: null,
-        items: [
-          StatusItem(
-            id: 'si_003',
-            type: StatusType.text,
-            text: 'Game day! ⚽',
-            backgroundColor: const Color(0xFF22C55E),
-            textColor: Colors.white,
-            createdAt: DateTime.now().subtract(const Duration(hours: 5)),
-            isReshared: true,
-          ),
-        ],
-        lastUpdatedAt: DateTime.now().subtract(const Duration(hours: 5)),
-        privacy: StatusPrivacy.myContacts,
-      ),
-      KoraStatus(
-        id: 'status_003',
-        userEmail: 'zara@kora.app',
-        username: '@zara',
-        fullName: 'Zara Bello',
-        avatarUrl: null,
-        items: [
-          StatusItem(
-            id: 'si_004',
-            type: StatusType.text,
-            text: 'Coffee thoughts ☕',
-            backgroundColor: const Color(0xFFEC4899),
-            textColor: Colors.white,
-            createdAt: DateTime.now().subtract(const Duration(hours: 8)),
-          ),
-        ],
-        lastUpdatedAt: DateTime.now().subtract(const Duration(hours: 8)),
-        privacy: StatusPrivacy.myContacts,
-        viewStatus: StatusViewStatus.viewed,
-      ),
-    ];
-  }
 }

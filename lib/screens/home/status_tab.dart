@@ -713,6 +713,17 @@ class _StatusTabState extends State<StatusTab> {
                   _buildStatusCarousel(
                     fullName, avatarUrl, hasStatus, myItems, allStatuses,
                     surface, textPrimary, textSecondary),
+                  // Empty state — the reference app's treatment: with no
+                  // contact statuses, a muted gray explainer sits under
+                  // My status. Never demo/simulated contact statuses.
+                  if (allStatuses.isEmpty && _searchQuery.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                      child: Text(
+                        'No status updates yet. Contacts\' status updates will appear here.',
+                        style: TextStyle(color: textSecondary, fontSize: 13.5, height: 1.4),
+                      ),
+                    ),
                   if (mutedUpdates.isNotEmpty && _searchQuery.isEmpty) ...[
                     _sectionLabel('Muted updates', textMuted),
                     _buildMutedRow(mutedUpdates, textSecondary),
