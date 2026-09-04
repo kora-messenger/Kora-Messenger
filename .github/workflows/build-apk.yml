@@ -3,6 +3,10 @@ name: Build Kora Messenger APK
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - 'backend/**'
+      - 'docs/**'
+      - '**.md'
   workflow_dispatch:
 
 permissions:
