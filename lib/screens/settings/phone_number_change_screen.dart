@@ -41,7 +41,7 @@ class _PhoneNumberChangeScreenState extends State<PhoneNumberChangeScreen> {
 
     // Send a real verification code to the account's email address.
     final email = SessionManager.instance.currentEmail;
-    final result = await AuthService().sendVerificationCode(email, type: 'phone_change');
+    final result = await AuthService.instance.sendVerificationCode(email, type: 'phone_change');
     if (!mounted) return;
     if (result.success) {
       setState(() {
@@ -60,7 +60,7 @@ class _PhoneNumberChangeScreenState extends State<PhoneNumberChangeScreen> {
     if (val.length == 6) {
       setState(() => _isVerifying = true);
       final email = SessionManager.instance.currentEmail;
-      final auth = AuthService();
+      final auth = AuthService.instance;
       final verify = await auth.verifyCode(email: email, code: val, type: 'phone_change');
 
       if (verify.success) {

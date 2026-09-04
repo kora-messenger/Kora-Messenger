@@ -1050,7 +1050,7 @@ class _MessageComposerState extends State<MessageComposer>
     );
 
     // Runtime location permission (JIT request, per store-policy flow).
-    final granted = await PermissionService.requestLocation();
+    final granted = await KoraPermissionService.requestLocation();
     if (!granted) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

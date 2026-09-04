@@ -62,7 +62,7 @@ class _EditUsernameScreenState extends State<EditUsernameScreen> {
     setState(() => _isSaving = true);
     // Persist server-side so other users can actually search for it.
     final user = SessionManager.instance.currentUser;
-    final result = await AuthService().saveProfile(
+    final result = await AuthService.instance.saveProfile(
       userId: user?.id ?? '',
       fullName: user?.fullName ?? '',
       username: text,

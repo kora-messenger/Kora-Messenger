@@ -161,7 +161,7 @@ class _LiveLocationScreenState extends State<LiveLocationScreen> {
     if (durationLabel == null || !mounted) return;
 
     // Step 3: capture the real current position
-    final granted = await PermissionService.requestLocation();
+    final granted = await KoraPermissionService.requestLocation();
     if (!granted) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
