@@ -1,0 +1,19 @@
+# Render Blueprint — auto-configures the Kora backend deploy.
+# In Render: New → Blueprint → select this repo. The only secret you
+# add by hand is MONGODB_URI; everything else is defined here.
+services:
+  - type: web
+    name: kora-backend
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    plan: free
+    envVars:
+      - key: MONGODB_URI
+        sync: false   # paste the Atlas connection string in the Render UI
+      - key: MONGODB_DB_NAME
+        value: kora
+      - key: NODE_VERSION
+        value: 18.17.1
