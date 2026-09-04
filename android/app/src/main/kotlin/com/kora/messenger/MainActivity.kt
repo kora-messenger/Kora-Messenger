@@ -28,6 +28,9 @@ class MainActivity : FlutterFragmentActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
+        // ── Real GPS location (chat "Send Location" + Live Location) ──
+        LocationPlugin(this).register(flutterEngine.dartExecutor.binaryMessenger)
+
         // ── App icon switcher ──
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, ICON_CHANNEL)
             .setMethodCallHandler { call, result ->

@@ -9,6 +9,7 @@ import '../../models/chat_models.dart';
 import '../group/group_permissions_screen.dart';
 import 'disappearing_messages_screen.dart';
 import '../settings/default_chat_theme_screen.dart';
+import '../../services/contacts_service.dart';
 import 'e2ee_verification_screen.dart';
 
 /// Group Chat Info screen — opens when the user taps a group name in
@@ -100,17 +101,86 @@ class _GroupChatInfoScreenState extends State<GroupChatInfoScreen> {
     );
   }
 
-  void _addParticipant() {
-    setState(() => _isAdding = true);
-    // Simulate adding a contact
-    final newParticipant = GroupParticipant(
-      name: 'New Member',
-      koraId: 'kora_${DateTime.now().millisecondsSinceEpoch}',
-      isAdmin: false,
-    );
-    setState(() {
-      _participants.add(newParticipant);
-      _isAdding = false;
+  /// Opens a real picker over the user's Kora contacts and adds the
+  /// selected contact as a participant. No fabricated members.
+  Future<void> _addParticipant() async {
+    final brightness = Theme.of(context).brightness;
+    final surface = KoraColors.surfaceFor(brightness);
+    final textPrimary = KoraColors.textPrimaryFor(brightness);
+    final textMuted = KoraColors.textMutedFor(brightness);
+
+    final contacts = await ContactsService.instance.getContacts();
+    if (!mounted) return;
+
+    // Contacts already in the group are hidden from the picker.
+    final existingIds = _participants.map((p) => p.koraId).toSet();
+    final selectable = contacts
+        .map((c) => (name: c['name'] as String? ?? '', koraId: c['koraId'] as String? ?? ''))
+        .where((c) => c.koraId.isNotEmpty && !existingIds.contains(c.koraId))
+        .toList()
+      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            Container(width: 40, height: 4,
+              decoration: BoxDecoration(color: KoraColors.borderFor(brightness), borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text('Add participant',
+                style: TextStyle(color: textPrimary, fontSize: 17, fontWeight: FontWeight.w700)),
+            ),
+            const SizedBox(height: 8),
+            if (selectable.isEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+                child: Text(
+                  'No contacts left to add. Every contact you have is already in this group.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: textMuted, fontSize: 13),
+                ),
+              )
+            else
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 360),
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: selectable.length,
+                  itemBuilder: (ctx, i) {
+                    final c = selectable[i];
+                    return ListTile(
+                      leading: KoraAvatar(
+                        name: c.name.isNotEmpty ? c.name : c.koraId,
+                        size: 40,
+                      ),
+                      title: Text(c.name.isNotEmpty ? c.name : c.koraId,
+                        style: TextStyle(color: textPrimary, fontSize: 15)),
+                      subtitle: Text(c.koraId, style: TextStyle(color: textMuted, fontSize: 12)),
+                      onTap: () {
+                        Navigator.pop(ctx, c);
+                      },
+                    );
+                  },
+                ),
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    ).then((picked) {
+      if (picked == null) return;
+      setState(() => _participants.add(GroupParticipant(
+        name: picked.name,
+        koraId: picked.koraId,
+        isAdmin: false,
+      )));
     });
   }
 

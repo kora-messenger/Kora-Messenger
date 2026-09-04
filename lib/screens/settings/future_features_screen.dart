@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../theme/kora_colors.dart';
+import '../../services/session_manager.dart';
 
 // ════════════════════════════════════════════════════════════════
 // FUTURE FEATURES SCREEN — AI Image Gen, AI Stickers, On-Device AI,
@@ -794,10 +795,53 @@ class ManagedAccountsScreen extends StatefulWidget {
 }
 
 class _ManagedAccountsScreenState extends State<ManagedAccountsScreen> {
-  final List<_ManagedUser> _users = [
-    _ManagedUser(name: 'Ijezie Goodluck', email: 'ijezie@goodluck.com', role: 'Owner', status: 'Active'),
-    _ManagedUser(name: 'Demo User', email: 'demo@kora.com', role: 'Admin', status: 'Active'),
-  ];
+  static const _kManagedKey = 'kora_managed_accounts';
+  List<_ManagedUser> _users = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUsers();
+  }
+
+  /// The signed-in account is always the Owner. Any team members the
+  /// user has added are loaded from local storage — no seeded demo data.
+  Future<void> _loadUsers() async {
+    final me = SessionManager.instance.currentUser;
+    final prefs = await SharedPreferences.getInstance();
+    final stored = prefs.getStringList(_kManagedKey) ?? [];
+    final added = stored.map((raw) {
+      final m = jsonDecode(raw) as Map<String, dynamic>;
+      return _ManagedUser(
+        name: m['name'] as String? ?? '',
+        email: m['email'] as String? ?? '',
+        role: m['role'] as String? ?? 'Admin',
+        status: m['status'] as String? ?? 'Pending',
+      );
+    }).toList();
+    if (mounted) {
+      setState(() {
+        _users = [
+          if (me != null)
+            _ManagedUser(
+              name: me.fullName.isNotEmpty ? me.fullName : me.email,
+              email: me.email,
+              role: 'Owner',
+              status: 'Active',
+            ),
+          ...added,
+        ];
+      });
+    }
+  }
+
+  Future<void> _persistAdded() async {
+    final prefs = await SharedPreferences.getInstance();
+    final added = _users.where((u) => u.role != 'Owner').map((u) => jsonEncode({
+      'name': u.name, 'email': u.email, 'role': u.role, 'status': u.status,
+    })).toList();
+    await prefs.setStringList(_kManagedKey, added);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -904,6 +948,7 @@ class _ManagedAccountsScreenState extends State<ManagedAccountsScreen> {
                 setState(() {
                   _users.add(_ManagedUser(name: nameController.text, email: emailController.text, role: 'Admin', status: 'Pending'));
                 });
+                _persistAdded();
                 Navigator.pop(ctx);
               }
             },

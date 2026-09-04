@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/services.dart';
 import '../../models/message_model.dart';
 import '../../models/chat_models.dart';
@@ -552,7 +553,19 @@ class MessageBubble extends StatelessWidget {
   }
 
   Widget _buildLocationContent(BuildContext context, bool isMe, Color textSecondary) {
-    return Row(
+    // Parse "lat, lng" from the trailing parenthesized coordinates.
+    final match = RegExp(r'\((-?\d+\.\d+),\s*(-?\d+\.\d+)\)\s*\$').firstMatch(message.text);
+    final lat = match != null ? double.tryParse(match.group(1)!) : null;
+    final lng = match != null ? double.tryParse(match.group(2)!) : null;
+    final canOpenMaps = lat != null && lng != null;
+    return GestureDetector(
+      onTap: canOpenMaps
+          ? () => launchUrl(
+              Uri.parse('https://maps.google.com/?q=$lat,$lng'),
+              mode: LaunchMode.externalApplication,
+            )
+          : null,
+      child: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
@@ -573,13 +586,14 @@ class MessageBubble extends StatelessWidget {
                 color: isMe ? Colors.white : KoraColors.textPrimary,
               ), maxLines: 1, overflow: TextOverflow.ellipsis),
               const SizedBox(height: 2),
-              Text('Location', style: TextStyle(
+              Text(canOpenMaps ? 'Tap to open in Maps' : 'Location', style: TextStyle(
                 fontSize: 12, color: isMe ? Colors.white70 : textSecondary,
               )),
             ],
           ),
         ),
       ],
+      ),
     );
   }
 

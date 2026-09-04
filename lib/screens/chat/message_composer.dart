@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../theme/kora_colors.dart';
 import '../../services/kora_recording_service.dart';
+import '../../services/permission_service.dart';
 import '../../services/audio_playback_service.dart';
 import '../../services/voice_note_stt_service.dart';
 import '../../services/voice_translation_pipeline.dart';
@@ -1004,8 +1005,7 @@ class _MessageComposerState extends State<MessageComposer>
     final textMuted = KoraColors.textMutedFor(brightness);
     final card = KoraColors.cardFor(brightness);
 
-    // Use a simple static map URL approach since geolocator isn't in deps
-    // Show a sheet to confirm sending location
+    // Confirm sheet, then capture real GPS via the native LocationPlugin
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -1049,9 +1049,23 @@ class _MessageComposerState extends State<MessageComposer>
       ),
     );
 
+    // Runtime location permission (JIT request, per store-policy flow).
+    final granted = await PermissionService.requestLocation();
+    if (!granted) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Location permission is needed to share your location.'),
+            backgroundColor: KoraColors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
+    }
+
     try {
-      // Request permission via the platform channel
-      // Use Flutter's built-in geolocation through MethodChannel
+      // Native LocationPlugin (kora.location channel, registered in MainActivity).
       const platform = MethodChannel('kora.location');
       final result = await platform.invokeMethod<Map>('getCurrentLocation', {
         'highAccuracy': true,
@@ -1063,11 +1077,21 @@ class _MessageComposerState extends State<MessageComposer>
         final lng = (result['longitude'] as num).toDouble();
         if (mounted) {
           ScaffoldMessenger.of(context).hideCurrentSnackBar();
-          widget.onSendLocation!(lat, lng, result['address'] as String? ?? 'Current Location');
+          widget.onSendLocation!(lat, lng, 'Current Location');
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not get location. Make sure location services are on.'),
+              backgroundColor: KoraColors.red,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
         }
       }
     } catch (e) {
-      // Fallback: try geolocator package if available, otherwise show error
       if (mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(

@@ -379,9 +379,9 @@ class MessageService {
   }
 
   /// Whether the other person in [chatId] is currently online, per the
-  /// conversation directory (falls back to true — Kora Support/AI and
-  /// any contact we don't have fresh presence for are treated as
-  /// reachable so the simulated receipts still progress).
+  /// conversation directory. Built-in Kora Support/AI chats are always
+  /// reachable; the presence info drives the local receipt progression
+  /// (sent → delivered → read) shown in the UI.
   Future<bool> _isRecipientOnline(String chatId) async {
     if (chatId == 'kora_support' || chatId == 'kora_ai') return true;
     final entry = await ConversationDirectoryService.instance.get(chatId);

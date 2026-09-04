@@ -531,7 +531,6 @@ class _AddTriggerSheetState extends State<_AddTriggerSheet> {
         break;
       case StatusTriggerType.BATTERY:
         condData['threshold'] = _batteryThreshold.toInt();
-        condData['simulatedBattery'] = 12;
         condData['isActive'] = true;
         break;
       case StatusTriggerType.MANUAL:

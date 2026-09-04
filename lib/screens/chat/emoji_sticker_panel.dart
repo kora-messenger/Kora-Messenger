@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'package:http/http.dart' as http;
 import '../../theme/kora_colors.dart';
 import 'sticker_maker_screen.dart';
 import 'kora_camera_screen.dart';
@@ -291,6 +292,11 @@ class _KoraEmojiPanelState extends State<KoraEmojiPanel>
   List<String> _searchResults = [];
   bool _isSearching = false;
 
+  // Real GIF results from Giphy (same public beta key as GifSearchScreen)
+  List<Map<String, String>> _gifResults = [];
+  bool _gifsLoading = false;
+  bool _gifsLoaded = false;
+
   final List<String> _recentEmojis = [];
   static const _recentKey = 'kora_recent_emojis';
 
@@ -365,6 +371,11 @@ class _KoraEmojiPanelState extends State<KoraEmojiPanel>
   }
 
   void _onSearchChanged(String query) {
+    if (_activeTab == _PanelTab.gif && widget.onGifSelected != null) {
+      setState(() => _searchQuery = query);
+      _fetchGifs();
+      return;
+    }
     setState(() {
       _searchQuery = query;
       _isSearching = query.isNotEmpty;
@@ -765,64 +776,96 @@ onTap: () => _showStickerOptions(brightness, isDark),
       );
     }
 
-    // Trending GIF categories
-    final categories = ['Trending', 'Reactions', 'Entertainment', 'Sports', 'Stickers', 'Anime'];
-    final placeholderGifs = List.generate(12, (i) => 'gif_${i + 1}');
+    // Real GIF results from Giphy — no placeholder tiles.
 
-    return Column(
-      children: [
-        // Category chips
-        SizedBox(
-          height: 36,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            children: categories.map((cat) {
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: Chip(
-                  label: Text(cat, style: TextStyle(fontSize: 12)),
-                  backgroundColor: surface,
-                  side: BorderSide(color: KoraColors.borderFor(brightness), width: 0.5),
-                  visualDensity: VisualDensity.compact,
-                ),
-              );
-            }).toList(),
-          ),
+    if (_gifsLoading) {
+      return Center(child: CircularProgressIndicator(color: KoraColors.purple));
+    }
+    if (_gifResults.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.gif, size: 48, color: textMuted.withValues(alpha: 0.4)),
+            const SizedBox(height: 8),
+            Text('No GIFs found', style: TextStyle(color: textMuted, fontSize: 14)),
+          ],
         ),
-        // GIF grid
-        Expanded(
-          child: GridView.builder(
-            padding: const EdgeInsets.all(8),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3, childAspectRatio: 1, mainAxisSpacing: 4, crossAxisSpacing: 4),
-            itemCount: placeholderGifs.length,
-            itemBuilder: (ctx, i) {
-              return GestureDetector(
-                onTap: () => widget.onGifSelected!(placeholderGifs[i]),
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [KoraColors.purple.withValues(alpha: 0.1), KoraColors.blue.withValues(alpha: 0.1)],
-                    ),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: KoraColors.borderFor(brightness), width: 0.5),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.gif, size: 28, color: KoraColors.purple.withValues(alpha: 0.5)),
-                      Text('GIF ${i + 1}', style: TextStyle(color: textMuted, fontSize: 10)),
-                    ],
-                  ),
+      );
+    }
+
+    return GridView.builder(
+      padding: const EdgeInsets.all(8),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3, childAspectRatio: 1, mainAxisSpacing: 4, crossAxisSpacing: 4),
+      itemCount: _gifResults.length,
+      itemBuilder: (ctx, i) {
+        final gif = _gifResults[i];
+        return GestureDetector(
+          onTap: () => widget.onGifSelected!(gif['url']!),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.network(
+              gif['preview']!,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(colors: [KoraColors.purple.withValues(alpha: 0.2), KoraColors.blue.withValues(alpha: 0.2)]),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-              );
-            },
+                child: Center(child: Icon(Icons.gif, size: 28, color: KoraColors.purple.withValues(alpha: 0.4))),
+              ),
+            ),
           ),
-        ),
-      ],
+        );
+      },
     );
   }
+
+  /// Fetches real GIFs from Giphy — trending by default, or matching
+  /// the active search query (same public key as GifSearchScreen).
+  Future<void> _fetchGifs() async {
+    if (_gifsLoading) return;
+    setState(() => _gifsLoading = true);
+    const apiKey = 'dc6zaTOxFJmzC';
+    final q = _searchQuery.trim();
+    final url = q.isEmpty
+        ? 'https://api.giphy.com/v1/gifs/trending?api_key=$apiKey&limit=24&rating=pg'
+        : 'https://api.giphy.com/v1/gifs/search?api_key=$apiKey&q=${Uri.encodeComponent(q)}&limit=24&rating=pg';
+    try {
+      final res = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 10));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body) as Map<String, dynamic>;
+        final items = (data['data'] as List?) ?? [];
+        if (mounted) {
+          setState(() {
+            _gifResults = items.map((item) {
+              final images = (item as Map<String, dynamic>)['images'] as Map<String, dynamic>? ?? {};
+              String? pick(String variant) {
+                final v = images[variant] as Map<String, dynamic>?;
+                return v?['url'] as String?;
+              }
+              final sendUrl = pick('fixed_width') ?? pick('original');
+              final previewUrl = pick('fixed_height_small') ?? pick('fixed_width') ?? sendUrl;
+              return {'url': sendUrl ?? '', 'preview': previewUrl ?? ''};
+            }).where((g) => g['url']!.isNotEmpty && g['preview']!.isNotEmpty).toList();
+            _gifsLoaded = true;
+          });
+          return;
+        }
+      }
+    } catch (_) {
+      // fall through to empty state
+    }
+    if (mounted) {
+      setState(() {
+        _gifResults = _gifResults; // keep whatever loaded earlier on error
+        _gifsLoading = false;
+        _gifsLoaded = true;
+      });
+    }
+  }
+
 
   void _showStickerOptions(Brightness brightness, bool isDark) {
     showModalBottomSheet(
@@ -981,7 +1024,10 @@ onTap: () => _showStickerOptions(brightness, isDark),
           _buildTab(icon: Icons.sticky_note_2_outlined, isActive: _activeTab == _PanelTab.stickers,
             brightness: brightness, onTap: () => setState(() => _activeTab = _PanelTab.stickers)),
           _buildTab(icon: Icons.gif, isActive: _activeTab == _PanelTab.gif,
-            brightness: brightness, onTap: () => setState(() => _activeTab = _PanelTab.gif)),
+            brightness: brightness, onTap: () {
+              setState(() => _activeTab = _PanelTab.gif);
+              if (!_gifsLoaded) _fetchGifs();
+            }),
           IconButton(
             onPressed: () {
               if (widget.onKeyboardToggle != null) {

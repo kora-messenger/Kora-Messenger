@@ -360,6 +360,44 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
     }
   }
 
+  /// Sends a GIF from a remote URL (Giphy). Downloads to a temp file
+  /// first so the same media pipeline (data-URL embedding, cloud sync)
+  /// handles it like any other image.
+  Future<void> _sendGif(String url) async {
+    try {
+      final res = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 20));
+      if (res.statusCode != 200) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not load that GIF. Check your connection and try again.')),
+          );
+        }
+        return;
+      }
+      final tempDir = Directory.systemTemp;
+      final file = File('${tempDir.path}/kora_gif_${DateTime.now().millisecondsSinceEpoch}.gif');
+      await file.writeAsBytes(res.bodyBytes);
+      await _messageService.sendMediaMessage(
+        widget.chatId,
+        mediaPath: file.path,
+        isVideo: false,
+        recipientEmail: widget.recipientEmail,
+        recipientName: widget.name,
+      );
+      ChatSoundService.instance.playOutgoing();
+      if (mounted) {
+        setState(() => _messages = List.from(_messageService.getMessages(widget.chatId)));
+        _scrollToBottom();
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not send that GIF. Check your connection and try again.')),
+        );
+      }
+    }
+  }
+
   void _sendMedia(
     String path, bool isVideo, String? caption, bool isViewOnce, bool isHD, double? width, double? height,
   ) async {
@@ -456,9 +494,12 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
 
   // ── Send location ────────────────────────────────────
   void _sendLocation(double lat, double lng, String address) async {
+    // Coordinates are embedded in the text so recipients can open the
+    // exact spot in their maps app.
+    final coordText = '${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}';
     await _messageService.sendMessage(
       widget.chatId,
-      '📍 $address',
+      '📍 $address ($coordText)',
       type: KoraMessageType.location,
       replyToId: _replyTarget?.id,
       replyToText: _replyTarget?.text,
@@ -2073,6 +2114,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
                     : MessageComposer(
                         onSend: _sendMessage,
                         onSendSticker: _sendSticker,
+                        onSendGif: _sendGif,
                         onSendVoice: _sendVoice,
                         onMicTap: () => AudioPlaybackService.instance.stop(),
                         onSendMedia: _sendMedia,

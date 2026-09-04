@@ -108,8 +108,10 @@ class OfflineVoiceSyncService {
       );
       _syncController.add(entry.chatId);
 
-      // Simulate upload with a short delay (would be a real file
-      // upload in production)
+      // The voice note's audio travels as a data URL embedded in the
+      // message record, which cloud syncs via ChatSyncService. This
+      // short delay only paces the progress-ring animation so the
+      // upload state is visible before flipping to sent.
       await Future.delayed(const Duration(milliseconds: 800));
 
       // Transition message: pendingOffline → sent

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:battery_plus/battery_plus.dart';
 
 import '../models/status_model.dart';
 import 'status_service.dart';
@@ -156,11 +157,11 @@ class StatusTriggerService extends ChangeNotifier {
     _initialized = true;
 
     await _loadTriggers();
-    _checkTriggersInternal();
+    unawaited(_checkTriggersInternal());
 
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 60), (_) {
-      checkTriggers();
+      unawaited(checkTriggers());
     });
   }
 
@@ -175,7 +176,7 @@ class StatusTriggerService extends ChangeNotifier {
     _triggers.removeWhere((t) => t.id == trigger.id);
     _triggers.add(trigger);
     await _persistTriggers();
-    checkTriggers();
+    unawaited(checkTriggers());
   }
 
   /// Remove a trigger by ID.
@@ -185,7 +186,7 @@ class StatusTriggerService extends ChangeNotifier {
       _activeTrigger = null;
     }
     await _persistTriggers();
-    checkTriggers();
+    unawaited(checkTriggers());
   }
 
   /// Toggle trigger enabled state.
@@ -196,24 +197,24 @@ class StatusTriggerService extends ChangeNotifier {
       final newStatus = enabled ?? !current.isEnabled;
       _triggers[idx] = current.copyWith(isEnabled: newStatus);
       await _persistTriggers();
-      checkTriggers();
+      unawaited(checkTriggers());
     }
   }
 
   /// Check conditions for all enabled triggers and return highest priority active trigger.
-  StatusTrigger? checkTriggers() {
-    final winning = _checkTriggersInternal();
+  Future<StatusTrigger?> checkTriggers() async {
+    final winning = await _checkTriggersInternal();
     notifyListeners();
     return winning;
   }
 
-  StatusTrigger? _checkTriggersInternal() {
+  Future<StatusTrigger?> _checkTriggersInternal() async {
     final now = DateTime.now();
     final enabledTriggers = _triggers.where((t) => t.isEnabled).toList();
     final activeCandidates = <StatusTrigger>[];
 
     for (final trigger in enabledTriggers) {
-      if (_evaluateCondition(trigger, now)) {
+      if (await _evaluateCondition(trigger, now)) {
         activeCandidates.add(trigger);
       }
     }
@@ -236,7 +237,7 @@ class StatusTriggerService extends ChangeNotifier {
     return winner;
   }
 
-  bool _evaluateCondition(StatusTrigger trigger, DateTime now) {
+  Future<bool> _evaluateCondition(StatusTrigger trigger, DateTime now) async {
     switch (trigger.type) {
       case StatusTriggerType.TIME:
         final days = (trigger.conditionData['days'] as List?)?.map((e) => (e as num).toInt()).toList() ?? [1, 2, 3, 4, 5, 6, 7];
@@ -267,9 +268,15 @@ class StatusTriggerService extends ChangeNotifier {
 
       case StatusTriggerType.BATTERY:
         final threshold = (trigger.conditionData['threshold'] as num? ?? 15).toInt();
-        final simBattery = (trigger.conditionData['simulatedBattery'] as num? ?? 12).toInt();
         final isActive = trigger.conditionData['isActive'] as bool? ?? true;
-        return isActive && simBattery <= threshold;
+        if (!isActive) return false;
+        // Real device battery level — never simulated.
+        try {
+          final level = await Battery().batteryLevel;
+          return level <= threshold;
+        } catch (_) {
+          return false;
+        }
 
       case StatusTriggerType.MANUAL:
         final isActive = trigger.conditionData['isActive'] as bool? ?? true;
@@ -372,7 +379,6 @@ class StatusTriggerService extends ChangeNotifier {
         isEnabled: false,
         conditionData: {
           'threshold': 15,
-          'simulatedBattery': 12,
           'isActive': true,
         },
       ),

@@ -33,6 +33,7 @@ dependencies:
   mobile_scanner: ^7.0.0
   screen_brightness: ^1.0.1
   connectivity_plus: ^7.0.0
+  battery_plus: ^6.0.1
   just_audio: ^0.10.6
   audioplayers: ^6.1.0
   speech_to_text: ^7.0.0
