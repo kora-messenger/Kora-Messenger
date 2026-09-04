@@ -863,13 +863,26 @@ class _CallScreenState extends State<CallScreen>
 
     if (mounted) setState(() => _callState = 'ended');
 
-    await _callService.logOutgoingCall(
-      contactName: widget.contactName,
-      avatarUrl: widget.avatarUrl,
-      badge: widget.badge,
-      type: widget.isVideoCall ? CallType.video : CallType.voice,
-      durationSeconds: duration,
-    );
+    // Log with the real direction — outgoing for placed calls,
+    // incoming for received-and-answered calls (the reference app
+    // logs all three: outgoing, incoming, missed).
+    if (widget.isOutgoing) {
+      await _callService.logOutgoingCall(
+        contactName: widget.contactName,
+        avatarUrl: widget.avatarUrl,
+        badge: widget.badge,
+        type: widget.isVideoCall ? CallType.video : CallType.voice,
+        durationSeconds: duration,
+      );
+    } else {
+      await _callService.logIncomingCall(
+        contactName: widget.contactName,
+        avatarUrl: widget.avatarUrl,
+        badge: widget.badge,
+        type: widget.isVideoCall ? CallType.video : CallType.voice,
+        durationSeconds: duration,
+      );
+    }
 
     if (mounted) Navigator.pop(context);
   }

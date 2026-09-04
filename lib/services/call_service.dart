@@ -7,34 +7,50 @@ import '../models/chat_models.dart';
 ///
 /// Calls are logged when a user makes or receives a voice/video call
 /// through the [WebRTCCallService]. The Calls tab on the Home screen
-/// reads from this service.
+/// reads from this service. Real calls only — no demo/simulated
+/// history (matches the reference app: fresh installs show the
+/// "No calls yet" empty state until a real call happens).
 class CallService {
   static final CallService instance = CallService._();
   CallService._();
 
   static const _kKey = 'kora_call_logs';
-  static const _kSeeded = 'kora_calls_seeded';
 
   List<CallLog> _logs = [];
   bool _loaded = false;
+
+  /// Legacy demo entries seeded by early builds ('call_1'..'call_3').
+  /// Purged on load so upgrading installs never show fake history —
+  /// the reference app only ever shows real calls.
+  static const _legacyDemoIds = {'call_1', 'call_2', 'call_3'};
 
   // ── Load / Save ────────────────────────────────────────────
 
   Future<void> init() async {
     if (_loaded) return;
-    final prefs = await SharedPreferences.getInstance();
-    final seeded = prefs.getBool(_kSeeded) ?? false;
+    await _ensureLoaded();
+  }
 
-    if (!seeded) {
-      _seedDemoCalls();
-      await _persist();
-      await prefs.setBool(_kSeeded, true);
-    } else {
-      final raw = prefs.getString(_kKey);
-      if (raw != null) {
+  /// Loads persisted logs. Safe to call from anywhere (call screens
+  /// can log before the Calls tab ever calls [init]) — without this,
+  /// persisting a new log would wipe the stored history.
+  Future<void> _ensureLoaded() async {
+    if (_loaded) return;
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_kKey);
+    if (raw != null) {
+      try {
         final list = jsonDecode(raw) as List;
         _logs = list.map((e) => CallLog.fromJson(e as Map<String, dynamic>)).toList();
+      } catch (_) {
+        _logs = [];
       }
+    }
+
+    // One-time purge of demo entries from older builds.
+    if (_logs.any((l) => _legacyDemoIds.contains(l.id))) {
+      _logs.removeWhere((l) => _legacyDemoIds.contains(l.id));
+      await _persist();
     }
     _loaded = true;
   }
@@ -49,6 +65,7 @@ class CallService {
   List<CallLog> getLogs() => List.unmodifiable(_logs);
 
   Future<void> addLog(CallLog log) async {
+    await _ensureLoaded();
     _logs.insert(0, log);
     await _persist();
   }
@@ -59,6 +76,7 @@ class CallService {
     required int rating,
     String? feedback,
   }) async {
+    await _ensureLoaded();
     final index = _logs.indexWhere((l) => l.id == callId);
     if (index != -1) {
       _logs[index] = _logs[index].copyWith(
@@ -138,40 +156,8 @@ class CallService {
   }
 
   Future<void> clearAll() async {
+    await _ensureLoaded();
     _logs.clear();
     await _persist();
-  }
-
-  // ── Seed data ─────────────────────────────────────────────
-
-  void _seedDemoCalls() {
-    final now = DateTime.now();
-    _logs = [
-      CallLog(
-        id: 'call_1',
-        contactName: 'David Okoro',
-        avatarUrl: null,
-        badge: KoraBadgeType.premiumBlue,
-        type: CallType.video,
-        status: CallStatus.missed,
-        timestamp: now.subtract(const Duration(minutes: 35)),
-      ),
-      CallLog(
-        id: 'call_2',
-        contactName: 'Amara Chukwu',
-        type: CallType.voice,
-        status: CallStatus.outgoing,
-        timestamp: now.subtract(const Duration(hours: 2)),
-        durationSeconds: 184,
-      ),
-      CallLog(
-        id: 'call_3',
-        contactName: 'Grace Adeyemi',
-        type: CallType.voice,
-        status: CallStatus.incoming,
-        timestamp: now.subtract(const Duration(hours: 5)),
-        durationSeconds: 92,
-      ),
-    ];
   }
 }

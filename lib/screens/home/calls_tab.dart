@@ -160,17 +160,6 @@ class _CallsTabState extends State<CallsTab> {
     Navigator.push(context, MaterialPageRoute(builder: (_) => const SelectContactScreen()));
   }
 
-  void _quickActionComingSoon(String label) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$label — coming soon'),
-        backgroundColor: KoraColors.purple,
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-
   void _toggleSearch() {
     setState(() {
       _isSearching = !_isSearching;
@@ -223,7 +212,6 @@ class _CallsTabState extends State<CallsTab> {
     final surface = KoraColors.surfaceFor(brightness);
     final textPrimary = KoraColors.textPrimaryFor(brightness);
     final textSecondary = KoraColors.textSecondaryFor(brightness);
-    final textMuted = KoraColors.textMutedFor(brightness);
     final border = KoraColors.borderFor(brightness);
 
     final filteredLogs = _filteredLogs;
@@ -267,15 +255,35 @@ class _CallsTabState extends State<CallsTab> {
                                 );
                               }),
                             ] else if (!_loading && _query.isEmpty)
+                              // Empty state — the reference app's exact
+                              // treatment: outlined circle + phone icon,
+                              // "No calls yet", and a muted subtitle.
                               Padding(
-                                padding: const EdgeInsets.fromLTRB(20, 32, 20, 8),
+                                padding: const EdgeInsets.fromLTRB(20, 36, 20, 8),
                                 child: Column(
                                   children: [
-                                    Icon(Icons.call_outlined, size: 40, color: textMuted),
-                                    const SizedBox(height: 10),
+                                    Container(
+                                      width: 88, height: 88,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        border: Border.all(color: border, width: 1.5),
+                                      ),
+                                      child: Icon(Icons.call_outlined, size: 36, color: textSecondary),
+                                    ),
+                                    const SizedBox(height: 16),
                                     Text(
-                                      'No recent calls',
-                                      style: TextStyle(color: textSecondary, fontSize: 14),
+                                      'No calls yet',
+                                      style: TextStyle(
+                                        color: textPrimary,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      "Contacts' calls to you will appear here. To make a call, tap the + button below.",
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(color: textSecondary, fontSize: 13, height: 1.4),
                                     ),
                                   ],
                                 ),
