@@ -36,7 +36,7 @@ class _BusinessToolsScreenState extends State<BusinessToolsScreen> {
     return Scaffold(
       backgroundColor: KoraColors.backgroundFor(b),
       appBar: AppBar(backgroundColor: KoraColors.backgroundFor(b),
-        title: Text('Business tools', style: TextStyle(color: KoraColors.textPrimaryFor(b))),
+        title: Text('Business Tools', style: TextStyle(color: KoraColors.textPrimaryFor(b))),
         iconTheme: IconThemeData(color: KoraColors.textPrimaryFor(b))),
       body: ListView(children: [
         // Profile card

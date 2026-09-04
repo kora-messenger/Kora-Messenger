@@ -31,11 +31,19 @@ class _BusinessHoursScreenState extends State<BusinessHoursScreen> {
   }
 
   bool get _isOpenNow {
+    if (_settings.mode == 'always_open') return true;
+    if (_settings.mode == 'appointment') return false;
     final now = DateTime.now();
     int dayIdx = (now.weekday - 1) % 7;
     final day = _settings.days[dayIdx];
     if (!day.isOpen || day.openTime == null || day.closeTime == null) return false;
-    return true;
+    // Compare the actual clock time against open/close, not just the toggle.
+    int _mins(String s) {
+      final parts = s.split(':');
+      return (int.tryParse(parts.first) ?? 0) * 60 + (int.tryParse(parts.length > 1 ? parts[1] : '0') ?? 0);
+    }
+    final nowMins = now.hour * 60 + now.minute;
+    return nowMins >= _mins(day.openTime!) && nowMins < _mins(day.closeTime!);
   }
 
   @override
@@ -53,12 +61,15 @@ class _BusinessHoursScreenState extends State<BusinessHoursScreen> {
           child: Row(children: [
             Icon(_isOpenNow ? Icons.check_circle : Icons.access_time, color: _isOpenNow ? Colors.green : Colors.orange),
             const SizedBox(width: 12),
-            Text(_isOpenNow ? 'Open now' : 'Closed', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold,
+            Text(_settings.mode == 'always_open'
+                ? 'Open 24 hours'
+                : _isOpenNow ? 'Open now' : 'Closed',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold,
               color: _isOpenNow ? Colors.green : Colors.orange)),
           ])),
         _modeRadio('Selected hours', 'selected', b),
         _modeRadio('Always open', 'always_open', b),
-        _modeRadio('By appointment', 'appointment', b),
+        _modeRadio('Appointment only', 'appointment', b),
         if (_settings.mode == 'selected') ...[
           const SizedBox(height: 8),
           Padding(padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),

@@ -71,7 +71,7 @@ class _BusinessTemplatesScreenState extends State<BusinessTemplatesScreen> {
           style: TextStyle(color: KoraColors.textMutedFor(b), fontSize: 14))),
         ..._templates.map((t) => ListTile(
           leading: CircleAvatar(backgroundColor: KoraColors.purple.withValues(alpha: 0.15),
-            child: Text(t.shortcut.replaceAll('/', '').substring(0, 1).toUpperCase(), style: TextStyle(color: KoraColors.purple))),
+            child: Text((t.shortcut.replaceAll('/', '').isNotEmpty ? t.shortcut.replaceAll('/', '').substring(0, 1) : '?').toUpperCase(), style: TextStyle(color: KoraColors.purple))),
           title: Text(t.shortcut, style: TextStyle(color: KoraColors.textPrimaryFor(b), fontWeight: FontWeight.w600)),
           subtitle: Text(t.message, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: KoraColors.textMutedFor(b))),
           trailing: IconButton(icon: Icon(Icons.delete_outline, color: KoraColors.textMutedFor(b)),

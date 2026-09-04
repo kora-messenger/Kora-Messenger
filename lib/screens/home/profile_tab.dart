@@ -295,7 +295,7 @@ class _ProfileTabState extends State<ProfileTab> {
               icon: Icons.store_outlined,
               iconColor: KoraColors.purple,
               title: 'Business Tools',
-              subtitle: 'Catalog, quick replies, labels, orders',
+              subtitle: 'Catalog, quick replies, labels',
               screen: const BusinessToolsScreen(),
             ),
             const SizedBox(height: 20),

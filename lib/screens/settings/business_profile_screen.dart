@@ -35,6 +35,7 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
       _descCtrl.text = _profile.description;
       _addrCtrl.text = _profile.address;
       _emailCtrl.text = _profile.email;
+      _websiteCtrl.text = _profile.websites.isNotEmpty ? _profile.websites.first : '';
       _selectedCat = _profile.category.isNotEmpty ? _profile.category : 'Shopping';
       setState(() {});
     }
@@ -45,6 +46,7 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
     _profile = _profile.copyWith(
       businessName: _nameCtrl.text, category: _selectedCat,
       description: _descCtrl.text, address: _addrCtrl.text, email: _emailCtrl.text,
+      websites: _websiteCtrl.text.trim().isNotEmpty ? [_websiteCtrl.text.trim()] : const [],
     );
     await prefs.setString('kora_business_profile', jsonEncode(_profile.toJson()));
     if (mounted) Navigator.pop(context);
@@ -70,7 +72,7 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
         backgroundColor: KoraColors.backgroundFor(brightness),
         title: Text('Business profile', style: TextStyle(color: KoraColors.textPrimaryFor(brightness))),
         iconTheme: IconThemeData(color: KoraColors.textPrimaryFor(brightness)),
-        actions: [TextButton(onPressed: _save, child: Text('SAVE', style: TextStyle(color: KoraColors.purple, fontWeight: FontWeight.bold)))],
+        actions: [TextButton(onPressed: _save, child: Text('Save', style: TextStyle(color: KoraColors.purple, fontWeight: FontWeight.bold)))],
       ),
       body: ListView(children: [
         const SizedBox(height: 20),
