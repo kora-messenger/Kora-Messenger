@@ -40,6 +40,12 @@ class KoraApi {
     defaultValue: '',
   );
 
+  /// Self-hosted upload base — third service migrated off Base44.
+  static const String _uploadBase = String.fromEnvironment(
+    'KORA_UPLOAD_URL',
+    defaultValue: '',
+  );
+
   /// Email change endpoint — two-step verification flow (old email → new email).
   static const String emailChangeEndpoint = '$baseUrl/koraEmailChange';
 
@@ -73,7 +79,9 @@ class KoraApi {
   static const String antiSpamEndpoint = '$baseUrl/koraAntiSpam';
 
   /// File upload endpoint — avatar and media uploads.
-  static const String uploadEndpoint = '$baseUrl/koraUpload';
+  /// Upload endpoint — follows the self-hosted override (see [_uploadBase]).
+  static String get uploadEndpoint =>
+      _uploadBase.isEmpty ? '$baseUrl/koraUpload' : '$_uploadBase/koraUpload';
 
   /// Automated detection system — monitors activity, suspends accounts,
   /// checks suspension status, and handles appeals.

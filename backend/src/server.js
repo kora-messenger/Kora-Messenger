@@ -34,12 +34,16 @@ app.use('/koraLookupByEmail', koraLookupByEmail);
 const koraChatSync = require('./routes/koraChatSync');
 app.use('/koraChatSync', koraChatSync);
 
+// Avatar / media data-URL wrapping (stateless pass-through).
+const koraUpload = require('./routes/koraUpload');
+app.use('/koraUpload', koraUpload);
+
 // The app hits these too; they arrive as the migration continues.
 // Each returns a clean "not migrated yet" until its route module lands.
 const PENDING = [
   'koraEmailChange', 'koraCallSignal', 'koraTranslate', 'koraGptTrans',
   'koraLinkDevice', 'koraWebPair',
-  'koraCrashReport', 'koraServiceNotification', 'koraAntiSpam', 'koraUpload',
+  'koraCrashReport', 'koraServiceNotification', 'koraAntiSpam',
   'koraAutoDetect', 'koraInitPayment', 'koraRecoverSubscription',
   'koraVerifyPayment', 'koraSettingsSync', 'koraAiChat',
   'koraAiFeatures', 'koraAiOrchestrator', 'koraAiConversation',
