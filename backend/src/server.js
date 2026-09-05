@@ -1,5 +1,7 @@
 require('dotenv').config();
 const express = require('express');
+const dns = require('dns');
+dns.setDefaultResultOrder('ipv4first'); // Render: no IPv6 egress
 const cors = require('cors');
 const connectDb = require('./db');
 

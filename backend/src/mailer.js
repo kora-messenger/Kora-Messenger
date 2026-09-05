@@ -11,6 +11,10 @@ function getTransporter() {
       port: Number(process.env.SMTP_PORT || 587),
       secure: Number(process.env.SMTP_PORT) === 465,
       auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+      // Render instances have no IPv6 egress; force IPv4 or the SMTP
+      // handshake fails with ENETUNREACH/ETIMEDOUT on Gmail's AAAA record.
+      family: 4,
+      connectionTimeout: 30000,
     });
   }
   return transporter;
