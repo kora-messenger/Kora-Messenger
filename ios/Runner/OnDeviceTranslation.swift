@@ -6,7 +6,7 @@ import Foundation
 import Translation
 #endif
 
-/// On-device translation using Apple's Translation framework (iOS 17.4+)
+/// On-device translation using Apple's Translation framework (requires iOS 26+; older versions get the original text)
 /// or CoreML fallback.
 ///
 /// All text is processed locally — NO data leaves the device.
@@ -34,7 +34,7 @@ public class OnDeviceTranslationPlugin: NSObject, FlutterPlugin {
             }
 
             #if canImport(Translation)
-            if #available(iOS 17.4, *) {
+            if #available(iOS 26.0, *) {
                 translateWithAppleFramework(text: text, source: sourceLang, target: targetLang, result: result)
             } else {
                 result(text) // Fallback: return original text
@@ -64,7 +64,7 @@ public class OnDeviceTranslationPlugin: NSObject, FlutterPlugin {
     }
 
     #if canImport(Translation)
-    @available(iOS 17.4, *)
+    @available(iOS 26.0, *)
     private func translateWithAppleFramework(text: String, source: String, target: String, result: @escaping FlutterResult) {
         // Apple's TranslationSession handles on-device translation
         // Models are downloaded automatically by the system
