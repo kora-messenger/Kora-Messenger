@@ -19,7 +19,8 @@ router.post('/', async (req, res) => {
     // ── ACTION: requestPair ──────────────────────────────────────────────
     if (action === 'requestPair') {
       const token = generateToken();
-      const ttlSeconds = 120; // 2 minutes
+      // Telegram-style: pairing codes are short-lived and rotate automatically.
+      const ttlSeconds = 30;
       const expiresAt = new Date(Date.now() + ttlSeconds * 1000).toISOString();
 
       await VerificationCode.create({
@@ -107,9 +108,13 @@ router.post('/', async (req, res) => {
     if (action === 'acceptPair') {
       const token = body.token || body.pairingToken;
       const email = body.email || body.userEmail || body.ownerEmail;
+      const acceptorDeviceId = body.deviceId;
 
       if (!token || !email) {
         return res.status(400).json({ success: false, error: 'Token and email are required' });
+      }
+      if (!deviceId) {
+        return res.status(400).json({ success: false, error: 'Device verification required. Update Kora to the latest version.' });
       }
 
       const vCode = await VerificationCode.findOne({
@@ -134,6 +139,16 @@ router.post('/', async (req, res) => {
 
       if (!user) {
         return res.json({ success: false, error: 'Account not found' });
+      }
+
+      // Only a device already signed in on this account may accept a pairing —
+      // mirrors Telegram's rule that auth.acceptLoginToken is called by an
+      // already-authorized session.
+      const enrolled = (user.devices || []).some(
+        (d) => d && d.deviceId === acceptorDeviceId && d.isActive !== false
+      );
+      if (!enrolled) {
+        return res.json({ success: false, error: 'This device is not signed in on that account' });
       }
 
       // Mark VerificationCode as used and set email
@@ -177,39 +192,6 @@ router.post('/', async (req, res) => {
     }
 
     // ── ACTION: extendToken ──────────────────────────────────────────────
-    if (action === 'extendToken') {
-      const token = body.token || body.pairingToken;
-
-      if (!token) {
-        return res.status(400).json({ success: false, error: 'Token is required' });
-      }
-
-      const vCode = await VerificationCode.findOne({
-        code: token,
-        type: 'web_pair',
-      });
-
-      if (!vCode) {
-        return res.json({ success: false, error: 'Token not found' });
-      }
-
-      const used = vCode.used ?? false;
-
-      if (used) {
-        return res.json({ success: false, error: 'Token already used' });
-      }
-
-      const newExpiresAt = new Date(Date.now() + 120 * 1000).toISOString();
-
-      vCode.expiresAt = new Date(newExpiresAt);
-      await vCode.save();
-
-      return res.json({
-        success: true,
-        expiresAt: newExpiresAt,
-      });
-    }
-
     return res.status(400).json({ success: false, error: 'Unknown action: ' + action });
   } catch (e) {
     return res.status(500).json({ success: false, error: e?.message || 'Internal server error' });

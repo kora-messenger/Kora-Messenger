@@ -552,15 +552,17 @@ async function requestQrCode() {
     if (!res.success) throw new Error(res.error || 'Failed to generate code');
 
     qrCurrentToken = res.pairingToken;
-    const qrImgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=380x380&margin=0&color=8B5CF6&data=${encodeURIComponent(res.qrData)}`;
 
-    $('qrImage').onload = () => {
-      $('qrLoading').style.display = 'none';
-      $('qrImage').style.display = 'block';
-    };
-    $('qrImage').src = qrImgUrl;
+    // Render locally — the pairing token never leaves the browser (Telegram-style).
+    const qr = qrcode(0, 'M');
+    qr.addData(res.qrData);
+    qr.make();
+    $('qrImage').src = qr.createDataURL(9, 2);
 
-    startQrPolling(res.ttlSeconds || 120);
+    $('qrLoading').style.display = 'none';
+    $('qrImage').style.display = 'block';
+
+    startQrPolling(res.ttlSeconds || 30);
   } catch (e) {
     $('qrLoading').textContent = 'Unable to generate code. Please try again.';
   }
@@ -572,9 +574,9 @@ function startQrPolling(ttlSeconds) {
 
   qrPollTimer = setInterval(async () => {
     if (Date.now() > deadline) {
+      // Telegram-style: the code rotates automatically every ~30s.
       stopQrPolling();
-      $('qrImage').style.display = 'none';
-      $('qrExpired').style.display = 'flex';
+      requestQrCode();
       return;
     }
     if (!qrCurrentToken) return;
@@ -590,8 +592,7 @@ function startQrPolling(ttlSeconds) {
         showApp();
       } else if (res.status === 'expired') {
         stopQrPolling();
-        $('qrImage').style.display = 'none';
-        $('qrExpired').style.display = 'flex';
+        requestQrCode();
       }
     } catch (e) { /* silent retry */ }
   }, 2500);

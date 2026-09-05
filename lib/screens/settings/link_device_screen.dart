@@ -78,7 +78,6 @@ class _LinkDeviceScreenState extends State<LinkDeviceScreen> {
 
     setState(() {
       _scanning = false;
-      _linking = true;
       _error = null;
     });
 
@@ -95,11 +94,52 @@ class _LinkDeviceScreenState extends State<LinkDeviceScreen> {
       final Map<String, dynamic> requestBody;
 
       if (isWebPair) {
+        // Telegram-style: the account owner must explicitly confirm the link.
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (ctx) {
+            final brightness = Theme.of(context).brightness;
+            final textPrimary = KoraColors.textPrimaryFor(brightness);
+            final textSecondary = KoraColors.textSecondaryFor(brightness);
+            final card = KoraColors.cardFor(brightness);
+
+            return AlertDialog(
+              backgroundColor: card,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: Text('Link this device?',
+                  style: TextStyle(color: textPrimary, fontWeight: FontWeight.bold)),
+              content: Text(
+                'A web browser is asking to access your Kora account. '
+                'If you weren\'t expecting this, cancel.',
+                style: TextStyle(color: textSecondary, height: 1.5),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: Text('Cancel', style: TextStyle(color: textSecondary)),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: const Text('Link device',
+                      style: TextStyle(color: KoraColors.purple, fontWeight: FontWeight.w600)),
+                ),
+              ],
+            );
+          },
+        );
+        if (confirmed != true) {
+          if (mounted) setState(() => _scanning = true);
+          return;
+        }
+
+        setState(() => _linking = true);
+
         endpoint = KoraApi.webPairEndpoint;
         requestBody = {
           'action': 'acceptPair',
           'pairingToken': token,
           'ownerEmail': myEmail,
+          'deviceId': myDeviceId,
         };
       } else {
         endpoint = KoraApi.linkDeviceEndpoint;
