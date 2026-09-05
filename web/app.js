@@ -1,7 +1,7 @@
 // ── Kora Web Configuration ─────────────────────────────
 // Central config — update this one line when migrating to a custom domain
 const KORA_CONFIG = {
-  BASE_URL: 'https://solas-463874c8.base44.app/functions',
+  BASE_URL: 'https://kora-backend-0ko1.onrender.com',
   POLL_INTERVAL: 3000,
   get AUTH_URL() { return `${this.BASE_URL}/koraAuth`; },
   get CHAT_SYNC_URL() { return `${this.BASE_URL}/koraChatSync`; },
