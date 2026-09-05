@@ -70,7 +70,14 @@ async function issueCode(email, type) {
     expiresAt: new Date(Date.now() + CODE_TTL_MS),
   });
   await sendVerificationCode(email, code, type);
+  // TEST-ONLY: lets the auth test suite read codes without SMTP.
+  // Controlled by env var; must stay unset in production.
+  if (process.env.DEV_RETURN_CODES === 'true') {
+    lastDevCode = { email, code, type, at: Date.now() };
+  }
 }
+
+let lastDevCode = null;
 
 /// Verifies a code; returns null on success or an error string.
 async function checkCode(email, code, type) {
@@ -111,6 +118,13 @@ router.post('/', async (req, res) => {
         const existing = await User.findOne({ username }).collation({ locale: 'en', strength: 2 });
         if (existing) return ok(res, { available: false, reason: 'Username is already taken' });
         return ok(res, { available: true });
+      }
+
+      case 'getDevCode': {
+        // TEST-ONLY endpoint, gated behind DEV_RETURN_CODES=true.
+        if (process.env.DEV_RETURN_CODES !== 'true') return fail(res, 'Not available');
+        if (!lastDevCode) return fail(res, 'No code issued yet');
+        return ok(res, lastDevCode);
       }
 
       case 'sendCode': {
