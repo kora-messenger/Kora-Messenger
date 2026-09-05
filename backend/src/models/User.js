@@ -19,7 +19,7 @@ const userSchema = new mongoose.Schema(
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     passwordHash: { type: String, default: '' },
     fullName: { type: String, default: '' },
-    username: { type: String, sparse: true, trim: true },
+    username: { type: String, trim: true },
     koraId: { type: String, required: true, unique: true },
     bio: { type: String, default: '' },
     avatarUrl: { type: String, default: '' },
