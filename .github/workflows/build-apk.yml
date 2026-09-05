@@ -59,6 +59,7 @@ jobs:
             --target-platform android-arm,android-arm64,android-x64 \
             --split-per-abi \
             --dart-define=KORA_BACKEND_URL=${{ secrets.KORA_BACKEND_URL }} \
+            --dart-define=KORA_AUTH_URL=${{ secrets.KORA_AUTH_URL }} \
             --dart-define=KORA_AI_AUTH_TOKEN=${{ secrets.KORA_AI_AUTH_TOKEN }}
 
       - name: Save per-ABI APKs
@@ -76,6 +77,7 @@ jobs:
         run: |
           flutter build apk --release \
             --dart-define=KORA_BACKEND_URL=${{ secrets.KORA_BACKEND_URL }} \
+            --dart-define=KORA_AUTH_URL=${{ secrets.KORA_AUTH_URL }} \
             --dart-define=KORA_AI_AUTH_TOKEN=${{ secrets.KORA_AI_AUTH_TOKEN }}
 
       - name: Prepare all APK files

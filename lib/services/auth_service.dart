@@ -14,7 +14,7 @@ class AuthService {
   static final AuthService instance = AuthService._();
   AuthService._();
 
-  static const String _endpoint = KoraApi.authEndpoint;
+  static String get _endpoint => KoraApi.authEndpoint;
 
   /// Returns a user-friendly message for a caught exception,
   /// distinguishing a timeout (server too slow / unreachable) from

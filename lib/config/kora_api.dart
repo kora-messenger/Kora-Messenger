@@ -18,8 +18,19 @@ class KoraApi {
     defaultValue: 'https://solas-463874c8.base44.app/functions',
   );
 
+  /// Self-hosted auth base (Render → koramessenger.com later).
+  /// Auth is the first service migrated off Base44: when KORA_AUTH_URL is
+  /// set at build time, ALL authentication (signup, login, verification,
+  /// password reset, profile) runs on our own infrastructure, while the
+  /// remaining endpoints keep using [baseUrl] until each one migrates.
+  static const String _authBase = String.fromEnvironment(
+    'KORA_AUTH_URL',
+    defaultValue: '',
+  );
+
   /// Auth endpoint (handles signup, login, verification, password reset, profile)
-  static const String authEndpoint = '$baseUrl/koraAuth';
+  static String get authEndpoint =>
+      _authBase.isEmpty ? '$baseUrl/koraAuth' : '$_authBase/koraAuth';
 
   /// Email change endpoint — two-step verification flow (old email → new email).
   static const String emailChangeEndpoint = '$baseUrl/koraEmailChange';
