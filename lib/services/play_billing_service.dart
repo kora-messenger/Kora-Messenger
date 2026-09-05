@@ -38,9 +38,8 @@ class PlayBillingService {
   bool _initialized = false;
   bool _available = false;
 
-  /// The email used for server verification — set by the caller
-  /// (the premium sheet) before starting a purchase.
-  String userEmail = '';
+  /// The email used for server verification — set during buy().
+  String _verifyEmail = '';
 
   /// Whether Google Play Billing can be offered on this device.
   bool get available => _available && _products.isNotEmpty;
@@ -53,7 +52,7 @@ class PlayBillingService {
     return list;
   }
 
-  Completer<Map<String, dynamic>>? _pendingVerify;
+  Completer<Map<String, dynamic>?>? _pendingVerify;
 
   /// Initializes the billing connection. Safe to call repeatedly.
   Future<void> initialize() async {
@@ -97,9 +96,9 @@ class PlayBillingService {
   /// verification result (null if the flow was cancelled/failed).
   Future<Map<String, dynamic>?> buy({
     required bool yearly,
-    required String userEmailParam,
+    required String userEmail,
   }) async {
-    userEmail = userEmailParam;
+    _verifyEmail = userEmail;
     final productId = yearly ? PlayBillingProducts.yearly : PlayBillingProducts.monthly;
     final product = _products[productId];
     if (product == null) return null;
@@ -150,7 +149,7 @@ class PlayBillingService {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'action': 'verifyPurchase',
-          'userEmail': userEmail,
+          'userEmail': _verifyEmail,
           'purchaseToken': purchase.verificationData.serverVerificationData,
           'productId': purchase.productID,
         }),

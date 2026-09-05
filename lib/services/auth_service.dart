@@ -668,7 +668,7 @@ class AuthService {
   // All three methods call the dedicated koraEmailChange backend
   // function, not the main koraAuth endpoint.
 
-  static const String _emailChangeEndpoint = KoraApi.emailChangeEndpoint;
+  static String get _emailChangeEndpoint => KoraApi.emailChangeEndpoint;
 
   /// Step 1: Initiates email change by sending a verification code
   /// to the user's CURRENT (old) email address.
