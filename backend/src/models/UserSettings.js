@@ -12,7 +12,10 @@ const userSettingsSchema = new mongoose.Schema(
     updatedAt: { type: String, default: '' },
     deviceName: { type: String, default: 'unknown' },
   },
-  { timestamps: true }
+  // NOTE: no mongoose `timestamps` option — it would hijack the
+  // updatedAt path and cast it to a Date, but the app expects the
+  // ISO string we store (Base44 parity).
+  { timestamps: false }
 );
 
 userSettingsSchema.index({ userEmail: 1 }, { unique: true });
