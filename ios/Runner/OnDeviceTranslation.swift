@@ -70,10 +70,10 @@ public class OnDeviceTranslationPlugin: NSObject, FlutterPlugin {
         // Models are downloaded automatically by the system
         Task {
             do {
-                let session = try await TranslationSession(configuration: .init(
-                    source: Locale.Language(identifier: source),
+                let session = try await TranslationSession(
+                    installedSource: Locale.Language(identifier: source),
                     target: Locale.Language(identifier: target)
-                ))
+                )
                 let response = try await session.translate(text)
                 result(response.targetString)
             } catch {
