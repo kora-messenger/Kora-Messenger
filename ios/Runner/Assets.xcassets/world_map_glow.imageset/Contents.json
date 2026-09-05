@@ -1,17 +1,17 @@
 {
   "images" : [
     {
-      "filename" : "world_map_glow.webp",
+      "filename" : "world_map_glow.png",
       "idiom" : "universal",
       "scale" : "1x"
     },
     {
-      "filename" : "world_map_glow@2x.webp",
+      "filename" : "world_map_glow@2x.png",
       "idiom" : "universal",
       "scale" : "2x"
     },
     {
-      "filename" : "world_map_glow@3x.webp",
+      "filename" : "world_map_glow@3x.png",
       "idiom" : "universal",
       "scale" : "3x"
     }

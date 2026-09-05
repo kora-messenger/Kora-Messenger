@@ -1,0 +1,56 @@
+name: Build Kora Messenger iOS
+
+# Builds the unsigned iOS app (.app) on a macOS runner.
+# Proves the codebase compiles for iOS on every run.
+# Apple Developer signing (.ipa / TestFlight) gets added when the
+# Apple Developer Program account is ready.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'ios/**'
+      - 'lib/**'
+      - 'pubspec.yaml'
+      - 'pubspec.lock'
+      - '.github/workflows/ios-build.yml'
+
+jobs:
+  build-ios:
+    name: Build unsigned iOS app
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build iOS app (unsigned)
+        run: flutter build ios --release --no-codesign
+
+      - name: Zip the .app bundle
+        run: |
+          cd build/ios/iphoneos
+          zip -r -y "${{ github.workspace }}/Kora-ios-unsigned.app.zip" Runner.app
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kora-messenger-ios-unsigned
+          path: Kora-ios-unsigned.app.zip
+          retention-days: 14
