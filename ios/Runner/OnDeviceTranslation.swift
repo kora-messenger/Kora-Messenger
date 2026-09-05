@@ -2,6 +2,10 @@ import Flutter
 import UIKit
 import Foundation
 
+#if canImport(Translation)
+import Translation
+#endif
+
 /// On-device translation using Apple's Translation framework (iOS 17.4+)
 /// or CoreML fallback.
 ///

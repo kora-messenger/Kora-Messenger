@@ -35,7 +35,7 @@ class AppDelegate: FlutterAppDelegate {
             try session.setCategory(
                 .playAndRecord,
                 mode: .voiceChat,
-                options: [.allowBluetooth, .allowBluetoothA2DP, .allowSpeaker, .defaultToSpeaker]
+                options: [.allowBluetooth, .allowBluetoothA2DP, .defaultToSpeaker]
             )
             try session.setActive(true)
         } catch {
