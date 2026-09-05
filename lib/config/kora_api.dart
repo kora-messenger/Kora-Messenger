@@ -46,6 +46,12 @@ class KoraApi {
     defaultValue: '',
   );
 
+  /// Self-hosted settings-sync base — fourth service migrated off Base44.
+  static const String _settingsBase = String.fromEnvironment(
+    'KORA_SETTINGS_URL',
+    defaultValue: '',
+  );
+
   /// Email change endpoint — two-step verification flow (old email → new email).
   static const String emailChangeEndpoint = '$baseUrl/koraEmailChange';
 
@@ -104,7 +110,9 @@ class KoraApi {
   /// Settings sync endpoint — Telegram-style cloud settings:
   /// every preference (theme, notifications, privacy, wallpapers...)
   /// follows the account to any device automatically.
-  static const String settingsSyncEndpoint = '$baseUrl/koraSettingsSync';
+  /// Settings sync endpoint — follows the override (see [_settingsBase]).
+  static String get settingsSyncEndpoint =>
+      _settingsBase.isEmpty ? '$baseUrl/koraSettingsSync' : '$_settingsBase/koraSettingsSync';
 
   /// Kora AI Server base URL — legacy local dev server.
   /// Only the writing/reply-suggestions/summarize/transcribe/analyze

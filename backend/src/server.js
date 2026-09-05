@@ -38,6 +38,10 @@ app.use('/koraChatSync', koraChatSync);
 const koraUpload = require('./routes/koraUpload');
 app.use('/koraUpload', koraUpload);
 
+// Cloud settings (Telegram-style merged JSON blob per user).
+const koraSettingsSync = require('./routes/koraSettingsSync');
+app.use('/koraSettingsSync', koraSettingsSync);
+
 // The app hits these too; they arrive as the migration continues.
 // Each returns a clean "not migrated yet" until its route module lands.
 const PENDING = [
