@@ -143,7 +143,7 @@ function buildOptimizedContext(history, currentMessage, maxMessages = 10) {
 
 // ── Intent-specific System Prompts ───────────────────────────────
 
-function getSystemPrompt(intent, userContext) {
+function getSystemPrompt(intent, userContext, request) {
   const baseParts = [
     `You are ${KORA_AI_CONFIG.assistant_name}, the AI assistant in Kora Messenger.`,
     `Personality: ${KORA_AI_CONFIG.personality}.`,
@@ -160,9 +160,20 @@ function getSystemPrompt(intent, userContext) {
     case 'conversation':
       baseParts.push('\nYou are in a general conversation. Be helpful, friendly, and concise.');
       break;
-    case 'translation':
-      baseParts.push('\nYou are a translation engine. Translate the given text accurately. Only output the translation, nothing else.');
+    case 'translation': {
+      const target = request?.targetLanguage?.trim();
+      const source = request?.sourceLanguage?.trim();
+      let langSpec = '';
+      if (source && target) {
+        langSpec = ` Translate the given text from ${source} into ${target}.`;
+      } else if (target) {
+        langSpec = ` Translate the given text into ${target}.`;
+      } else {
+        langSpec = ' Translate the given text. If no target language is specified, respond in the same language as the input.';
+      }
+      baseParts.push(`\nYou are a translation engine.${langSpec} Only output the translation, nothing else.`);
       break;
+    }
     case 'summarization':
       baseParts.push('\nYou are a summarization engine. Provide a concise summary of the given text. Capture key points only.');
       break;
@@ -425,7 +436,7 @@ router.post('/', async (req, res) => {
   }
 
   // Build system prompt based on intent
-  const systemPrompt = getSystemPrompt(request.intent, request.userContext);
+  const systemPrompt = getSystemPrompt(request.intent, request.userContext, request);
 
   // Build messages with context management
   const messages = buildMessages(systemPrompt, request);
