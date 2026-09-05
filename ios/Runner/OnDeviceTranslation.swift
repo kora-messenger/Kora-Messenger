@@ -75,7 +75,7 @@ public class OnDeviceTranslationPlugin: NSObject, FlutterPlugin {
                     target: Locale.Language(identifier: target)
                 )
                 let response = try await session.translate(text)
-                result(response.targetString)
+                result(response.targetText)
             } catch {
                 // Fallback to original text if translation fails
                 result(text)
