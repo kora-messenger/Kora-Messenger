@@ -63,6 +63,7 @@ jobs:
             --dart-define=KORA_CHAT_URL=${{ secrets.KORA_CHAT_URL }} \
             --dart-define=KORA_UPLOAD_URL=${{ secrets.KORA_UPLOAD_URL }} \
             --dart-define=KORA_SETTINGS_URL=${{ secrets.KORA_SETTINGS_URL }} \
+            --dart-define=KORA_SELF_URL=${{ secrets.KORA_SELF_URL }} \
             --dart-define=KORA_AI_AUTH_TOKEN=${{ secrets.KORA_AI_AUTH_TOKEN }}
 
       - name: Save per-ABI APKs
@@ -84,6 +85,7 @@ jobs:
             --dart-define=KORA_CHAT_URL=${{ secrets.KORA_CHAT_URL }} \
             --dart-define=KORA_UPLOAD_URL=${{ secrets.KORA_UPLOAD_URL }} \
             --dart-define=KORA_SETTINGS_URL=${{ secrets.KORA_SETTINGS_URL }} \
+            --dart-define=KORA_SELF_URL=${{ secrets.KORA_SELF_URL }} \
             --dart-define=KORA_AI_AUTH_TOKEN=${{ secrets.KORA_AI_AUTH_TOKEN }}
 
       - name: Prepare all APK files

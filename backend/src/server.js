@@ -42,22 +42,53 @@ app.use('/koraUpload', koraUpload);
 const koraSettingsSync = require('./routes/koraSettingsSync');
 app.use('/koraSettingsSync', koraSettingsSync);
 
-// The app hits these too; they arrive as the migration continues.
-// Each returns a clean "not migrated yet" until its route module lands.
-const PENDING = [
-  'koraEmailChange', 'koraCallSignal', 'koraTranslate', 'koraGptTrans',
-  'koraLinkDevice', 'koraWebPair',
-  'koraCrashReport', 'koraServiceNotification', 'koraAntiSpam',
-  'koraAutoDetect', 'koraInitPayment', 'koraRecoverSubscription',
-  'koraVerifyPayment', 'koraSettingsSync', 'koraAiChat',
-  'koraAiFeatures', 'koraAiOrchestrator', 'koraAiConversation',
-  'koraE2eeKeys', 'koraPushRegister', 'koraPushUnregister', 'koraPushSend',
-];
-for (const name of PENDING) {
-  app.use(`/${name}`, (req, res) =>
-    res.json({ success: false, error: 'This endpoint is not migrated yet.' })
-  );
-}
+// ── Remaining migrated services (5th migration wave — full off-Base44) ──
+const koraE2eeKeys = require('./routes/koraE2eeKeys');
+app.use('/koraE2eeKeys', koraE2eeKeys);
+const koraPushRegister = require('./routes/koraPushRegister');
+app.use('/koraPushRegister', koraPushRegister);
+const koraPushUnregister = require('./routes/koraPushUnregister');
+app.use('/koraPushUnregister', koraPushUnregister);
+const koraPushSend = require('./routes/koraPushSend');
+app.use('/koraPushSend', koraPushSend);
+const koraCrashReport = require('./routes/koraCrashReport');
+app.use('/koraCrashReport', koraCrashReport);
+const koraServiceNotification = require('./routes/koraServiceNotification');
+app.use('/koraServiceNotification', koraServiceNotification);
+const koraAntiSpam = require('./routes/koraAntiSpam');
+app.use('/koraAntiSpam', koraAntiSpam);
+const koraAutoDetect = require('./routes/koraAutoDetect');
+app.use('/koraAutoDetect', koraAutoDetect);
+const koraEmailChange = require('./routes/koraEmailChange');
+app.use('/koraEmailChange', koraEmailChange);
+const koraInitPayment = require('./routes/koraInitPayment');
+app.use('/koraInitPayment', koraInitPayment);
+const koraVerifyPayment = require('./routes/koraVerifyPayment');
+app.use('/koraVerifyPayment', koraVerifyPayment);
+const koraRecoverSubscription = require('./routes/koraRecoverSubscription');
+app.use('/koraRecoverSubscription', koraRecoverSubscription);
+const koraPlayBilling = require('./routes/koraPlayBilling');
+app.use('/koraPlayBilling', koraPlayBilling);
+const koraTranslate = require('./routes/koraTranslate');
+app.use('/koraTranslate', koraTranslate);
+const koraGptTrans = require('./routes/koraGptTrans');
+app.use('/koraGptTrans', koraGptTrans);
+const koraAiChat = require('./routes/koraAiChat');
+app.use('/koraAiChat', koraAiChat);
+const koraAiConversation = require('./routes/koraAiConversation');
+app.use('/koraAiConversation', koraAiConversation);
+const koraAiFeatures = require('./routes/koraAiFeatures');
+app.use('/koraAiFeatures', koraAiFeatures);
+const koraAiOrchestrator = require('./routes/koraAiOrchestrator');
+app.use('/koraAiOrchestrator', koraAiOrchestrator);
+const koraCallSignal = require('./routes/koraCallSignal');
+app.use('/koraCallSignal', koraCallSignal);
+const koraLinkDevice = require('./routes/koraLinkDevice');
+app.use('/koraLinkDevice', koraLinkDevice);
+const koraWebPair = require('./routes/koraWebPair');
+app.use('/koraWebPair', koraWebPair);
+
+
 
 const PORT = Number(process.env.PORT || 8080);
 connectDb()

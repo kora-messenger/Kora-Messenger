@@ -52,18 +52,31 @@ class KoraApi {
     defaultValue: '',
   );
 
+  /// Self-hosted base for every service migrated after settings-sync.
+  /// All remaining endpoints live on the same host, so one dart-define
+  /// covers them all. Per-service overrides can be added later if any
+  /// service ever moves to dedicated infrastructure.
+  static const String _selfBase = String.fromEnvironment(
+    'KORA_SELF_URL',
+    defaultValue: '',
+  );
+
   /// Email change endpoint — two-step verification flow (old email → new email).
-  static const String emailChangeEndpoint = '$baseUrl/koraEmailChange';
+  static String get emailChangeEndpoint =>
+      _selfBase.isEmpty ? '$baseUrl/koraEmailChange' : '$_selfBase/koraEmailChange';
 
   /// Call signaling endpoint — WebRTC offer/answer/ICE exchange.
-  static const String callSignalingEndpoint = '$baseUrl/koraCallSignal';
+  static String get callSignalingEndpoint =>
+      _selfBase.isEmpty ? '$baseUrl/koraCallSignal' : '$_selfBase/koraCallSignal';
 
   /// Translation endpoint — translates text between languages.
-  static const String translateEndpoint = '$baseUrl/koraTranslate';
+  static String get translateEndpoint =>
+      _selfBase.isEmpty ? '$baseUrl/koraTranslate' : '$_selfBase/koraTranslate';
 
   /// GPT-powered streaming translation endpoint (batch + SSE streaming).
   /// Models AI Phone's /phone/ai/call/v3/gptTrans/stream architecture.
-  static const String gptTransEndpoint = '$baseUrl/koraGptTrans';
+  static String get gptTransEndpoint =>
+      _selfBase.isEmpty ? '$baseUrl/koraGptTrans' : '$_selfBase/koraGptTrans';
 
   /// User lookup endpoint — check if username or Kora ID is registered.
   /// Lookups read the same user data as auth, so they follow the same
@@ -74,15 +87,20 @@ class KoraApi {
       _authBase.isEmpty ? '$baseUrl/koraLookupByEmail' : '$_authBase/koraLookupByEmail';
 
   /// Link device endpoint — QR-based device pairing (generate token + link).
-  static const String linkDeviceEndpoint = '$baseUrl/koraLinkDevice';
+  static String get linkDeviceEndpoint =>
+      _selfBase.isEmpty ? '$baseUrl/koraLinkDevice' : '$_selfBase/koraLinkDevice';
 
   /// Web companion pairing endpoint — QR-based web login (like WhatsApp Web).
-  static const String webPairEndpoint = '$baseUrl/koraWebPair';
+  static String get webPairEndpoint =>
+      _selfBase.isEmpty ? '$baseUrl/koraWebPair' : '$_selfBase/koraWebPair';
 
   /// Crash report endpoint — receives crash data and creates a GitHub Issue.
-  static const String crashReportEndpoint = '$baseUrl/koraCrashReport';
-  static const String serviceNotificationEndpoint = '$baseUrl/koraServiceNotification';
-  static const String antiSpamEndpoint = '$baseUrl/koraAntiSpam';
+  static String get crashReportEndpoint =>
+      _selfBase.isEmpty ? '$baseUrl/koraCrashReport' : '$_selfBase/koraCrashReport';
+  static String get serviceNotificationEndpoint =>
+      _selfBase.isEmpty ? '$baseUrl/koraServiceNotification' : '$_selfBase/koraServiceNotification';
+  static String get antiSpamEndpoint =>
+      _selfBase.isEmpty ? '$baseUrl/koraAntiSpam' : '$_selfBase/koraAntiSpam';
 
   /// File upload endpoint — avatar and media uploads.
   /// Upload endpoint — follows the self-hosted override (see [_uploadBase]).
@@ -91,16 +109,25 @@ class KoraApi {
 
   /// Automated detection system — monitors activity, suspends accounts,
   /// checks suspension status, and handles appeals.
-  static const String autoDetectEndpoint = '$baseUrl/koraAutoDetect';
+  static String get autoDetectEndpoint =>
+      _selfBase.isEmpty ? '$baseUrl/koraAutoDetect' : '$_selfBase/koraAutoDetect';
 
   /// Payment endpoint — initialize Paystack transactions.
-  static const String paymentInitEndpoint = '$baseUrl/koraInitPayment';
+  static String get paymentInitEndpoint =>
+      _selfBase.isEmpty ? '$baseUrl/koraInitPayment' : '$_selfBase/koraInitPayment';
 
   /// Subscription recovery endpoint — re-check premium status from DB.
-  static const String recoverSubscriptionEndpoint = '$baseUrl/koraRecoverSubscription';
+  static String get recoverSubscriptionEndpoint =>
+      _selfBase.isEmpty ? '$baseUrl/koraRecoverSubscription' : '$_selfBase/koraRecoverSubscription';
 
   /// Payment verification endpoint — verify Paystack transactions.
-  static const String paymentVerifyEndpoint = '$baseUrl/koraVerifyPayment';
+  static String get paymentVerifyEndpoint =>
+      _selfBase.isEmpty ? '$baseUrl/koraVerifyPayment' : '$_selfBase/koraVerifyPayment';
+
+  /// Google Play Billing purchase verification — verifies Play Store
+  /// purchases and grants premium (follows the self-hosted override).
+  static String get playBillingEndpoint =>
+      _selfBase.isEmpty ? '$baseUrl/koraPlayBilling' : '$_selfBase/koraPlayBilling';
 
   /// Chat sync endpoint — persist messages & conversations to the database.
   /// Chat sync endpoint — follows the self-hosted override (see [_chatBase]).
@@ -122,32 +149,36 @@ class KoraApi {
   /// Kora AI Chat & Support — live backend function (OpenRouter).
   /// Both chat and support hit the same deployed endpoint; the body's
   /// 'chatType' field ('ai' or 'support') selects the system prompt.
-  static const String aiChatSupportEndpoint = '$baseUrl/koraAiChat';
-  static const String aiChatEndpoint = aiChatSupportEndpoint;
-  static const String aiSupportEndpoint = aiChatSupportEndpoint;
+  static String get aiChatSupportEndpoint =>
+      _selfBase.isEmpty ? '$baseUrl/koraAiChat' : '$_selfBase/koraAiChat';
+  static String get aiChatEndpoint => aiChatSupportEndpoint;
+  static String get aiSupportEndpoint => aiChatSupportEndpoint;
   static const String aiHealthEndpoint = '$aiServerUrl/api/ai/health';
 
   /// Kora AI feature endpoints (writing assistant, reply suggestions, chat summary)
   /// Now deployed as a single backend function — koraAiFeatures.
   /// Each request includes a 'feature' field: 'writing' | 'reply_suggestions' | 'summarize'.
-  static const String aiFeaturesEndpoint = '$baseUrl/koraAiFeatures';
+  static String get aiFeaturesEndpoint =>
+      _selfBase.isEmpty ? '$baseUrl/koraAiFeatures' : '$_selfBase/koraAiFeatures';
 
   /// Kora AI Orchestrator — centralized AI operation coordinator.
   /// Routes requests by intent (conversation, translation, summarization, etc.)
   /// Uses Model Adapter pattern for provider abstraction.
-  static const String aiOrchestratorEndpoint = '\$baseUrl/koraAiOrchestrator';
+  static String get aiOrchestratorEndpoint =>
+      _selfBase.isEmpty ? '$baseUrl/koraAiOrchestrator' : '$_selfBase/koraAiOrchestrator';
 
   /// Kora AI Conversation Management — server-side conversation storage.
   /// Handles: create, list, get, delete, rename conversations + messages.
-  static const String aiConversationEndpoint = '\$baseUrl/koraAiConversation';
+  static String get aiConversationEndpoint =>
+      _selfBase.isEmpty ? '$baseUrl/koraAiConversation' : '$_selfBase/koraAiConversation';
 
   /// Legacy endpoint aliases (kept for compatibility with existing service code).
-  static const String aiWritingEndpoint = aiFeaturesEndpoint;
-  static const String aiReplySuggestionsEndpoint = aiFeaturesEndpoint;
-  static const String aiSummarizeChatEndpoint = aiFeaturesEndpoint;
-  static const String aiTranscribeEndpoint = aiFeaturesEndpoint;
-  static const String aiAnalyzeImageEndpoint = aiFeaturesEndpoint;
-  static const String aiAnalyzeFileEndpoint = aiFeaturesEndpoint;
+  static String get aiWritingEndpoint => aiFeaturesEndpoint;
+  static String get aiReplySuggestionsEndpoint => aiFeaturesEndpoint;
+  static String get aiSummarizeChatEndpoint => aiFeaturesEndpoint;
+  static String get aiTranscribeEndpoint => aiFeaturesEndpoint;
+  static String get aiAnalyzeImageEndpoint => aiFeaturesEndpoint;
+  static String get aiAnalyzeFileEndpoint => aiFeaturesEndpoint;
 
   /// Auth token for the AI server.
   /// Injected at compile time via --dart-define=KORA_AI_AUTH_TOKEN=...
@@ -177,12 +208,16 @@ class KoraApi {
   static const String faceHandsEffectsUrl = '$legalBaseUrl/face-hands-effects-privacy.html';
 
   /// E2EE key exchange endpoint for public key publish/lookup.
-  static const String e2eeKeysEndpoint = '$baseUrl/koraE2eeKeys';
+  static String get e2eeKeysEndpoint =>
+      _selfBase.isEmpty ? '$baseUrl/koraE2eeKeys' : '$_selfBase/koraE2eeKeys';
 
   /// Push notification endpoints — FCM token registration and push delivery.
-  static const String pushRegisterEndpoint = '$baseUrl/koraPushRegister';
-  static const String pushUnregisterEndpoint = '$baseUrl/koraPushUnregister';
-  static const String pushSendEndpoint = '$baseUrl/koraPushSend';
+  static String get pushRegisterEndpoint =>
+      _selfBase.isEmpty ? '$baseUrl/koraPushRegister' : '$_selfBase/koraPushRegister';
+  static String get pushUnregisterEndpoint =>
+      _selfBase.isEmpty ? '$baseUrl/koraPushUnregister' : '$_selfBase/koraPushUnregister';
+  static String get pushSendEndpoint =>
+      _selfBase.isEmpty ? '$baseUrl/koraPushSend' : '$_selfBase/koraPushSend';
   static const String learnMoreUrl = '$legalBaseUrl/index.html';
 
   /// Link shared when inviting a friend to Kora — swap this for the

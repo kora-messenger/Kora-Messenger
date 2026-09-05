@@ -8,6 +8,7 @@ import '../../services/pricing_service.dart';
 import '../../services/payment_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/session_manager.dart';
+import '../../services/play_billing_service.dart';
 import '../../theme/chat_theme_provider.dart';
 
 /// Premium subscription bottom sheet.
@@ -41,11 +42,59 @@ class _PremiumSubscribeSheetState extends State<PremiumSubscribeSheet> {
   RegionalPrice? _price;
   bool _loadingPrice = true;
   bool _recovering = false;
+  bool _googlePayAvailable = false;
+  bool _googlePayLoading = false;
 
   @override
   void initState() {
     super.initState();
     _loadPrice();
+    _probeGooglePay();
+  }
+
+  Future<void> _probeGooglePay() async {
+    await PlayBillingService.instance.initialize();
+    if (mounted && PlayBillingService.instance.available) {
+      setState(() => _googlePayAvailable = true);
+    }
+  }
+
+  /// Google Play purchase flow — the Play Store sheet handles
+  /// payment; the backend verifies the token and grants premium.
+  Future<void> _onGooglePay() async {
+    if (_googlePayLoading) return;
+    setState(() => _googlePayLoading = true);
+
+    try {
+      final session = await SessionManager.instance.loadSession();
+      final userId = session?['id']?.toString() ?? '';
+      final email = (session?['email'] as String?)?.toLowerCase().trim() ?? '';
+
+      final result = await PlayBillingService.instance.buy(
+        yearly: _selectedPlan == SubscriptionPlan.yearly,
+        userEmail: email,
+      );
+
+      if (!mounted) return;
+
+      if (result != null && result['success'] == true) {
+        // Premium granted server-side — sync local state the same way
+        // "Recover Subscription" does.
+        await PaymentService.recoverSubscription(userId: userId, email: email);
+        if (mounted) Navigator.of(context).pop(true);
+      } else if (result != null && result['error'] != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${result['error']}'),
+            backgroundColor: const Color(0xFF2A2A3A),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      // null result = user cancelled or purchase pending — no-op.
+    } finally {
+      if (mounted) setState(() => _googlePayLoading = false);
+    }
   }
 
   Future<void> _loadPrice() async {
@@ -249,6 +298,63 @@ class _PremiumSubscribeSheetState extends State<PremiumSubscribeSheet> {
                   ),
                 ),
                 const SizedBox(height: 24),
+
+                // ── Google Play payment option ──
+                // Only shown when Play Billing is live on this device
+                // (Play-installed build with billing configured).
+                if (_googlePayAvailable) ...[
+                  SizedBox(
+                    width: double.infinity,
+                    height: 54,
+                    child: GestureDetector(
+                      onTap: _googlePayLoading ? null : _onGooglePay,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(28),
+                          border: Border.all(color: Color(0xFFDADCE0)),
+                        ),
+                        child: Center(
+                          child: _googlePayLoading
+                              ? const SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(
+                                    color: Color(0xFF5F6368),
+                                    strokeWidth: 2.5,
+                                  ),
+                                )
+                              : const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.play_circle_fill_rounded,
+                                      color: Color(0xFF4285F4),
+                                      size: 22,
+                                    ),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      'Subscribe with Google Play',
+                                      style: TextStyle(
+                                        color: Color(0xFF5F6368),
+                                        fontSize: 15.5,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'or pay with card',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Color(0xFF6B6B80), fontSize: 12),
+                  ),
+                  const SizedBox(height: 12),
+                ],
 
                 // ── Subscribe button ──
                 SizedBox(

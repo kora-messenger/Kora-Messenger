@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const verificationCodeSchema = new mongoose.Schema(
   {
-    email: { type: String, required: true, lowercase: true, trim: true },
+    email: { type: String, default: '', lowercase: true, trim: true },
     code: { type: String, required: true },
     type: { type: String, default: 'registration' },
     attempts: { type: Number, default: 0 },
