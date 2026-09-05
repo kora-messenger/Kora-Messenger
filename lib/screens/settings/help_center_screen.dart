@@ -141,7 +141,7 @@ class HelpCenterScreen extends StatelessWidget {
           // ── Footer ──
           Center(
             child: Text(
-              'Nexora Technologies',
+              'Veltravia Technologies',
               style: TextStyle(
                 color: textMuted,
                 fontSize: 13,
