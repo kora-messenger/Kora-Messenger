@@ -32,6 +32,14 @@ class KoraApi {
   static String get authEndpoint =>
       _authBase.isEmpty ? '$baseUrl/koraAuth' : '$_authBase/koraAuth';
 
+  /// Self-hosted chat-sync base — second service migrated off Base44.
+  /// When KORA_CHAT_URL is set at build time, all message/conversation
+  /// persistence runs on our own infrastructure.
+  static const String _chatBase = String.fromEnvironment(
+    'KORA_CHAT_URL',
+    defaultValue: '',
+  );
+
   /// Email change endpoint — two-step verification flow (old email → new email).
   static const String emailChangeEndpoint = '$baseUrl/koraEmailChange';
 
@@ -81,7 +89,9 @@ class KoraApi {
   static const String paymentVerifyEndpoint = '$baseUrl/koraVerifyPayment';
 
   /// Chat sync endpoint — persist messages & conversations to the database.
-  static const String chatSyncEndpoint = '$baseUrl/koraChatSync';
+  /// Chat sync endpoint — follows the self-hosted override (see [_chatBase]).
+  static String get chatSyncEndpoint =>
+      _chatBase.isEmpty ? '$baseUrl/koraChatSync' : '$_chatBase/koraChatSync';
 
   /// Settings sync endpoint — Telegram-style cloud settings:
   /// every preference (theme, notifications, privacy, wallpapers...)

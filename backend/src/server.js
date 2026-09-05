@@ -30,6 +30,10 @@ app.use('/koraLookup', koraLookup);
 const koraLookupByEmail = require('./routes/koraLookupByEmail');
 app.use('/koraLookupByEmail', koraLookupByEmail);
 
+// Chat + conversation persistence (sync / fetch / fetchNew / backup / clearChat).
+const koraChatSync = require('./routes/koraChatSync');
+app.use('/koraChatSync', koraChatSync);
+
 // The app hits these too; they arrive as the migration continues.
 // Each returns a clean "not migrated yet" until its route module lands.
 const PENDING = [
@@ -37,7 +41,7 @@ const PENDING = [
   'koraLinkDevice', 'koraWebPair',
   'koraCrashReport', 'koraServiceNotification', 'koraAntiSpam', 'koraUpload',
   'koraAutoDetect', 'koraInitPayment', 'koraRecoverSubscription',
-  'koraVerifyPayment', 'koraChatSync', 'koraSettingsSync', 'koraAiChat',
+  'koraVerifyPayment', 'koraSettingsSync', 'koraAiChat',
   'koraAiFeatures', 'koraAiOrchestrator', 'koraAiConversation',
   'koraE2eeKeys', 'koraPushRegister', 'koraPushUnregister', 'koraPushSend',
 ];
