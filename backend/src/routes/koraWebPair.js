@@ -113,7 +113,7 @@ router.post('/', async (req, res) => {
       if (!token || !email) {
         return res.status(400).json({ success: false, error: 'Token and email are required' });
       }
-      if (!deviceId) {
+      if (!acceptorDeviceId) {
         return res.status(400).json({ success: false, error: 'Device verification required. Update Kora to the latest version.' });
       }
 
