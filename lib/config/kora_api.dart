@@ -46,8 +46,12 @@ class KoraApi {
   static const String gptTransEndpoint = '$baseUrl/koraGptTrans';
 
   /// User lookup endpoint — check if username or Kora ID is registered.
-  static const String lookupEndpoint = '$baseUrl/koraLookup';
-  static const String lookupByEmailEndpoint = '$baseUrl/koraLookupByEmail';
+  /// Lookups read the same user data as auth, so they follow the same
+  /// self-hosted override (see [_authBase]).
+  static String get lookupEndpoint =>
+      _authBase.isEmpty ? '$baseUrl/koraLookup' : '$_authBase/koraLookup';
+  static String get lookupByEmailEndpoint =>
+      _authBase.isEmpty ? '$baseUrl/koraLookupByEmail' : '$_authBase/koraLookupByEmail';
 
   /// Link device endpoint — QR-based device pairing (generate token + link).
   static const String linkDeviceEndpoint = '$baseUrl/koraLinkDevice';

@@ -24,11 +24,17 @@ app.get('/health', (req, res) => {
 const koraAuth = require('./routes/koraAuth');
 app.use('/koraAuth', koraAuth);
 
+// User lookup — the app's contact search + profile fetch.
+const koraLookup = require('./routes/koraLookup');
+app.use('/koraLookup', koraLookup);
+const koraLookupByEmail = require('./routes/koraLookupByEmail');
+app.use('/koraLookupByEmail', koraLookupByEmail);
+
 // The app hits these too; they arrive as the migration continues.
 // Each returns a clean "not migrated yet" until its route module lands.
 const PENDING = [
   'koraEmailChange', 'koraCallSignal', 'koraTranslate', 'koraGptTrans',
-  'koraLookup', 'koraLookupByEmail', 'koraLinkDevice', 'koraWebPair',
+  'koraLinkDevice', 'koraWebPair',
   'koraCrashReport', 'koraServiceNotification', 'koraAntiSpam', 'koraUpload',
   'koraAutoDetect', 'koraInitPayment', 'koraRecoverSubscription',
   'koraVerifyPayment', 'koraChatSync', 'koraSettingsSync', 'koraAiChat',

@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const User = require('../models/User');
 const VerificationCode = require('../models/VerificationCode');
-const { sendVerificationCode } = require('../mailer');
+const { sendVerificationCode, sendSecurityAlertEmail } = require('../mailer');
 
 const router = express.Router();
 
@@ -78,6 +78,89 @@ async function issueCode(email, type) {
 }
 
 let lastDevCode = null;
+
+// ── shared helpers for the account/security actions ────────────
+function clientIp(req) {
+  return (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
+    || req.headers['x-real-ip']
+    || req.headers['cf-connecting-ip']
+    || 'Unknown';
+}
+
+function eventTimestamp() {
+  return new Date().toLocaleString('en-US', {
+    timeZone: 'UTC',
+    dateStyle: 'full',
+    timeStyle: 'short',
+  });
+}
+
+/// Fire-and-forget security alert email — never blocks the response.
+function fireSecurityAlert(req, email, deviceName, action, deviceId) {
+  sendSecurityAlertEmail(
+    email,
+    deviceName || 'Unknown Device',
+    action,
+    eventTimestamp(),
+    deviceId,
+    clientIp(req)
+  ).catch((e) => console.error(`[koraAuth] security alert failed: ${e.message}`));
+}
+
+function sha256(value) {
+  return crypto.createHash('sha256').update(String(value)).digest('hex');
+}
+
+function normalizeDigits(p) {
+  return String(p || '').replace(/\D/g, '');
+}
+
+/// Register/refresh a device on the account (pin/passkey logins).
+function upsertDevice(user, deviceId, deviceName, platform) {
+  const now = new Date();
+  const existing = user.devices.find((d) => d.deviceId === deviceId);
+  if (existing) {
+    existing.lastLoginDate = now;
+    existing.isActive = true;
+  } else if (deviceName) {
+    user.devices.push({
+      deviceId,
+      deviceName: String(deviceName),
+      platform: platform || 'unknown',
+      firstLoginDate: now,
+      lastLoginDate: now,
+      isActive: true,
+      isTrusted: false,
+    });
+  }
+}
+
+/// Phone match: exact, without +, then last-10-digits (country-code formats).
+async function findUserByPhone(normalized) {
+  let user = await User.findOne({ phoneNumber: normalized });
+  if (!user) user = await User.findOne({ phoneNumber: normalized.replace(/^\+/, '') });
+  if (!user) {
+    const last10 = normalizeDigits(normalized).slice(-10);
+    if (last10.length >= 9) {
+      const candidates = await User.find({}).select('phoneNumber');
+      const match = candidates.find((u) => {
+        const digits = normalizeDigits(u.phoneNumber);
+        return digits.length >= 9 && digits.slice(-10) === last10;
+      });
+      if (match) user = await User.findById(match._id);
+    }
+  }
+  return user;
+}
+
+function passkeyClient(p) {
+  return {
+    id: p.keyId,
+    deviceName: p.deviceName,
+    platform: p.platform,
+    createdAt: p.createdAt ? p.createdAt.toISOString() : null,
+  };
+}
 
 /// Verifies a code; returns null on success or an error string.
 async function checkCode(email, code, type) {
@@ -312,11 +395,267 @@ router.post('/', async (req, res) => {
       case 'checkSignInOptions': {
         const email = String(req.body.email || '').toLowerCase().trim();
         const user = await User.findOne({ email });
-        if (!user) return fail(res, 'No account found with this email');
+        if (!user) return ok(res, { hasBackupPin: false, passkeysEnabled: false });
         return ok(res, {
           hasBackupPin: Boolean(user.securePinHash),
           passkeysEnabled: Boolean(user.passkeysEnabled),
         });
+      }
+
+      // ── REQUEST ACCOUNT INFO ────────────────────────────────
+      case 'requestAccountInfo': {
+        const userId = req.body.userId;
+        const email = String(req.body.email || '').toLowerCase().trim();
+        if (!userId || !email) return fail(res, 'User ID and email are required');
+        const user = await User.findById(userId);
+        if (!user) return fail(res, 'Account not found');
+        return ok(res, {
+          accountCreated: user.createdAt ? user.createdAt.toISOString() : null,
+          deviceCount: user.devices.filter((d) => d.isActive).length,
+          profile: {
+            fullName: user.fullName,
+            username: user.username || '',
+            koraId: user.koraId,
+            email: user.email,
+            bio: user.bio || '',
+            avatarUrl: user.avatarUrl || '',
+            isVerified: user.isVerified,
+            profileCompleted: user.profileCompleted,
+          },
+        });
+      }
+
+      // ── DELETE ACCOUNT ──────────────────────────────────────
+      case 'deleteAccount': {
+        const userId = req.body.userId;
+        const email = String(req.body.email || '').toLowerCase().trim();
+        if (!userId || !email) return fail(res, 'User ID and email are required');
+        const user = await User.findById(userId);
+        if (!user) return fail(res, 'Account not found');
+        await VerificationCode.deleteMany({ email: user.email });
+        await user.deleteOne();
+        return ok(res, { message: 'Account deleted successfully' });
+      }
+
+      // ── SAVE BACKUP PIN ─────────────────────────────────────
+      case 'saveBackupPin': {
+        const email = String(req.body.email || '').toLowerCase().trim();
+        const pin = req.body.pin;
+        if (!email || !pin) return fail(res, 'Email and PIN are required');
+        const user = await User.findOne({ email });
+        if (!user) return fail(res, 'Account not found');
+        user.securePinHash = sha256(pin);
+        await user.save();
+        return ok(res, { message: 'Backup PIN saved' });
+      }
+
+      // ── LOGIN WITH BACKUP PIN ───────────────────────────────
+      case 'loginWithBackupPin': {
+        const email = String(req.body.email || '').toLowerCase().trim();
+        const pin = String(req.body.pin || '');
+        const deviceId = String(req.body.deviceId || '');
+        if (!email || !pin) return fail(res, 'Email and PIN are required');
+        const user = await User.findOne({ email });
+        if (!user) return fail(res, 'Invalid email or PIN');
+        if (!user.securePinHash) {
+          return fail(res, 'No backup PIN set. Please use email and password to log in.');
+        }
+        if (sha256(pin) !== user.securePinHash) return fail(res, 'Invalid backup PIN');
+        if (deviceId) upsertDevice(user, deviceId, req.body.deviceName, req.body.platform);
+        await user.save();
+        fireSecurityAlert(req, email, req.body.deviceName, 'Account Login', deviceId);
+        return ok(res, { user: user.toClient() });
+      }
+
+      // ── SAVE PHONE NUMBER (onboarding) ──────────────────────
+      case 'savePhoneNumber': {
+        const user = await User.findById(req.body.userId);
+        if (!user) return fail(res, 'User ID is required');
+        user.phoneNumber = String(req.body.phoneNumber || '');
+        await user.save();
+        return ok(res, { user: user.toClient() });
+      }
+
+      // ── VERIFY AND UPDATE EMAIL ──────────────────────────────
+      case 'verifyAndUpdateEmail': {
+        const userId = req.body.userId;
+        const newEmail = String(req.body.newEmail || '').toLowerCase().trim();
+        const code = req.body.code;
+        if (!userId || !newEmail || !code) {
+          return fail(res, 'User ID, new email, and code are required');
+        }
+        const codeError = await checkCode(newEmail, code, 'changeEmail');
+        if (codeError) return fail(res, codeError);
+        const taken = await User.findOne({ email: newEmail, _id: { $ne: userId } });
+        if (taken) return fail(res, 'An account with this email already exists');
+        const user = await User.findById(userId);
+        if (!user) return fail(res, 'Account not found');
+        user.email = newEmail;
+        await user.save();
+        return ok(res, { user: user.toClient() });
+      }
+
+      // ── SET PASSKEYS ENABLED ─────────────────────────────────
+      case 'setPasskeysEnabled': {
+        const email = String(req.body.email || '').toLowerCase().trim();
+        if (!email) return fail(res, 'Email is required');
+        const user = await User.findOne({ email });
+        if (!user) return fail(res, 'Account not found');
+        user.passkeysEnabled = Boolean(req.body.enabled);
+        await user.save();
+        return ok(res);
+      }
+
+      // ── CREATE PASSKEY ───────────────────────────────────────
+      case 'createPasskey': {
+        const email = String(req.body.email || '').toLowerCase().trim();
+        const deviceId = String(req.body.deviceId || '');
+        if (!email || !deviceId) return fail(res, 'Email and device ID are required');
+        const user = await User.findOne({ email });
+        if (!user) return fail(res, 'Account not found');
+        const existing = user.passkeys.find((p) => p.deviceId === deviceId);
+        if (existing) {
+          if (req.body.deviceName) existing.deviceName = String(req.body.deviceName);
+          if (req.body.platform) existing.platform = String(req.body.platform);
+          await user.save();
+          return ok(res, { passkey: passkeyClient(existing) });
+        }
+        user.passkeys.push({
+          keyId: crypto.randomUUID(),
+          deviceId,
+          deviceName: String(req.body.deviceName || 'Unknown Device'),
+          platform: String(req.body.platform || 'unknown'),
+          createdAt: new Date(),
+        });
+        user.passkeysEnabled = true;
+        await user.save();
+        return ok(res, { passkey: passkeyClient(user.passkeys.find((p) => p.deviceId === deviceId)) });
+      }
+
+      // ── LIST PASSKEYS ────────────────────────────────────────
+      case 'listPasskeys': {
+        const email = String(req.body.email || '').toLowerCase().trim();
+        if (!email) return fail(res, 'Email is required');
+        const user = await User.findOne({ email });
+        return ok(res, { passkeys: (user ? user.passkeys : []).map(passkeyClient) });
+      }
+
+      // ── DELETE PASSKEY ───────────────────────────────────────
+      case 'deletePasskey': {
+        const passkeyId = String(req.body.passkeyId || '');
+        const email = String(req.body.email || '').toLowerCase().trim();
+        if (!passkeyId || !email) return fail(res, 'Passkey ID and email are required');
+        const user = await User.findOne({ email });
+        if (!user) return fail(res, 'Passkey not found');
+        const match = user.passkeys.find((p) => p.keyId === passkeyId);
+        if (!match) return fail(res, 'Passkey not found');
+        user.passkeys = user.passkeys.filter((p) => p.keyId !== passkeyId);
+        if (user.passkeys.length === 0) user.passkeysEnabled = false;
+        await user.save();
+        return ok(res, { message: 'Passkey deleted' });
+      }
+
+      // ── LOGIN WITH PASSKEY ───────────────────────────────────
+      case 'loginWithPasskey': {
+        const email = String(req.body.email || '').toLowerCase().trim();
+        const deviceId = String(req.body.deviceId || '');
+        if (!email || !deviceId) return fail(res, 'Email and device ID are required');
+        const user = await User.findOne({ email });
+        if (!user) return fail(res, 'Invalid email');
+        if (!user.passkeysEnabled) return fail(res, 'Passkeys are not enabled for this account');
+        if (!user.passkeys.some((p) => p.deviceId === deviceId)) {
+          return fail(res, 'No passkey found for this device');
+        }
+        upsertDevice(user, deviceId, req.body.deviceName, req.body.platform);
+        await user.save();
+        fireSecurityAlert(req, email, req.body.deviceName, 'Account Login', deviceId);
+        return ok(res, { user: user.toClient() });
+      }
+
+      // ── LOGOUT (security email) ─────────────────────────────
+      case 'logout': {
+        const email = String(req.body.email || '').toLowerCase().trim();
+        if (!email) return fail(res, 'Email is required');
+        fireSecurityAlert(req, email, req.body.deviceName, 'Account Logout', req.body.deviceId);
+        return ok(res, { message: 'Logout successful' });
+      }
+
+      // ── CHECK PHONE NUMBERS IN BULK (contact sync) ───────────
+      case 'checkPhoneNumbers': {
+        const phoneNumbers = req.body.phoneNumbers;
+        if (!Array.isArray(phoneNumbers) || phoneNumbers.length === 0) {
+          return fail(res, 'phoneNumbers array is required');
+        }
+        const allUsers = await User.find({});
+        const byLast10 = new Map();
+        for (const u of allUsers) {
+          const digits = normalizeDigits(u.phoneNumber);
+          if (digits.length >= 9) byLast10.set(digits.slice(-10), u);
+        }
+        const results = {};
+        for (const phoneNumber of phoneNumbers) {
+          const last10 = normalizeDigits(phoneNumber).slice(-10);
+          const match = last10.length >= 9 ? byLast10.get(last10) : undefined;
+          results[phoneNumber] = match
+            ? { registered: true, user: match.toClient() }
+            : { registered: false };
+        }
+        return ok(res, { results });
+      }
+
+      // ── CHECK PHONE NUMBER (registered on Kora?) ──────────────
+      case 'checkPhoneNumber': {
+        const raw = String(req.body.phoneNumber || '');
+        if (!raw) return fail(res, 'Phone number is required');
+        let normalized = raw.replace(/\s+/g, '');
+        if (!normalized.startsWith('+') && !normalized.startsWith('0')) {
+          normalized = '+' + normalized;
+        }
+        const user = await findUserByPhone(normalized);
+        if (!user) return ok(res, { registered: false });
+        return ok(res, { registered: true, user: user.toClient() });
+      }
+
+      // ── CHECK KORA ID ─────────────────────────────────────────
+      case 'checkKoraId': {
+        const koraId = String(req.body.koraId || '');
+        if (!koraId) return fail(res, 'Kora ID is required');
+        const user = await User.findOne({ koraId });
+        if (!user) return ok(res, { registered: false });
+        return ok(res, { registered: true, user: user.toClient() });
+      }
+
+      // ── RECOVER SUBSCRIPTION (premium restore) ────────────────
+      case 'recoverSubscription': {
+        let user = null;
+        if (req.body.userId) user = await User.findById(req.body.userId);
+        if (!user && req.body.email) {
+          user = await User.findOne({ email: String(req.body.email).toLowerCase().trim() });
+        }
+        if (!user) return fail(res, 'Account not found');
+        return ok(res, {
+          isPremium: User.computeIsPremium(user),
+          premiumExpiresAt: user.premiumExpiresAt ? new Date(user.premiumExpiresAt).toISOString() : null,
+          premiumSource: user.premiumSource || '',
+          user: user.toClient(),
+        });
+      }
+
+      // ── LOOKUP USER (by username or koraId) ───────────────────
+      case 'lookupUser': {
+        const identifier = String(req.body.identifier || '').trim();
+        if (!identifier) return fail(res, 'Identifier is required');
+        if (identifier.toUpperCase().startsWith('KM-')) {
+          const user = await User.findOne({ koraId: identifier.toUpperCase() });
+          return user
+            ? ok(res, { found: true, type: 'koraId', user: user.toClient() })
+            : ok(res, { found: false, type: 'koraId' });
+        }
+        const username = identifier.startsWith('@') ? identifier.substring(1) : identifier;
+        const user = await User.findOne({ username }).collation({ locale: 'en', strength: 2 });
+        return user
+          ? ok(res, { found: true, type: 'username', user: user.toClient() })
+          : ok(res, { found: false, type: 'username' });
       }
 
       default:

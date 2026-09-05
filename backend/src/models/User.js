@@ -1,6 +1,19 @@
 const mongoose = require('mongoose');
 
 // Mirrors the app's KoraUser entity + KoraUserSession.fromMap shape.
+// Passkeys are embedded (Base44 kept them in a separate entity; here the
+// account owns them directly). keyId is the client-facing "passkey id".
+const passkeySchema = new mongoose.Schema(
+  {
+    keyId: { type: String, required: true },
+    deviceId: { type: String, required: true },
+    deviceName: { type: String, default: 'Unknown Device' },
+    platform: { type: String, default: 'unknown' },
+    createdAt: { type: Date, default: Date.now },
+  },
+  { _id: false }
+);
+
 const deviceSchema = new mongoose.Schema(
   {
     deviceId: { type: String, required: true },
@@ -35,11 +48,22 @@ const userSchema = new mongoose.Schema(
     publicKey: { type: String, default: '' },
     signingKey: { type: String, default: '' },
     devices: [deviceSchema],
+    passkeys: [passkeySchema],
   },
   { timestamps: true }
 );
 
 userSchema.index({ username: 1 }, { unique: true, sparse: true, collation: { locale: 'en', strength: 2 } });
+
+// Premium is true if isPremium is set AND (no expiry, or expiry is in
+// the future). Owner-override grants (premiumSource: 'owner_override')
+// never expire regardless of premiumExpiresAt.
+userSchema.statics.computeIsPremium = function computeIsPremium(user) {
+  if (!user.isPremium) return false;
+  if (user.premiumSource === 'owner_override') return true;
+  if (!user.premiumExpiresAt) return true;
+  return new Date(user.premiumExpiresAt).getTime() > Date.now();
+};
 
 // Shape the app expects in KoraUserSession.fromMap / saveSession.
 userSchema.methods.toClient = function toClient() {
@@ -53,7 +77,9 @@ userSchema.methods.toClient = function toClient() {
     avatarUrl: this.avatarUrl || '',
     phoneNumber: this.phoneNumber || '',
     profileCompleted: this.profileCompleted,
-    isPremium: this.isPremium,
+    isPremium: this.constructor.computeIsPremium(this),
+    premiumExpiresAt: this.premiumExpiresAt ? new Date(this.premiumExpiresAt).toISOString() : null,
+    premiumSource: this.premiumSource || '',
     isVerified: this.isVerified,
     isSuspended: this.isSuspended,
     passkeysEnabled: this.passkeysEnabled,
