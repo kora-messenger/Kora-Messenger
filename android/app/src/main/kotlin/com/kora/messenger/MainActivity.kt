@@ -219,7 +219,7 @@ class MainActivity : FlutterFragmentActivity() {
                     sm.registerListener(l, sensor, SensorManager.SENSOR_DELAY_NORMAL)
                 }
 
-                override fun onCancel() {
+                override fun onCancel(arguments: Any?) {
                     listener?.let { sensorManager?.unregisterListener(it) }
                     listener = null
                 }
