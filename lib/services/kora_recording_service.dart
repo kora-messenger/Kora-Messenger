@@ -8,7 +8,7 @@ import 'package:flutter/services.dart';
 ///
 /// Uses the native Kotlin [KoraVoiceRecorder] via a MethodChannel —
 /// a MediaRecorder-based engine that captures microphone input only
-/// (VOICE_COMMUNICATION source not needed — MIC source with AAC encoder).
+/// (VOICE_COMMUNICATION source, tuned for voice capture).
 ///
 /// This mirrors WhatsApp's in-app recording engine:
 ///   - Captures microphone input only (no system audio/notifications)
