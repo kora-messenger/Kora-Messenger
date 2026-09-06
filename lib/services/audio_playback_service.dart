@@ -31,30 +31,21 @@ class AudioPlaybackService {
   Stream<PlaybackState> get stateStream => _stateController.stream;
 
   // ── Raise-to-listen routing (Telegram parity) ──
-  // Near-ear proximity → route playback to the earpiece with speech
-  // attributes; far → restore normal media (speaker) routing.
+  // Near-ear proximity → configure the audio session for speech, which
+  // routes playback to the earpiece (USAGE_VOICE_COMMUNICATION); far →
+  // restore the normal music/media (speaker) routing.
   bool _earpiece = false;
-  static final AudioContext _mediaContext = AudioContext(
-    android: const AudioContextAndroid(
-      usageType: AndroidUsageType.media,
-      contentType: AndroidContentType.music,
-    ),
-  );
-  static final AudioContext _earpieceContext = AudioContext(
-    android: const AudioContextAndroid(
-      isSpeechSynthesis: false,
-      usageType: AndroidUsageType.voiceCommunication,
-      contentType: AndroidContentType.speech,
-    ),
-  );
 
   /// Switches the audio output route. Android only (iOS audio routing
-  /// stays with the system's defaults until portOverride lands).
+  /// stays with the system's defaults).
   Future<void> setEarpiece(bool on) async {
     if (!Platform.isAndroid || _earpiece == on) return;
     _earpiece = on;
     try {
-      await _player.setAudioContext(on ? _earpieceContext : _mediaContext);
+      final session = await AudioSession.instance;
+      await session.configure(
+        on ? AudioSessionConfiguration.speech() : AudioSessionConfiguration.music(),
+      );
     } catch (_) {}
   }
 

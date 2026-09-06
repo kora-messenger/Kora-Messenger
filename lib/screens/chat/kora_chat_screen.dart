@@ -216,7 +216,7 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
     if (i < 0 || i + 1 >= _messages.length) return;
     final finished = _messages[i];
     final next = _messages[i + 1];
-    if (next.type != MessageType.voice) return;
+    if (next.type != KoraMessageType.voice) return;
     if (next.isMe != finished.isMe) return; // same sender only
 
     final source = _voiceSourceFor(next);

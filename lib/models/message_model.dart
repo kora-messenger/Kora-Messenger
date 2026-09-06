@@ -61,6 +61,10 @@ class KoraMessage {
   /// Drives the unplayed indicator dot on the voice bubble.
   final bool isVoicePlayed;
 
+  /// 64-bar waveform (0.0-1.0 JSON array) captured from the sender's
+  /// live mic amplitudes at record time. Null = render decorative bars.
+  final String? voiceWaveform;
+
   /// When [status] is [MessageStatus.pendingOffline], tracks whether
   /// an upload attempt is in flight or has been cancelled/failed.
   /// Ignored once the message actually sends.
@@ -376,6 +380,7 @@ class KoraMessage {
     voiceFilePath: j['voiceFilePath'] as String?,
     voiceFileUrl: j['voiceFileUrl'] as String?,
     isVoicePlayed: j['isVoicePlayed'] as bool? ?? false,
+    voiceWaveform: j['voiceWaveform'] as String?,
     voiceTransferState: VoiceTransferState.values.firstWhere(
       (e) => e.name == j['voiceTransferState'],
       orElse: () => VoiceTransferState.uploading,
