@@ -16,9 +16,6 @@ class KoraVoiceLockedBar extends StatelessWidget {
   final VoidCallback onDiscard;
   final VoidCallback onTogglePause;
   final VoidCallback onSend;
-  final VoidCallback onTranslate;
-  final String? selectedTranslateName;
-  final bool isTranslating;
   final bool isPreviewPlaying;
   final double previewProgress;
   final int previewPositionMs;
@@ -35,9 +32,6 @@ class KoraVoiceLockedBar extends StatelessWidget {
     required this.onDiscard,
     required this.onTogglePause,
     required this.onSend,
-    required this.onTranslate,
-    required this.selectedTranslateName,
-    required this.isTranslating,
     required this.isPreviewPlaying,
     required this.previewProgress,
     required this.previewPositionMs,
@@ -77,48 +71,11 @@ class KoraVoiceLockedBar extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Top row: waveform + timer + translate
+          // Top row: waveform + timer
           SizedBox(
             height: 40,
             child: Row(
               children: [
-                // Translate button (if selected)
-                if (selectedTranslateName != null)
-                  GestureDetector(
-                    onTap: onTranslate,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF6C63FF).withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (isTranslating)
-                            const SizedBox(
-                              width: 14, height: 14,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF6C63FF)),
-                            )
-                          else
-                            const Icon(Icons.language, size: 16, color: Color(0xFF6C63FF)),
-                          const SizedBox(width: 4),
-                          Text(
-                            selectedTranslateName!,
-                            style: const TextStyle(fontSize: 12, color: Color(0xFF6C63FF)),
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
-                else
-                  IconButton(
-                    onPressed: onTranslate,
-                    icon: Icon(Icons.language, color: text.withValues(alpha: 0.5), size: 22),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                  ),
-                const SizedBox(width: 6),
                 // Waveform — same compact, real-amplitude rendering as
                 // the holding-state bar and WhatsApp's own inline waveform.
                 Expanded(

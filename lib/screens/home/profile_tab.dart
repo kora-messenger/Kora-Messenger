@@ -316,7 +316,7 @@ class _ProfileTabState extends State<ProfileTab> {
               icon: Icons.translate_rounded,
               iconColor: KoraColors.purple,
               title: 'Translation',
-              subtitle: 'Preferred language, auto-translate, voice notes',
+              subtitle: 'Preferred language, auto-translate',
               screen: const TranslationSettingsScreen(),
             ),
             _navTile(

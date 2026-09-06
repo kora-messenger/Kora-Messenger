@@ -9,7 +9,6 @@ import '../../theme/chat_theme_provider.dart';
 import 'voice_message_bubble.dart';
 import 'video_note_bubble.dart';
 import 'document_viewer_screen.dart';
-import 'voice_translation_sheet.dart';
 
 /// Kora's message bubble — distinct for sent vs received.
 /// Sent: gradient-tinted purple/blue with white text.
@@ -781,14 +780,6 @@ class MessageBubble extends StatelessWidget {
           sentAccentColor: sentText.computeLuminance() > 0.5
               ? const Color(0xFF111B21)
               : Colors.white,
-          onTranslate: isPendingOffline
-              ? null
-              : () {
-                  VoiceTranslationSheet.show(
-                    context,
-                    voiceDuration: message.voiceDuration ?? '0:05',
-                  );
-                },
           onCancelUpload: onCancelVoiceUpload,
           onRetryUpload: onRetryVoiceUpload,
           onSelfDestruct: onSelfDestruct,

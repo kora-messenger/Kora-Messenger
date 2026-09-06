@@ -5,7 +5,6 @@ import '../../models/message_model.dart';
 import '../../models/chat_models.dart';
 import '../../theme/kora_colors.dart';
 import '../../widgets/kora_waveform.dart';
-import 'voice_translation_sheet.dart';
 import '../../theme/chat_theme_provider.dart';
 import '../settings/premium_subscribe_sheet.dart';
 import '../../services/audio_playback_service.dart';
@@ -18,15 +17,13 @@ import '../../services/audio_playback_service.dart';
 /// - Download state for received notes not yet on device
 /// - Upload state (uploading spinner, not-sent retry)
 /// - Played/unplayed indicator for incoming notes
-/// - Context menu (long-press): Translate, Play, Download, Share, Delete
-/// - Voice translation (Transcribe + Translate Voice)
+/// - Context menu (long-press): Play, Download, Share, Delete
 class VoiceMessageBubble extends StatefulWidget {
   final KoraMessage message;
   /// Color for icons/text on sent voice bubbles. Defaults to white
   /// (for dark sent bubbles like Kora purple). Pass dark gray when the
   /// active theme has a light sent bubble (e.g. WhatsApp green).
   final Color sentAccentColor;
-  final VoidCallback? onTranslate;
   final VoidCallback? onCancelUpload;
   final Future<bool> Function()? onRetryUpload;
   final VoidCallback? onDownload;
@@ -43,7 +40,6 @@ class VoiceMessageBubble extends StatefulWidget {
     super.key,
     required this.message,
     this.sentAccentColor = Colors.white,
-    this.onTranslate,
     this.onCancelUpload,
     this.onRetryUpload,
     this.onDownload,
@@ -140,29 +136,6 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
     _sub?.cancel();
     _playback.stopIfActive(widget.message.id);
     super.dispose();
-  }
-
-  void _showVoiceTranslation(BuildContext context,
-      {required String voiceDuration,
-      required bool autoTranslate,
-      String? voiceId,
-      String? transcript}) {
-    if (!_isPremium) {
-      showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-        builder: (context) => const PremiumSubscribeSheet(),
-      );
-      return;
-    }
-    VoiceTranslationSheet.show(
-      context,
-      voiceDuration: voiceDuration,
-      autoTranslate: autoTranslate,
-      voiceId: voiceId,
-      transcript: transcript,
-    );
   }
 
   Future<void> _togglePlay() async {
@@ -321,40 +294,6 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
                 },
               ),
 
-              // Translate Voice
-              ListTile(
-                leading: const Icon(Icons.translate_rounded, color: KoraColors.purple),
-                title: Text('Translate Voice',
-                    style: TextStyle(color: KoraColors.textPrimaryFor(brightness))),
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  _showVoiceTranslation(
-                    context,
-                    voiceDuration: _totalDuration,
-                    autoTranslate: true,
-                    voiceId: widget.message.id,
-                    transcript: widget.message.voiceTranscript,
-                  );
-                },
-              ),
-
-              // Transcribe
-              ListTile(
-                leading: const Icon(Icons.mic_outlined, color: KoraColors.purple),
-                title: Text('Transcribe',
-                    style: TextStyle(color: KoraColors.textPrimaryFor(brightness))),
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  _showVoiceTranslation(
-                    context,
-                    voiceDuration: _totalDuration,
-                    autoTranslate: false,
-                    voiceId: widget.message.id,
-                    transcript: widget.message.voiceTranscript,
-                  );
-                },
-              ),
-
               // Download (only if not local and has remote URL)
               if (!_isReadyLocally && _hasRemoteUrl)
                 ListTile(
@@ -476,33 +415,6 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
                   const SizedBox(width: 3),
                   Text(
                     isMe ? 'Play once' : 'View once',
-                    style: TextStyle(
-                      color: KoraColors.purple.withValues(alpha: 0.8),
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-          // Translated badge
-          if (widget.message.translatedLanguageName != null) ...[
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              margin: const EdgeInsets.only(bottom: 4),
-              decoration: BoxDecoration(
-                color: KoraColors.purple.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.language_rounded,
-                      size: 12, color: KoraColors.purple.withValues(alpha: 0.8)),
-                  const SizedBox(width: 3),
-                  Text(
-                    'Translated to ${widget.message.translatedLanguageName}',
                     style: TextStyle(
                       color: KoraColors.purple.withValues(alpha: 0.8),
                       fontSize: 10.5,
@@ -647,40 +559,6 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
               ),
             ],
           ),
-          if (!widget.message.isPlayOnce) ...[
-            const SizedBox(height: 6),
-            // Translate / Transcribe actions
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildAction(
-                  isMe: isMe,
-                  icon: Icons.mic_outlined,
-                  label: 'Transcribe',
-                  onTap: () => _showVoiceTranslation(
-                    context,
-                    voiceDuration: _totalDuration,
-                    autoTranslate: false,
-                    voiceId: widget.message.id,
-                    transcript: widget.message.voiceTranscript,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                _buildAction(
-                  isMe: isMe,
-                  icon: Icons.translate_rounded,
-                  label: 'Translate Voice',
-                  onTap: () => _showVoiceTranslation(
-                    context,
-                    voiceDuration: _totalDuration,
-                    autoTranslate: true,
-                    voiceId: widget.message.id,
-                    transcript: widget.message.voiceTranscript,
-                  ),
-                ),
-              ],
-            ),
-          ],
         ],
       ),
     );
@@ -729,33 +607,6 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
           color: iconColor,
           size: 28,
         ),
-      ),
-    );
-  }
-
-  Widget _buildAction({
-    required bool isMe,
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    final color = isMe ? _sentSubdued.withValues(alpha: 0.9) : KoraColors.purple;
-    return GestureDetector(
-      onTap: onTap,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 13, color: color),
-          const SizedBox(width: 3),
-          Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
       ),
     );
   }

@@ -438,30 +438,6 @@ class KoraAiService {
     }
   }
 
-  /// Enhance a voice note transcript using AI.
-  Future<KoraAiResult> enhanceTranscript({
-    required String transcript,
-  }) async {
-    try {
-      final body = <String, dynamic>{
-        'feature': 'transcribe_audio',
-        'transcript': transcript,
-      };
-
-      final result = await KoraApi.postToAi(KoraApi.aiFeaturesEndpoint, body);
-
-      if (result['success'] == true) {
-        return KoraAiResult(
-          success: true,
-          response: result['result'] as String? ?? transcript,
-        );
-      }
-      return KoraAiResult(success: true, response: transcript);
-    } catch (e) {
-      return KoraAiResult(success: true, response: transcript);
-    }
-  }
-
   /// Analyze video key frames.
   Future<KoraAiResult> analyzeVideo({
     required List<String> framePaths,

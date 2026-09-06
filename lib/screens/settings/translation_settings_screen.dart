@@ -12,7 +12,6 @@ import '../../theme/chat_theme_provider.dart';
 /// Options:
 /// - Preferred Translation Language
 /// - Automatic Translation (Off / Ask / Automatically translate)
-/// - Translate Voice Notes (on/off)
 /// - Show Original Text (on/off)
 /// - Live Call Translation (on/off)
 /// - Call Translation Mode
@@ -30,7 +29,6 @@ class _TranslationSettingsScreenState extends State<TranslationSettingsScreen> {
   final _service = TranslationService.instance;
   bool _isLoadingPremium = false;
   late AutoTranslateMode _autoMode;
-  late bool _translateVoice;
   late bool _showOriginal;
   late bool _callTranslation;
   late double _captionSize;
@@ -39,7 +37,6 @@ class _TranslationSettingsScreenState extends State<TranslationSettingsScreen> {
   void initState() {
     super.initState();
     _autoMode = _service.autoTranslateMode;
-    _translateVoice = _service.translateVoice;
     _showOriginal = _service.showOriginal;
     _callTranslation = _service.callTranslationEnabled;
     _captionSize = _service.captionSize;
@@ -164,30 +161,18 @@ class _TranslationSettingsScreenState extends State<TranslationSettingsScreen> {
           const SizedBox(height: 20),
 
           // ── VOICE ──
-          _sectionLabel('VOICE', textMuted),
+          _sectionLabel('VOICES', textMuted),
           _cardGroup(
             card: card,
             border: border,
             children: [
-              _switchTile(
-                card: card,
-                icon: Icons.mic_rounded,
-                iconBg: KoraColors.purple.withValues(alpha: 0.1),
-                title: 'Translate Voice Notes',
-                subtitle: 'Allow transcription and translation of voice messages',
-                value: _translateVoice,
-                onChanged: (v) {
-                  _service.setTranslateVoice(v);
-                  setState(() => _translateVoice = v);
-                },
-              ),
               _navTile(
                 card: card,
                 border: null,
                 icon: Icons.graphic_eq_rounded,
                 iconBg: KoraColors.purple.withValues(alpha: 0.1),
                 title: 'Voice Studio',
-                subtitle: 'Create and manage custom voices for translation',
+                subtitle: 'Create and manage custom voices for live call translation',
                 trailing: Icon(Icons.chevron_right, color: textMuted),
                 onTap: () => Navigator.push(
                   context,
@@ -299,8 +284,7 @@ class _TranslationSettingsScreenState extends State<TranslationSettingsScreen> {
                   Expanded(
                     child: Text(
                       'Kora translates messages using AI. Original messages are never modified — '
-                      'translations are generated on demand and stored only for your viewing. '
-                      'Voice notes are transcribed and translated without altering the original audio.',
+                      'translations are generated on demand and stored only for your viewing.',
                       style: TextStyle(
                         color: textSecondary,
                         fontSize: 12.5,
@@ -335,7 +319,7 @@ class _TranslationSettingsScreenState extends State<TranslationSettingsScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Translate messages, voice notes, and live calls in real-time. Upgrade to unlock all translation features.',
+              'Translate messages and live calls in real-time. Upgrade to unlock all translation features.',
               textAlign: TextAlign.center,
               style: TextStyle(color: textSecondary, fontSize: 13, height: 1.5),
             ),

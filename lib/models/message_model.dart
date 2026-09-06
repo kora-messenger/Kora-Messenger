@@ -65,7 +65,7 @@ class KoraMessage {
   /// an upload attempt is in flight or has been cancelled/failed.
   /// Ignored once the message actually sends.
   final VoiceTransferState voiceTransferState;
-  final String? voiceTranscript; // on-device STT transcript
+  final String? voiceTranscript; // legacy: transcript from the removed live translation feature
   final String? attachmentName; // for file messages
 
   /// For [KoraMessageType.action] messages — the button label
@@ -102,7 +102,6 @@ class KoraMessage {
   /// the language code/name the note was translated to. When set,
   /// [voiceFilePath] points to the TRANSLATED audio (the recipient
   /// hears the translation, not the original recording) and
-  /// [voiceTranscript] holds the translated text.
   final String? translatedLanguageCode;
   final String? translatedLanguageName;
 

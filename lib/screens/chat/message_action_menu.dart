@@ -9,8 +9,6 @@ enum KoraMessageAction {
   copy,
   forward,
   translate,
-  transcribeVoice,
-  translateVoice,
   delete,
   select,
 }
@@ -21,8 +19,6 @@ const _quickReactions = ['❤️', '😂', '👍', '😮', '😢', '🙏'];
 /// Shows Kora's message action menu as an overlay near the tapped message.
 /// Includes a quick-reaction row + contextual actions.
 ///
-/// For voice messages, shows Transcribe and Translate Voice instead of
-/// just Translate.
 void showKoraMessageActionMenu(
   BuildContext context, {
   required GlobalKey messageKey,
@@ -40,8 +36,6 @@ void showKoraMessageActionMenu(
   required VoidCallback onStar,
   VoidCallback? onMessageInfo,
   VoidCallback? onReportSpam,
-  VoidCallback? onTranscribeVoice,
-  VoidCallback? onTranslateVoice,
   VoidCallback? onPremiumUpsell,
   VoidCallback? onAskAI,
 }) {
@@ -89,18 +83,6 @@ void showKoraMessageActionMenu(
         entry.remove();
         onTranslate();
       },
-      onTranscribeVoice: onTranscribeVoice != null
-          ? () {
-              entry.remove();
-              onTranscribeVoice();
-            }
-          : null,
-      onTranslateVoice: onTranslateVoice != null
-          ? () {
-              entry.remove();
-              onTranslateVoice();
-            }
-          : null,
       onStar: () {
         entry.remove();
         onStar();
@@ -141,8 +123,6 @@ class _MessageActionOverlay extends StatelessWidget {
   final VoidCallback onCopy;
   final VoidCallback onForward;
   final VoidCallback onTranslate;
-  final VoidCallback? onTranscribeVoice;
-  final VoidCallback? onTranslateVoice;
   final VoidCallback onStar;
   final VoidCallback? onMessageInfo;
   final VoidCallback onDelete;
@@ -163,8 +143,6 @@ class _MessageActionOverlay extends StatelessWidget {
     required this.onCopy,
     required this.onForward,
     required this.onTranslate,
-    this.onTranscribeVoice,
-    this.onTranslateVoice,
     required this.onStar,
     this.onMessageInfo,
     required this.onDelete,
@@ -290,10 +268,6 @@ class _MessageActionOverlay extends StatelessWidget {
                     _action(Icons.forward_outlined, 'Forward', onForward, textPrimary),
                   // Voice-specific actions
                   if (_isVoice) ...[
-                    if (onTranscribeVoice != null)
-                      _action(Icons.mic_outlined, 'Transcribe', onTranscribeVoice!, textPrimary),
-                    if (onTranslateVoice != null)
-                      _action(Icons.translate_outlined, 'Translate Voice', onTranslateVoice!, textPrimary),
                   ] else ...[
                     _action(Icons.translate_outlined, 'Translate', onTranslate, textPrimary),
                   ],

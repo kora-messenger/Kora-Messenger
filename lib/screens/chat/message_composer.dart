@@ -6,10 +6,6 @@ import '../../theme/kora_colors.dart';
 import '../../services/kora_recording_service.dart';
 import '../../services/permission_service.dart';
 import '../../services/audio_playback_service.dart';
-import '../../services/voice_note_stt_service.dart';
-import '../../services/voice_translation_pipeline.dart';
-import '../../services/translation_service.dart';
-import '../../models/translation_models.dart';
 import 'kora_voice_locked_bar.dart';
 import 'kora_voice_holding.dart';
 import 'emoji_sticker_panel.dart';
@@ -33,7 +29,7 @@ import 'package:file_picker/file_picker.dart';
 ///   hands-free. Releasing without crossing either threshold sends
 ///   immediately. A quick tap (short press, minimal drag) opens the popup.
 /// - **Popup** → hands-free recording bar (tap or lock). Trash, timer,
-///   waveform, pause/resume, translate and send. Only closes on delete/send.
+///   waveform, pause/resume and send. Only closes on delete/send.
 ///
 /// Waveform data comes from [KoraRecordingService.amplitudeStream] —
 /// real microphone amplitude, not a placeholder.
@@ -54,8 +50,6 @@ class MessageComposer extends StatefulWidget {
     String duration, {
     String? filePath,
     String? transcript,
-    String? translatedLanguageCode,
-    String? translatedLanguageName,
     bool isPlayOnce,
   }) onSendVoice;
   final VoidCallback? onAttachment;
@@ -138,11 +132,6 @@ class _MessageComposerState extends State<MessageComposer>
   // tap-release landing inside the haptic-settle delay below, before
   // _state has flipped away from idle.
   bool _startingRecording = false;
-
-  // ── Translation state ──
-  String? _selectedTranslateCode;
-  String? _selectedTranslateName;
-  bool _isTranslating = false;
 
   late AnimationController _pulseController;
 
@@ -440,9 +429,6 @@ class _MessageComposerState extends State<MessageComposer>
         });
       });
 
-      // Start on-device STT capture alongside audio recording
-      VoiceNoteSttService.instance.start();
-
       if (isHold) {
         setState(() => _state = _ComposerState.holding);
         _pulseController.repeat(reverse: true);
@@ -475,7 +461,6 @@ class _MessageComposerState extends State<MessageComposer>
     _timer?.cancel();
     _amplitudeSub?.cancel();
     _pulseController.stop();
-    await VoiceNoteSttService.instance.stop();
     await _recordingService.cancelRecording();
     // Vibrate only after the mic is fully closed — never while it's hot.
     HapticFeedback.mediumImpact();
@@ -513,26 +498,6 @@ class _MessageComposerState extends State<MessageComposer>
     final duration = _durationString;
     if (mounted) setState(() => _state = _ComposerState.idle);
 
-    // If translation is selected, run the pipeline before sending
-    if (_selectedTranslateCode != null) {
-      final result = await _translateVoiceNote(path ?? _filePath ?? '');
-      if (result != null) {
-        widget.onSendVoice(
-          duration,
-          filePath: result.audioPath,
-          transcript: result.transcript,
-          translatedLanguageCode: result.langCode,
-          translatedLanguageName: result.langName,
-          isPlayOnce: _isPlayOnce,
-        );
-        _clearTranslation();
-        _isPlayOnce = false;
-        return;
-      }
-      return;
-    }
-
-    unawaited(VoiceNoteSttService.instance.stop());
     widget.onSendVoice(duration, filePath: path ?? _filePath, isPlayOnce: _isPlayOnce);
     _isPlayOnce = false;
   }
@@ -590,9 +555,7 @@ class _MessageComposerState extends State<MessageComposer>
     _timer?.cancel();
     _amplitudeSub?.cancel();
     await _stopPreview();
-    await VoiceNoteSttService.instance.stop();
     await _recordingService.cancelRecording();
-    _clearTranslation();
     _isPlayOnce = false;
     if (mounted) setState(() => _state = _ComposerState.idle);
   }
@@ -656,160 +619,8 @@ class _MessageComposerState extends State<MessageComposer>
 
     if (mounted) setState(() => _state = _ComposerState.idle);
 
-    if (_selectedTranslateCode != null) {
-      final result = await _translateVoiceNote(path ?? _filePath ?? '');
-      if (result != null) {
-        widget.onSendVoice(
-          duration,
-          filePath: result.audioPath,
-          transcript: result.transcript,
-          translatedLanguageCode: result.langCode,
-          translatedLanguageName: result.langName,
-          isPlayOnce: _isPlayOnce,
-        );
-        _clearTranslation();
-        _isPlayOnce = false;
-        return;
-      }
-      return;
-    }
-
-    unawaited(VoiceNoteSttService.instance.stop());
     widget.onSendVoice(duration, filePath: path ?? _filePath, isPlayOnce: _isPlayOnce);
     _isPlayOnce = false;
-  }
-
-  // ── Voice note translation ──
-
-  void _openTranslatePicker() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => LanguagePickerScreen(
-          selectedCode: _selectedTranslateCode,
-          title: 'Translate voice note to',
-        ),
-      ),
-    ).then((result) {
-      if (result != null && result is KoraLanguage) {
-        setState(() {
-          _selectedTranslateCode = result.code;
-          _selectedTranslateName = result.name;
-        });
-      }
-    });
-  }
-
-  void _clearTranslation() {
-    setState(() {
-      _selectedTranslateCode = null;
-      _selectedTranslateName = null;
-    });
-  }
-
-  Future<({String audioPath, String transcript, String langCode, String langName})?>
-  _translateVoiceNote(String originalFilePath) async {
-    if (_selectedTranslateCode == null) return null;
-
-    setState(() => _isTranslating = true);
-
-    try {
-      final stt = VoiceNoteSttService.instance;
-      final transcript = await stt.stop();
-
-      if (transcript.trim().isEmpty) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('No speech detected. Please try again and speak clearly.'),
-              backgroundColor: KoraColors.cardFor(Theme.of(context).brightness),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        }
-        return null;
-      }
-
-      final result = await TranslationService.instance.translate(
-        transcript,
-        _selectedTranslateCode!,
-      );
-
-      final translatedText = result.translatedText;
-      if (translatedText.trim().isEmpty) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Translation failed. Please try again.'),
-              backgroundColor: KoraColors.cardFor(Theme.of(context).brightness),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        }
-        return null;
-      }
-
-      final tts = VoiceTranslationPipeline.instance;
-      final outcome = await tts.translateAndSynthesize(
-        transcript: transcript,
-        targetLanguageCode: _selectedTranslateCode!,
-      );
-
-      if (!outcome.success || outcome.audioFilePath == null) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(outcome.errorMessage ?? 'Could not generate translated audio. Please try again.'),
-              backgroundColor: KoraColors.cardFor(Theme.of(context).brightness),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        }
-        return null;
-      }
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle, color: Colors.green, size: 18),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Translation successful → $_selectedTranslateName',
-                    style: const TextStyle(fontSize: 13),
-                  ),
-                ),
-              ],
-            ),
-            backgroundColor: KoraColors.cardFor(Theme.of(context).brightness),
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      }
-
-      return (
-        audioPath: outcome.audioFilePath!,
-        transcript: translatedText,
-        langCode: _selectedTranslateCode!,
-        langName: _selectedTranslateName ?? _selectedTranslateCode!,
-      );
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Translation failed. Please try again.'),
-            backgroundColor: KoraColors.cardFor(Theme.of(context).brightness),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-      return null;
-    } finally {
-      if (mounted) setState(() => _isTranslating = false);
-    }
   }
 
   void _openAttachments() {
@@ -1287,9 +1098,6 @@ class _MessageComposerState extends State<MessageComposer>
             onDiscard: _discardLocked,
             onTogglePause: _toggleLockedPause,
             onSend: _sendLocked,
-            onTranslate: _openTranslatePicker,
-            selectedTranslateName: _selectedTranslateName,
-            isTranslating: _isTranslating,
             isPreviewPlaying: _previewPlaying,
             previewProgress: _previewProgress,
             previewPositionMs: _previewPositionMs,

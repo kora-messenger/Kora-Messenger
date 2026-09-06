@@ -6,7 +6,7 @@ import '../model/ai_request.dart';
 import '../model/ai_response.dart';
 import '../streaming/ai_stream_event.dart';
 
-/// Translation orchestration for text, voice notes, and group messages.
+/// Translation orchestration for text and group messages.
 /// Uses the Kora AI Orchestrator backend with intent=translation.
 class TranslationManager {
   final http.Client _client = http.Client();
@@ -37,14 +37,6 @@ class TranslationManager {
     } catch (e) {
       return AIResponse(success: false, content: '', error: e.toString());
     }
-  }
-
-  /// Translate a voice note transcript.
-  Future<AIResponse> translateVoiceNote({
-    required String transcript,
-    required String targetLanguage,
-  }) async {
-    return translateText(text: transcript, targetLanguage: targetLanguage);
   }
 
   /// Stream a realtime translation (for live calls or messaging).

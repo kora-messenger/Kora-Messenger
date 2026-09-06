@@ -14,7 +14,6 @@ import '../../services/message_service.dart';
 import '../../services/offline_voice_sync.dart';
 import '../../services/audio_playback_service.dart';
 import '../../services/chat_sound_service.dart';
-import 'voice_translation_sheet.dart';
 import 'forward_message_screen.dart';
 import 'view_once_viewer.dart';
 import '../../theme/kora_colors.dart';
@@ -712,18 +711,12 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
   void _sendVoice(
     String duration, {
     String? filePath,
-    String? transcript,
-    String? translatedLanguageCode,
-    String? translatedLanguageName,
     bool isPlayOnce = false,
   }) async {
     await _messageService.sendVoiceMessage(
       widget.chatId,
       duration,
       filePath: filePath,
-      transcript: transcript,
-      translatedLanguageCode: translatedLanguageCode,
-      translatedLanguageName: translatedLanguageName,
       isPlayOnce: isPlayOnce,
       recipientEmail: widget.recipientEmail,
       recipientName: widget.name,
@@ -928,20 +921,6 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
       onCopy: () => _onCopy(message.text),
       onForward: () => _onForward(message),
       onTranslate: () => _onTranslate(message),
-      onTranscribeVoice: message.type == KoraMessageType.voice && ChatThemeProvider.instance.isPremium
-          ? () => VoiceTranslationSheet.show(
-              context,
-              voiceDuration: message.voiceDuration ?? '0:05',
-              autoTranslate: false,
-            )
-          : null,
-      onTranslateVoice: message.type == KoraMessageType.voice && ChatThemeProvider.instance.isPremium
-          ? () => VoiceTranslationSheet.show(
-              context,
-              voiceDuration: message.voiceDuration ?? '0:05',
-              autoTranslate: true,
-            )
-          : null,
       onStar: () => _onStar(message.id),
       onMessageInfo: message.isMe ? () => _showMessageInfo(message) : null,
       onDelete: () => _onDelete(message.id),

@@ -65,7 +65,7 @@ extension AiWritingModeExtension on AiWritingMode {
 }
 
 /// Service providing AI capabilities: rewriting, reply suggestions,
-/// chat summaries, image/video analysis, and audio transcript enhancement.
+/// chat summaries, and image/video analysis.
 class AiFeaturesService {
   static final AiFeaturesService instance = AiFeaturesService._();
   AiFeaturesService._();
@@ -193,67 +193,6 @@ class AiFeaturesService {
   /// Analyze video key frames.
   ///
   /// [framePaths] — local file paths to extracted video frames (max 5).
-  /// [question] — optional question about the video.
-  Future<String?> analyzeVideo(List<String> framePaths, {String? question}) async {
-    try {
-      final attachments = <Map<String, dynamic>>[];
-      for (final path in framePaths.take(5)) {
-        final file = File(path);
-        if (await file.exists()) {
-          final bytes = await file.readAsBytes();
-          if (bytes.length <= 4 * 1024 * 1024) {
-            attachments.add({
-              'type': 'video_frame',
-              'base64': base64Encode(bytes),
-              'mimeType': 'image/jpeg',
-            });
-          }
-        }
-      }
-
-      if (attachments.isEmpty) {
-        return 'No valid video frames found for analysis.';
-      }
-
-      final body = <String, dynamic>{
-        'feature': 'analyze_media',
-        'attachments': attachments,
-        if (question != null) 'question': question,
-      };
-
-      final res = await KoraApi.postToAi(KoraApi.aiAnalyzeImageEndpoint, body);
-      if (res['success'] == true && res['result'] != null) {
-        return res['result'] as String;
-      }
-      return res['error'] as String? ?? 'Video analysis unavailable.';
-    } catch (e) {
-      debugPrint('AiFeaturesService analyzeVideo error: $e');
-      return 'Video analysis unavailable at this moment.';
-    }
-  }
-
-  /// Enhance a voice note transcript using AI.
-  ///
-  /// [transcript] — raw transcript from on-device STT.
-  /// Returns a cleaned-up, punctuated version of the transcript.
-  Future<String?> enhanceTranscript(String transcript) async {
-    try {
-      final body = <String, dynamic>{
-        'feature': 'transcribe_audio',
-        'transcript': transcript,
-      };
-      final res = await KoraApi.postToAi(KoraApi.aiFeaturesEndpoint, body);
-      if (res['success'] == true && res['result'] != null) {
-        return res['result'] as String;
-      }
-      // Fallback: return original transcript
-      return transcript;
-    } catch (e) {
-      debugPrint('AiFeaturesService enhanceTranscript error: $e');
-      return transcript; // Fallback: return original
-    }
-  }
-
   /// Analyze file at [filePath].
   /// Kept for backward compatibility — delegates to analyzeImage.
   Future<String?> analyzeFile(String filePath) async {

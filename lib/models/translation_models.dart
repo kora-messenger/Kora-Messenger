@@ -19,27 +19,6 @@ class TranslationResult {
   });
 }
 
-/// Result of voice transcription + translation.
-class VoiceTranslationResult {
-  final String transcript;
-  final String detectedLanguageCode;
-  final String detectedLanguageName;
-  final String translatedText;
-  final String targetLanguageCode;
-  final String targetLanguageName;
-  final DateTime processedAt;
-
-  const VoiceTranslationResult({
-    required this.transcript,
-    required this.detectedLanguageCode,
-    required this.detectedLanguageName,
-    required this.translatedText,
-    required this.targetLanguageCode,
-    required this.targetLanguageName,
-    required this.processedAt,
-  });
-}
-
 /// Auto-translation mode preference.
 enum AutoTranslateMode {
   off,

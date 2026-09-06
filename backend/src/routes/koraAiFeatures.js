@@ -446,37 +446,6 @@ async function handleAnalyzeMedia(res, body) {
   }
 }
 
-// ── FEATURE: TRANSCRIBE AUDIO (enhance client-provided transcript) ─
-const TRANSCRIBE_PROMPT = `You are a transcript enhancer for Kora Messenger. The user has transcribed a voice note on their device. Your job is to clean up the transcript.
-
-Rules:
-- Fix any obvious transcription errors (misheard words, missing punctuation)
-- Add proper capitalization and punctuation
-- Remove filler words if they make the text hard to read (um, uh, like)
-- Do NOT change the meaning — only improve readability
-- Return ONLY the cleaned transcript — no explanations
-- If the transcript is empty or just noise, return "[No speech detected]"
-- Maintain the original language`;
-
-async function handleTranscribeAudio(res, body) {
-  const { transcript } = body;
-
-  if (!transcript || typeof transcript !== 'string' || transcript.trim() === '') {
-    return res.status(400).json({ success: false, error: 'transcript is required' });
-  }
-  if (transcript.length > MAX_TEXT_LENGTH) {
-    return res.status(400).json({ success: false, error: `Transcript too long (max ${MAX_TEXT_LENGTH} chars)` });
-  }
-
-  try {
-    const result = await callWithFallback(TRANSCRIBE_PROMPT, transcript, MAX_TOKENS_TRANSCRIBE, 0.3);
-    return res.json({ success: true, result: result, original: transcript });
-  } catch (e) {
-    const err = e instanceof Error ? e.message : e?.message || String(e);
-    console.error(`[Kora AI] Transcribe failed: ${err}`);
-    return res.json({ success: true, result: transcript, original: transcript, fallback: true });
-  }
-}
 
 // ── MAIN ROUTER ───────────────────────────────────────────────────
 router.options('/', (req, res) => {
@@ -509,7 +478,7 @@ router.post('/', async (req, res) => {
   if (!feature) {
     return res.status(400).json({
       success: false,
-      error: 'feature is required: writing | reply_suggestions | summarize | analyze_media | transcribe_audio',
+      error: 'feature is required: writing | reply_suggestions | summarize | analyze_media',
     });
   }
 
@@ -522,8 +491,6 @@ router.post('/', async (req, res) => {
       return await handleSummarize(res, body);
     case 'analyze_media':
       return await handleAnalyzeMedia(res, body);
-    case 'transcribe_audio':
-      return await handleTranscribeAudio(res, body);
     case 'analyze_image':
       return await handleAnalyzeMedia(res, body); // alias
     case 'analyze_file':
@@ -531,7 +498,7 @@ router.post('/', async (req, res) => {
     default:
       return res.status(400).json({
         success: false,
-        error: `Unknown feature: ${feature}. Valid: writing | reply_suggestions | summarize | analyze_media | transcribe_audio`,
+        error: `Unknown feature: ${feature}. Valid: writing | reply_suggestions | summarize | analyze_media`,
       });
   }
 });

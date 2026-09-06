@@ -656,9 +656,6 @@ class MessageService {
 
   Future<void> sendVoiceMessage(String chatId, String duration, {
     String? filePath,
-    String? transcript,
-    String? translatedLanguageCode,
-    String? translatedLanguageName,
     bool isPlayOnce = false,
     String? recipientEmail,
     String? recipientName,
@@ -690,9 +687,6 @@ class MessageService {
       voiceFileUrl: voiceDataUrl,
       voiceTransferState:
           isOnline ? VoiceTransferState.uploading : VoiceTransferState.notSent,
-      voiceTranscript: transcript,
-      translatedLanguageCode: translatedLanguageCode,
-      translatedLanguageName: translatedLanguageName,
       isPlayOnce: isPlayOnce,
     ));
     await _persist(chatId, recipientEmail: recipientEmail, recipientName: recipientName);

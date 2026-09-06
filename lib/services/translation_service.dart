@@ -12,7 +12,6 @@ import 'on_device_translator.dart';
 /// Handles:
 /// - Real text translation via koraTranslate backend (Google → MyMemory → OpenRouter LLM fallback)
 /// - Language detection
-/// - Voice note transcription + translation
 /// - User translation preferences (persisted)
 /// - Recently used languages
 ///
@@ -26,7 +25,6 @@ class TranslationService {
   static const _kPreferredLang = 'kora_translation_pref_lang';
   static const _kAutoMode = 'kora_translation_auto_mode';
   static const _kShowOriginal = 'kora_translation_show_original';
-  static const _kTranslateVoice = 'kora_translation_voice';
   static const _kCallTranslation = 'kora_call_translation';
   static const _kCaptionSize = 'kora_caption_size';
   static const _kRecentLangs = 'kora_recent_langs';
@@ -35,7 +33,6 @@ class TranslationService {
   String _preferredLangCode = 'en';
   AutoTranslateMode _autoMode = AutoTranslateMode.off;
   bool _showOriginal = true;
-  bool _translateVoice = true;
   bool _callTranslationEnabled = false;
   double _captionSize = 14.0;
   List<String> _recentLangCodes = [];
@@ -148,7 +145,6 @@ class TranslationService {
     final modeIndex = prefs.getInt(_kAutoMode) ?? 0;
     _autoMode = AutoTranslateMode.values[modeIndex.clamp(0, 2)];
     _showOriginal = prefs.getBool(_kShowOriginal) ?? true;
-    _translateVoice = prefs.getBool(_kTranslateVoice) ?? true;
     _callTranslationEnabled = prefs.getBool(_kCallTranslation) ?? false;
     _captionSize = prefs.getDouble(_kCaptionSize) ?? 14.0;
     final recent = prefs.getStringList(_kRecentLangs);
@@ -161,7 +157,6 @@ class TranslationService {
       languageByCode(_preferredLangCode) ?? _allLanguages.first;
   AutoTranslateMode get autoTranslateMode => _autoMode;
   bool get showOriginal => _showOriginal;
-  bool get translateVoice => _translateVoice;
   bool get callTranslationEnabled => _callTranslationEnabled;
   double get captionSize => _captionSize;
 
@@ -203,13 +198,6 @@ class TranslationService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_kShowOriginal, value);
     _settingsController.add('showOriginal');
-  }
-
-  Future<void> setTranslateVoice(bool value) async {
-    _translateVoice = value;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_kTranslateVoice, value);
-    _settingsController.add('translateVoice');
   }
 
   Future<void> setCallTranslationEnabled(bool value) async {
@@ -428,32 +416,6 @@ class TranslationService {
       return 'fr';
     }
     return 'en';
-  }
-
-  /// Transcribes a voice note to text.
-  /// Uses on-device STT (handled by the calling widget/service).
-  /// This is a placeholder — the actual STT is done by the recorder/playback service.
-  Future<String> transcribeVoiceNote(String voiceId) async {
-    // Placeholder — real STT is done on-device by the calling service
-    return voiceId;
-  }
-
-  /// Full voice translation pipeline.
-  Future<VoiceTranslationResult> translateVoiceNote(
-    String transcript,
-    String targetCode,
-  ) async {
-    final detectedCode = await detectLanguage(transcript) ?? 'en';
-    final translation = await translate(transcript, targetCode, sourceLanguageCode: detectedCode);
-    return VoiceTranslationResult(
-      transcript: transcript,
-      detectedLanguageCode: detectedCode,
-      detectedLanguageName: translation.detectedLanguageName,
-      translatedText: translation.translatedText,
-      targetLanguageCode: targetCode,
-      targetLanguageName: translation.targetLanguageName,
-      processedAt: DateTime.now(),
-    );
   }
 
   void dispose() {
