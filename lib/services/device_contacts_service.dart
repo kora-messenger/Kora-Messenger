@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -30,13 +31,21 @@ class DeviceContactsService {
   /// Phone numbers per backend batch (koraAuth checkPhoneNumbers).
   static const _batchSize = 200;
 
-  /// Whether contacts access has been granted.
+  /// Whether contacts read access has been granted.
   Future<bool> hasPermission() async {
     try {
-      return await FlutterContacts.checkPermission();
+      return await FlutterContacts.permissions.has(PermissionType.read);
     } catch (_) {
       return false;
     }
+  }
+
+  /// Opens the system app-settings page (used after a permanent
+  /// permission denial, where the request dialog won't show again).
+  Future<void> openPermissionSettings() async {
+    try {
+      await FlutterContacts.permissions.openSettings();
+    } catch (_) {}
   }
 
   /// Cached matches from the last successful sync. Returns [] when
@@ -47,7 +56,13 @@ class DeviceContactsService {
     if (raw == null || raw.isEmpty) return [];
     try {
       final list = jsonDecode(raw) as List;
-      return list.cast<Map<String, dynamic>>().map(_fromCache).toList();
+      final out = <Map<String, Object?>>[];
+      for (final item in list) {
+        if (item is Map) {
+          out.add(item.map((k, v) => MapEntry(k.toString(), v)));
+        }
+      }
+      return out;
     } catch (_) {
       return [];
     }
@@ -81,11 +96,7 @@ class DeviceContactsService {
     if (!granted) {
       // Just-in-time request — only fires when the user actually
       // needs contact discovery (opening Select contact).
-      try {
-        granted = await FlutterContacts.requestPermission();
-      } catch (_) {
-        granted = false;
-      }
+      granted = await _requestPermission();
     }
     if (!granted) {
       return (matches: await getCachedMatches(), granted: false);
@@ -93,7 +104,9 @@ class DeviceContactsService {
 
     final List<Contact> deviceContacts;
     try {
-      deviceContacts = await FlutterContacts.getContacts(withProperties: true);
+      deviceContacts = await FlutterContacts.getAll(
+        properties: const {ContactProperty.name, ContactProperty.phone},
+      );
     } catch (_) {
       return (matches: await getCachedMatches(), granted: false);
     }
@@ -105,9 +118,9 @@ class DeviceContactsService {
     for (final c in deviceContacts) {
       var name = (c.displayName ?? '').trim();
       if (name.isEmpty) {
-        name = ([c.name.first, c.name.last].where((p) => p.trim().isNotEmpty).join(' ')).trim();
+        name = '${c.name?.first ?? ''} ${c.name?.last ?? ''}'.trim();
       }
-      for (final phone in c.phones) {
+      for (final phone in (c.phones ?? const <Phone>[])) {
         final digits = _digits(phone.number);
         if (digits.length < 7) continue; // skip short/invalid numbers
         phoneToName.putIfAbsent(digits, () => name);
@@ -136,16 +149,20 @@ class DeviceContactsService {
             .timeout(const Duration(seconds: 30));
         if (response.statusCode != 200) continue;
         final data = jsonDecode(response.body) as Map<String, dynamic>;
-        final results = data['results'] as Map<String, dynamic>? ?? {};
+        final results = data['results'] as Map? ?? {};
         for (final entry in results.values) {
-          final r = entry as Map<String, dynamic>;
+          final r = entry as Map;
           if (r['registered'] != true) continue;
-          final user = r['user'] as Map<String, dynamic>? ?? {};
+          final user = (r['user'] as Map?) ?? {};
           final koraId = (user['koraId'] as String?) ?? '';
           final key = koraId.isNotEmpty ? koraId : ((user['email'] as String?) ?? '');
           if (key.isEmpty || matchedByKoraId.containsKey(key)) continue;
 
-          final phonebookName = nameForAnyNumber(batch, (user['phoneNumber'] as String?) ?? '', phoneToName);
+          final phonebookName = _nameForAnyNumber(
+            batch,
+            (user['phoneNumber'] as String?) ?? '',
+            phoneToName,
+          );
           final username = ((user['username'] as String?) ?? '').trim();
           matchedByKoraId[key] = {
             'name': phonebookName.isNotEmpty
@@ -153,7 +170,7 @@ class DeviceContactsService {
                 : ((user['fullName'] as String?) ?? '').trim(),
             'koraId': koraId,
             'username': username.isEmpty ? '' : (username.startsWith('@') ? username : '@$username'),
-            'email': user['email'] as String?,
+            'email': user['email'],
             'phoneNumber': (user['phoneNumber'] as String?) ?? '',
             'avatarUrl': (user['avatarUrl'] as String?) ?? '',
             'premium': user['isPremium'] == true,
@@ -175,10 +192,19 @@ class DeviceContactsService {
     return (matches: matches, granted: true);
   }
 
+  Future<bool> _requestPermission() async {
+    try {
+      final status = await FlutterContacts.permissions.request(PermissionType.read);
+      return status == PermissionStatus.granted || status == PermissionStatus.limited;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Finds the phone-book owner name for a matched user: try their
   /// registered number's digits first, then any number in the batch
   /// whose last-10 digits line up (the backend matches on last 10).
-  static String nameForAnyNumber(
+  static String _nameForAnyNumber(
     List<String> batch,
     String registeredPhone,
     Map<String, String> phoneToName,
@@ -202,25 +228,7 @@ class DeviceContactsService {
 
   Future<void> _saveCache(List<Map<String, Object?>> matches) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
-      _kCacheKey,
-      jsonEncode(matches.map((m) => _toCache(m)).toList()),
-    );
+    await prefs.setString(_kCacheKey, jsonEncode(matches));
     await prefs.setInt(_kLastSyncKey, DateTime.now().millisecondsSinceEpoch);
-  }
-
-  // Cache entries are Map<String, dynamic> after the JSON round trip.
-  static Map<String, dynamic> _toCache(Map<String, Object?> m) =>
-      m.map((k, v) => MapEntry(k, v));
-
-  static Map<String, Object?> _fromCache(Map<String, dynamic> m) =>
-      m.map((k, v) => MapEntry(k, v));
-
-  /// Clears the cached matches (used when permission is revoked via
-  /// the system settings, or the account is purged).
-  Future<void> clearCache() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_kCacheKey);
-    await prefs.remove(_kLastSyncKey);
   }
 }

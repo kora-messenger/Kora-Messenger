@@ -122,8 +122,10 @@ class _NewChatScreenState extends State<NewChatScreen> {
     setState(() => _isLoading = true);
     final device = await DeviceContactsService.instance.syncMatches();
     if (!device.granted) {
-      // Still denied — the system dialog won't show again; leave the
-      // banner so the user can grant from settings next time.
+      // Still denied — the request dialog won't show again after a
+      // permanent denial, so take the user to the system settings
+      // page instead.
+      await DeviceContactsService.instance.openPermissionSettings();
       if (mounted) setState(() => _isLoading = false);
       return;
     }
@@ -359,7 +361,7 @@ class _NewChatScreenState extends State<NewChatScreen> {
                     _sectionHeader('Contacts on Kora', textMuted),
                     if (showSelf) _selfTile(textPrimary, textSecondary),
                     ...filtered.map((c) => _contactTile(c, textPrimary, textSecondary)),
-                  else if (!_contactsDenied)
+                  ] else if (!_contactsDenied)
                     Padding(
                       padding: const EdgeInsets.only(top: 60),
                       child: Center(
