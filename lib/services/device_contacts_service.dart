@@ -128,7 +128,7 @@ class DeviceContactsService {
     }
     if (phoneToName.isEmpty) {
       await _saveCache([]);
-      return (matches: const [], granted: true);
+      return (matches: const <Map<String, Object?>>[], granted: true);
     }
 
     // Batch-match against the backend.
