@@ -339,6 +339,14 @@ class _MessageComposerState extends State<MessageComposer>
 
   /// Pointer lifted off the mic button. Classify as tap or hold-release.
   void _onPointerUp(PointerUpEvent event) {
+    // Typed text: the button is a plain send button — a tap (press +
+    // release on the button) sends the message. This used to be dead:
+    // the Listener nulled every handler when _hasText was true, so the
+    // send icon rendered but never fired (bug report 2026-09-06).
+    if (_hasText) {
+      if (_state == _ComposerState.idle) _send();
+      return;
+    }
     if (_state != _ComposerState.idle && _state != _ComposerState.holding) return;
     if (_pointerDownPos == null || _pointerDownTime == null) return;
 
@@ -1309,9 +1317,9 @@ class _MessageComposerState extends State<MessageComposer>
                 // The mic/send button itself with raw pointer tracking
                 Listener(
                   behavior: HitTestBehavior.opaque,
-                  onPointerDown: _hasText ? null : _onPointerDown,
-                  onPointerMove: _hasText ? null : _onPointerMove,
-                  onPointerUp: _hasText ? null : _onPointerUp,
+                  onPointerDown: _onPointerDown,
+                  onPointerMove: _onPointerMove,
+                  onPointerUp: _onPointerUp,
                   child: Transform.translate(
                     offset: isHolding
                         ? Offset(
