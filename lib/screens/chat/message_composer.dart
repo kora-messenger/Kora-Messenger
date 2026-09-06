@@ -49,7 +49,6 @@ class MessageComposer extends StatefulWidget {
   final Function(
     String duration, {
     String? filePath,
-    String? transcript,
     bool isPlayOnce,
   }) onSendVoice;
   final VoidCallback? onAttachment;
