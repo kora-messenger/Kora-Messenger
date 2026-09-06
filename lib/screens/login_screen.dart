@@ -299,10 +299,14 @@ class _LogInScreenState extends State<LogInScreen> {
         } catch (_) {
           await SessionManager.instance.saveSession(result.user!);
         }
-        await ChatThemeProvider.instance.load();
-        // Sync premium from backend session
         final session = await SessionManager.instance.loadSession();
         if (session != null) {
+          // Register this account in the multi-account list FIRST —
+          // when a different account was active, this purges its local
+          // chats/contacts before the new account's data is restored.
+          await AccountsManager.instance.addOrUpdateAccount(session);
+          await ChatThemeProvider.instance.load();
+          // Sync premium from backend session
           await ChatThemeProvider.instance.syncPremiumFromSession(session);
           if (session['email'] != null) {
             ChatSyncService.instance.setUserEmail(session['email'] as String);
@@ -310,8 +314,6 @@ class _LogInScreenState extends State<LogInScreen> {
               (session?['fullName'] as String?) ?? '',
             );
           }
-          // Register this account in the multi-account list.
-          await AccountsManager.instance.addOrUpdateAccount(session);
         }
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('kora_last_email', email);

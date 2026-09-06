@@ -313,12 +313,16 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       // Save the updated session so the app remembers login on restart
       if (result.user != null) {
         await SessionManager.instance.saveSession(result.user!);
-        await ChatThemeProvider.instance.load();
-        // Sync premium status from the backend session to local storage
-        await ChatThemeProvider.instance.syncPremiumFromSession(result.user!);
-        // Set user email for cloud chat sync
         final session = await SessionManager.instance.loadSession();
         if (session != null && session['email'] != null) {
+          // Register in multi-account list FIRST — when a different
+          // account was active, this purges its local chats/contacts
+          // before the new account's cloud data is restored.
+          await AccountsManager.instance.addOrUpdateAccount(session);
+          await ChatThemeProvider.instance.load();
+          // Sync premium status from the backend session to local storage
+          await ChatThemeProvider.instance.syncPremiumFromSession(result.user!);
+          // Set user email for cloud chat sync
           ChatSyncService.instance.setUserEmail(session['email'] as String);
           ChatSyncService.instance.setSenderName(
             (session?['fullName'] as String?) ?? '',
@@ -326,8 +330,6 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           await ChatSyncService.instance.restoreFromCloud();
           SettingsSyncService.instance.syncNow();
           ChatSyncService.instance.startPolling();
-          // Register in multi-account list.
-          await AccountsManager.instance.addOrUpdateAccount(session);
         }
       }
       _navigateHome();

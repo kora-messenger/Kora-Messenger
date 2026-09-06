@@ -237,11 +237,15 @@ class _LoginVerificationScreenState extends State<LoginVerificationScreen>
         } catch (_) {
           await SessionManager.instance.saveSession(result.user!);
         }
-        await ChatThemeProvider.instance.load();
-        await ChatThemeProvider.instance.syncPremiumFromSession(result.user!);
-        // Set user email for cloud chat sync
         final session = await SessionManager.instance.loadSession();
         if (session != null && session['email'] != null) {
+          // Register in multi-account list FIRST — when a different
+          // account was active, this purges its local chats/contacts
+          // before the new account's cloud data is restored.
+          await AccountsManager.instance.addOrUpdateAccount(session);
+          await ChatThemeProvider.instance.load();
+          await ChatThemeProvider.instance.syncPremiumFromSession(result.user!);
+          // Set user email for cloud chat sync
           ChatSyncService.instance.setUserEmail(session['email'] as String);
           ChatSyncService.instance.setSenderName(
             (session['fullName'] as String?) ?? '',
@@ -250,8 +254,6 @@ class _LoginVerificationScreenState extends State<LoginVerificationScreen>
           await ChatSyncService.instance.restoreFromCloud();
           SettingsSyncService.instance.syncNow();
           ChatSyncService.instance.startPolling();
-          // Register in multi-account list.
-          await AccountsManager.instance.addOrUpdateAccount(session);
         } // Refresh owner/premium status for badge + gating
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('kora_last_email', widget.email);

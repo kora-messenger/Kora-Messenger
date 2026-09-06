@@ -93,6 +93,18 @@ class AccountsManager {
     final email = (user['email'] as String?)?.toLowerCase().trim() ?? '';
     if (email.isEmpty) return;
 
+    // If a DIFFERENT account is currently active on this device, wipe
+    // its local data (chats, messages, contacts, settings) BEFORE the
+    // new account's cloud data is restored — otherwise the incoming
+    // account inherits the outgoing account's conversation history.
+    // Mirrors the purge performed by [switchAccount]. No purge when the
+    // email matches (same-account refresh, e.g. from the home screen).
+    final previousActive = await getActiveEmail();
+    if (previousActive != null &&
+        previousActive.toLowerCase().trim() != email) {
+      await AccountPurgeService.instance.purgeActiveAccount();
+    }
+
     final accounts = await getAccounts();
     final existingIndex = accounts.indexWhere(
       (a) => (a['email'] as String?)?.toLowerCase().trim() == email,
