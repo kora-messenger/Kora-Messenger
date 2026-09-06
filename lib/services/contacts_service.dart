@@ -1,18 +1,22 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'conversation_directory.dart';
+import 'device_contacts_service.dart';
 
 /// Real contacts service — replaces the old mock contacts list.
 ///
-/// Pulls from two sources:
+/// Pulls from three sources:
 /// 1. `kora_contacts` SharedPreferences — contacts the user explicitly
 ///    saved via the New Contact screen.
 /// 2. `ConversationDirectoryService` — people the user has actually
 ///    chatted with (each conversation carries display metadata).
+/// 3. `DeviceContactsService` — WhatsApp-style phone-book contacts who
+///    are registered on Kora (matched via the backend's phone-number
+///    lookup). Their phone-book display name wins, like WhatsApp.
 ///
-/// The two lists are merged and de-duplicated by koraId / email so
-/// each person appears once. Conversations are marked `recent: true`
-/// so the New Group screen can show them under "RECENT".
+/// The lists are merged and de-duplicated by koraId / email so each
+/// person appears once. Conversations are marked `recent: true` so the
+/// New Group screen can show them under "RECENT".
 class ContactsService {
   static final ContactsService instance = ContactsService._();
   ContactsService._();
@@ -82,7 +86,12 @@ class ContactsService {
       });
     }
 
-    // 3. Merge and de-duplicate
+    // 3. Phone-book contacts registered on Kora (WhatsApp-style
+    //    contact discovery). Uses the local cache — the Select-contact
+    //    screen triggers a fresh sync before calling getContacts().
+    final deviceMatches = await DeviceContactsService.instance.getCachedMatches();
+
+    // 4. Merge and de-duplicate
     // Key: koraId if non-empty, otherwise email, otherwise name
     final seen = <String>{};
     final merged = <Map<String, Object?>>[];
@@ -119,6 +128,47 @@ class ContactsService {
         }
         if (existing['phoneNumber'] == null && c['phoneNumber'] != null) {
           existing['phoneNumber'] = c['phoneNumber']!;
+        }
+      }
+    }
+
+    // Add device matches last — the phone-book name wins over any
+    // previously stored display name (WhatsApp behavior), and missing
+    // fields are filled in for existing entries.
+    for (final c in deviceMatches) {
+      final key = _dedupeKey(c);
+      if (key.isEmpty) {
+        merged.add(c);
+        continue;
+      }
+      if (seen.add(key)) {
+        merged.add(c);
+      } else {
+        final existing = merged.firstWhere(
+          (m) => _dedupeKey(m) == key,
+          orElse: () => c,
+        );
+        // Phone-book name wins (it's the name the user saved).
+        final phoneName = (c['name'] as String?) ?? '';
+        if (phoneName.isNotEmpty) {
+          existing['name'] = phoneName;
+        }
+        if (existing['avatarUrl'] == null || (existing['avatarUrl'] as String?)!.isEmpty) {
+          existing['avatarUrl'] = c['avatarUrl'];
+        }
+        if (((existing['username'] as String?) ?? '') == '' &&
+            ((c['username'] as String?) ?? '') != '') {
+          existing['username'] = c['username']!;
+        }
+        if (existing['email'] == null && c['email'] != null) {
+          existing['email'] = c['email']!;
+        }
+        if (existing['phoneNumber'] == null && c['phoneNumber'] != null) {
+          existing['phoneNumber'] = c['phoneNumber']!;
+        }
+        existing['premium'] = (existing['premium'] == true) || (c['premium'] == true);
+        if (c['verified'] == true) {
+          existing['verified'] = true;
         }
       }
     }

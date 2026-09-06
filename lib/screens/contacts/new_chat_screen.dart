@@ -8,6 +8,7 @@ import '../../widgets/kora_avatar.dart';
 import '../../utils/kora_page_routes.dart';
 import '../../services/accounts_manager.dart';
 import '../../services/contacts_service.dart';
+import '../../services/device_contacts_service.dart';
 import '../../services/conversation_directory.dart';
 import '../chat/kora_chat_screen.dart';
 import '../new_community_screen.dart';
@@ -45,6 +46,10 @@ class _NewChatScreenState extends State<NewChatScreen> {
 
   List<Map<String, Object?>> _contacts = [];
 
+  // Contacts access denied — shows the WhatsApp-style
+  // "allow contacts access" banner row.
+  bool _contactsDenied = false;
+
   // The active account's own profile, shown as the "Message yourself"
   // row at the top of the contact list.
   String _myName = '';
@@ -73,7 +78,16 @@ class _NewChatScreenState extends State<NewChatScreen> {
       (a) => (a['email'] as String?)?.toLowerCase().trim() == email.toLowerCase().trim(),
       orElse: () => const {},
     );
+    // WhatsApp-style contact discovery: read the phone book (with a
+    // just-in-time permission request) and match it against registered
+    // Kora users. Uses the cache when fresh (< 24h) so the screen
+    // still opens instantly.
+    final device = await DeviceContactsService.instance.ensureFresh();
+
     final contacts = await ContactsService.instance.getContacts();
+    contacts.sort((a, b) => ((a['name'] as String?) ?? '').toLowerCase().compareTo(
+          ((b['name'] as String?) ?? '').toLowerCase(),
+        ));
 
     if (!mounted) return;
     setState(() {
@@ -81,8 +95,39 @@ class _NewChatScreenState extends State<NewChatScreen> {
       _myName = (me['fullName'] as String?)?.trim() ?? '';
       _myAvatarUrl = (me['avatarUrl'] as String?) ?? '';
       _contacts = contacts;
+      _contactsDenied = !device.granted;
       _isLoading = false;
     });
+  }
+
+  /// Re-asks for contacts access when the user taps the banner row
+  /// (fresh request, then a full re-sync + reload).
+  /// 3-dot menu Refresh — ignores the 24h cache and re-reads the
+  /// phone book + re-matches against the backend.
+  Future<void> _forceRefresh() async {
+    setState(() => _isLoading = true);
+    final device = await DeviceContactsService.instance.syncMatches();
+    if (!mounted) return;
+    if (!device.granted) {
+      setState(() {
+        _contactsDenied = true;
+        _isLoading = false;
+      });
+      return;
+    }
+    await _load();
+  }
+
+  Future<void> _grantAndSync() async {
+    setState(() => _isLoading = true);
+    final device = await DeviceContactsService.instance.syncMatches();
+    if (!device.granted) {
+      // Still denied — the system dialog won't show again; leave the
+      // banner so the user can grant from settings next time.
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
+    await _load();
   }
 
   List<Map<String, Object?>> get _filteredContacts {
@@ -244,7 +289,7 @@ class _NewChatScreenState extends State<NewChatScreen> {
               color: KoraColors.cardFor(brightness),
               onSelected: (value) {
                 if (value == 'refresh') {
-                  _load();
+                  _forceRefresh();
                 } else if (value == 'invite') {
                   Share.share(
                     'Join me on Kora Messenger: ${KoraApi.inviteDownloadUrl}',
@@ -306,11 +351,15 @@ class _NewChatScreenState extends State<NewChatScreen> {
                     Divider(height: 1, color: border, indent: 20, endIndent: 20),
                     const SizedBox(height: 4),
                   ],
-                  if (showSelf || filtered.isNotEmpty) ...[
+                  if (_contactsDenied) ...[
+                    _contactsAccessBanner(textPrimary, textSecondary),
+                    Divider(height: 1, color: border, indent: 20, endIndent: 20),
+                  ],
+                  if (showSelf || filtered.isNotEmpty || _contactsDenied) ...[
                     _sectionHeader('Contacts on Kora', textMuted),
                     if (showSelf) _selfTile(textPrimary, textSecondary),
                     ...filtered.map((c) => _contactTile(c, textPrimary, textSecondary)),
-                  ] else
+                  else if (!_contactsDenied)
                     Padding(
                       padding: const EdgeInsets.only(top: 60),
                       child: Center(
@@ -355,6 +404,37 @@ class _NewChatScreenState extends State<NewChatScreen> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 8),
       child: Text(label, style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w600)),
+    );
+  }
+
+  /// WhatsApp-style "allow contacts access" row, shown when the
+  /// permission is denied. Tapping re-asks (or, after a permanent
+  /// denial, nudges the user to system settings).
+  Widget _contactsAccessBanner(Color textPrimary, Color textSecondary) {
+    return ListTile(
+      leading: Container(
+        width: 44,
+        height: 44,
+        decoration: const BoxDecoration(gradient: KoraColors.brandGradient, shape: BoxShape.circle),
+        child: const Icon(Icons.contacts_outlined, color: Colors.white, size: 22),
+      ),
+      title: Text(
+        'Allow contacts access',
+        style: TextStyle(color: textPrimary, fontSize: 15.5, fontWeight: FontWeight.w600),
+      ),
+      subtitle: Text(
+        'Find friends who are already on Kora',
+        style: TextStyle(color: textSecondary, fontSize: 13),
+      ),
+      trailing: Text(
+        'Allow',
+        style: TextStyle(
+          color: KoraColors.purple,
+          fontSize: 14.5,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      onTap: _grantAndSync,
     );
   }
 
