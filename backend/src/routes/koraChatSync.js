@@ -77,6 +77,8 @@ function mapMessage(m) {
     voiceDuration: m.voiceDuration,
     voiceFilePath: m.voiceFilePath,
     voiceFileUrl: m.voiceFileUrl,
+    voiceWaveform: m.voiceWaveform,
+    isVoicePlayed: m.isVoicePlayed,
     voiceTranscript: m.voiceTranscript,
     mediaUrl: m.mediaUrl,
     mediaCaption: m.mediaCaption,
@@ -160,6 +162,12 @@ router.post('/', async (req, res) => {
             if (msg.voiceFileUrl !== undefined && msg.voiceFileUrl !== null) {
               existing.voiceFileUrl = msg.voiceFileUrl;
             }
+            if (msg.voiceWaveform !== undefined && msg.voiceWaveform !== null) {
+              existing.voiceWaveform = msg.voiceWaveform;
+            }
+            if (msg.isVoicePlayed !== undefined && msg.isVoicePlayed !== null) {
+              existing.isVoicePlayed = msg.isVoicePlayed;
+            }
             await existing.save();
           } else {
             await ChatMessage.create({
@@ -178,6 +186,8 @@ router.post('/', async (req, res) => {
               voiceDuration: msg.voiceDuration,
               voiceFilePath: msg.voiceFilePath,
               voiceFileUrl: msg.voiceFileUrl,
+              voiceWaveform: msg.voiceWaveform,
+              isVoicePlayed: msg.isVoicePlayed ?? false,
               voiceTranscript: msg.voiceTranscript,
               mediaUrl: msg.mediaUrl,
               mediaCaption: msg.mediaCaption,
@@ -227,6 +237,8 @@ router.post('/', async (req, res) => {
               voiceDuration: msg.voiceDuration,
               voiceFilePath: msg.voiceFilePath,
               voiceFileUrl: msg.voiceFileUrl,
+              voiceWaveform: msg.voiceWaveform,
+              isVoicePlayed: msg.isVoicePlayed ?? false,
               voiceTranscript: msg.voiceTranscript,
               mediaUrl: msg.mediaUrl,
               mediaCaption: msg.mediaCaption,

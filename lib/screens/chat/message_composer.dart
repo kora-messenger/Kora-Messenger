@@ -49,6 +49,7 @@ class MessageComposer extends StatefulWidget {
   final Function(
     String duration, {
     String? filePath,
+    List<double>? waveform,
     bool isPlayOnce,
   }) onSendVoice;
   final VoidCallback? onAttachment;
@@ -424,7 +425,9 @@ class _MessageComposerState extends State<MessageComposer>
         if (!mounted || !_recordingService.isRecording || _isPaused) return;
         setState(() {
           _waveformSamples.add(amp);
-          if (_waveformSamples.length > 60) _waveformSamples.removeAt(0);
+          // Keep the full recording's amplitudes (cap = 120s @ 50ms) —
+          // the message waveform is built from ALL samples at send time.
+          if (_waveformSamples.length > 2400) _waveformSamples.removeAt(0);
         });
       });
 
@@ -449,6 +452,27 @@ class _MessageComposerState extends State<MessageComposer>
 
   double get _cancelProgress => (-_dragDx / _kCancelThreshold).clamp(0.0, 1.0);
   double get _lockProgress => (-_dragDy / _kLockThreshold).clamp(0.0, 1.0);
+
+  /// Downsamples the full recording's amplitude samples to 64 waveform
+  /// bars (0.0-1.0) — Telegram's `getWaveform2` parity. Averaged per
+  /// chunk, floored at 0.08 so quiet bars stay visible in the bubble.
+  List<double>? _downsampleWaveform() {
+    final samples = _waveformSamples;
+    if (samples.length < 8) return null;
+    const bars = 64;
+    final out = List<double>.filled(bars, 0);
+    final chunk = samples.length / bars;
+    for (var i = 0; i < bars; i++) {
+      final start = (i * chunk).floor();
+      final end = ((i + 1) * chunk).ceil().clamp(start + 1, samples.length);
+      var sum = 0.0;
+      for (var j = start; j < end; j++) {
+        sum += samples[j];
+      }
+      out[i] = (sum / (end - start)).clamp(0.08, 1.0);
+    }
+    return out;
+  }
 
   String get _durationString {
     final m = (_seconds ~/ 60).toString();
@@ -497,7 +521,7 @@ class _MessageComposerState extends State<MessageComposer>
     final duration = _durationString;
     if (mounted) setState(() => _state = _ComposerState.idle);
 
-    widget.onSendVoice(duration, filePath: path ?? _filePath, isPlayOnce: _isPlayOnce);
+    widget.onSendVoice(duration, filePath: path ?? _filePath, waveform: _downsampleWaveform(), isPlayOnce: _isPlayOnce);
     _isPlayOnce = false;
   }
 
@@ -618,7 +642,7 @@ class _MessageComposerState extends State<MessageComposer>
 
     if (mounted) setState(() => _state = _ComposerState.idle);
 
-    widget.onSendVoice(duration, filePath: path ?? _filePath, isPlayOnce: _isPlayOnce);
+    widget.onSendVoice(duration, filePath: path ?? _filePath, waveform: _downsampleWaveform(), isPlayOnce: _isPlayOnce);
     _isPlayOnce = false;
   }
 

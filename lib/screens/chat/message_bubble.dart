@@ -37,6 +37,10 @@ class MessageBubble extends StatelessWidget {
   /// Called when a play-once voice note finishes playing and should
   /// be auto-deleted. Wired through to [VoiceMessageBubble.onSelfDestruct].
   final VoidCallback? onSelfDestruct;
+  /// ChatId key for per-chat voice speed memory.
+  final String? voiceSpeedKey;
+  /// Called when a received voice note was played (unread-dot persistence).
+  final void Function(String messageId)? onMarkVoicePlayed;
   
   /// Called when the user taps "Retry" on an unsent text message
   /// (status = [MessageStatus.unsent]). Mirrors WhatsApp's RetrySend.
@@ -59,6 +63,8 @@ class MessageBubble extends StatelessWidget {
     this.onCancelVoiceUpload,
     this.onRetryVoiceUpload,
     this.onSelfDestruct,
+    this.voiceSpeedKey,
+    this.onMarkVoicePlayed,
     this.onRetrySend,
     this.onViewOnceMedia,
   });
@@ -782,6 +788,8 @@ class MessageBubble extends StatelessWidget {
               : Colors.white,
           onCancelUpload: onCancelVoiceUpload,
           onRetryUpload: onRetryVoiceUpload,
+          onMarkPlayed: onMarkVoicePlayed,
+          voiceSpeedKey: voiceSpeedKey,
           onSelfDestruct: onSelfDestruct,
         ),
         const SizedBox(height: 4),

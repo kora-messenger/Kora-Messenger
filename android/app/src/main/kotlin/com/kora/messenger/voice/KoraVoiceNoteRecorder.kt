@@ -1,6 +1,9 @@
 package com.kora.messenger.voice
 
 import android.content.Context
+import android.media.AudioAttributes
+import android.media.AudioFocusRequest
+import android.media.AudioManager
 import android.media.MediaRecorder
 import android.os.Build
 import java.io.File
@@ -23,16 +26,58 @@ import java.io.File
  * 5. Swipe toward cancel area -> cancel.
  * 6. Locked mode -> pause/resume/delete/send.
  *
- * Output: AAC / MPEG4, 44100 Hz, 64kbps, mono
+ * Output: AAC / MPEG4, 48000 Hz, 64kbps, mono (+ transient audio focus)
  */
 class KoraVoiceRecorder(
     private val context: Context
 ) {
     private var recorder: MediaRecorder? = null
     private var outputFile: File? = null
+    private var audioManager: AudioManager? = null
+    private var focusRequest: AudioFocusRequest? = null
+
+    /// Requests transient audio focus (Telegram's requestRecordAudioFocus
+    /// parity) so the user's background music ducks/pauses while Kora
+    /// records — and mic routing stays exclusive to voice capture.
+    private fun requestAudioFocus() {
+        val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        audioManager = am
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+                    .setAudioAttributes(
+                        AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                            .build()
+                    )
+                    .build()
+                focusRequest = request
+                am.requestAudioFocus(request)
+            } else {
+                @Suppress("DEPRECATION")
+                am.requestAudioFocus(null, AudioManager.STREAM_VOICE_CALL, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+            }
+        } catch (_: Exception) {}
+    }
+
+    private fun abandonAudioFocus() {
+        try {
+            val am = audioManager ?: return
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                focusRequest?.let { am.abandonAudioFocusRequest(it) }
+            } else {
+                @Suppress("DEPRECATION")
+                am.abandonAudioFocus(null)
+            }
+        } catch (_: Exception) {} finally {
+            focusRequest = null
+        }
+    }
 
     fun start(): File? {
         return try {
+            requestAudioFocus()
             val dir = File(context.cacheDir, "kora_voice_notes")
             if (!dir.exists()) dir.mkdirs()
 
@@ -53,7 +98,7 @@ class KoraVoiceRecorder(
                 setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
                 setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
                 setAudioEncodingBitRate(64_000)
-                setAudioSamplingRate(44_100)
+                setAudioSamplingRate(48_000)
                 setOutputFile(file.absolutePath)
                 prepare()
                 start()
@@ -100,6 +145,7 @@ class KoraVoiceRecorder(
         try { recorder?.release() } catch (_: Exception) {}
         recorder = null
         outputFile = null
+        abandonAudioFocus()
         return file?.takeIf { it.exists() && it.length() > 0 }
     }
 
@@ -109,6 +155,7 @@ class KoraVoiceRecorder(
         try { recorder?.release() } catch (_: Exception) {}
         recorder = null
         outputFile = null
+        abandonAudioFocus()
         file?.delete()
     }
 }

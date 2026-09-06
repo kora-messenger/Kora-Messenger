@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
@@ -30,8 +31,6 @@ class KoraRecordingService {
   Stream<double> get amplitudeStream => _amplitudeController.stream;
 
   Timer? _amplitudeTimer;
-  Timer? _waveTimer;
-  int _waveIndex = 0;
 
   bool get isRecording => _isRecording;
   bool get isPaused => _isPaused;
@@ -63,23 +62,36 @@ class KoraRecordingService {
 
   void _startAmplitudePolling() {
     _amplitudeTimer?.cancel();
-    _waveTimer?.cancel();
-    _waveIndex = 0;
 
-    // Simulated waveform pattern for the live UI — the native recorder
-    // uses MediaRecorder which doesn't expose real-time amplitude.
-    // We use a natural-looking sine-based pattern that varies over time.
-    final pattern = [
-      0.25, 0.55, 0.35, 0.80, 0.42, 0.70, 0.32, 0.90,
-      0.50, 0.75, 0.38, 0.62, 0.45, 0.85, 0.30, 0.65,
-    ];
-
+    // Real hardware amplitude (Telegram-parity): poll the native
+    // MediaRecorder's maxAmplitude over the method channel and
+    // normalize to 0.0-1.0 with a perceptual gain curve so the
+    // live waveform reacts to how loud the user actually speaks.
     _amplitudeTimer = Timer.periodic(const Duration(milliseconds: 50), (_) {
       if (!_isRecording || _isPaused) return;
-      final value = pattern[_waveIndex % pattern.length];
-      _amplitudeController.add(value);
-      _waveIndex++;
+      _pollAmplitude();
     });
+  }
+
+  /// One real-amplitude poll cycle. maxAmplitude is 0-32767 raw;
+  /// speech typically peaks 1000-8000, so we use a sqrt gain curve
+  /// (perceptual, like Telegram's waveform downscaling in audio.c)
+  /// and clamp to a 0.03 floor so bars stay slightly visible.
+  Future<void> _pollAmplitude() async {
+    if (kIsWeb) {
+      _amplitudeController.add(0.3);
+      return;
+    }
+    try {
+      final raw = await _channel.invokeMethod<int>('amplitude');
+      final amp = (raw ?? 0).clamp(0, 32767).toDouble();
+      final normalized = math.sqrt(amp / 32767.0);
+      final value = (normalized * 1.35).clamp(0.03, 1.0);
+      _amplitudeController.add(value);
+    } catch (_) {
+      // Native poll failed — emit floor so the UI keeps moving.
+      _amplitudeController.add(0.03);
+    }
   }
 
   /// Stop recording and return the file path. Returns null if not recording.
@@ -156,8 +168,6 @@ class KoraRecordingService {
   void _stopAmplitudePolling() {
     _amplitudeTimer?.cancel();
     _amplitudeTimer = null;
-    _waveTimer?.cancel();
-    _waveTimer = null;
   }
 
   void dispose() {

@@ -151,6 +151,28 @@ class MessageService {
     }
   }
 
+  /// Marks a voice note as played (clears the unread dot, Telegram-style).
+  /// Persists locally and best-effort syncs the specific message so the
+  /// played state follows the user across devices.
+  Future<void> markVoicePlayed(String chatId, String messageId) async {
+    final messages = _cache[chatId];
+    if (messages == null) return;
+    final i = messages.indexWhere((m) => m.id == messageId);
+    if (i < 0) return;
+    final m = messages[i];
+    if (m.isVoicePlayed) return;
+    messages[i] = m.copyWith(isVoicePlayed: true);
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      '$_kPrefix$chatId',
+      jsonEncode(messages.map((x) => x.toJson()).toList()),
+    );
+
+    // Best-effort cloud sync of this one message
+    ChatSyncService.instance.syncMessage(chatId, messages[i]);
+  }
+
   /// Whether the cache already has this chat loaded.
   bool isChatCached(String chatId) => _cache.containsKey(chatId);
 
@@ -656,6 +678,7 @@ class MessageService {
 
   Future<void> sendVoiceMessage(String chatId, String duration, {
     String? filePath,
+    List<double>? waveform,
     bool isPlayOnce = false,
     String? recipientEmail,
     String? recipientName,
@@ -685,6 +708,7 @@ class MessageService {
       voiceDuration: duration,
       voiceFilePath: filePath,
       voiceFileUrl: voiceDataUrl,
+      voiceWaveform: waveform != null ? jsonEncode(waveform) : null,
       voiceTransferState:
           isOnline ? VoiceTransferState.uploading : VoiceTransferState.notSent,
       isPlayOnce: isPlayOnce,

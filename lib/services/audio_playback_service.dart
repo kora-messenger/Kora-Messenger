@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:io' show Platform;
 import 'package:just_audio/just_audio.dart';
+import 'package:audio_session/audio_session.dart';
 
 /// Clean audio playback service for Kora Messenger voice notes.
 ///
@@ -28,6 +30,34 @@ class AudioPlaybackService {
       StreamController<PlaybackState>.broadcast();
   Stream<PlaybackState> get stateStream => _stateController.stream;
 
+  // ── Raise-to-listen routing (Telegram parity) ──
+  // Near-ear proximity → route playback to the earpiece with speech
+  // attributes; far → restore normal media (speaker) routing.
+  bool _earpiece = false;
+  static final AudioContext _mediaContext = AudioContext(
+    android: const AudioContextAndroid(
+      usageType: AndroidUsageType.media,
+      contentType: AndroidContentType.music,
+    ),
+  );
+  static final AudioContext _earpieceContext = AudioContext(
+    android: const AudioContextAndroid(
+      isSpeechSynthesis: false,
+      usageType: AndroidUsageType.voiceCommunication,
+      contentType: AndroidContentType.speech,
+    ),
+  );
+
+  /// Switches the audio output route. Android only (iOS audio routing
+  /// stays with the system's defaults until portOverride lands).
+  Future<void> setEarpiece(bool on) async {
+    if (!Platform.isAndroid || _earpiece == on) return;
+    _earpiece = on;
+    try {
+      await _player.setAudioContext(on ? _earpieceContext : _mediaContext);
+    } catch (_) {}
+  }
+
   String? get currentPlayingId => _currentPlayingId;
   String? get currentSource => _currentSource;
   double get speed => _speed;
@@ -54,9 +84,23 @@ class AudioPlaybackService {
 
     _stateSub = _player.playerStateStream.listen((state) {
       if (state.processingState == ProcessingState.completed) {
+        final finishedId = _currentPlayingId;
         _playing = false;
         _currentPlayingId = null;
         _player.seek(Duration.zero);
+        // One-shot completion event — the chat screen uses this to
+        // auto-queue the next consecutive voice note (Telegram parity).
+        _stateController.add(PlaybackState(
+          playingId: null,
+          isPlaying: false,
+          isLoading: false,
+          positionMs: 0,
+          durationMs: _player.duration?.inMilliseconds ?? 0,
+          speed: _speed,
+          isCompleted: true,
+          lastCompletedId: finishedId,
+          justCompleted: true,
+        ));
       }
       _emitState();
     });
@@ -219,6 +263,12 @@ class PlaybackState {
   final double speed;
   final bool isCompleted;
 
+  /// ID of the message that JUST finished playing (one-shot) — used by
+  /// the chat screen to auto-queue the next consecutive voice note.
+  final String? lastCompletedId;
+  /// True in the single state emission that carries [lastCompletedId].
+  final bool justCompleted;
+
   const PlaybackState({
     this.playingId,
     this.isPlaying = false,
@@ -227,6 +277,8 @@ class PlaybackState {
     this.durationMs = 0,
     this.speed = 1.0,
     this.isCompleted = false,
+    this.lastCompletedId,
+    this.justCompleted = false,
   });
 
   double get progress {

@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import '../../widgets/secure_screen.dart';
 import '../../services/anti_screenshot_service.dart';
 import 'package:flutter/scheduler.dart';
@@ -98,6 +99,10 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
   final _themeProvider = ChatThemeProvider.instance;
 
   List<KoraMessage> _messages = [];
+  StreamSubscription<PlaybackState>? _voiceQueueSub;
+  StreamSubscription? _proximitySub;
+  bool _nearEar = false;
+  bool _wasPlaying = false;
   final Map<String, GlobalKey> _rowKeys = {};
   KoraMessage? _replyTarget;
   String? _highlightedMessageId;
@@ -137,6 +142,15 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
     _checkScreenshotBlock();
     _loadEmail();
     _themeProvider.addListener(_onThemeChanged);
+    _voiceQueueSub = AudioPlaybackService.instance.stateStream.listen(_onVoicePlaybackState);
+    if (!kIsWeb && Platform.isAndroid) {
+      _proximitySub = const EventChannel('com.kora.messenger/proximity')
+          .receiveBroadcastStream()
+          .listen((near) {
+        _nearEar = near == true;
+        _applyEarpieceRouting();
+      });
+    }
     // Register this conversation in the directory so it appears
     // on the Home screen with correct name/avatar/badge/online state.
     ConversationDirectoryService.instance.upsert(
@@ -178,10 +192,59 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
   }
 
 @override
+  /// Auto-queue consecutive voice notes (Telegram parity): when a voice
+  /// note finishes, the next chronological voice note from the SAME
+  /// sender plays automatically.
+  /// Raise-to-listen (Telegram parity): while a voice note plays and the
+  /// phone is at the ear, route audio to the earpiece; lower it and the
+  /// sound returns to the speaker.
+  void _applyEarpieceRouting() {
+    final playing = AudioPlaybackService.instance.currentPlayingId != null;
+    AudioPlaybackService.instance.setEarpiece(_nearEar && playing);
+  }
+
+  void _onVoicePlaybackState(PlaybackState state) {
+    // Re-apply routing when playback starts/stops near the ear.
+    final playing = state.playingId != null && state.isPlaying;
+    if (playing != _wasPlaying) {
+      _wasPlaying = playing;
+      _applyEarpieceRouting();
+    }
+    if (!state.justCompleted || state.lastCompletedId == null) return;
+    final finishedId = state.lastCompletedId!;
+    final i = _messages.indexWhere((m) => m.id == finishedId);
+    if (i < 0 || i + 1 >= _messages.length) return;
+    final finished = _messages[i];
+    final next = _messages[i + 1];
+    if (next.type != MessageType.voice) return;
+    if (next.isMe != finished.isMe) return; // same sender only
+
+    final source = _voiceSourceFor(next);
+    if (source == null) return;
+    AudioPlaybackService.instance.play(source, messageId: next.id);
+  }
+
+  /// Resolves the playable audio source (local path or remote URL) for a
+  /// voice message, mirroring the bubble's resolution logic.
+  String? _voiceSourceFor(KoraMessage m) {
+    if (m.isPlayOnce && m.isMe) return null;
+    final local = m.voiceFilePath;
+    if (local != null && local.isNotEmpty && File(local).existsSync()) {
+      return local;
+    }
+    final url = m.voiceFileUrl;
+    if (url != null && url.isNotEmpty && url.startsWith('http')) {
+      return url;
+    }
+    return null;
+  }
+
   void dispose() {
     _searchController.dispose();
     _statusTimer?.cancel();
     _syncSub?.cancel();
+    _voiceQueueSub?.cancel();
+    _proximitySub?.cancel();
     _themeProvider.removeListener(_onThemeChanged);
     _scrollController.dispose();
     super.dispose();
@@ -711,12 +774,14 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
   void _sendVoice(
     String duration, {
     String? filePath,
+    List<double>? waveform,
     bool isPlayOnce = false,
   }) async {
     await _messageService.sendVoiceMessage(
       widget.chatId,
       duration,
       filePath: filePath,
+      waveform: waveform,
       isPlayOnce: isPlayOnce,
       recipientEmail: widget.recipientEmail,
       recipientName: widget.name,
@@ -1995,6 +2060,8 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
                                           onCancelVoiceUpload: () => _onCancelVoiceUpload(message.id),
                                           onRetryVoiceUpload: () => _onRetryVoiceUpload(message.id),
                                           onSelfDestruct: () => _onSelfDestructVoice(message.id),
+                                          voiceSpeedKey: widget.chatId,
+                                          onMarkVoicePlayed: (msgId) => _messageService.markVoicePlayed(widget.chatId, msgId),
                                           onRetrySend: () => _onRetrySend(message.id),
                                           onViewOnceMedia: () => _onViewOnceMedia(message),
                                         ),

@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/message_model.dart';
 import '../../models/chat_models.dart';
 import '../../theme/kora_colors.dart';
@@ -29,7 +31,12 @@ class VoiceMessageBubble extends StatefulWidget {
   final VoidCallback? onDownload;
   final VoidCallback? onDelete;
   final VoidCallback? onShare;
-  final Future<void> Function(String localPath)? onMarkPlayed;
+  /// Key for per-chat playback-speed memory (Telegram remembers the
+  /// speed per chat). Pass the chatId.
+  final String? voiceSpeedKey;
+  /// Called when a received voice note starts/finishes playing so the
+  /// unread dot state can be persisted.
+  final void Function(String messageId)? onMarkPlayed;
 
   /// Called when a play-once voice note has finished playing and should
   /// be auto-deleted from the conversation. Only fires for incoming
@@ -46,6 +53,7 @@ class VoiceMessageBubble extends StatefulWidget {
     this.onDelete,
     this.onShare,
     this.onMarkPlayed,
+    this.voiceSpeedKey,
     this.onSelfDestruct,
   });
 
@@ -64,6 +72,9 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
   bool _manualRetryChecking = false;
   bool _isDownloading = false;
   bool _hasBeenPlayed = false;
+  /// Real waveform bars (0.0-1.0) from the sender's mic, or null to
+  /// render the decorative random waveform.
+  List<double>? _bars;
   bool _viewOnceConsumed = false;  // true after a view-once note has been played once
 
   bool get _isPremium => ChatThemeProvider.instance.isPremium;
@@ -104,6 +115,8 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
   void initState() {
     super.initState();
     _hasBeenPlayed = widget.message.isVoicePlayed;
+    _bars = _parseWaveform();
+    _loadChatSpeed();
     _sub = _playback.stateStream.listen((state) {
       if (!mounted) return;
       final myId = widget.message.id;
@@ -129,6 +142,17 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
         }
       });
     });
+  }
+
+  @override
+  void didUpdateWidget(VoiceMessageBubble oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.message.voiceWaveform != widget.message.voiceWaveform) {
+      _bars = _parseWaveform();
+    }
+    if (!identical(oldWidget.message, widget.message)) {
+      _hasBeenPlayed = widget.message.isVoicePlayed;
+    }
   }
 
   @override
@@ -172,23 +196,128 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
     await _playback.seekToFraction(fraction);
   }
 
+  /// Telegram AudioPlayerAlert speed set.
+  static const List<double> _kSpeeds = [0.5, 1.0, 1.2, 1.5, 1.7, 2.0];
+
   String get _speedLabel {
-    if (_speed == 1.5) return '1.5x';
+    if (_speed == 1.0) return '1x';
     if (_speed == 2.0) return '2x';
-    return '1x';
+    return '${_speed.toStringAsFixed(1)}x'; // 1.2x, 1.5x, 1.7x, 0.5x
   }
 
-  void _cycleSpeed() async {
-    setState(() {
-      if (_speed == 1.0) {
-        _speed = 1.5;
-      } else if (_speed == 1.5) {
-        _speed = 2.0;
-      } else {
-        _speed = 1.0;
+  /// Loads the remembered per-chat speed (Telegram remembers per chat).
+  Future<void> _loadChatSpeed() async {
+    final key = widget.voiceSpeedKey;
+    if (key == null) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final stored = prefs.getDouble('kora_voice_speed_$key');
+      if (stored != null && stored != _speed) {
+        _speed = stored;
+        if (_isPlaying) await _playback.setSpeed(_speed);
+        if (mounted) setState(() {});
       }
-    });
-    await _playback.setSpeed(_speed);
+    } catch (_) {}
+  }
+
+  void _cycleSpeed() => _showSpeedMenu();
+
+  /// Telegram-style speed bottom sheet with the 6 speeds + close button.
+  void _showSpeedMenu() {
+    final brightness = Theme.of(context).brightness;
+    final isDark = brightness == Brightness.dark;
+    final sheetBg = isDark ? const Color(0xFF1C242E) : Colors.white;
+    final txtColor = isDark ? Colors.white : const Color(0xFF111B21);
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: sheetBg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                const SizedBox(width: 16),
+                Text(
+                  'Playback speed',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: txtColor,
+                  ),
+                ),
+                const Spacer(),
+                GestureDetector(
+                  onTap: () => Navigator.of(sheetContext).pop(),
+                  child: const Padding(
+                    padding: EdgeInsets.all(12),
+                    child: Icon(Icons.close, size: 20, color: Colors.grey),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            for (final speed in _kSpeeds)
+              ListTile(
+                dense: true,
+                title: Text(
+                  speed == 1.0 ? 'Normal (1x)' : _speedLabelFor(speed),
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: txtColor,
+                    fontWeight: _speed == speed ? FontWeight.w700 : FontWeight.w400,
+                  ),
+                ),
+                trailing: _speed == speed
+                    ? const Icon(Icons.check, size: 18, color: KoraColors.purple)
+                    : null,
+                onTap: () async {
+                  Navigator.of(sheetContext).pop();
+                  await _setSpeed(speed);
+                },
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _speedLabelFor(double v) {
+    if (v == 2.0) return '2x';
+    return '${v.toStringAsFixed(1)}x';
+  }
+
+  Future<void> _setSpeed(double speed) async {
+    setState(() => _speed = speed);
+    await _playback.setSpeed(speed);
+    final key = widget.voiceSpeedKey;
+    if (key != null) {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setDouble('kora_voice_speed_$key', speed);
+      } catch (_) {}
+    }
+  }
+
+  /// Parses the 64-bar waveform JSON attached to the message
+  /// (captured from the sender's live mic amplitudes at record time).
+  List<double>? _parseWaveform() {
+    final raw = widget.message.voiceWaveform;
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is List && decoded.length >= 8) {
+        return decoded
+            .map((e) => ((e as num?)?.toDouble() ?? 0.2).clamp(0.05, 1.0))
+            .toList();
+      }
+    } catch (_) {}
+    return null;
   }
 
   int _parseDuration(String d) {
@@ -512,12 +641,13 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
                       child: KoraWaveform(
                         isLive: false,
                         progress: _progress,
-                        barCount: 30,
+                        barCount: _bars?.length ?? 30,
                         height: 30,
                         barWidth: 2.5,
                         barGap: 2.5,
                         playedColor: playedColor,
                         unplayedColor: unplayedColor,
+                        liveAmplitudes: _bars,
                       ),
                     ),
                   );
@@ -653,12 +783,13 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
             child: KoraWaveform(
               isLive: false,
               progress: 0,
-              barCount: 30,
+              barCount: _bars?.length ?? 30,
               height: 30,
               barWidth: 2.5,
               barGap: 2.5,
               playedColor: waveformColor,
               unplayedColor: waveformColor,
+              liveAmplitudes: _bars,
             ),
           ),
         ),
@@ -719,12 +850,13 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
             child: KoraWaveform(
               isLive: false,
               progress: 0,
-              barCount: 30,
+              barCount: _bars?.length ?? 30,
               height: 30,
               barWidth: 2.5,
               barGap: 2.5,
               playedColor: waveformColor,
               unplayedColor: waveformColor,
+              liveAmplitudes: _bars,
             ),
           ),
         ),

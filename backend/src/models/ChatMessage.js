@@ -19,6 +19,8 @@ const chatMessageSchema = new mongoose.Schema(
     voiceDuration: { type: String, default: '' },
     voiceFilePath: { type: String, default: '' },
     voiceFileUrl: { type: String, default: '' },
+    voiceWaveform: { type: String, default: '' },
+    isVoicePlayed: { type: Boolean, default: false },
     voiceTranscript: { type: String, default: '' },
     mediaUrl: { type: String, default: '' },
     mediaCaption: { type: String, default: '' },
