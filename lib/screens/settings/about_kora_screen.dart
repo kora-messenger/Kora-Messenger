@@ -286,7 +286,7 @@ class AboutKoraScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Built by Ijezie Goodluck',
+                  'Built by Veltravia Technologies Team',
                   style: TextStyle(color: textPrimary, fontSize: 14, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 4),
