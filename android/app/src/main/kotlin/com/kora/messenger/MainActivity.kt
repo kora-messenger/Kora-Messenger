@@ -190,6 +190,41 @@ class MainActivity : FlutterFragmentActivity() {
                 }
             }
 
+        // ── Proximity sensor (raise-to-listen, Telegram parity) ──
+        // Emits `true` when the phone is raised to the ear, `false` when
+        // lowered. The Dart side switches voice-note playback to the
+        // earpiece when near.
+        EventChannel(flutterEngine.dartExecutor.binaryMessenger, "com.kora.messenger/proximity")
+            .setStreamHandler(object : EventChannel.StreamHandler {
+                private var sensorManager: SensorManager? = null
+                private var listener: SensorEventListener? = null
+
+                override fun onListen(args: Any?, events: EventChannel.EventSink) {
+                    val sm = getSystemService(Context.SENSOR_SERVICE) as SensorManager
+                    val sensor = sm.getDefaultSensor(Sensor.TYPE_PROXIMITY)
+                    if (sensor == null) {
+                        events.success(false) // no sensor — always "far"
+                        return
+                    }
+                    val l = object : SensorEventListener {
+                        override fun onSensorChanged(event: SensorEvent) {
+                            // Most sensors report 0.0 (near) vs 5.0 (far); use a 3cm threshold
+                            val isNear = event.values.isNotEmpty() && event.values[0] < 3.0f
+                            events.success(isNear)
+                        }
+                        override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+                    }
+                    listener = l
+                    sensorManager = sm
+                    sm.registerListener(l, sensor, SensorManager.SENSOR_DELAY_NORMAL)
+                }
+
+                override fun onCancel() {
+                    listener?.let { sensorManager?.unregisterListener(it) }
+                    listener = null
+                }
+            })
+
         // ── Native voice recorder ──
         voiceRecorder = KoraVoiceRecorder(this)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, VOICE_CHANNEL)
@@ -225,40 +260,6 @@ class MainActivity : FlutterFragmentActivity() {
             }
     }
 
-        // ── Proximity sensor (raise-to-listen, Telegram parity) ──
-        // Emits `true` when the phone is raised to the ear, `false` when
-        // lowered. The Dart side switches voice-note playback to the
-        // earpiece when near.
-        EventChannel(flutterEngine.dartExecutor.binaryMessenger, "com.kora.messenger/proximity")
-            .setStreamHandler(object : EventChannel.StreamHandler {
-                private var sensorManager: SensorManager? = null
-                private var listener: SensorEventListener? = null
-
-                override fun onListen(args: Any?, events: EventChannel.EventSink) {
-                    val sm = getSystemService(Context.SENSOR_SERVICE) as SensorManager
-                    val sensor = sm.getDefaultSensor(Sensor.TYPE_PROXIMITY)
-                    if (sensor == null) {
-                        events.success(false) // no sensor — always "far"
-                        return
-                    }
-                    val l = object : SensorEventListener {
-                        override fun onSensorChanged(event: SensorEvent) {
-                            // Most sensors report 0.0 (near) vs 5.0 (far); use a 3cm threshold
-                            val isNear = event.values.isNotEmpty() && event.values[0] < 3.0f
-                            events.success(isNear)
-                        }
-                        override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
-                    }
-                    listener = l
-                    sensorManager = sm
-                    sm.registerListener(l, sensor, SensorManager.SENSOR_DELAY_NORMAL)
-                }
-
-                override fun onCancel() {
-                    listener?.let { sensorManager?.unregisterListener(it) }
-                    listener = null
-                }
-            })
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
