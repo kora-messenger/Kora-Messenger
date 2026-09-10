@@ -21,6 +21,8 @@ const MAX_TOKENS_SUMMARY = 800;
 const MAX_TOKENS_MEDIA = 1500;
 const MAX_TOKENS_TRANSCRIBE = 1000;
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
+const OPENAI_URL = 'https://api.openai.com/v1/chat/completions';
+const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-4o';
 const DEFAULT_MODEL = 'openai/gpt-4o';
 const FALLBACK_MODEL = 'openai/gpt-4o-mini';
 const MAX_IMAGE_SIZE_BYTES = 4 * 1024 * 1024;
@@ -115,8 +117,51 @@ async function callOpenRouter(systemPrompt, userMessage, maxTokens, temperature 
   throw new Error('Unexpected OpenRouter response');
 }
 
+// ── Direct OpenAI Call (primary provider) ─────────────────────────
+// Text and multimodal variants. Returns null when the key is absent
+// or the call fails, so callers fall back to OpenRouter seamlessly.
+
+async function callOpenAIOnce(systemPrompt, userContent, maxTokens, temperature) {
+  const apiKey = cleanApiKey(process.env.OPENAI_API_KEY || '');
+  if (!apiKey || apiKey.length < 10) return null;
+  try {
+    const response = await fetch(OPENAI_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: OPENAI_MODEL,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userContent },
+        ],
+        temperature,
+        max_tokens: maxTokens,
+        stream: false,
+      }),
+    });
+    if (!response.ok) {
+      const errBody = await response.text().catch(() => '');
+      console.error(`[Kora AI Features] OpenAI error: ${response.status} — ${errBody.slice(0, 300)}`);
+      return null;
+    }
+    const data = await response.json();
+    if (data.choices?.[0]?.message?.content) {
+      return data.choices[0].message.content.trim();
+    }
+    return null;
+  } catch (err) {
+    console.error(`[Kora AI Features] OpenAI request failed: ${err?.message || err}`);
+    return null;
+  }
+}
+
 // ── OpenRouter Call (multimodal) ───────────────────────────────────
 async function callOpenRouterMultimodal(systemPrompt, userContent, maxTokens, temperature = 0.7) {
+  const viaOpenAI = await callOpenAIOnce(systemPrompt, userContent, maxTokens, temperature);
+  if (viaOpenAI) return viaOpenAI;
   const apiKey = cleanApiKey(process.env.OPENROUTER_API_KEY || '');
   if (!apiKey || apiKey.length < 10) {
     throw { status: 500, message: 'API key missing', code: 'MISSING_API_KEY' };
@@ -157,6 +202,9 @@ async function callOpenRouterMultimodal(systemPrompt, userContent, maxTokens, te
 
 // ── Fallback ──────────────────────────────────────────────────────
 async function callWithFallback(systemPrompt, userMessage, maxTokens, temperature) {
+  // Primary: direct OpenAI when configured.
+  const viaOpenAI = await callOpenAIOnce(systemPrompt, userMessage, maxTokens, temperature ?? 0.7);
+  if (viaOpenAI) return viaOpenAI;
   try {
     return await callOpenRouter(systemPrompt, userMessage, maxTokens, temperature);
   } catch (e) {

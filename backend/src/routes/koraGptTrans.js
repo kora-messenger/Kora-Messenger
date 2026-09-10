@@ -48,7 +48,17 @@ const LANGUAGE_NAMES = {
 
 // ── GPT Streaming Translation (like AI Phone's gptTrans/stream) ─────────
 async function gptStreamTranslate(text, sourceLang, targetLang, apiKey, streamCallback) {
-  const model = process.env.OPENROUTER_MODEL || 'openai/gpt-4o-mini';
+  // Provider: direct OpenAI when OPENAI_API_KEY is configured,
+  // OpenRouter otherwise. Same request shape for both.
+  const openAiKey = (process.env.OPENAI_API_KEY || '').trim();
+  const useOpenAI = openAiKey.length > 10;
+  const model = useOpenAI
+      ? (process.env.OPENAI_MODEL || 'gpt-4o-mini')
+      : (process.env.OPENROUTER_MODEL || 'openai/gpt-4o-mini');
+  const providerUrl = useOpenAI
+      ? 'https://api.openai.com/v1/chat/completions'
+      : 'https://openrouter.ai/api/v1/chat/completions';
+  apiKey = useOpenAI ? openAiKey : apiKey;
   const sourceName = LANGUAGE_NAMES[sourceLang] || sourceLang;
   const targetName = LANGUAGE_NAMES[targetLang] || targetLang;
 
@@ -60,13 +70,15 @@ Rules:
 - If the text is already in ${targetName}, return it unchanged.
 - For slang or idioms, provide the most natural equivalent in ${targetName}.`;
 
-  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+  const response = await fetch(providerUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`,
-      'HTTP-Referer': 'https://kora-messenger.app',
-      'X-Title': 'Kora Messenger',
+      ...(!useOpenAI && {
+        'HTTP-Referer': 'https://kora-messenger.app',
+        'X-Title': 'Kora Messenger',
+      }),
     },
     body: JSON.stringify({
       model,

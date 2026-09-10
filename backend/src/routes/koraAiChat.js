@@ -19,6 +19,8 @@ const MAX_MESSAGE_LENGTH = 4000;
 const MAX_TOKENS = 2000;
 const TEMPERATURE = 0.7;
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
+const OPENAI_URL = 'https://api.openai.com/v1/chat/completions';
+const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-4o';
 const DEFAULT_MODEL = 'openai/gpt-4o';
 const FALLBACK_MODEL = 'openai/gpt-4o-mini';
 const MAX_IMAGE_SIZE_BYTES = 4 * 1024 * 1024;
@@ -425,6 +427,48 @@ function buildMessages(systemPrompt, message, history, attachments) {
   return messages;
 }
 
+// ── Direct OpenAI Call (primary provider) ─────────────────────────
+// Uses OPENAI_API_KEY when configured; returns null (not a throw) when
+// the key is absent or the call fails, so the caller falls back to
+// OpenRouter seamlessly.
+
+async function callOpenAI(messages, options) {
+  const apiKey = cleanApiKey(process.env.OPENAI_API_KEY || '');
+  if (!apiKey || apiKey.length < 10) return null;
+  try {
+    const response = await fetch(OPENAI_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: OPENAI_MODEL,
+        messages,
+        temperature: TEMPERATURE,
+        max_tokens: MAX_TOKENS,
+        stream: options.stream,
+      }),
+    });
+    if (!response.ok) {
+      const errBody = await response.text().catch(() => '');
+      console.error(`[Kora AI] OpenAI error: ${response.status} — ${errBody.slice(0, 500)}`);
+      return null;
+    }
+    return response;
+  } catch (err) {
+    console.error(`[Kora AI] OpenAI request failed: ${err?.message || err}`);
+    return null;
+  }
+}
+
+// Provider chain: direct OpenAI first, OpenRouter as fallback.
+async function callAi(messages, options) {
+  const viaOpenAI = await callOpenAI(messages, options);
+  if (viaOpenAI) return viaOpenAI;
+  return callOpenRouter(messages, options);
+}
+
 // ── OpenRouter API Call ────────────────────────────────────────────
 
 async function callOpenRouter(messages, options) {
@@ -492,7 +536,7 @@ async function callOpenRouterFallback(messages) {
 async function handleNonStreaming(res, systemPrompt, message, history, attachments) {
   const messages = buildMessages(systemPrompt, message, history, attachments);
   try {
-    const apiResponse = await callOpenRouter(messages, { stream: false });
+    const apiResponse = await callAi(messages, { stream: false });
     const data = await apiResponse.json();
     if (data.choices?.[0]?.message?.content) {
       const reply = data.choices[0].message.content.trim();
@@ -519,7 +563,7 @@ async function handleNonStreaming(res, systemPrompt, message, history, attachmen
 async function handleStreaming(res, systemPrompt, message, history, attachments) {
   const messages = buildMessages(systemPrompt, message, history, attachments);
   try {
-    const apiResponse = await callOpenRouter(messages, { stream: true });
+    const apiResponse = await callAi(messages, { stream: true });
 
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
