@@ -15,6 +15,7 @@ import '../widgets/kora_input.dart';
 import '../widgets/kora_button.dart';
 import 'forgot_password_screen.dart';
 import 'profile_setup_screen.dart';
+import 'onboarding_questionnaire_screen.dart';
 import 'kora_home_screen.dart';
 import 'login_verification_screen.dart';
 import 'suspension_screen.dart';
@@ -325,7 +326,16 @@ class _LogInScreenState extends State<LogInScreen> {
         TextInput.finishAutofillContext();
 
         // Show chat restore overlay for returning users, then navigate
-        if (user.profileCompleted) {
+        if (user.profileCompleted && !user.questionnaireCompleted) {
+          // New-ish account that finished profile setup but skipped the
+          // questionnaire (e.g. created mid-flow, or app updated).
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(
+              builder: (_) => OnboardingQuestionnaireScreen(userId: user.id),
+            ),
+            (route) => false,
+          );
+        } else if (user.profileCompleted) {
           // Show restoring overlay while syncing chats in background
           if (mounted) {
             Navigator.of(context).pushAndRemoveUntil(

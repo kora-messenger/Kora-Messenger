@@ -38,6 +38,10 @@ const userSchema = new mongoose.Schema(
     avatarUrl: { type: String, default: '' },
     phoneNumber: { type: String, default: '' },
     profileCompleted: { type: Boolean, default: false },
+    // Onboarding questionnaire — new accounts see it once; legacy accounts
+    // (field undefined) are treated as already onboarded via toClient().
+    questionnaireCompleted: { type: Boolean, default: false },
+    questionnaireAnswers: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
     isPremium: { type: Boolean, default: false },
     premiumExpiresAt: { type: Date, default: null },
     premiumSource: { type: String, default: null },
@@ -85,6 +89,10 @@ userSchema.methods.toClient = function toClient() {
     avatarUrl: this.avatarUrl || '',
     phoneNumber: this.phoneNumber || '',
     profileCompleted: this.profileCompleted,
+    // undefined = account created before the questionnaire shipped → onboarded.
+    questionnaireCompleted: this.questionnaireCompleted === undefined
+        ? true
+        : Boolean(this.questionnaireCompleted),
     isPremium: this.constructor.computeIsPremium(this),
     premiumExpiresAt: this.premiumExpiresAt ? new Date(this.premiumExpiresAt).toISOString() : null,
     premiumSource: this.premiumSource || '',

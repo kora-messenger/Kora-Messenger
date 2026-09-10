@@ -10,6 +10,7 @@ import '../services/accounts_manager.dart';
 import '../services/chat_sync_service.dart';
 import '../services/settings_sync_service.dart';
 import 'profile_setup_screen.dart';
+import 'onboarding_questionnaire_screen.dart';
 import 'kora_home_screen.dart';
 import '../services/crash_logger.dart';
 
@@ -260,7 +261,14 @@ class _LoginVerificationScreenState extends State<LoginVerificationScreen>
         if (!mounted) return;
 
         final user = KoraUserSession.fromMap(result.user!);
-        if (user.profileCompleted) {
+        if (user.profileCompleted && !user.questionnaireCompleted) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(
+              builder: (_) => OnboardingQuestionnaireScreen(userId: user.id),
+            ),
+            (route) => false,
+          );
+        } else if (user.profileCompleted) {
           Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute(builder: (_) => const KoraHomeScreen()),
             (route) => false,

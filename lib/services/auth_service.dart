@@ -536,6 +536,33 @@ class AuthService {
     }
   }
 
+  // ── Onboarding Questionnaire ──────────────────────────────
+
+  /// Saves the new-user questionnaire answers and marks it completed.
+  /// Completion lives on the account, so it survives sign-out and
+  /// syncs across every device the user signs in on.
+  Future<({bool success, String? error})> saveQuestionnaire({
+    required String userId,
+    required Map<String, dynamic> answers,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse(_endpoint),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'action': 'saveQuestionnaire',
+          'userId': userId,
+          'answers': answers,
+        }),
+      ).timeout(const Duration(seconds: 30));
+      final data = jsonDecode(response.body);
+      if (data['success'] == true) return (success: true, error: null);
+      return (success: false, error: data['error'] as String?);
+    } catch (e) {
+      return (success: false, error: _friendlyError(e));
+    }
+  }
+
   // ── Utility ──────────────────────────────────────────────────
 
   /// Generates a unique Kora ID: KM-XXXXXXXXX (9 digits).
@@ -972,6 +999,7 @@ class KoraUserSession {
   final String bio;
   final String avatarUrl;
   final bool profileCompleted;
+  final bool questionnaireCompleted;
 
   KoraUserSession({
     required this.id,
@@ -982,6 +1010,8 @@ class KoraUserSession {
     this.bio = '',
     this.avatarUrl = '',
     this.profileCompleted = false,
+    // Missing flag = legacy account → never show the questionnaire.
+    this.questionnaireCompleted = true,
   });
 
   factory KoraUserSession.fromMap(Map<String, dynamic> map) {
@@ -994,6 +1024,7 @@ class KoraUserSession {
       bio: map['bio']?.toString() ?? '',
       avatarUrl: map['avatarUrl']?.toString() ?? '',
       profileCompleted: map['profileCompleted'] == true,
+      questionnaireCompleted: map['questionnaireCompleted'] != false,
     );
   }
 }

@@ -386,6 +386,32 @@ router.post('/', async (req, res) => {
         return ok(res, { user: user.toClient() });
       }
 
+      // ── ONBOARDING QUESTIONNAIRE ────────────────────────────
+      case 'saveQuestionnaire': {
+        const userId = String(req.body.userId || '');
+        const answers = (req.body.answers && typeof req.body.answers === 'object')
+            ? req.body.answers
+            : {};
+        if (!userId) return fail(res, 'User ID is required');
+        const user = await User.findById(userId);
+        if (!user) return fail(res, 'Account not found');
+
+        // Sanitize: keep up to 20 entries, strings/arrays of strings only.
+        const clean = {};
+        for (const [key, value] of Object.entries(answers).slice(0, 20)) {
+          const k = String(key).slice(0, 64);
+          if (Array.isArray(value)) {
+            clean[k] = value.map((v) => String(v).slice(0, 100)).slice(0, 20);
+          } else if (value !== null && value !== undefined) {
+            clean[k] = String(value).slice(0, 300);
+          }
+        }
+        user.questionnaireAnswers = clean;
+        user.questionnaireCompleted = true;
+        await user.save();
+        return ok(res, { user: user.toClient() });
+      }
+
       case 'getProfile': {
         const user = await User.findById(req.body.userId);
         if (!user) return fail(res, 'Account not found');

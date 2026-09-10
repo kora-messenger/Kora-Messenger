@@ -476,6 +476,17 @@ class KoraNotificationService {
     await _plugin.cancelAll();
   }
 
+  /// Whether the OS notification permission is currently granted
+  /// (Android 13+; always true on older Android and iOS pre-prompt).
+  Future<bool> isPermissionGranted() async {
+    if (defaultTargetPlatform != TargetPlatform.android || !Platform.isAndroid) {
+      return true;
+    }
+    final androidPlugin = _plugin
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    return await androidPlugin?.areNotificationsEnabled() ?? true;
+  }
+
   /// Request notification permission (Android 13+).
   Future<bool> requestPermission() async {
     if (defaultTargetPlatform != TargetPlatform.android) return true;

@@ -15,7 +15,7 @@ import '../services/session_manager.dart';
 import '../services/accounts_manager.dart';
 import '../services/chat_sync_service.dart';
 import '../services/settings_sync_service.dart';
-import 'kora_home_screen.dart';
+import 'onboarding_questionnaire_screen.dart';
 
 /// Profile Setup — shown after successful registration verification.
 ///
@@ -340,9 +340,12 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   }
 
   void _navigateHome() {
+    // New accounts: questionnaire next — it hands off to Home itself.
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(
-        builder: (_) => const KoraHomeScreen(isNewUser: true),
+        builder: (_) => OnboardingQuestionnaireScreen(
+            userId: widget.userData?['id']?.toString() ?? '',
+          ),
       ),
       (route) => false,
     );

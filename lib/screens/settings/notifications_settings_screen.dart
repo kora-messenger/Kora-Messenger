@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../theme/kora_colors.dart';
 import '../../services/chat_sound_service.dart';
+import '../../services/notification_service.dart';
 
 /// Notifications settings screen — matches native Android notification
 /// settings layout: a general section, then per-surface sections
@@ -52,11 +53,39 @@ class _NotificationsSettingsScreenState extends State<NotificationsSettingsScree
   bool _recommendedChannels = true;
 
   bool _loading = true;
+  bool _permissionGranted = true;
+  bool _checkingPermission = true;
 
   @override
   void initState() {
     super.initState();
     _loadPrefs();
+    _checkPermission();
+  }
+
+  Future<void> _checkPermission() async {
+    final granted = await KoraNotificationService.instance.isPermissionGranted();
+    if (mounted) {
+      setState(() {
+        _permissionGranted = granted;
+        _checkingPermission = false;
+      });
+    }
+  }
+
+  Future<void> _turnOnNotifications() async {
+    final granted = await KoraNotificationService.instance.requestPermission();
+    if (!mounted) return;
+    setState(() => _permissionGranted = granted);
+    if (!granted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Notifications are still blocked. Enable them for Kora in system settings.',
+          ),
+        ),
+      );
+    }
   }
 
   Future<void> _loadPrefs() async {
@@ -134,6 +163,10 @@ class _NotificationsSettingsScreenState extends State<NotificationsSettingsScree
           : ListView(
               padding: const EdgeInsets.only(bottom: 32),
               children: [
+                if (!_checkingPermission && !_permissionGranted) ...[
+                  _buildPermissionCard(textPrimary, textSecondary),
+                  const SizedBox(height: 12),
+                ],
                 const SizedBox(height: 4),
                 _toggleRow(
                   title: 'Conversation tones',
@@ -496,6 +529,56 @@ class _NotificationsSettingsScreenState extends State<NotificationsSettingsScree
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Divider(color: border, height: 1, thickness: 1),
+    );
+  }
+
+  Widget _buildPermissionCard(Color textPrimary, Color textSecondary) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: KoraColors.purple.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: KoraColors.purple.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.notifications_active_rounded,
+              color: KoraColors.purple, size: 26),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Notifications are off',
+                  style: TextStyle(
+                      color: textPrimary,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Turn them on so you never miss a message or call.',
+                  style: TextStyle(color: textSecondary, fontSize: 13, height: 1.35),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          TextButton(
+            onPressed: _turnOnNotifications,
+            style: TextButton.styleFrom(
+              backgroundColor: KoraColors.purple,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Turn on',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
     );
   }
 
