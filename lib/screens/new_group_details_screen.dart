@@ -391,15 +391,6 @@ class _NewGroupDetailsScreenState extends State<NewGroupDetailsScreen> {
     );
   }
 
-  void _showComingSoon(String feature) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$feature is coming soon.'),
-        backgroundColor: KoraColors.purple,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
 
   // ── UI ────────────────────────────────────────────────────────
 

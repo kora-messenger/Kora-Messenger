@@ -48,6 +48,7 @@ import '../../config/subscription_pricing.dart';
 import '../../services/session_manager.dart';
 import '../../services/spam_protection_service.dart';
 import '../../services/conversation_directory.dart';
+import '../../services/font_scale_service.dart';
 import '../suspension_screen.dart';
 import 'ai_chat_summary_sheet.dart';
 
@@ -2179,7 +2180,19 @@ class _KoraChatScreenState extends State<KoraChatScreen> {
       if (_screenshotBlocked) {
       return SecureScreen(child: scaffold);
     }
-    return scaffold;
+    return ValueListenableBuilder<double>(
+      valueListenable: FontScaleService.instance.scale,
+      builder: (context, scale, _) => MediaQuery.withClampedTextScaling(
+        minScaleFactor: 0.8,
+        maxScaleFactor: 1.3,
+        child: MediaQuery(
+          data: MediaQuery.of(context).copyWith(
+            textScaler: TextScaler.linear(scale),
+          ),
+          child: scaffold,
+        ),
+      ),
+    );
 }
 
   /// Show AI chat summary sheet.

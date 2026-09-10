@@ -193,7 +193,7 @@ class _NotificationsSettingsScreenState extends State<NotificationsSettingsScree
                 ),
 
                 _divider(border),
-                _sectionLabel('Messages', textMuted),
+                _sectionLabel('Message notifications', textMuted),
                 _pickerRow(
                   title: 'Notification tone',
                   value: _msgTone,
@@ -268,7 +268,7 @@ class _NotificationsSettingsScreenState extends State<NotificationsSettingsScree
                 ),
 
                 _divider(border),
-                _sectionLabel('Groups', textMuted),
+                _sectionLabel('Group notifications', textMuted),
                 _pickerRow(
                   title: 'Notification tone',
                   value: _groupTone,
@@ -338,7 +338,7 @@ class _NotificationsSettingsScreenState extends State<NotificationsSettingsScree
                 ),
 
                 _divider(border),
-                _sectionLabel('Calls', textMuted),
+                _sectionLabel('Call notifications', textMuted),
                 _pickerRow(
                   title: 'Ringtone',
                   value: _callRingtone,
@@ -371,7 +371,7 @@ class _NotificationsSettingsScreenState extends State<NotificationsSettingsScree
                 ),
 
                 _divider(border),
-                _sectionLabel('Status', textMuted),
+                _sectionLabel('Status notifications', textMuted),
                 _pickerRow(
                   title: 'Notification tone',
                   value: _statusTone,

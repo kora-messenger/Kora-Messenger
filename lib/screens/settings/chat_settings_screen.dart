@@ -6,6 +6,9 @@ import '../archived_chats_screen.dart';
 import 'chat_transfer_screen.dart';
 import 'default_chat_theme_screen.dart';
 import 'wallpaper_screen.dart';
+import 'app_language_screen.dart';
+import 'chat_backup_screen.dart';
+import '../../services/font_scale_service.dart';
 
 /// Chat settings screen — matches WhatsApp's Settings > Chats layout.
 ///
@@ -26,13 +29,16 @@ class _ChatSettingsScreenState extends State<ChatSettingsScreen> {
   bool _isLoading = true;
   String _themeMode = 'system';
   String _mediaQuality = 'auto';
+  int _fontScaleIndex = 1;
 
   final _themeProvider = ChatThemeProvider.instance;
+  final _fontScale = FontScaleService.instance;
 
   @override
   void initState() {
     super.initState();
     _loadPrefs();
+    _fontScale.load();
     _themeProvider.addListener(_onThemeChanged);
   }
 
@@ -56,6 +62,7 @@ class _ChatSettingsScreenState extends State<ChatSettingsScreen> {
         _showCallHistory = prefs.getBool('show_call_history') ?? true;
         _themeMode = prefs.getString('theme_mode') ?? 'system';
         _mediaQuality = prefs.getString('media_upload_quality') ?? 'auto';
+        _fontScaleIndex = _fontScale.index;
         _isLoading = false;
       });
     }
@@ -266,6 +273,34 @@ class _ChatSettingsScreenState extends State<ChatSettingsScreen> {
                   onTap: () => _showQualityPicker(context, card, textPrimary, textSecondary, textMuted, border),
                 ),
 
+                _navTile(
+                  context,
+                  icon: Icons.format_size,
+                  title: 'Font size',
+                  card: card,
+                  textPrimary: textPrimary,
+                  textMuted: textMuted,
+                  border: border,
+                  trailing: Text(
+                    FontScaleService.labels[_fontScaleIndex],
+                    style: TextStyle(color: textSecondary, fontSize: 13),
+                  ),
+                  onTap: () => _showFontSizePicker(context, card, textPrimary, textSecondary, textMuted, border),
+                ),
+                _navTile(
+                  context,
+                  icon: Icons.language_outlined,
+                  title: 'App language',
+                  card: card,
+                  textPrimary: textPrimary,
+                  textMuted: textMuted,
+                  border: border,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const AppLanguageScreen()),
+                  ),
+                ),
+
 
 
                 const SizedBox(height: 24),
@@ -288,8 +323,106 @@ class _ChatSettingsScreenState extends State<ChatSettingsScreen> {
                 ),
 
                 const SizedBox(height: 24),
+
+                _sectionLabel('BACKUP', textMuted),
+                _navTile(
+                  context,
+                  icon: Icons.backup_outlined,
+                  title: 'Chat backup',
+                  subtitle: 'Save a backup file, restore on any device',
+                  card: card,
+                  textPrimary: textPrimary,
+                  textMuted: textMuted,
+                  border: border,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ChatBackupScreen()),
+                  ),
+                ),
+
+                const SizedBox(height: 24),
               ],
             ),
+    );
+  }
+
+  /// WhatsApp-style "Choose the size of the text" dialog.
+  void _showFontSizePicker(BuildContext context, Color card, Color textPrimary,
+      Color textSecondary, Color textMuted, Color border) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            return AlertDialog(
+              backgroundColor: card,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: Text(
+                'Choose the size of the text',
+                style: TextStyle(color: textPrimary, fontSize: 17, fontWeight: FontWeight.w700),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (var i = 0; i < FontScaleService.sizes.length; i++)
+                    InkWell(
+                      borderRadius: BorderRadius.circular(10),
+                      onTap: () => setDialogState(() => _fontScaleIndex = i),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: _fontScaleIndex == i
+                              ? KoraColors.purple.withValues(alpha: 0.10)
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(children: [
+                          Icon(
+                            _fontScaleIndex == i ? Icons.radio_button_checked : Icons.radio_button_off,
+                            color: _fontScaleIndex == i ? KoraColors.purple : textMuted,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            FontScaleService.labels[i],
+                            style: TextStyle(color: textPrimary, fontSize: 14 + i * 1.5),
+                          ),
+                        ]),
+                      ),
+                    ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: KoraColors.purple.withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      'The quick brown fox jumps over the lazy dog.',
+                      textScaler: TextScaler.linear(FontScaleService.sizes[_fontScaleIndex]),
+                      style: TextStyle(color: textSecondary, fontSize: 14, height: 1.4),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: Text('Cancel', style: TextStyle(color: textSecondary)),
+                ),
+                TextButton(
+                  onPressed: () {
+                    _fontScale.setIndex(_fontScaleIndex);
+                    Navigator.pop(dialogContext);
+                    setState(() {});
+                  },
+                  child: Text('Ok', style: const TextStyle(color: KoraColors.purple, fontWeight: FontWeight.w700)),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
@@ -338,6 +471,7 @@ class _ChatSettingsScreenState extends State<ChatSettingsScreen> {
     required Color textPrimary,
     required Color textMuted,
     required Color border,
+    String? subtitle,
     Color iconColor = KoraColors.purple,
     Color? titleColor,
     Widget? trailing,
@@ -368,14 +502,37 @@ class _ChatSettingsScreenState extends State<ChatSettingsScreen> {
               ),
               const SizedBox(width: 14),
               Expanded(
-                child: Text(
-                  title,
-                  style: TextStyle(
-                    color: titleColor ?? textPrimary,
-                    fontSize: 15.5,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+                child: subtitle == null
+                    ? Text(
+                        title,
+                        style: TextStyle(
+                          color: titleColor ?? textPrimary,
+                          fontSize: 15.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      )
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            style: TextStyle(
+                              color: titleColor ?? textPrimary,
+                              fontSize: 15.5,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            subtitle,
+                            style: TextStyle(
+                              color: textMuted,
+                              fontSize: 12.5,
+                              height: 1.35,
+                            ),
+                          ),
+                        ],
+                      ),
               ),
               if (trailing != null) trailing,
               if (trailing == null && onTap != null)

@@ -10,6 +10,8 @@ import '../group/group_permissions_screen.dart';
 import 'disappearing_messages_screen.dart';
 import '../settings/default_chat_theme_screen.dart';
 import '../../services/contacts_service.dart';
+import '../../services/message_service.dart';
+import 'media_gallery_screen.dart';
 import 'e2ee_verification_screen.dart';
 
 /// Group Chat Info screen — opens when the user taps a group name in
@@ -192,6 +194,34 @@ class _GroupChatInfoScreenState extends State<GroupChatInfoScreen> {
     setState(() => _participants[index] = _participants[index].copyWith(isAdmin: !_participants[index].isAdmin));
   }
 
+  void _openMediaGallery() async {
+    final chatId = widget.chatId ?? widget.groupName;
+    final messages = await MessageService.instance.loadMessages(chatId);
+    final mediaPaths = messages
+        .where((m) => m.mediaPath != null)
+        .map((m) => m.mediaPath!)
+        .toList();
+    if (!mounted) return;
+    if (mediaPaths.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No media in this chat yet'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => MediaGalleryScreen(
+          mediaPaths: mediaPaths,
+          chatName: widget.groupName,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final brightness = Theme.of(context).brightness;
@@ -338,9 +368,9 @@ class _GroupChatInfoScreenState extends State<GroupChatInfoScreen> {
                   ListTile(
                     leading: Icon(Icons.photo_library_outlined, color: textPrimary),
                     title: Text('Media, links, and docs', style: TextStyle(color: textPrimary, fontSize: 15)),
-                    subtitle: Text('No media yet', style: TextStyle(color: textMuted, fontSize: 13)),
+                    subtitle: Text('View shared media', style: TextStyle(color: textMuted, fontSize: 13)),
                     trailing: Icon(Icons.chevron_right, color: textMuted, size: 20),
-                    onTap: () { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Coming soon"), behavior: SnackBarBehavior.floating)); },
+                    onTap: _openMediaGallery,
                   ),
                 ],
               ),

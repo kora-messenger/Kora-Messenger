@@ -25,6 +25,8 @@ import '../../config/subscription_pricing.dart';
 import '../settings/storage_data_screen.dart';
 import '../settings/app_language_screen.dart';
 import '../settings/devices_screen.dart';
+import '../starred_messages_screen.dart';
+import '../chat/broadcast_list_screen.dart';
 import '../ai/kora_support_screen.dart';
 import '../search_screen.dart';
 import '../contacts/qr_code_screen.dart';
@@ -259,6 +261,22 @@ class _ProfileTabState extends State<ProfileTab> {
               title: 'Privacy',
               subtitle: 'Last seen, read receipts, blocked contacts, app lock',
               screen: const PrivacyScreen(),
+            ),
+            _navTile(
+              context,
+              icon: Icons.star_outline,
+              iconColor: KoraColors.purple,
+              title: 'Starred messages',
+              subtitle: 'Messages you starred, all in one place',
+              screen: const StarredMessagesScreen(),
+            ),
+            _navTile(
+              context,
+              icon: Icons.campaign_outlined,
+              iconColor: KoraColors.purple,
+              title: 'Broadcast lists',
+              subtitle: 'Message many people at once',
+              screen: const BroadcastListScreen(),
             ),
             _navTile(
               context,

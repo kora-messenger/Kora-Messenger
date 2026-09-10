@@ -192,7 +192,27 @@ class _CommunityDirectoryScreenState extends State<CommunityDirectoryScreen> {
               onPressed: () => setState(() => c.isJoined = true),
               child: const Text('Join', style: TextStyle(color: KoraColors.purple, fontWeight: FontWeight.w600)),
             ),
-      onTap: () { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Community details coming soon"), behavior: SnackBarBehavior.floating)); },
+      onTap: () => showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(c.name),
+          content: Text('${c.members} members • ${c.category}'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Close'),
+            ),
+            if (!c.isJoined)
+              TextButton(
+                onPressed: () {
+                  setState(() => c.isJoined = true);
+                  Navigator.pop(dialogContext);
+                },
+                child: const Text('Join', style: TextStyle(fontWeight: FontWeight.w700)),
+              ),
+          ],
+        ),
+      ),
     );
   }
 

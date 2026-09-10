@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
-import '../../theme/kora_colors.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:video_player/video_player.dart';
 
 /// Media Gallery screen — full-screen viewer for photos and videos in a chat.
 /// Mirrors WhatsApp's media gallery (tap photo → fullscreen with swipe).
@@ -54,17 +56,9 @@ class _MediaGalleryScreenState extends State<MediaGalleryScreen> {
             controller: _pageController,
             itemCount: widget.mediaPaths.length,
             onPageChanged: (i) => setState(() => _currentIndex = i),
-            itemBuilder: (context, index) => GestureDetector(
-              onTap: () => setState(() => _showOverlay = !_showOverlay),
-              child: Center(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.black87,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(Icons.image, size: 64, color: Colors.white24),
-                ),
-              ),
+            itemBuilder: (context, index) => _MediaView(
+              path: widget.mediaPaths[index],
+              onToggleOverlay: () => setState(() => _showOverlay = !_showOverlay),
             ),
           ),
           // Top overlay
@@ -87,7 +81,10 @@ class _MediaGalleryScreenState extends State<MediaGalleryScreen> {
                             style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
                             maxLines: 1, overflow: TextOverflow.ellipsis),
                       ),
-                      IconButton(icon: const Icon(Icons.share, color: Colors.white), onPressed: () { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Share coming soon"), behavior: SnackBarBehavior.floating)); }),
+                      IconButton(
+                        icon: const Icon(Icons.share, color: Colors.white),
+                        onPressed: () => Share.shareXFiles([XFile(widget.mediaPaths[_currentIndex])]),
+                      ),
                       IconButton(icon: const Icon(Icons.more_vert, color: Colors.white), onPressed: () {}),
                     ],
                   ),
@@ -131,6 +128,102 @@ class _MediaGalleryScreenState extends State<MediaGalleryScreen> {
           Text(label, style: const TextStyle(color: Colors.white70, fontSize: 11)),
         ],
       ),
+    );
+  }
+}
+
+
+/// Renders the actual media file — images and videos, no placeholders.
+class _MediaView extends StatefulWidget {
+  final String path;
+  final VoidCallback onToggleOverlay;
+
+  const _MediaView({required this.path, required this.onToggleOverlay});
+
+  @override
+  State<_MediaView> createState() => _MediaViewState();
+}
+
+class _MediaViewState extends State<_MediaView> {
+  VideoPlayerController? _videoController;
+  bool _videoError = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final lower = widget.path.toLowerCase();
+    if (lower.endsWith('.mp4') || lower.endsWith('.mov') ||
+        lower.endsWith('.webm') || lower.endsWith('.3gp')) {
+      _videoController = VideoPlayerController.file(File(widget.path))
+        ..initialize().then((_) {
+          if (mounted) setState(() {});
+        }).catchError((_) {
+          if (mounted) setState(() => _videoError = true);
+        });
+    }
+  }
+
+  @override
+  void dispose() {
+    _videoController?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = _videoController;
+    if (controller != null && controller.value.isInitialized) {
+      return GestureDetector(
+        onTap: widget.onToggleOverlay,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            AspectRatio(
+              aspectRatio: controller.value.aspectRatio,
+              child: VideoPlayer(controller),
+            ),
+            IconButton(
+              icon: Icon(
+                controller.value.isPlaying ? Icons.pause_circle : Icons.play_circle,
+                color: Colors.white.withValues(alpha: 0.85),
+                size: 64,
+              ),
+              onPressed: () {
+                setState(() {
+                  controller.value.isPlaying ? controller.pause() : controller.play();
+                });
+              },
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (controller != null && !_videoError) {
+      return const Center(child: CircularProgressIndicator(color: Colors.white54));
+    }
+
+    return GestureDetector(
+      onTap: widget.onToggleOverlay,
+      child: Center(
+        child: Image.file(
+          File(widget.path),
+          fit: BoxFit.contain,
+          errorBuilder: (_, __, ___) => _missingFile(),
+        ),
+      ),
+    );
+  }
+
+  Widget _missingFile() {
+    return const Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.broken_image_outlined, size: 64, color: Colors.white24),
+        SizedBox(height: 12),
+        Text('Media not available on this device',
+            style: TextStyle(color: Colors.white54, fontSize: 13)),
+      ],
     );
   }
 }
